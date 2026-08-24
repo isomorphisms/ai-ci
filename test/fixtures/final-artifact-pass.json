@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "check": "final-artifact",
+  "status": "PASS",
+  "commit": "1111111111111111111111111111111111111111",
+  "command": ["./bin/test-final-artifact"],
+  "environment": "ubuntu-24.04",
+  "artifact": {
+    "path": "dist/final.bin",
+    "sha256": "8e66be2ab9886022b717fb40736da9cb45d14bd009dc1a8ddb859601ea6f889d"
+  },
+  "observed_at": "2026-08-24T00:00:00.000Z"
+}

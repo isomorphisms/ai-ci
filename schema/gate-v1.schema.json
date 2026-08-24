@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/isomorphisms/ai-ci/schema/gate-v1.schema.json",
+  "title": "AI CI aggregate gate report version 1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "status", "expected_commit", "generated_at", "checks"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "status": { "enum": ["PASS", "FAIL", "NOT VERIFIED"] },
+    "expected_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "checks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "status", "reason", "evidence_file", "artifact"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "status": { "enum": ["PASS", "FAIL", "NOT VERIFIED"] },
+          "reason": { "type": "string", "minLength": 1 },
+          "evidence_file": { "type": ["string", "null"] },
+          "artifact": {
+            "type": ["object", "null"]
+          }
+        }
+      }
+    }
+  }
+}

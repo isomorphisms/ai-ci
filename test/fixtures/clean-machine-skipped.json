@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "check": "clean-machine-smoke",
+  "status": "skipped",
+  "commit": "1111111111111111111111111111111111111111",
+  "reason": "condition evaluated false"
+}

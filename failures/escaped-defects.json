@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "defects": [
+    {
+      "id": "false-green-aggregate",
+      "failure": "A workflow appeared green although a required check was skipped, blocked, cancelled, stale, absent, duplicate, or malformed.",
+      "missing_invariant": "Every required check must provide unambiguous executable evidence for the exact expected commit.",
+      "regression_fixture": "test/gate.test.mjs",
+      "scope": "shared",
+      "state": "enforced"
+    },
+    {
+      "id": "artifact-changed-after-test",
+      "failure": "The artifact available for upload or release was not necessarily the artifact that passed the test.",
+      "missing_invariant": "A passing artifact report must match the bytes present when the aggregate gate runs.",
+      "regression_fixture": "test/gate.test.mjs: changing an artifact after its test invalidates PASS",
+      "scope": "shared",
+      "state": "enforced"
+    },
+    {
+      "id": "released-bytes-differ",
+      "failure": "Uploaded or released bytes could differ from the locally tested bytes.",
+      "missing_invariant": "The downloaded published artifact must have the same SHA-256 as the tested artifact.",
+      "regression_fixture": "test/gate.test.mjs: same-bytes compares content rather than filenames",
+      "scope": "shared",
+      "state": "primitive-enforced-integration-pending"
+    },
+    {
+      "id": "android-final-apk",
+      "failure": "A green Android build did not establish that the final APK aligned, verified, installed, reinstalled with the same signer, and launched on the target Android version.",
+      "missing_invariant": "The exact signed final APK must pass alignment, signature, package identity, clean-install, same-signer reinstall, and launch checks on Android 14.",
+      "regression_fixture": null,
+      "scope": "shared-check-with-project-package-policy",
+      "state": "planned"
+    },
+    {
+      "id": "fresh-host-provisioning",
+      "failure": "Provisioning appeared complete without the documented stable command succeeding on a stock Debian, Ubuntu, or Hetzner host.",
+      "missing_invariant": "The documented entry command must succeed from a declared clean base image without ambient workstation state.",
+      "regression_fixture": null,
+      "scope": "shared-runner-with-project-command",
+      "state": "planned"
+    },
+    {
+      "id": "claimed-source-language-not-executed",
+      "failure": "Generated C compiled even though the claimed Grease or Idriç source-to-artifact path had not actually executed and an ambient fallback could satisfy CI.",
+      "missing_invariant": "The owned source language compiler and generated-output boundary must be observed, and undeclared fallback executors must be absent.",
+      "regression_fixture": null,
+      "scope": "shared-check-with-project-language-policy",
+      "state": "planned"
+    },
+    {
+      "id": "media-sources-diverged",
+      "failure": "Script, captions, on-screen text, and voiceover could diverge while individual files remained syntactically valid.",
+      "missing_invariant": "All derived text and voice assets must identify one canonical source and prove the expected derivation or exact transcript match.",
+      "regression_fixture": null,
+      "scope": "shared-validator-with-project-canonical-source",
+      "state": "planned"
+    },
+    {
+      "id": "asset-provenance-incomplete",
+      "failure": "A media asset could be present without preserving creator, source, license, and meaningful modification or uploader history required for reuse.",
+      "missing_invariant": "Every rendered external asset must resolve to a complete machine-checkable provenance entry appropriate to its license.",
+      "regression_fixture": null,
+      "scope": "shared-validator-with-project-manifest",
+      "state": "planned"
+    },
+    {
+      "id": "mathematical-scene-semantics-missing",
+      "failure": "A video rendered successfully while required mathematical objects or styles, such as visible red dotted perpendicular bisectors, were absent.",
+      "missing_invariant": "The scene must emit a semantic manifest and an independent check must establish each required object, relation, style, visibility interval, and safe-frame constraint.",
+      "regression_fixture": null,
+      "scope": "shared-manifest-validator-with-project-scene-contract",
+      "state": "planned"
+    }
+  ]
+}

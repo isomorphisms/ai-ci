@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "check": "clean-machine-smoke",
+  "status": "FAIL",
+  "commit": "1111111111111111111111111111111111111111",
+  "command": ["./bin/smoke"],
+  "environment": "debian-13-clean",
+  "reason": "documented command exited 1",
+  "observed_at": "2026-08-24T00:00:00.000Z"
+}

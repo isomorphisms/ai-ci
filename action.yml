@@ -1,0 +1,27 @@
+name: AI CI acceptance gate
+description: Fail closed unless every required check verifies the exact commit and artifact bytes
+inputs:
+  contract:
+    description: Path to the acceptance contract
+    required: false
+    default: .ai-ci/contract.json
+  evidence_dir:
+    description: Directory containing JSON evidence reports
+    required: false
+    default: .ai-ci/evidence
+  expected_commit:
+    description: Full 40-character commit SHA that every report must match
+    required: false
+  root:
+    description: Repository root used to resolve artifact paths
+    required: false
+    default: .
+  output:
+    description: Optional path for the aggregate JSON report
+    required: false
+outputs:
+  status:
+    description: PASS, FAIL, or NOT VERIFIED
+runs:
+  using: node20
+  main: action/index.mjs

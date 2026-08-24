@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "required_checks": [
+    {
+      "name": "final-artifact",
+      "artifact_required": true,
+      "description": "The final artifact was tested and has not changed."
+    },
+    {
+      "name": "clean-machine-smoke",
+      "artifact_required": false,
+      "description": "The documented command ran in the named clean environment."
+    }
+  ]
+}

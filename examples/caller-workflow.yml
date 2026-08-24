@@ -1,0 +1,55 @@
+name: Acceptance contract
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  acceptance:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out project
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Check out pinned AI CI
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphisms/ai-ci
+          ref: v1
+          path: .ai-ci-engine
+
+      - name: Run the final-artifact acceptance check
+        env:
+          EXACT_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: >-
+          node .ai-ci-engine/bin/ai-ci.mjs run
+          --check final-artifact
+          --commit "$EXACT_COMMIT"
+          --environment ubuntu-24.04
+          --artifact dist/final.bin
+          --output .ai-ci/evidence/final-artifact.json
+          -- ./bin/test-final-artifact dist/final.bin
+
+      - name: Run the clean-machine smoke check
+        env:
+          EXACT_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: >-
+          node .ai-ci-engine/bin/ai-ci.mjs run
+          --check clean-machine-smoke
+          --commit "$EXACT_COMMIT"
+          --environment ubuntu-24.04-clean-container
+          --output .ai-ci/evidence/clean-machine-smoke.json
+          -- ./bin/clean-machine-smoke
+
+      - name: Enforce the aggregate gate
+        uses: ./.ai-ci-engine
+        with:
+          contract: .ai-ci/contract.json
+          evidence_dir: .ai-ci/evidence
+          expected_commit: ${{ github.event.pull_request.head.sha || github.sha }}
+          root: .
+          output: .ai-ci/report.json
