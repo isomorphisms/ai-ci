@@ -20,6 +20,8 @@ runs the verifier against the finished repository or artifact tree.
 - workflow integrity: rejection of `continue-on-error`, shell `||`, and
   `set +e`; full-SHA action pins; and event-scoped coverage of critical paths;
 - language boundaries, including detecting shell files mislabeled as Grease.
+- evaluation-case manifests with explicit objectives, oracles, evidence,
+  provenance, variants, holdout splits, trial counts, and blocking status.
 
 Every required assertion has a good contract fixture and a targeted known-bad
 fixture in `tests/cases.tsv`. The self-test audits that coverage mechanically;
@@ -71,6 +73,7 @@ filesystem confinement through a symlinked root.
 The v0 Action requires a POSIX runner with a C17 `cc`; CI currently exercises
 Ubuntu 24.04. Native Windows runners are not yet supported.
 
-See `research/llm-failure-modes.md` for the empirical basis and
+See `docs/evaluation-protocol.md` for the normative evaluation method,
+`research/llm-failure-modes.md` for the empirical basis, and
 `docs/failure-ledger.md` for the reconstructed incident classes. The next
 contracts are in `docs/roadmap.md`.

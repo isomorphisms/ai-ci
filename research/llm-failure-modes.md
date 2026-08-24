@@ -11,6 +11,21 @@ criteria-based scoring instead of relying only on open-ended generation. The
 ai-ci translation is executable repository contracts, real failure fixtures,
 and continuous regression cases collected from observed incidents.
 
+[OpenAI's agent-evaluation guidance](https://developers.openai.com/api/docs/guides/agent-evals)
+adds traces as the debugging record for model calls, tool calls, guardrails,
+and handoffs, followed by datasets and repeatable eval runs once the behavior
+is understood. Its [Codex skill evaluation
+guide](https://developers.openai.com/blog/eval-skills) makes the evaluated unit
+explicit: prompt, captured trace and artifacts, targeted checks, and a score
+compared over time. It also separates outcome, process, style, and efficiency
+goals.
+
+**Contract implication:** capture the whole run and final state, declare success
+before inspecting a new candidate, grade each dimension separately, and keep
+the must-pass list small and conjunctive. The complete translation is normative
+in `docs/evaluation-protocol.md`; `evals/cases.tsv` is the first
+incident-derived corpus.
+
 ## Missing evidence and invented continuity
 
 [AbstentionBench](https://arxiv.org/abs/2506.09038) reports that abstention on

@@ -33,6 +33,13 @@
 
 ## Semantic review cases
 
+The case schema and initial incident-derived corpus now exist in
+`contracts/evaluation-case-v0.contract.tsv` and
+`evals/cases.tsv`. The next implementation step is a runner that
+captures traces and artifacts, applies deterministic gates first, and emits
+criterion-level `pass`, `fail`, or `uncertain` verdicts bound to the exact
+worker and evaluator revisions.
+
 - generic theta notes versus notes grounded in the named lecture, transcript,
   examples, questions, and timestamps;
 - Byrne motion with and without the perpendiculars that explain the invariant;

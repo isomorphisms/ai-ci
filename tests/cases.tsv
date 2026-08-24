@@ -30,5 +30,9 @@ fail	contracts/language-boundary-v0.contract.tsv	tests/fixtures/language-bad-sh	
 fail	contracts/language-boundary-v0.contract.tsv	tests/fixtures/language-missing-runtime	GREASE-INVOCATION
 fail	contracts/language-boundary-v0.contract.tsv	tests/fixtures/language-bash-plus-echo	GREASE-INVOCATION
 fail	contracts/language-boundary-v0.contract.tsv	tests/fixtures/language-dead-branch	GREASE-INVOCATION
+pass	contracts/evaluation-case-v0.contract.tsv	tests/fixtures/evaluation-good	-
+fail	contracts/evaluation-case-v0.contract.tsv	tests/fixtures/evaluation-empty	EVAL-CASES-EMPTY
+fail	contracts/evaluation-case-v0.contract.tsv	tests/fixtures/evaluation-bad-header	EVAL-CASES-HEADER
+fail	contracts/evaluation-case-v0.contract.tsv	tests/fixtures/evaluation-bad-fields	EVAL-CASES-FIELDS
 fail	tests/contracts/empty.contract.tsv	tests/fixtures/narrative-good	AICI-NO-ASSERTIONS
 fail	contracts/narrative-sync-v0.contract.tsv	tests/fixtures/narrative-missing-voiceover	NARRATIVE-SCRIPT-VOICEOVER
