@@ -25,6 +25,50 @@ filled with a plausible story.
 | Revision stack damage | Risked mixing unrelated edits, testing the wrong revision, or reporting a branch/base state different from the reviewed PR head. | Exact head/base graph and result-to-SHA binding are planned. Work for this repository is isolated on a topic branch. |
 | Non-idempotent generation | Allowed stale or duplicate generated outputs, or failed to remove outputs when an input disappeared. | Run-twice inventory equality and delete-an-input stale-output fixtures are planned. |
 
+## Recovered dated incidents
+
+The second Personal Context pass used broad chronological searches followed by
+queries for incidents named in the first results. “Direct” below means a user
+message was retrieved or remains in the available recent conversation context;
+it does not mean every surrounding turn was recovered.
+
+| Date | Evidence | Incident recovered |
+| --- | --- | --- |
+| 2026-08-21 | Direct user messages | `learn-toki-pona` had no releases; the supplied APK then “wouldn't install” and Android gave a generic error. Later inspection found `resources.arsc` uncompressed and not four-byte aligned because the build signed without first running `zipalign`. Package/signature checks had not proved installability. |
+| 2026-08-21 | Direct user constraint | The user wanted the implementation in Ithon, not Python. This recurred repeatedly over the next three days rather than being a marginal style preference. |
+| 2026-08-21 | Direct correction preserved in a screenshot | The assistant mixed up two architectures. Wegert already had a native Android EGL/OpenGL ES renderer and touch loop; analytic continuation should reuse them. A missing Ithon/Manimi bridge was not a blocker for the interactive view, while pre-rendered Manimi movies were a separate guided mode. |
+| 2026-08-22 | Direct user message | The assistant proposed an arbitrary degree-seven/eight-degree-of-freedom polynomial model for `analytic-continuation`. The user rejected it because “the whole point … is to get away from polynomials”: the aim was an infinite-dimensional random analytic completion, progressively conditioned by user constraints. A finite series cutoff could be an approximation, not the model's ontology. |
+| 2026-08-22 | Direct user message | “You're using bash instead of oil shell or Grease.” The user asked for the Grease source to be placed where required rather than silently substituting another shell. |
+| 2026-08-22 | Direct user message | `analytic-continuation` showed a black movie instead of the expected mathematical domain coloring. A green build or release could not establish correct playback or correct rendering semantics. |
+| 2026-08-23 | Direct correction sequence | Asked to recover an earlier chat, the assistant first confidently invented an F-Droid task (“fix MR !46503”), then guessed an `archive-org-reading-corpus` workflow. The target was titled “Finalize Internet Archive URL workflow” and concerned the Archive URL workflow on `ithon-rewrite`. This is the clearest recovered example of invented continuity under missing evidence. |
+| 2026-08-24 | Direct user messages and external status | The user required CI to inspect actual GitLab MR acceptance/comments and actual F-Droid visibility/version. Wegert PR #20's status job was green while its own output reported fdroiddata MR !46503 open with a failed pipeline, repository/public visibility problems, and package 0.1.100 not visible. Green meant the script ran, not that publication succeeded. |
+| 2026-08-24 | Direct user messages | The assistant repeatedly called Manimi “Manim”; the user corrected the project name and then corrected Python to Ithon. Elsewhere the user said to stop using Python and JavaScript, and after a Byrne render asked to verify that no Bash or Python had been introduced. The assistant later admitted `scene.py`, `render.sh`, and CI Bash violations; the nominal replacement had not yet been natively rerendered. |
+| 2026-08-24 | Direct recent conversation | The first Byrne III.31 render was good enough to commit as a test, but it omitted the red dotted perpendicular construction. Without those perpendiculars, the moving right-angle invariant was not actually explained. |
+| 2026-08-24 | Direct recent conversation | Pearcey corrections included a wrong minus sign, capital `T` instead of the actual changing limits, unnecessary decimal precision, starting too zoomed in, slow step sizes, stopping the cutoff at 3 without mathematical justification, ambiguous natural-caustic versus overlay presentation, and insufficient final hold. The user observed that the picture stabilized around cutoff 3–5 and wanted the pacing adjusted to that fact. |
+| 2026-08-24 | Direct recent conversation | Earlier theta video notes were treated as low-quality and unsettled because they were generic rather than grounded in the actual lecture, transcript, examples, questions, and timestamps. The user selected the Mellin direction and then noted that the intended Wegert colors were missing. |
+| 2026-08-24 | Direct user messages | For Byrne sources, use the CC BY-SA 4.0 diagrams as starting material with attribution, license link, modification note, and share-alike treatment; do not copy the author's HTML/CSS. For Wikipedia trigonometry assets, preserve the original creator plus meaningful later modification/uploader history rather than crediting only the latest uploader. |
+| 2026-08-24 | Direct user messages | The user asked for the assistant-authored video-suggestion notes to be marked with a dunce-cap warning when they were stupid and required smart-mode reconsideration. They also explicitly warned that polished assistant-generated recap prompts must not be counted as independent user complaints. |
+
+## Leads not yet corroborated by direct user messages
+
+Earlier assistant audits named the items below, but the second context search did
+not recover the underlying user turns. They remain search leads, not claims
+about what the user said:
+
+- noninteger polynomial coefficients rounded incorrectly in Wegert and
+  `analytic-continuation`, reportedly blocking several PRs;
+- Ithon PR #2 corrupting `∈` inside strings or compact expressions;
+- Game PR #2 scaling held items incorrectly and Game PR #3 fixing a permanent
+  package identity before confirmation;
+- Keyboard PR #3 describing 13 Regex actions for five keys;
+- `az` tests allegedly executing shipped YSH through Bash;
+- IB/ibrowser green tests allegedly missing stale-file and reharvest behavior;
+- concrete complaint details for Catfood, ICU, AbeBooks price tooling, PDF
+  harvesting, Indra's Pearls, and Field Mouse.
+
+These should not become regression fixtures until the original complaint,
+repository evidence, or an independently reproduced failure is recovered.
+
 ## Research-predicted recurrence risks
 
 These are not asserted as past incidents. They are regression families worth
