@@ -1,0 +1,3 @@
+steps:
+  - run: /bin/bash ci/check.ysh
+  - run: echo .grease/source/bin/ysh ci/check.ysh

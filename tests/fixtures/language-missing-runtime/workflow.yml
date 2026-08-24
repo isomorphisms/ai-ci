@@ -1,0 +1,2 @@
+steps:
+  - run: echo no Grease check is executed

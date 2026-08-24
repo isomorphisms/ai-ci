@@ -1,0 +1,2 @@
+steps:
+  - run: sh ci/check.ysh

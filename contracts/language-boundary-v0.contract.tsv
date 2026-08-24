@@ -1,0 +1,3 @@
+no_suffix	LANGUAGE-FORBIDDEN	.	.py,.sh
+suffix_first_line	GREASE-SHEBANG	.	.ysh	#!/usr/bin/env ysh
+script_runner	GREASE-INVOCATION	workflow.yml	ci/check.ysh	.grease/source/bin/ysh

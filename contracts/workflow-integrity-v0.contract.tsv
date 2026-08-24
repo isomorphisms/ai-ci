@@ -1,0 +1,5 @@
+yaml_forbid_key	WORKFLOW-CONTINUE	workflow.yml	continue-on-error
+not_contains	WORKFLOW-SWALLOW-OR	workflow.yml	||
+not_contains	WORKFLOW-SWALLOW-SET	workflow.yml	set +e
+actions_pinned	WORKFLOW-ACTION-PIN	workflow.yml
+yaml_paths	WORKFLOW-PATH-COVERAGE	critical-paths.txt	workflow.yml	pull_request

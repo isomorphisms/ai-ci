@@ -1,0 +1,7 @@
+name: release checks
+on: pull_request
+jobs:
+  check:
+    steps:
+      - uses: actions/checkout@v4
+      - run: ci/short_release_check.ysh

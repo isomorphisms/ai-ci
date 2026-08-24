@@ -1,0 +1,5 @@
+steps:
+  - run: |
+      if false; then
+        .grease/source/bin/ysh ci/check.ysh
+      fi
