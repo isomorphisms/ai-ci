@@ -23,10 +23,18 @@ export GIT_COMMITTER_EMAIL=ai-ci@example.invalid
 export GIT_COMMITTER_DATE=2026-08-25T12:00:00Z
 
 git init -q -b main "$seed"
-printf 'verified source\n' > "$seed/source.txt"
-git -C "$seed" add source.txt
-git -C "$seed" commit -q -m 'controlled source'
+mkdir -p "$seed/s"
+printf 'armv7 source payload\n' > "$seed/s/arm7.def"
+git -C "$seed" add s/arm7.def
+git -C "$seed" commit -q -m 'rename references but omit source file rename'
+git -C "$seed" tag broken
+
+git -C "$seed" mv s/arm7.def s/armv7.def
+GIT_AUTHOR_DATE=2026-08-25T12:01:00Z \
+GIT_COMMITTER_DATE=2026-08-25T12:01:00Z \
+    git -C "$seed" commit -q -m 'complete source file rename'
 git -C "$seed" tag verified
+
 git clone -q --bare "$seed" "$remote"
 
 mkdir -p "$(dirname "$output")"
@@ -54,6 +62,27 @@ record_failed_preflight() {
     printf 'source-preflight\t%s\t45b39d5\t-\tgit fetch --depth=1 origin 45b39d5\n' "$status" >> "$output"
 }
 
+record_valid_preflight() {
+    source=$1
+    init_fetch_repo "$preflight"
+    fetch_ref "$preflight" "$source"
+    preflight_revision=$(git -C "$preflight" rev-parse FETCH_HEAD)
+    printf 'source-preflight\tpass\t%s\t%s\tgit fetch --depth=1 origin %s\n' \
+        "$source" "$preflight_revision" "$source" >> "$output"
+}
+
+record_compatibility_probe() {
+    source=$1
+    revision=$2
+    if git -C "$preflight" cat-file -e FETCH_HEAD:s/armv7.def >/dev/null 2>&1; then
+        status=pass
+    else
+        status=fail
+    fi
+    printf 'source-compatibility\t%s\t%s\t%s\tgit cat-file -e FETCH_HEAD:s/armv7.def\n' \
+        "$status" "$source" "$revision" >> "$output"
+}
+
 case "$case_name" in
     bad-order)
         : > "$work/heavyweight-mutation"
@@ -63,30 +92,42 @@ case "$case_name" in
     bad-source)
         record_failed_preflight
         ;;
+    bad-no-compatibility)
+        source=refs/tags/verified
+        record_valid_preflight "$source"
+        : > "$work/heavyweight-mutation"
+        printf 'heavyweight-mutation\tpass\t-\t-\tpkg install clang make\n' >> "$output"
+        ;;
+    bad-tree)
+        source=refs/tags/broken
+        record_valid_preflight "$source"
+        record_compatibility_probe "$source" "$preflight_revision"
+        ;;
     good|bad-revision)
-        init_fetch_repo "$preflight"
-        fetch_ref "$preflight" refs/tags/verified
-        preflight_revision=$(git -C "$preflight" rev-parse FETCH_HEAD)
-        printf 'source-preflight\tpass\trefs/tags/verified\t%s\tgit fetch --depth=1 origin refs/tags/verified\n' "$preflight_revision" >> "$output"
+        source=refs/tags/verified
+        record_valid_preflight "$source"
+        record_compatibility_probe "$source" "$preflight_revision"
 
         : > "$work/heavyweight-mutation"
         printf 'heavyweight-mutation\tpass\t-\t-\tpkg install clang make\n' >> "$output"
 
         if [ "$case_name" = bad-revision ]; then
-            printf 'changed source\n' >> "$seed/source.txt"
-            git -C "$seed" add source.txt
-            GIT_AUTHOR_DATE=2026-08-25T12:01:00Z \
-            GIT_COMMITTER_DATE=2026-08-25T12:01:00Z \
+            printf 'changed source\n' >> "$seed/s/armv7.def"
+            git -C "$seed" add s/armv7.def
+            GIT_AUTHOR_DATE=2026-08-25T12:02:00Z \
+            GIT_COMMITTER_DATE=2026-08-25T12:02:00Z \
                 git -C "$seed" commit -q -m 'move controlled source'
             git -C "$seed" tag -f verified >/dev/null
             git -C "$seed" push -q --force "$remote" refs/tags/verified:refs/tags/verified
         fi
 
         init_fetch_repo "$acquire"
-        fetch_ref "$acquire" refs/tags/verified
+        fetch_ref "$acquire" "$source"
         acquired_revision=$(git -C "$acquire" rev-parse FETCH_HEAD)
-        printf 'source-acquire\tpass\trefs/tags/verified\t%s\tgit fetch --depth=1 origin refs/tags/verified\n' "$acquired_revision" >> "$output"
-        printf 'build\tpass\trefs/tags/verified\t%s\tmake -C source\n' "$acquired_revision" >> "$output"
+        printf 'source-acquire\tpass\t%s\t%s\tgit fetch --depth=1 origin %s\n' \
+            "$source" "$acquired_revision" "$source" >> "$output"
+        printf 'build\tpass\t%s\t%s\tmake -C source\n' \
+            "$source" "$acquired_revision" >> "$output"
         ;;
     *)
         echo "unknown build-preflight fixture: $case_name" >&2
