@@ -23,8 +23,12 @@
 
 ## Artifact probes
 
-- `video-acceptance`: decode the final MP4; check duration, dimensions, audio,
-  safe areas, and final hold from frames rather than a sidecar;
+- `video-acceptance` first slice is implemented in `video/`: decode the final
+  MP4; check declared duration, dimensions, frame rate, audio, codec, pixel
+  format, and explicit change/hold regions from frames rather than a sidecar;
+- `video-layout`: add safe-area and required-region checks only when the
+  consumer supplies inspectable geometry or masks; do not infer text boxes with
+  a brittle generic OCR threshold;
 - `android-install-launch`: verify alignment and signature, install the APK on
   the declared Android level, launch the expected package, and detect an early
   crash;

@@ -1,0 +1,9 @@
+# operation	code	path	arguments...
+video_decode	VIDEO-DECODE	short.mp4
+video_dimensions	VIDEO-DIMENSIONS	short.mp4	64	128
+video_duration	VIDEO-DURATION	short.mp4	1.90	2.10
+video_fps	VIDEO-FPS	short.mp4	10	0.05
+video_audio	VIDEO-AUDIO	short.mp4	absent
+video_encoding	VIDEO-ENCODING	short.mp4	h264	yuv420p
+video_frame_mae	VIDEO-EARLY-CHANGE	short.mp4	0.10	0.80	0	0	64	128	10	255
+video_frame_mae	VIDEO-FINAL-HOLD	short.mp4	1.20	1.80	0	0	64	128	0	2

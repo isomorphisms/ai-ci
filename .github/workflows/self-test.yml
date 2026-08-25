@@ -23,3 +23,27 @@ jobs:
         with:
           suite: tests/good-suite.tsv
           root: .
+
+  video-self-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Require FFmpeg probes
+        shell: sh
+        run: command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null
+      - name: Compile video verifier and fixture generator
+        shell: sh
+        run: |
+          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-video src/aici_video.c -lm
+          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-video-fixtures video/tests/make_video_fixtures.c
+      - name: Generate real MP4 fixtures
+        shell: sh
+        run: /tmp/aici-video-fixtures "$RUNNER_TEMP/aici-video-fixtures"
+      - name: Prove every video assertion rejects its targeted failure
+        shell: sh
+        run: /tmp/aici-video self-test video/tests/cases.tsv "$RUNNER_TEMP/aici-video-fixtures"
+      - name: Exercise the published video action
+        uses: ./video
+        with:
+          contract: video/contracts/short-release-v1.contract.tsv
+          root: ${{ runner.temp }}/aici-video-fixtures/good
