@@ -1,0 +1,25 @@
+name: ai-ci video verifier
+description: Decode and verify a finished video against an explicit artifact contract
+inputs:
+  contract:
+    description: Path to the consumer's video contract TSV
+    required: true
+  root:
+    description: Root containing the finished video artifact
+    required: false
+    default: .
+runs:
+  using: composite
+  steps:
+    - name: Check video probe dependencies
+      shell: sh
+      run: command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null
+    - name: Compile video verifier
+      shell: sh
+      run: cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o "$RUNNER_TEMP/aici-video" "$GITHUB_ACTION_PATH/../src/aici_video.c" -lm
+    - name: Verify finished video artifact
+      shell: sh
+      env:
+        AICI_VIDEO_CONTRACT: ${{ inputs.contract }}
+        AICI_VIDEO_ROOT: ${{ inputs.root }}
+      run: '"$RUNNER_TEMP/aici-video" verify "$AICI_VIDEO_CONTRACT" "$AICI_VIDEO_ROOT"'

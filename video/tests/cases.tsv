@@ -1,0 +1,10 @@
+# expected	contract	fixture	expected-first-diagnostic
+pass	video/contracts/short-release-v1.contract.tsv	good	-
+fail	video/contracts/short-release-v1.contract.tsv	bad-decode	VIDEO-DECODE
+fail	video/contracts/short-release-v1.contract.tsv	bad-dimensions	VIDEO-DIMENSIONS
+fail	video/contracts/short-release-v1.contract.tsv	bad-duration	VIDEO-DURATION
+fail	video/contracts/short-release-v1.contract.tsv	bad-fps	VIDEO-FPS
+fail	video/contracts/short-release-v1.contract.tsv	bad-audio	VIDEO-AUDIO
+fail	video/contracts/short-release-v1.contract.tsv	bad-encoding	VIDEO-ENCODING
+fail	video/contracts/short-release-v1.contract.tsv	bad-early-change	VIDEO-EARLY-CHANGE
+fail	video/contracts/short-release-v1.contract.tsv	bad-final-hold	VIDEO-FINAL-HOLD
