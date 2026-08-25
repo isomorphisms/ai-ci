@@ -28,6 +28,11 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Install FFmpeg probes
+        shell: sh
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends ffmpeg
       - name: Require FFmpeg probes
         shell: sh
         run: command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null
