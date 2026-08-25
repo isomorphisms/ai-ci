@@ -32,6 +32,8 @@ typedef struct ContractCoverage {
     struct ContractCoverage *next;
 } ContractCoverage;
 
+static char *trim(char *s);
+
 static int regular_file(const char *path) {
     struct stat info;
     return lstat(path, &info) == 0 && S_ISREG(info.st_mode);
@@ -255,6 +257,56 @@ static int file_contains(const char *path, const char *needle, int wanted) {
     found = strstr(data, needle) != NULL;
     free(data);
     return wanted ? found : !found;
+}
+
+static int scoped_file_contains(const char *path, const char *scope,
+                                const char *needle, int wanted) {
+    FILE *file = fopen(path, "r");
+    char *line = NULL;
+    size_t capacity = 0;
+    ssize_t length;
+    int scope_seen = 0;
+    int found = 0;
+    int ok = 1;
+    if (file == NULL || !regular_file(path)) {
+        if (file != NULL) fclose(file);
+        return 0;
+    }
+    while ((length = getline(&line, &capacity, file)) >= 0) {
+        char *content;
+        char *separator;
+        char *record_scope;
+        char *message;
+        if (length > AICI_LINE_MAX ||
+            memchr(line, '\0', (size_t)length) != NULL) {
+            ok = 0;
+            break;
+        }
+        while (length > 0 &&
+               (line[length - 1] == '\n' || line[length - 1] == '\r')) {
+            line[--length] = '\0';
+        }
+        content = trim(line);
+        if (*content == '\0' || *content == '#') continue;
+        separator = strchr(content, '\t');
+        if (separator == NULL) {
+            ok = 0;
+            break;
+        }
+        *separator = '\0';
+        record_scope = trim(content);
+        message = separator + 1;
+        if (*record_scope == '\0' || *message == '\0') {
+            ok = 0;
+            break;
+        }
+        if (strcmp(record_scope, scope) != 0) continue;
+        scope_seen = 1;
+        if (strstr(message, needle) != NULL) found = 1;
+    }
+    free(line);
+    fclose(file);
+    return ok && scope_seen && (wanted ? found : !found);
 }
 
 static char *trim(char *s) {
@@ -971,6 +1023,22 @@ static int verify_contract(const char *contract_path, const char *root,
                         !join_path(left, sizeof(left), root, fields[2]);
             if (!malformed) ok = file_contains(left, fields[3], 0);
             snprintf(detail, sizeof(detail), "%s :: %s", fields[2], fields[3]);
+        } else if (strcmp(operation, "scoped_contains") == 0 && count == 5) {
+            malformed = fields[3][0] == '\0' || fields[4][0] == '\0' ||
+                        !join_path(left, sizeof(left), root, fields[2]);
+            if (!malformed) {
+                ok = scoped_file_contains(left, fields[3], fields[4], 1);
+            }
+            snprintf(detail, sizeof(detail), "%s scope=%s :: %s",
+                     fields[2], fields[3], fields[4]);
+        } else if (strcmp(operation, "scoped_not_contains") == 0 && count == 5) {
+            malformed = fields[3][0] == '\0' || fields[4][0] == '\0' ||
+                        !join_path(left, sizeof(left), root, fields[2]);
+            if (!malformed) {
+                ok = scoped_file_contains(left, fields[3], fields[4], 0);
+            }
+            snprintf(detail, sizeof(detail), "%s scope=%s excludes %s",
+                     fields[2], fields[3], fields[4]);
         } else if (strcmp(operation, "tsv") == 0 && count == 5) {
             int minimum_fields = 0;
             int minimum_rows = 0;

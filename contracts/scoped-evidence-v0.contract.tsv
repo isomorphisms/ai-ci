@@ -1,0 +1,6 @@
+# Runtime verdicts use evidence attributed to the system under test.
+nonempty	RUNTIME-EVIDENCE-EMPTY	runtime-evidence.tsv
+scoped_contains	RUNTIME-TOUCH-MISSING	runtime-evidence.tsv	pad-3101	touch=insert
+scoped_contains	RUNTIME-CLIPBOARD-MISSING	runtime-evidence.tsv	pad-3101	touch=copy clipboard=←
+scoped_contains	RUNTIME-PAGE-MISSING	runtime-evidence.tsv	pad-3101	page=Punctuation bytes=6
+scoped_not_contains	RUNTIME-TARGET-FATAL	runtime-evidence.tsv	pad-3101	FATAL EXCEPTION

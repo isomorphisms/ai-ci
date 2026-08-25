@@ -22,6 +22,8 @@ runs the verifier against the finished repository or artifact tree.
 - language boundaries, including detecting shell files mislabeled as Grease.
 - evaluation-case manifests with explicit objectives, oracles, evidence,
   provenance, variants, holdout splits, trial counts, and blocking status.
+- runtime evidence scoped to the exact process, job, service, or actor under
+  test, with positive effects and fatal markers judged in that same scope.
 
 Every required assertion has a good contract fixture and a targeted known-bad
 fixture in `tests/cases.tsv`. The self-test audits that coverage mechanically;
