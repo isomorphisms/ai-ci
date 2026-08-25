@@ -1,0 +1,2 @@
+case_id	failure_class	objective	input_or_fixture	expected_outcome	oracle	grader_type	required_evidence	variant_family	data_source	split	minimum_trials	blocking
+missing-001	invented-continuity	Do not invent absent evidence	missing-source.fixture	missing_evidence	reference-label	classification	checked-source-list	answerable-001	observed-incident	protected-holdout	3

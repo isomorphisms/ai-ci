@@ -1,0 +1,12 @@
+name: release checks
+on:
+  pull_request:
+    paths:
+      - ci/short_release_check.ysh
+      - ci/test_short_release_check.ysh
+      - lib/media.ysh
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683

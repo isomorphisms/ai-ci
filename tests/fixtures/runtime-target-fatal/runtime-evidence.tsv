@@ -1,0 +1,5 @@
+pad-3101	touch=insert page=Unicode bytes=3
+pad-3101	touch=copy clipboard=←
+pad-3101	touch=page page=Punctuation bytes=3
+pad-3101	touch=insert page=Punctuation bytes=6
+pad-3101	FATAL EXCEPTION: native pad crashed

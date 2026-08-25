@@ -1,0 +1,2 @@
+id	class	goal	input	expected	oracle	grader	evidence	variants	source	split	trials	blocking
+missing-001	invented-continuity	Do not invent absent evidence	missing-source.fixture	missing_evidence	reference-label	classification	checked-source-list	answerable-001	observed-incident	protected-holdout	3	yes

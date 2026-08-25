@@ -1,0 +1,3 @@
+#!/usr/bin/env ysh
+set -o errexit
+echo 'never actually run by YSH'

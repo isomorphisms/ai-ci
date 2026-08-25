@@ -1,0 +1,2 @@
+#!/usr/bin/env ysh
+echo 'valid primary check'

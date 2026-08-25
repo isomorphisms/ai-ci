@@ -1,0 +1,6 @@
+contracts/narrative-sync-v0.contract.tsv	tests/fixtures/narrative-good
+contracts/asset-provenance-v0.contract.tsv	tests/fixtures/provenance-good
+contracts/workflow-integrity-v0.contract.tsv	tests/fixtures/workflow-good
+contracts/language-boundary-v0.contract.tsv	tests/fixtures/language-good
+contracts/evaluation-case-v0.contract.tsv	.
+contracts/scoped-evidence-v0.contract.tsv	tests/fixtures/runtime-unrelated-noise

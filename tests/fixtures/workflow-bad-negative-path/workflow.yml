@@ -1,0 +1,9 @@
+on:
+  pull_request:
+    paths:
+      - ci/check.ysh
+      - '!ci/check.ysh'
+jobs:
+  check:
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683

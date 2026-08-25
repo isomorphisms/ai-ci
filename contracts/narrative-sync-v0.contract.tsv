@@ -1,0 +1,4 @@
+# Canonical script, voiceover input text, and caption text are byte-identical.
+nonempty	NARRATIVE-SCRIPT-EMPTY	script.txt
+equal	NARRATIVE-SCRIPT-VOICEOVER	script.txt	voiceover.txt
+equal	NARRATIVE-SCRIPT-CAPTIONS	script.txt	captions.txt

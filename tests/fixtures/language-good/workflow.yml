@@ -1,0 +1,2 @@
+steps:
+  - run: .grease/source/bin/ysh ci/check.ysh
