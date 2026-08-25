@@ -1,0 +1,14 @@
+# Example ABI-split contract using F-Droid signing. Replace every example value.
+receipt	FDROID-RECEIPT
+release	FDROID-RELEASE-IDENTITY	org.example.game	1.0.0	1002	1111111111111111111111111111111111111111
+toolchain	FDROID-TOOLCHAIN	4498e27635a1c3b737510342c1f2355c25ce0211	6af4c4216e43d0fcb29e33919cd0fe8fef7e7400	registry.gitlab.com/fdroid/fdroidserver:buildserver-trixie@sha256:9bae53bb4ddbf8fa5bb7385bf2e62e7c6318f99ab0d25b2a551ad38abb528068
+profile	candidate-v1
+signing	fdroid
+native	yes
+artifact	FDROID-SPLIT-ARMV7-ONE	armv7-rebuild-1	rebuild	org.example.game	1.0.0	1001	armeabi-v7a
+artifact	FDROID-SPLIT-ARMV7-TWO	armv7-rebuild-2	rebuild	org.example.game	1.0.0	1001	armeabi-v7a
+artifact	FDROID-SPLIT-ARM64-ONE	arm64-rebuild-1	rebuild	org.example.game	1.0.0	1002	arm64-v8a
+artifact	FDROID-SPLIT-ARM64-TWO	arm64-rebuild-2	rebuild	org.example.game	1.0.0	1002	arm64-v8a
+same_artifact	FDROID-SPLIT-ARMV7-REBUILD	armv7-rebuild-1	armv7-rebuild-2
+same_artifact	FDROID-SPLIT-ARM64-REBUILD	arm64-rebuild-1	arm64-rebuild-2
+abi_order	FDROID-ABI-VERSION-ORDER	armv7-rebuild-1	arm64-rebuild-1

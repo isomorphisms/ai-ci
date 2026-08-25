@@ -1,0 +1,29 @@
+name: ai-ci F-Droid release verifier
+description: Fail closed on incomplete, stale, or non-reproducible F-Droid release evidence
+inputs:
+  contract:
+    description: Path to the consumer's F-Droid release contract TSV
+    required: true
+  receipt:
+    description: Path to the commit-bound F-Droid evidence receipt TSV
+    required: true
+  root:
+    description: Root containing receipt witnesses and APK artifacts
+    required: false
+    default: .
+runs:
+  using: composite
+  steps:
+    - name: Require artifact probes
+      shell: sh
+      run: command -v sha256sum >/dev/null && command -v unzip >/dev/null
+    - name: Compile F-Droid receipt verifier
+      shell: sh
+      run: cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o "$RUNNER_TEMP/aici-fdroid" "$GITHUB_ACTION_PATH/../src/aici_fdroid.c"
+    - name: Verify F-Droid release evidence and APK bytes
+      shell: sh
+      env:
+        AICI_FDROID_CONTRACT: ${{ inputs.contract }}
+        AICI_FDROID_RECEIPT: ${{ inputs.receipt }}
+        AICI_FDROID_ROOT: ${{ inputs.root }}
+      run: '"$RUNNER_TEMP/aici-fdroid" verify "$AICI_FDROID_CONTRACT" "$AICI_FDROID_RECEIPT" "$AICI_FDROID_ROOT"'

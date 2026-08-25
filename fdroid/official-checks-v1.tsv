@@ -1,0 +1,29 @@
+# Snapshot of app-facing fdroiddata checks at fdroiddata 4498e27635a1c3b737510342c1f2355c25ce0211.
+# check	origin	minimum command or observation
+source-public	F-Droid inclusion policy	Acquire the public Repo URL and resolve the metadata commit to the contract source revision before heavyweight setup.
+license-review	F-Droid inclusion policy	Review code and every shipped dependency/asset license at the contract source revision.
+dependency-review	F-Droid inclusion policy	Review non-free dependencies/services, tracking, ads, executable downloads, and anti-features at the contract source revision.
+tag-binding	F-Droid metadata reference	Resolve the release tag and require the metadata Build.commit to be the same full immutable source revision.
+version-history	F-Droid ABI split guidance	Inspect retained APKs/build blocks and require every new version code to exceed every prior version code.
+metadata-read	F-Droid contributor workflow	fdroid readmeta
+metadata-schema	fdroiddata schema validation	check-jsonschema --schemafile schemas/metadata.json metadata/APPID.yml
+metadata-rewrite	fdroiddata fdroid rewritemeta	fdroid rewritemeta APPID; require no metadata diff
+metadata-lint	fdroiddata fdroid lint	fdroid lint APPID
+update-check	fdroiddata checkupdates	fdroid checkupdates --auto -v APPID; require no unexpected diff
+git-redirect	fdroiddata git redirect	tools/rewrite-git-redirects.py APPID; require no diff
+metadata-tools	fdroiddata tools check scripts	Run current image/EXIF, localized metadata, summary whitespace, key-alias, and unattached-signature checks.
+fastlane	fdroiddata check source code	Run tools/check-fastlane.py APPID and inspect its code-quality JSON; exit zero alone is not acceptance. Require the release title, en-US summary and full description, icon, screenshots, and version-code changelog declared by the consumer policy.
+fdroid-build	fdroiddata fdroid build	fdroid build --verbose --test --refresh-scanner --on-server --no-tarball APPID:VERCODE
+gradle-audit	fdroiddata fdroid build	tools/audit-gradle.py APPID; this checks plain-HTTP repositories only and is not a build-input pinning check.
+build-input-pinning	ai-ci reproducibility policy	Record the exact Gradle distribution selected by F-Droid and its digest, pin build plugins and required JDK/SDK/NDK/CMake inputs, and reject dynamic or snapshot dependencies and mutable source/tool refs unless an immutable resolved input closure is preserved.
+source-scan	fdroidserver build scanner	Preserve the source-scanner result from the exact fdroid build.
+apk-scan	fdroiddata check apk	fdroid scanner --verbose --exit-code APK
+apk-identity	fdroiddata check apk	Read package/version/manifest flags and native ABI entries from the finished APK.
+signing-policy	F-Droid publish policy	Prove unsigned F-Droid-signing input or the exact allowed upstream signing key and binary URL.
+install-launch	F-Droid quality policy	Install and launch the exact candidate APK, then run the project's declared smoke path.
+upstream-reproducible	F-Droid reproducible publish	fdroid publish --verbose --error-on-failed APPID:VERCODE
+signing-key	F-Droid reproducible publish	Verify the upstream APK certificate against AllowedAPKSigningKeys.
+fdroiddata-pipeline	Official GitLab pipeline	Require the exact submitted fdroiddata head pipeline to succeed; querying it successfully is not enough.
+fdroiddata-review	F-Droid maintainer review	Require resolved review and accepted/merged state for the exact submitted metadata revision.
+published-index	F-Droid public repository	Require the exact package/version in the signed public index.
+published-install	Published artifact acceptance	Install the indexed APK and confirm the expected package/version and smoke path.
