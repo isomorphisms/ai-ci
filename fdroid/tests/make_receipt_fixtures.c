@@ -12,8 +12,8 @@
 #include <unistd.h>
 
 #define PATH_MAXIMUM 4096
-#define CHECK_COUNT 26
-#define CANDIDATE_CHECK_COUNT 20
+#define CHECK_COUNT 27
+#define CANDIDATE_CHECK_COUNT 21
 
 static const char *source_revision = "1111111111111111111111111111111111111111";
 static const char *fdroiddata_revision = "4498e27635a1c3b737510342c1f2355c25ce0211";
@@ -47,6 +47,7 @@ static const Check checks[CHECK_COUNT] = {
     {"fastlane", "FDROID-FASTLANE"},
     {"fdroid-build", "FDROID-BUILD"},
     {"gradle-audit", "FDROID-GRADLE-AUDIT"},
+    {"build-input-pinning", "FDROID-BUILD-INPUT-PINNING"},
     {"source-scan", "FDROID-SOURCE-SCAN"},
     {"apk-scan", "FDROID-APK-SCAN"},
     {"apk-identity", "FDROID-APK-IDENTITY"},

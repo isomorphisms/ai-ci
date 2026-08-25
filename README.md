@@ -122,7 +122,9 @@ For an F-Droid release receipt:
 
 The runner must provide `sha256sum`, `unzip`, and a C17 compiler. The action
 verifies evidence and finished APK bytes; the receipt-producing job must run the
-pinned F-Droid tools and preserve their independent logs.
+pinned F-Droid tools, reject mutable build inputs, inspect Fastlane's
+code-quality report, and preserve the independent logs. Its trusted caller must
+also anchor the contract's source revision to the release ref or CI event.
 
 ## Limits
 

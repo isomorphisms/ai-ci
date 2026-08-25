@@ -135,6 +135,7 @@ static const RequiredCheck candidate_checks[] = {
     {"fastlane", "FDROID-FASTLANE"},
     {"fdroid-build", "FDROID-BUILD"},
     {"gradle-audit", "FDROID-GRADLE-AUDIT"},
+    {"build-input-pinning", "FDROID-BUILD-INPUT-PINNING"},
     {"source-scan", "FDROID-SOURCE-SCAN"},
     {"apk-scan", "FDROID-APK-SCAN"},
     {"apk-identity", "FDROID-APK-IDENTITY"},

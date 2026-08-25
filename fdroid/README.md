@@ -121,9 +121,10 @@ The candidate profile requires these check names:
 | `update-check` | The current fdroiddata update check made no unexpected change. |
 | `git-redirect` | The repository URL is direct rather than a redirect. |
 | `metadata-tools` | Current fdroiddata localized-metadata, image/EXIF, summary, and signature checks passed. |
-| `fastlane` | Current fdroiddata source/Fastlane check passed for title, descriptions, icon, screenshots, and changelog. |
+| `fastlane` | Run the current fdroiddata source/Fastlane check, inspect its code-quality JSON rather than trusting exit zero, and require the release title, en-US summary and full description, icon, screenshots, and version-code changelog. |
 | `fdroid-build` | The production-like buildserver job built the declared app/version from source with scanner refresh enabled. |
-| `gradle-audit` | Current fdroiddata Gradle audit passed. |
+| `gradle-audit` | Current fdroiddata Gradle audit passed. At the pinned snapshot this only rejects plain-HTTP Gradle repositories. |
+| `build-input-pinning` | The exact Gradle distribution selected by F-Droid and its digest, build plugins, required JDK/SDK/NDK/CMake inputs, and dependency closure are immutable and recorded; dynamic versions, snapshots, and mutable source/tool refs block unless resolved to a preserved immutable closure. |
 | `source-scan` | F-Droid's source scanner found no undeclared/unacceptable binary input. |
 | `apk-scan` | `fdroid scanner --exit-code` accepted the finished APK. |
 | `apk-identity` | Package, version name, version code, manifest flags, and ABI contents were read from the finished APK itself. |
@@ -139,6 +140,13 @@ The candidate profile requires these check names:
 produce those witnesses. The receipt-producing workflow is trusted executable
 policy: keep it reviewed and do not let untrusted pull requests replace it or
 run it in a secret-bearing context.
+
+The verifier hashes ordinary witness files but does not interpret their log
+contents or prove that the claimed commands ran. The trusted producer must make
+that judgment before writing `pass`; a copied or hand-authored receipt is not
+independent evidence. The contract and caller are also trusted policy. They must
+anchor `source_revision` to the release ref or CI event outside the receipt, or
+an old internally consistent receipt can be replayed.
 
 ## Use
 
