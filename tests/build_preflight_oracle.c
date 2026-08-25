@@ -14,6 +14,7 @@
 typedef struct {
     int passed;
     int mutation_before_source;
+    int mutation_before_compatibility;
     char code[CODE_MAXIMUM];
     int line;
 } CheckResult;
@@ -85,6 +86,13 @@ static int exact_header(char *line) {
            strcmp(fields[4], "command") == 0;
 }
 
+static int same_verified_source(const char *source, const char *revision,
+                                const char *preflight_source,
+                                const char *preflight_revision) {
+    return strcmp(source, preflight_source) == 0 &&
+           strcmp(revision, preflight_revision) == 0;
+}
+
 static int check_trace(const char *path, CheckResult *result) {
     FILE *file = fopen(path, "r");
     char *line = NULL;
@@ -93,6 +101,7 @@ static int check_trace(const char *path, CheckResult *result) {
     int line_number = 0;
     int header_seen = 0;
     int valid_preflight_seen = 0;
+    int compatibility_seen = 0;
     int mutation_seen = 0;
     int acquire_seen = 0;
     int build_seen = 0;
@@ -159,33 +168,54 @@ static int check_trace(const char *path, CheckResult *result) {
                 if (!valid_preflight_seen) {
                     snprintf(preflight_source, sizeof(preflight_source), "%s", source);
                     snprintf(preflight_revision, sizeof(preflight_revision), "%s", revision);
-                } else if (strcmp(preflight_source, source) != 0 ||
-                           strcmp(preflight_revision, revision) != 0) {
+                } else if (!same_verified_source(source, revision,
+                                                 preflight_source,
+                                                 preflight_revision)) {
                     fail(result, "BUILD-PREFLIGHT-REVISION-MISMATCH", line_number);
                     break;
                 }
                 valid_preflight_seen = 1;
             }
+        } else if (strcmp(event, "source-compatibility") == 0) {
+            if (!valid_preflight_seen ||
+                !same_verified_source(source, revision,
+                                      preflight_source, preflight_revision)) {
+                fail(result, "BUILD-PREFLIGHT-REVISION-MISMATCH", line_number);
+                break;
+            }
+            if (strcmp(status, "pass") != 0) {
+                fail(result, "BUILD-PREFLIGHT-SOURCE-INCOMPATIBLE", line_number);
+                break;
+            }
+            compatibility_seen = 1;
         } else if (strcmp(event, "heavyweight-mutation") == 0) {
             mutation_seen = 1;
             if (!valid_preflight_seen) {
                 result->mutation_before_source = 1;
+                result->mutation_before_compatibility = 1;
                 fail(result, "BUILD-PREFLIGHT-MUTATION-BEFORE-SOURCE", line_number);
+                break;
+            }
+            if (!compatibility_seen) {
+                result->mutation_before_compatibility = 1;
+                fail(result, "BUILD-PREFLIGHT-MUTATION-BEFORE-COMPATIBILITY", line_number);
                 break;
             }
         } else if (strcmp(event, "source-acquire") == 0) {
             acquire_seen = 1;
-            if (!valid_preflight_seen || strcmp(status, "pass") != 0 ||
-                strcmp(source, preflight_source) != 0 ||
-                strcmp(revision, preflight_revision) != 0) {
+            if (!valid_preflight_seen || !compatibility_seen ||
+                strcmp(status, "pass") != 0 ||
+                !same_verified_source(source, revision,
+                                      preflight_source, preflight_revision)) {
                 fail(result, "BUILD-PREFLIGHT-REVISION-MISMATCH", line_number);
                 break;
             }
         } else if (strcmp(event, "build") == 0) {
             build_seen = 1;
-            if (!valid_preflight_seen || strcmp(status, "pass") != 0 ||
-                strcmp(source, preflight_source) != 0 ||
-                strcmp(revision, preflight_revision) != 0) {
+            if (!valid_preflight_seen || !compatibility_seen ||
+                strcmp(status, "pass") != 0 ||
+                !same_verified_source(source, revision,
+                                      preflight_source, preflight_revision)) {
                 fail(result, "BUILD-PREFLIGHT-REVISION-MISMATCH", line_number);
                 break;
             }
@@ -204,6 +234,9 @@ static int check_trace(const char *path, CheckResult *result) {
     if (result->passed && !valid_preflight_seen) {
         fail(result, "BUILD-PREFLIGHT-SOURCE-UNVERIFIED", 0);
     }
+    if (result->passed && !compatibility_seen) {
+        fail(result, "BUILD-PREFLIGHT-SOURCE-COMPATIBILITY-UNVERIFIED", 0);
+    }
     if (result->passed && (!mutation_seen || !acquire_seen || !build_seen)) {
         fail(result, "BUILD-PREFLIGHT-TRACE-INCOMPLETE", 0);
     }
@@ -212,11 +245,13 @@ static int check_trace(const char *path, CheckResult *result) {
 
 static void print_result(const CheckResult *result) {
     printf("{\"status\":\"%s\",\"code\":\"%s\",\"line\":%d,"
-           "\"heavyweightMutationBeforeSource\":%s}\n",
+           "\"heavyweightMutationBeforeSource\":%s,"
+           "\"heavyweightMutationBeforeCompatibility\":%s}\n",
            result->passed ? "pass" : "fail",
            result->passed ? "-" : result->code,
            result->line,
-           result->mutation_before_source ? "true" : "false");
+           result->mutation_before_source ? "true" : "false",
+           result->mutation_before_compatibility ? "true" : "false");
 }
 
 static int run_self_test(const char *cases_path) {
@@ -231,13 +266,14 @@ static int run_self_test(const char *cases_path) {
         return 0;
     }
     while ((length = getline(&line, &capacity, cases)) >= 0) {
-        char *fields[4];
+        char *fields[5];
         char *content;
         int count;
         int expected_pass;
         int actual_pass;
         int case_ok;
         int expected_mutation_before_source;
+        int expected_mutation_before_compatibility;
         CheckResult result;
         if (length > LINE_MAXIMUM) {
             ++failures;
@@ -245,30 +281,35 @@ static int run_self_test(const char *cases_path) {
         }
         content = trim(line);
         if (*content == '\0' || *content == '#') continue;
-        count = split_tabs(content, fields, 4);
-        if (count != 4 ||
+        count = split_tabs(content, fields, 5);
+        if (count != 5 ||
             (strcmp(fields[0], "pass") != 0 && strcmp(fields[0], "fail") != 0) ||
             (strcmp(fields[0], "pass") == 0 && strcmp(fields[2], "-") != 0) ||
             (strcmp(fields[0], "fail") == 0 &&
              (fields[2][0] == '\0' || strcmp(fields[2], "-") == 0)) ||
-            (strcmp(fields[3], "true") != 0 && strcmp(fields[3], "false") != 0)) {
+            (strcmp(fields[3], "true") != 0 && strcmp(fields[3], "false") != 0) ||
+            (strcmp(fields[4], "true") != 0 && strcmp(fields[4], "false") != 0)) {
             ++failures;
             continue;
         }
         ++cases_seen;
         expected_pass = strcmp(fields[0], "pass") == 0;
         expected_mutation_before_source = strcmp(fields[3], "true") == 0;
+        expected_mutation_before_compatibility = strcmp(fields[4], "true") == 0;
         actual_pass = check_trace(fields[1], &result);
         case_ok = (expected_pass ? actual_pass :
                    (!actual_pass && strcmp(result.code, fields[2]) == 0)) &&
-                  result.mutation_before_source == expected_mutation_before_source;
+                  result.mutation_before_source == expected_mutation_before_source &&
+                  result.mutation_before_compatibility == expected_mutation_before_compatibility;
         if (!case_ok) ++failures;
         printf("{\"kind\":\"build-preflight-self-test\",\"status\":\"%s\","
                "\"fixture\":\"%s\",\"expected\":\"%s\",\"observedCode\":\"%s\","
-               "\"heavyweightMutationBeforeSource\":%s}\n",
+               "\"heavyweightMutationBeforeSource\":%s,"
+               "\"heavyweightMutationBeforeCompatibility\":%s}\n",
                case_ok ? "pass" : "fail", fields[1], fields[0],
                result.passed ? "-" : result.code,
-               result.mutation_before_source ? "true" : "false");
+               result.mutation_before_source ? "true" : "false",
+               result.mutation_before_compatibility ? "true" : "false");
     }
     free(line);
     fclose(cases);
