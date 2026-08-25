@@ -27,6 +27,8 @@ jobs:
           tests/build-preflight/fixture.sh bad-order tests/build-preflight/bad-order.trace.tsv
           tests/build-preflight/fixture.sh bad-source tests/build-preflight/bad-source.trace.tsv
           tests/build-preflight/fixture.sh bad-revision tests/build-preflight/bad-revision.trace.tsv
+          tests/build-preflight/fixture.sh bad-no-compatibility tests/build-preflight/bad-no-compatibility.trace.tsv
+          tests/build-preflight/fixture.sh bad-tree tests/build-preflight/bad-tree.trace.tsv
           /tmp/aici-build-preflight self-test tests/build-preflight/cases.tsv
           git diff --exit-code -- tests/build-preflight/*.trace.tsv
       - name: Exercise the published composite action
