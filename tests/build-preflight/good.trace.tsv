@@ -1,0 +1,5 @@
+event	status	source	revision	command
+source-preflight	pass	refs/tags/verified	825fd4a86b171dc7bf212a81a1ca9ef4c579dfc8	git fetch --depth=1 origin refs/tags/verified
+heavyweight-mutation	pass	-	-	pkg install clang make
+source-acquire	pass	refs/tags/verified	825fd4a86b171dc7bf212a81a1ca9ef4c579dfc8	git fetch --depth=1 origin refs/tags/verified
+build	pass	refs/tags/verified	825fd4a86b171dc7bf212a81a1ca9ef4c579dfc8	make -C source

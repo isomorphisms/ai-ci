@@ -1,0 +1,5 @@
+# expected	trace	exact diagnostic	heavyweight mutation before source
+pass	tests/build-preflight/good.trace.tsv	-	false
+fail	tests/build-preflight/bad-order.trace.tsv	BUILD-PREFLIGHT-MUTATION-BEFORE-SOURCE	true
+fail	tests/build-preflight/bad-source.trace.tsv	BUILD-PREFLIGHT-SOURCE-UNVERIFIED	false
+fail	tests/build-preflight/bad-revision.trace.tsv	BUILD-PREFLIGHT-REVISION-MISMATCH	false

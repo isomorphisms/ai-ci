@@ -12,12 +12,23 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - name: Compile independent verifier
+      - name: Compile independent verifiers
         shell: sh
-        run: cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici src/aici.c
+        run: |
+          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici src/aici.c
+          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-build-preflight tests/build_preflight_oracle.c
       - name: Prove bad fixtures are rejected
         shell: sh
         run: /tmp/aici self-test tests/cases.tsv
+      - name: Prove source preflight gates heavyweight mutation
+        shell: sh
+        run: |
+          tests/build-preflight/fixture.sh good tests/build-preflight/good.trace.tsv
+          tests/build-preflight/fixture.sh bad-order tests/build-preflight/bad-order.trace.tsv
+          tests/build-preflight/fixture.sh bad-source tests/build-preflight/bad-source.trace.tsv
+          tests/build-preflight/fixture.sh bad-revision tests/build-preflight/bad-revision.trace.tsv
+          /tmp/aici-build-preflight self-test tests/build-preflight/cases.tsv
+          git diff --exit-code -- tests/build-preflight/*.trace.tsv
       - name: Exercise the published composite action
         uses: ./
         with:
