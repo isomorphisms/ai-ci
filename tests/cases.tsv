@@ -34,5 +34,12 @@ pass	contracts/evaluation-case-v0.contract.tsv	tests/fixtures/evaluation-good	-
 fail	contracts/evaluation-case-v0.contract.tsv	tests/fixtures/evaluation-empty	EVAL-CASES-EMPTY
 fail	contracts/evaluation-case-v0.contract.tsv	tests/fixtures/evaluation-bad-header	EVAL-CASES-HEADER
 fail	contracts/evaluation-case-v0.contract.tsv	tests/fixtures/evaluation-bad-fields	EVAL-CASES-FIELDS
+pass	contracts/scoped-evidence-v0.contract.tsv	tests/fixtures/runtime-unrelated-noise	-
+fail	contracts/scoped-evidence-v0.contract.tsv	tests/fixtures/runtime-empty	RUNTIME-EVIDENCE-EMPTY
+fail	contracts/scoped-evidence-v0.contract.tsv	tests/fixtures/runtime-target-absent	RUNTIME-TOUCH-MISSING
+fail	contracts/scoped-evidence-v0.contract.tsv	tests/fixtures/runtime-missing-touch	RUNTIME-TOUCH-MISSING
+fail	contracts/scoped-evidence-v0.contract.tsv	tests/fixtures/runtime-missing-clipboard	RUNTIME-CLIPBOARD-MISSING
+fail	contracts/scoped-evidence-v0.contract.tsv	tests/fixtures/runtime-missing-page	RUNTIME-PAGE-MISSING
+fail	contracts/scoped-evidence-v0.contract.tsv	tests/fixtures/runtime-target-fatal	RUNTIME-TARGET-FATAL
 fail	tests/contracts/empty.contract.tsv	tests/fixtures/narrative-good	AICI-NO-ASSERTIONS
 fail	contracts/narrative-sync-v0.contract.tsv	tests/fixtures/narrative-missing-voiceover	NARRATIVE-SCRIPT-VOICEOVER

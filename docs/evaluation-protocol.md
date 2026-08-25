@@ -22,6 +22,14 @@ revisions, tool and command trace, stdout/stderr, artifacts and their hashes,
 and final user-visible state. Secret values must be removed without deleting
 the fact that a secret-bearing action occurred.
 
+Bind observations to the system under test. A fatal marker in a global runner,
+emulator, browser, or service log does not establish that the target failed.
+Capture a stable target identity before exercising it, require that identity to
+remain live, and apply both positive-effect assertions and failure checks to
+evidence attributed to that identity. Preserve global logs as context. Every
+scoped failure check needs paired controls: an unrelated actor's identical
+failure marker must not fail the target, while the target's marker must fail.
+
 ## Design each case before using it as a gate
 
 Every case declares:

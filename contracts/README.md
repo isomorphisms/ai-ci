@@ -18,6 +18,8 @@ security sandbox (see the repository trust boundary).
 nonempty       CODE  path
 equal          CODE  left-path  right-path
 not_contains   CODE  path       literal
+scoped_contains CODE path       exact-scope literal
+scoped_not_contains CODE path   exact-scope literal
 tsv            CODE  path       minimum-fields  minimum-rows
 tsv_header     CODE  path       comma-separated-column-names
 yaml_paths     CODE  list-path  workflow-path event-name
@@ -41,6 +43,13 @@ any command other than the declared runner. It proves declared invocation, not
 successful runtime behavior. A predicate does not pass when its input is
 missing. Recursive predicates reject
 matching symlinks, and do not pass when they scan zero matching regular files.
+
+`scoped_contains` and `scoped_not_contains` read tab-separated evidence records
+whose first field is an exact process, job, service, or actor identity and whose
+remaining text is the message. Both fail closed when the file is malformed or
+contains no record for the requested scope. This permits unrelated environment
+failures to remain visible without blaming the system under test. Positive
+effects and forbidden failures should be checked against the same stable scope.
 
 ## Suite format
 
