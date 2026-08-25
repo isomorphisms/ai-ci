@@ -32,6 +32,11 @@
 - `android-install-launch`: verify alignment and signature, install the APK on
   the declared Android level, launch the expected package, and detect an early
   crash;
+- `fdroid-release` first slice is implemented in `fdroid/`: fail-closed
+  commit/toolchain receipts, current official-check coverage, APK ZIP/native ABI
+  inspection, byte-identical clean rebuilds, upstream-signature verification
+  evidence, and distinct candidate/submission/publication profiles. A future
+  runner can produce the receipt directly inside the pinned buildserver image;
 - `narrative-audio`: compare canonical script/captions exactly and independently
   transcribe the generated audio rather than trusting a generation receipt.
 

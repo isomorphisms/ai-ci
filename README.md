@@ -46,6 +46,22 @@ intended assertion. See [`video/README.md`](video/README.md) for the contract
 format and [`docs/shorts-render-observations.md`](docs/shorts-render-observations.md)
 for the incident analysis that determined this boundary.
 
+## F-Droid release acceptance
+
+The optional `fdroid/` action verifies commit-bound receipts from the actual
+F-Droid release path. It pins source, fdroiddata, fdroidserver, and the
+buildserver image; requires the current metadata, scanner, build, policy, APK,
+and install witnesses; opens the finished APKs to check their ZIP and native ABI
+contents; and compares two clean F-Droid rebuilds byte-for-byte. Upstream-signed
+contracts additionally require F-Droid's signature-copy reproducibility result
+and the expected signing key.
+
+Candidate, submitted, and published profiles remain separate so a successful
+local build, an open fdroiddata merge request, or a successful status query
+cannot be mislabeled as store acceptance. See [`fdroid/README.md`](fdroid/README.md)
+for the receipt schema, ABI-split rules, current official-check mapping, and the
+manual-review boundary.
+
 ## Run locally
 
 ```text
@@ -57,6 +73,11 @@ cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-video src/aici_vide
 cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-video-fixtures video/tests/make_video_fixtures.c
 /tmp/aici-video-fixtures /tmp/aici-video-test-data
 /tmp/aici-video self-test video/tests/cases.tsv /tmp/aici-video-test-data
+
+cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-fdroid src/aici_fdroid.c
+cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-fdroid-fixtures fdroid/tests/make_receipt_fixtures.c
+/tmp/aici-fdroid-fixtures fdroid/contracts/native-upstream-v1.example.tsv /tmp/aici-fdroid-test-data
+/tmp/aici-fdroid self-test /tmp/aici-fdroid-test-data/cases.tsv
 ```
 
 Those are direct compiler and verifier invocations, not a Bash- or
@@ -89,6 +110,20 @@ The runner must provide `ffmpeg`, `ffprobe`, and a C17 compiler. The example
 contract is intentionally fixture-sized; consumers should copy its operations
 and set project-specific dimensions, timing, audio, and frame regions.
 
+For an F-Droid release receipt:
+
+```yaml
+- uses: isomorphisms/ai-ci/fdroid@0123456789abcdef0123456789abcdef01234567
+  with:
+    contract: ci/fdroid-release.contract.tsv
+    receipt: out/fdroid/receipt.tsv
+    root: out/fdroid
+```
+
+The runner must provide `sha256sum`, `unzip`, and a C17 compiler. The action
+verifies evidence and finished APK bytes; the receipt-producing job must run the
+pinned F-Droid tools and preserve their independent logs.
+
 ## Limits
 
 The deterministic checks cannot decide whether an explanation is
@@ -98,6 +133,10 @@ the right semantic reason, and the Grease contract proves declared invocation
 rather than a working Grease runtime. The roadmap adds source packets,
 artifact freshness, executable renderer probes, and grounded semantic review
 without allowing those softer checks to override a deterministic failure.
+The F-Droid verifier cannot infer copyright ownership, license compatibility,
+privacy behavior, anti-features, or game functionality. It requires explicit,
+source-bound witnesses for those reviews and never lets them override a failed
+deterministic check; F-Droid maintainers retain the final inclusion decision.
 
 ## Trust boundary
 

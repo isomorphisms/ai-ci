@@ -52,3 +52,31 @@ jobs:
         with:
           contract: video/contracts/short-release-v1.contract.tsv
           root: ${{ runner.temp }}/aici-video-fixtures/good
+
+  fdroid-self-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Require APK receipt probes
+        shell: sh
+        run: command -v sha256sum >/dev/null && command -v zip >/dev/null && command -v unzip >/dev/null
+      - name: Compile F-Droid verifier and fixture generator
+        shell: sh
+        run: |
+          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-fdroid src/aici_fdroid.c
+          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-fdroid-fixtures fdroid/tests/make_receipt_fixtures.c
+      - name: Generate real APK ZIP and receipt fixtures
+        shell: sh
+        run: /tmp/aici-fdroid-fixtures fdroid/contracts/native-upstream-v1.example.tsv "$RUNNER_TEMP/aici-fdroid-fixtures"
+      - name: Prove every F-Droid assertion rejects its targeted failure
+        shell: sh
+        run: /tmp/aici-fdroid self-test "$RUNNER_TEMP/aici-fdroid-fixtures/cases.tsv"
+      - name: Exercise the checked-in ABI-split example
+        shell: sh
+        run: /tmp/aici-fdroid verify fdroid/contracts/native-split-fdroid-v1.example.tsv "$RUNNER_TEMP/aici-fdroid-fixtures/split-good/receipt.tsv" "$RUNNER_TEMP/aici-fdroid-fixtures/split-good"
+      - name: Exercise the published F-Droid action
+        uses: ./fdroid
+        with:
+          contract: fdroid/contracts/native-upstream-v1.example.tsv
+          receipt: ${{ runner.temp }}/aici-fdroid-fixtures/good/receipt.tsv
+          root: ${{ runner.temp }}/aici-fdroid-fixtures/good
