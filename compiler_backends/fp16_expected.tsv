@@ -13,3 +13,8 @@ fp16.test_generic_not_native	1
 fp16.test_powervr_native	1
 fp16.test_powervr_vector	1
 fp16.test_no_silent_f32_demotion	1
+fp16.compiler_directive_parsed	1
+fp16.checked_ir_width_selected	1
+fp16.emitter_width_selected	1
+fp16.invalid_width_rejected	1
+fp16.compiler_test_f16	1
