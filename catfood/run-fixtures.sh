@@ -77,7 +77,7 @@ grep -F '# catfood Grease source launcher' "$grease_launcher" >/dev/null ||
 grep -F "$workspace/grease/source/bin/oils_for_unix.py" "$grease_launcher" >/dev/null ||
     fail 'Grease does not execute the source pinned by the Grease repository'
 
-PATH=$prefix/bin:$workspace/bin:$PATH
+PATH=$workspace/Idric/.tools/bin:$prefix/bin:$workspace/bin:$PATH
 IDRIS2_PREFIX=$workspace/Idric/bootstrap-build
 export PATH IDRIS2_PREFIX
 
