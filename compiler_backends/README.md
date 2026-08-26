@@ -52,6 +52,20 @@ capability. The Algebraic Variety Explorer lane is useful because it adds a
 separate downstream compiler check, but it still does not establish exact
 binary16 arithmetic on generic GLES or real PowerVR framebuffer behavior.
 
-The stronger numerical layer remains target execution: compare known F16/F32
-cases, including cancellation and binary16 boundary behavior, against a CPU
-reference and the actual device framebuffer.
+## Next numerical evidence layer
+
+The next precision work should be numerical rather than another textual marker.
+AICI should treat these as separate test families so one green category cannot
+stand in for another:
+
+1. F16 versus F32 arithmetic at known ULP and adjacent-representable-value boundaries;
+2. cancellation, beginning with `(1 + epsilon) - 1` at widths where the result changes;
+3. binary16 normal/subnormal, overflow, underflow, infinity, signed-zero, and rounding boundaries;
+4. division near small denominators;
+5. square root and any shader transcendental operations actually used by consumers;
+6. vector arithmetic, especially dot, length, and normalize;
+7. Algebraic Variety Explorer root-search cases near tangency, nearly coincident roots, or narrow sign-change intervals;
+8. a real PowerVR compile/link/render/readback oracle compared against a deliberately chosen CPU reference.
+
+The CPU reference and target framebuffer are evidence of numerical behavior;
+`mediump` syntax or a compiler-source marker is not a substitute for either.
