@@ -1,0 +1,15 @@
+metric	expected_present
+fp16.semantic_width_declared	1
+fp16.f16_selects_mediump	1
+fp16.f32_selects_highp	1
+fp16.portable_exact_f16_not_claimed	1
+fp16.powervr_profile_native	1
+fp16.test_widths_distinct	1
+fp16.test_scalar_mediump	1
+fp16.test_vec2_mediump	1
+fp16.test_vec3_mediump	1
+fp16.test_vec4_mediump	1
+fp16.test_generic_not_native	1
+fp16.test_powervr_native	1
+fp16.test_powervr_vector	1
+fp16.test_no_silent_f32_demotion	1
