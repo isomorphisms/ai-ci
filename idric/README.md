@@ -21,6 +21,7 @@ currently depend on Idriç.
 | Grease | Oils/YSH implementation with no current Idriç dependency or declared Idriç seam. |
 | Wegert and analytic continuation | No direct Idriç build. Their mathematics exist in the external GLSL backend, but the apps do not consume that path. |
 | `idris-koans` and Programmer's Keyboard | Upstream Idris 2 consumers, not current Idriç consumers. |
+| `idris2-ilex` TOML library | The exact `d6062e8f...` revision fails against Float PR #6 because it declares a constructor named `Float`. This is a source-language collision, not a backend failure. |
 
 The matrix also records recently active repositories for which the review found
 no direct dependency. `not-applicable` means “no dependency observed at this
@@ -42,6 +43,21 @@ have independent compiler-API contracts:
 The ARM requirement is commit-sensitive, not merely “Idris 2 0.8.0.” Its
 Idriç lane must be checked against the Float32 compiler work rather than assumed
 from the shared version number.
+
+### Distinct Float candidate
+
+Idriç PR #6 at `5d0c454b1c3ad3d12a5d18452c2ba169109ebd76`
+has exact passing evidence for the Chez semantic regression and the RefC
+single-precision regression. Racket contains an implementation but lacks an
+equivalent focused backend receipt. Node and browser JavaScript reject the
+required Float cast, Gambit emits `blodwen-float32` without defining it, and VM
+execution does not reduce the new primitive operations.
+
+The Nix job's RefC coverage does not mean that Idriç bootstraps through RefC.
+Nix bootstraps through Chez and then runs the inherited complete test suite,
+which includes RefC. No surveyed downstream selects RefC; it remains an
+inherited optional backend until a separate retirement decision changes the
+public compiler and test surface coherently.
 
 ## Files and invariants
 

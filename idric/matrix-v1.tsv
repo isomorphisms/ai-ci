@@ -1,5 +1,11 @@
 project	project_revision	relation	idric_revision	components	backend	backend_revision	result	evidence	gap
 isomorphisms/Idric	081b9cde0591154839fb5d80d76e5570e0436300	compiler-provider	same-as-project	compiler,prelude,base,network,compiler-api,support,chez-toolchain,source-extension	chez	same-as-idric	inventory	isomorphisms/Idric:EDRIC.md@081b9cde0591154839fb5d80d76e5570e0436300	-
+isomorphisms/Idric	5d0c454b1c3ad3d12a5d18452c2ba169109ebd76	compiler-provider	same-as-project	compiler,prelude,base,support,chez-toolchain,source-extension,float32	chez	same-as-idric	pass	https://github.com/isomorphisms/Idric/actions/runs/32915412749	-
+isomorphisms/Idric	5d0c454b1c3ad3d12a5d18452c2ba169109ebd76	compiler-provider	same-as-project	compiler,prelude,base,support,source-extension,float32	refc	same-as-idric	pass	https://github.com/isomorphisms/Idric/actions/runs/32915412762	-
+isomorphisms/Idric	5d0c454b1c3ad3d12a5d18452c2ba169109ebd76	compiler-provider	same-as-project	compiler,prelude,base,support,source-extension,float32	racket	same-as-idric	not-run	isomorphisms/Idric:support/racket/support.rkt@5d0c454b1c3ad3d12a5d18452c2ba169109ebd76	IDRIC-011
+isomorphisms/Idric	5d0c454b1c3ad3d12a5d18452c2ba169109ebd76	compiler-provider	same-as-project	compiler,prelude,base,support,source-extension,float32	node	same-as-idric	fail	idric/witnesses/idric-pr6-float32-backends.txt	IDRIC-011
+isomorphisms/Idric	5d0c454b1c3ad3d12a5d18452c2ba169109ebd76	compiler-provider	same-as-project	compiler,prelude,base,support,source-extension,float32	javascript	same-as-idric	fail	idric/witnesses/idric-pr6-float32-backends.txt	IDRIC-011
+isomorphisms/Idric	5d0c454b1c3ad3d12a5d18452c2ba169109ebd76	compiler-provider	same-as-project	compiler,prelude,base,support,source-extension,float32	gambit	same-as-idric	fail	idric/witnesses/idric-pr6-float32-backends.txt	IDRIC-011
 isomorphisms/ai-ci	e342fc1e58bde3e7bcb82875b66f721725a600e8	registry	-	-	-	-	inventory	isomorphisms/ai-ci:README.md@e342fc1e58bde3e7bcb82875b66f721725a600e8	-
 isomorphisms/idris-shader-backend	7876b79058d6f59711151a21697369c1cf72df2f	backend-provider	upstream:v0.8.0	compiler-api,base,network	glsles	7876b79058d6f59711151a21697369c1cf72df2f	upstream-pass	https://github.com/isomorphisms/idris-shader-backend/actions/runs/32597530395	IDRIC-006
 isomorphisms/idris-shader-backend	7876b79058d6f59711151a21697369c1cf72df2f	backend-provider	main	compiler-api,base,network	glsles	7876b79058d6f59711151a21697369c1cf72df2f	not-run	.github/workflows/ci.yml	IDRIC-006
@@ -31,6 +37,7 @@ isomorphisms/computer-science	22f55e2f4922856b5092e8387105e4bf3ae4993a	planned	m
 isomorphisms/soap	c171a41f1eb9c7c4fc78992b43a40a0f95d65ae3	planned	main	compiler,prelude,base,compiler-api,support	glsles	7876b79058d6f59711151a21697369c1cf72df2f	planned	Ken brackey/README.md	IDRIC-009
 isomorphisms/programmers-keyboard	3d88a045f6134da19a340de0de30e7a6f72c3915	upstream	upstream:nightly-260814	compiler,prelude,base,chez-toolchain	chez	same-as-compiler	upstream-pass	.github/workflows/render-keypads.yml	IDRIC-008
 isomorphisms/idris-koans	112f97f52bb6677aeb1a2f6419b7020bd35bf59f	upstream	upstream:v0.8.0	compiler,prelude,base,chez-toolchain	chez	same-as-compiler	upstream-pass	.github/workflows/idris2.yml	IDRIC-008
+stefan-hoeck/idris2-ilex	d6062e8f838013cdb01f4ff1b71e0c8873172ebe	direct	5d0c454b1c3ad3d12a5d18452c2ba169109ebd76	compiler,prelude,base,float32	chez	same-as-idric	fail	https://github.com/isomorphisms/Idric/actions/runs/32915412762	IDRIC-012
 isomorphisms/yt-shorts	057a4a94905dce61f072a4fea2f256af29c3570f	none	-	-	-	-	not-applicable	survey:2026-08-26	-
 isomorphisms/manimi	e4f8ab7b7033052787ee7561de67b63b68ddb2dd	none	-	-	-	-	not-applicable	survey:2026-08-26	-
 isomorphisms/ithon	2e0d634550ecf2eb78315c2c165fe0e85ea1980c	none	-	-	-	-	not-applicable	survey:2026-08-26	-

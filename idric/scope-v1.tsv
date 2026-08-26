@@ -20,6 +20,7 @@ isomorphisms/computer-science	integration-target	main	22f55e2f4922856b5092e83871
 isomorphisms/soap	integration-target	main	c171a41f1eb9c7c4fc78992b43a40a0f95d65ae3
 isomorphisms/programmers-keyboard	upstream-idris	main	3d88a045f6134da19a340de0de30e7a6f72c3915
 isomorphisms/idris-koans	upstream-idris	master	112f97f52bb6677aeb1a2f6419b7020bd35bf59f
+stefan-hoeck/idris2-ilex	direct-consumer	main	d6062e8f838013cdb01f4ff1b71e0c8873172ebe
 isomorphisms/yt-shorts	no-direct-dependency	main	057a4a94905dce61f072a4fea2f256af29c3570f
 isomorphisms/manimi	no-direct-dependency	master	e4f8ab7b7033052787ee7561de67b63b68ddb2dd
 isomorphisms/ithon	no-direct-dependency	main	2e0d634550ecf2eb78315c2c165fe0e85ea1980c

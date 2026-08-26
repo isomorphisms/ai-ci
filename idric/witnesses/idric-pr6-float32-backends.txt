@@ -1,0 +1,24 @@
+Idric revision: 5d0c454b1c3ad3d12a5d18452c2ba169109ebd76
+Fixture: tests/idris2/basic/edric006/Main.idric at that revision
+
+Node command:
+  idris2 --cg node -o /tmp/idric-pr6-float-node Main.idric
+Observed compiler output:
+  Error: INTERNAL ERROR: invalid cast: + Double + ' -> ' + Float
+
+Browser JavaScript command:
+  idris2 --cg javascript -o /tmp/idric-pr6-float-browser Main.idric
+Observed compiler output:
+  Error: INTERNAL ERROR: invalid cast: + Double + ' -> ' + Float
+
+Gambit source probe:
+  idris2 --cg gambit -o /tmp/idric-pr6-float-gambit Main.idric
+The generated /tmp/idric-pr6-float-gambit.scm calls blodwen-float32 for Float
+literals, casts, and arithmetic. support/gambit/support.scm at the same revision
+does not define blodwen-float32, so a Gambit installation cannot link that
+generated program coherently.
+
+VM interpreter inspection:
+  prim__cast_DoubleFloat reaches the generic operation evaluator, but getOp has
+  no Float constant or operation reduction. This path reports an error rather
+  than evaluating the focused fixture.

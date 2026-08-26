@@ -570,10 +570,13 @@ static int validate_matrix_row(const char *path, long number, MatrixRow *row,
                         "registry row must only record inventory ownership");
         }
     } else if (strcmp(row->relation, "compiler-provider") == 0) {
-        if (strcmp(row->idric_revision, "same-as-project") != 0 ||
-            strcmp(row->result, "inventory") != 0 || strcmp(row->gap, "-") != 0) {
+        if (strcmp(row->idric_revision, "same-as-project") != 0) {
             return fail(verdict, "IDRIC-PROVIDER-ROW", path, number,
-                        "compiler provider must bind inventory to its project revision");
+                        "compiler provider must bind results to its project revision");
+        }
+        if (strcmp(row->result, "inventory") == 0 && strcmp(row->gap, "-") != 0) {
+            return fail(verdict, "IDRIC-PROVIDER-ROW", path, number,
+                        "compiler inventory cannot carry an open gap");
         }
     } else if (strcmp(row->relation, "upstream") == 0) {
         if (!upstream_ref(row->idric_revision) ||
@@ -615,7 +618,10 @@ static int validate_matrix_row(const char *path, long number, MatrixRow *row,
                     "resolved tuple still carries a gap");
     }
     if (strcmp(row->result, "pass") == 0) {
-        if (!full_revision(row->idric_revision) ||
+        int exact_revision = full_revision(row->idric_revision) ||
+            (strcmp(row->relation, "compiler-provider") == 0 &&
+             strcmp(row->idric_revision, "same-as-project") == 0);
+        if (!exact_revision ||
             strncmp(row->evidence, "https://github.com/", 19) != 0 ||
             strstr(row->evidence, "/actions/runs/") == NULL) {
             return fail(verdict, "IDRIC-PASS-EVIDENCE", path, number,
