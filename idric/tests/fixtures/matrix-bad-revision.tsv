@@ -1,0 +1,8 @@
+project	project_revision	relation	idric_revision	components	backend	backend_revision	result	evidence	gap
+example/compiler	1111111111111111111111111111111111111111	compiler-provider	same-as-project	compiler,prelude,base,support,chez-toolchain	chez	same-as-idric	inventory	example/compiler:README.md	-
+example/registry	2222222222222222222222222222222222222222	registry	-	-	-	-	inventory	example/registry:README.md	-
+example/app	3333333	direct	8888888888888888888888888888888888888888	compiler,prelude,base,chez-toolchain	chez	same-as-idric	pass	https://github.com/example/app/actions/runs/1	-
+example/backend	4444444444444444444444444444444444444444	backend-provider	upstream:v0.8.0	compiler-api,base,network	glsles	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	upstream-pass	https://github.com/example/backend/actions/runs/2	GAP-EXTERNAL
+example/future	5555555555555555555555555555555555555555	planned	main	compiler,prelude,base	chez	same-as-idric	planned	docs/future.md	GAP-FUTURE
+example/dormant	6666666666666666666666666666666666666666	none	-	-	-	-	not-applicable	survey:fixture	-
+example/upstream	7777777777777777777777777777777777777777	upstream	upstream:v0.8.0	compiler,prelude,base,chez-toolchain	chez	same-as-compiler	upstream-pass	.github/workflows/upstream.yml	GAP-UPSTREAM

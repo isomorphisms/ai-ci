@@ -1,0 +1,10 @@
+backend	kind	repository	revision	compiler_repository	compiler_revision	components	status	gap
+chez	builtin	isomorphisms/Idric	same-as-compiler	isomorphisms/Idric	per-project	compiler,support,chez-toolchain	available	-
+chez-separate	builtin-internal	isomorphisms/Idric	same-as-compiler	isomorphisms/Idric	per-project	compiler,support,chez-toolchain	available	-
+racket	builtin	isomorphisms/Idric	same-as-compiler	isomorphisms/Idric	per-project	compiler,support	available	-
+gambit	builtin	isomorphisms/Idric	same-as-compiler	isomorphisms/Idric	per-project	compiler,support	available	-
+node	builtin	isomorphisms/Idric	same-as-compiler	isomorphisms/Idric	per-project	compiler,support	available	-
+javascript	builtin	isomorphisms/Idric	same-as-compiler	isomorphisms/Idric	per-project	compiler,support	available	-
+refc	builtin	isomorphisms/Idric	same-as-compiler	isomorphisms/Idric	per-project	compiler,support	available	-
+glsles	external	isomorphisms/idris-shader-backend	7876b79058d6f59711151a21697369c1cf72df2f	idris-lang/Idris2	v0.8.0	compiler-api,base,network	upstream-only	IDRIC-006
+android-armv7	external	isomorphisms/idris-arm-backend	663fe5fbdd22249e2ccfecf0ba5e4a43b24a6f85	idris-lang/Idris2	f66d2a1802d9e04a57441160f411d46be63d785f	compiler-api,network,float32	local-only	IDRIC-007

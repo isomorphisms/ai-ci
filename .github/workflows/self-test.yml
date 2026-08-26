@@ -80,3 +80,23 @@ jobs:
           contract: fdroid/contracts/native-upstream-v1.example.tsv
           receipt: ${{ runner.temp }}/aici-fdroid-fixtures/good/receipt.tsv
           root: ${{ runner.temp }}/aici-fdroid-fixtures/good
+
+  compatibility-self-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Require compatibility receipt probes
+        shell: sh
+        run: command -v sha256sum >/dev/null
+      - name: Compile compatibility verifier
+        shell: sh
+        run: cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-compat src/aici_compat.c
+      - name: Prove tuple drift and missing evidence are rejected
+        shell: sh
+        run: /tmp/aici-compat self-test compat/tests/cases.tsv
+      - name: Exercise the published compatibility action
+        uses: ./compat
+        with:
+          contract: compat/contracts/idric-stack-v1.example.tsv
+          receipt: compat/tests/fixtures/good.receipt.tsv
+          root: compat/tests/fixtures

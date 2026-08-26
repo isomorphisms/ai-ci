@@ -1,0 +1,25 @@
+name: ai-ci co-evolution compatibility gate
+description: Verify an exact multi-repository language/backend compatibility receipt
+inputs:
+  contract:
+    description: Path to the exact compatibility contract TSV
+    required: true
+  receipt:
+    description: Path to the compatibility receipt TSV
+    required: true
+  root:
+    description: Root containing receipt witnesses
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Compile compatibility verifier
+      shell: sh
+      run: cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o "$RUNNER_TEMP/aici-compat" "$GITHUB_ACTION_PATH/../src/aici_compat.c"
+    - name: Verify exact compatibility tuple
+      shell: sh
+      env:
+        AICI_COMPAT_CONTRACT: ${{ inputs.contract }}
+        AICI_COMPAT_RECEIPT: ${{ inputs.receipt }}
+        AICI_COMPAT_ROOT: ${{ inputs.root }}
+      run: '"$RUNNER_TEMP/aici-compat" verify "$AICI_COMPAT_CONTRACT" "$AICI_COMPAT_RECEIPT" "$AICI_COMPAT_ROOT"'

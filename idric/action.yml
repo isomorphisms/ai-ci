@@ -1,0 +1,29 @@
+name: ai-ci Idric compatibility verifier
+description: Validate a scoped Idric compiler component and backend compatibility matrix
+inputs:
+  scope:
+    description: Reviewed repository scope TSV
+    required: true
+  backends:
+    description: Compiler backend inventory TSV
+    required: true
+  matrix:
+    description: Project and toolchain compatibility observations TSV
+    required: true
+  gaps:
+    description: Open compatibility gap ledger TSV
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Compile Idric compatibility verifier
+      shell: sh
+      run: cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o "$RUNNER_TEMP/aici-idric" "$GITHUB_ACTION_PATH/../src/aici_idric.c"
+    - name: Verify Idric compatibility registry
+      shell: sh
+      env:
+        AICI_IDRIC_SCOPE: ${{ inputs.scope }}
+        AICI_IDRIC_BACKENDS: ${{ inputs.backends }}
+        AICI_IDRIC_MATRIX: ${{ inputs.matrix }}
+        AICI_IDRIC_GAPS: ${{ inputs.gaps }}
+      run: '"$RUNNER_TEMP/aici-idric" verify "$AICI_IDRIC_SCOPE" "$AICI_IDRIC_BACKENDS" "$AICI_IDRIC_MATRIX" "$AICI_IDRIC_GAPS"'
