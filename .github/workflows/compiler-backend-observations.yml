@@ -61,6 +61,12 @@ jobs:
             --root idris-shader-backend=_backends/idris-shader-backend \
             --output fp16-powervr-observations.tsv
 
+      - name: Verify established FP16 and PowerVR baseline
+        run: |
+          python3 compiler_backends/fp16_baseline.py \
+            --expected compiler_backends/fp16_expected.tsv \
+            --observations fp16-powervr-observations.tsv
+
       - name: Record observed revisions
         run: |
           {
@@ -84,6 +90,6 @@ jobs:
             cat fp16-powervr-observations.tsv
             echo '```'
             echo
-            echo 'Feature absence is observational data and is not a build verdict.'
-            echo 'In particular, absent FP16 IR/emitter/device markers are milestones to watch, not failures of this observer.'
+            echo 'Established FP16 policy/test observations are gated by fp16_expected.tsv.'
+            echo 'Future implementation milestones remain observations until deliberately promoted into that baseline.'
           } >> "$GITHUB_STEP_SUMMARY"
