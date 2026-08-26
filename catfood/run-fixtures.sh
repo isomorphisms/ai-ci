@@ -69,6 +69,14 @@ require_executable IR "$workspace/r/bin/R"
 require_executable ICU "$workspace/icu/build/exec/icu"
 require_executable IB "$workspace/ib/src/build/exec/ib-smoke"
 
+grease_launcher=$(readlink -f "$workspace/bin/grease")
+[ "$grease_launcher" = "$workspace/.build/grease/bin/grease" ] ||
+    fail "Grease points at an unexpected implementation: $grease_launcher"
+grep -F '# catfood Grease source launcher' "$grease_launcher" >/dev/null ||
+    fail 'Grease is not the Cat Food pinned-source launcher'
+grep -F "$workspace/grease/source/bin/oils_for_unix.py" "$grease_launcher" >/dev/null ||
+    fail 'Grease does not execute the source pinned by the Grease repository'
+
 PATH=$prefix/bin:$workspace/bin:$PATH
 IDRIS2_PREFIX=$workspace/Idric/bootstrap-build
 export PATH IDRIS2_PREFIX
