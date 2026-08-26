@@ -25,7 +25,7 @@ isomorphisms/L	17ccab63c90b7cba475306570d7d8bb5b8f3916c	direct	main	compiler,pre
 isomorphisms/ortho	cb138be8cbb454eb127c934f99ff193b622a8b60	direct	main	compiler,prelude,base,source-extension,chez-toolchain	chez	same-as-idric	not-run	scripts/regenerate-model.sh	IDRIC-003
 isomorphisms/catfood	ad5fae7e3e8899811e0d6a3a8e32d9dbb27ad11d	direct	main	compiler,prelude,base,source-extension,chez-toolchain	chez	same-as-idric	not-run	build-tools.sh	IDRIC-002
 isomorphisms/wegert	744fcdb514973ad9d26ac72fd02f38589fcea0ca	indirect	-	-	glsles	7876b79058d6f59711151a21697369c1cf72df2f	planned	isomorphisms/idris-shader-backend:src/Shader/PhasePortrait.idr	IDRIC-005
-isomorphisms/grease	e963958976eaa80a2517bae3fd34b0e5115ffcbe	planned	-	-	-	-	planned	README.md	IDRIC-004
+isomorphisms/grease	e963958976eaa80a2517bae3fd34b0e5115ffcbe	none	-	-	-	-	decision-open	README.md	IDRIC-004
 isomorphisms/analytic-continuation	553318835fddd6a0fe5605df5bfe4b21df8775c0	indirect	-	-	glsles	7876b79058d6f59711151a21697369c1cf72df2f	planned	isomorphisms/idris-shader-backend:src/Shader/ContinuationOverlay.idr	IDRIC-005
 isomorphisms/computer-science	22f55e2f4922856b5092e8387105e4bf3ae4993a	planned	main	compiler,prelude,base,compiler-api,support	refc	same-as-idric	planned	notes/architectural-compilation.md	IDRIC-009
 isomorphisms/soap	c171a41f1eb9c7c4fc78992b43a40a0f95d65ae3	planned	main	compiler,prelude,base,compiler-api,support	glsles	7876b79058d6f59711151a21697369c1cf72df2f	planned	Ken brackey/README.md	IDRIC-009
