@@ -1,0 +1,78 @@
+name: observe Idris compiler backends
+
+on:
+  push:
+    paths:
+      - compiler_backends/**
+      - .github/workflows/compiler-backend-observations.yml
+  pull_request:
+    paths:
+      - compiler_backends/**
+      - .github/workflows/compiler-backend-observations.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  observe:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out AICI
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Check out active Idriç ARM/Thumb backend
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphisms/idric-arm-thumb
+          ref: idric-ir-first-slice
+          path: _backends/idric-arm-thumb
+
+      - name: Check out Idris ARM backend
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphisms/idris-arm-backend
+          ref: main
+          path: _backends/idris-arm-backend
+
+      - name: Check out Idris GLSL ES backend
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphisms/idris-shader-backend
+          ref: main
+          path: _backends/idris-shader-backend
+
+      - name: Self-test deterministic observer
+        run: python3 -m unittest discover -s compiler_backends/tests -p 'test_*.py'
+
+      - name: Measure the same feature surface across backends
+        run: |
+          python3 compiler_backends/probe.py \
+            --matrix compiler_backends/probes.tsv \
+            --root idric-arm-thumb=_backends/idric-arm-thumb \
+            --root idris-arm-backend=_backends/idris-arm-backend \
+            --root idris-shader-backend=_backends/idris-shader-backend \
+            --output compiler-backend-observations.tsv
+
+      - name: Record observed revisions
+        run: |
+          {
+            printf 'backend\tref\trevision\n'
+            printf 'idric-arm-thumb\tidric-ir-first-slice\t%s\n' "$(git -C _backends/idric-arm-thumb rev-parse HEAD)"
+            printf 'idris-arm-backend\tmain\t%s\n' "$(git -C _backends/idris-arm-backend rev-parse HEAD)"
+            printf 'idris-shader-backend\tmain\t%s\n' "$(git -C _backends/idris-shader-backend rev-parse HEAD)"
+          } > compiler-backend-revisions.tsv
+
+      - name: Publish observation in the job summary
+        run: |
+          {
+            echo '### Compiler backend observations'
+            echo
+            echo '```text'
+            cat compiler-backend-revisions.tsv
+            echo
+            cat compiler-backend-observations.tsv
+            echo '```'
+            echo
+            echo 'Feature absence is observational data and is not a build verdict.'
+          } >> "$GITHUB_STEP_SUMMARY"
