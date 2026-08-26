@@ -35,11 +35,11 @@ jobs:
           ref: main
           path: _backends/idris-arm-backend
 
-      - name: Check out Idris GLSL ES backend
+      - name: Check out active FP16 GLSL ES backend
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: isomorphisms/idris-shader-backend
-          ref: main
+          ref: float-semantics-f16-f32
           path: _backends/idris-shader-backend
 
       - name: Self-test deterministic observer
@@ -54,13 +54,20 @@ jobs:
             --root idris-shader-backend=_backends/idris-shader-backend \
             --output compiler-backend-observations.tsv
 
+      - name: Measure FP16 and PowerVR implementation surface
+        run: |
+          python3 compiler_backends/probe.py \
+            --matrix compiler_backends/fp16_probes.tsv \
+            --root idris-shader-backend=_backends/idris-shader-backend \
+            --output fp16-powervr-observations.tsv
+
       - name: Record observed revisions
         run: |
           {
             printf 'backend\tref\trevision\n'
             printf 'idric-arm-thumb\tidric-ir-first-slice\t%s\n' "$(git -C _backends/idric-arm-thumb rev-parse HEAD)"
             printf 'idris-arm-backend\tmain\t%s\n' "$(git -C _backends/idris-arm-backend rev-parse HEAD)"
-            printf 'idris-shader-backend\tmain\t%s\n' "$(git -C _backends/idris-shader-backend rev-parse HEAD)"
+            printf 'idris-shader-backend\tfloat-semantics-f16-f32\t%s\n' "$(git -C _backends/idris-shader-backend rev-parse HEAD)"
           } > compiler-backend-revisions.tsv
 
       - name: Publish observation in the job summary
@@ -72,7 +79,11 @@ jobs:
             cat compiler-backend-revisions.tsv
             echo
             cat compiler-backend-observations.tsv
+            echo
+            echo 'FP16 / PowerVR surface:'
+            cat fp16-powervr-observations.tsv
             echo '```'
             echo
             echo 'Feature absence is observational data and is not a build verdict.'
+            echo 'In particular, absent FP16 IR/emitter/device markers are milestones to watch, not failures of this observer.'
           } >> "$GITHUB_STEP_SUMMARY"
