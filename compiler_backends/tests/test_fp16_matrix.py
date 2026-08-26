@@ -34,6 +34,11 @@ class FP16MatrixTests(unittest.TestCase):
                 "fp16.test_powervr_native",
                 "fp16.test_powervr_vector",
                 "fp16.test_no_silent_f32_demotion",
+                "fp16.compiler_directive_parsed",
+                "fp16.checked_ir_width_selected",
+                "fp16.emitter_width_selected",
+                "fp16.invalid_width_rejected",
+                "fp16.compiler_test_f16",
                 "fp16.ir_scalar_width_carried",
                 "fp16.ir_vector_width_carried",
                 "fp16.ir_array_width_carried",
@@ -46,11 +51,34 @@ class FP16MatrixTests(unittest.TestCase):
         )
         self.assertTrue(all(row["backend"] == "idris-shader-backend" for row in rows))
 
-    def test_matrix_observes_both_policy_and_implementation_milestones(self):
+    def test_matrix_separates_whole_shader_mode_from_mixed_width_milestones(self):
+        rows = probe.load_matrix(MATRIX_PATH)
+        metrics = {row["metric"] for row in rows}
+        for metric in {
+            "fp16.compiler_directive_parsed",
+            "fp16.checked_ir_width_selected",
+            "fp16.emitter_width_selected",
+            "fp16.invalid_width_rejected",
+            "fp16.compiler_test_f16",
+        }:
+            self.assertIn(metric, metrics)
+        for metric in {
+            "fp16.ir_scalar_width_carried",
+            "fp16.ir_vector_width_carried",
+            "fp16.ir_array_width_carried",
+            "fp16.explicit_f16_to_f32",
+            "fp16.explicit_f32_to_f16",
+            "fp16.source_type_exposed",
+            "fp16.powervr_framebuffer_oracle_ci",
+        }:
+            self.assertIn(metric, metrics)
+
+    def test_matrix_observes_policy_tests_compiler_and_target_milestones(self):
         rows = probe.load_matrix(MATRIX_PATH)
         metrics = {row["metric"] for row in rows}
         self.assertTrue(any(metric.startswith("fp16.test_") for metric in metrics))
         self.assertTrue(any("ir_" in metric for metric in metrics))
+        self.assertIn("fp16.compiler_test_f16", metrics)
         self.assertIn("fp16.powervr_profile_native", metrics)
         self.assertIn("fp16.powervr_framebuffer_oracle_ci", metrics)
 
