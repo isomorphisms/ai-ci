@@ -24,7 +24,9 @@ currently depend on Idriç.
 
 The matrix also records recently active repositories for which the review found
 no direct dependency. `not-applicable` means “no dependency observed at this
-surveyed revision,” not “this project can never use Idriç.”
+surveyed revision,” not “this project can never use Idriç.” `decision-open`
+keeps the same no-dependency claim while linking an unresolved boundary decision
+to the gap ledger; it does not imply that an integration is planned.
 
 ## Backends
 
@@ -48,8 +50,9 @@ from the shared version number.
 - `backends-v1.tsv` inventories built-in and external generators, including the
   compiler API and library pieces each needs.
 - `matrix-v1.tsv` records exact project/compiler/backend tuples and their result.
-- `gaps-v1.tsv` gives every moving, untested, local-only, upstream-only, or
-  planned tuple an open acceptance condition linked to the AICI tracker.
+- `gaps-v1.tsv` gives every moving, untested, local-only, upstream-only,
+  planned, or boundary-decision tuple an open acceptance condition linked to
+  the AICI tracker.
 
 The native verifier rejects missing scope entries, abbreviated project or
 backend pins, unknown backends, mismatched external-backend revisions,
