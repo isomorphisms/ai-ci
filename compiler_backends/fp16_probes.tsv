@@ -1,0 +1,24 @@
+backend	metric	path	needle
+idris-shader-backend	fp16.semantic_width_declared	src/Backend/GLSLES/FloatSemantics.idr	data FloatWidth = F16 | F32
+idris-shader-backend	fp16.f16_selects_mediump	src/Backend/GLSLES/FloatSemantics.idr	shaderPrecision F16 = Medium
+idris-shader-backend	fp16.f32_selects_highp	src/Backend/GLSLES/FloatSemantics.idr	shaderPrecision F32 = High
+idris-shader-backend	fp16.default_remains_f32	src/Backend/GLSLES/FloatSemantics.idr	defaultFloatWidth = F32
+idris-shader-backend	fp16.portable_exact_f16_not_claimed	src/Backend/GLSLES/FloatSemantics.idr	portableExactF16 = False
+idris-shader-backend	fp16.powervr_profile_native	src/Backend/GLSLES/FloatSemantics.idr	powerVR = MkFloatTargetProfile "powervr" True True
+idris-shader-backend	fp16.test_widths_distinct	src/Test/Main.idr	F16 and F32 are distinct semantic widths
+idris-shader-backend	fp16.test_scalar_mediump	src/Test/Main.idr	F16 selects mediump scalar lowering
+idris-shader-backend	fp16.test_vec2_mediump	src/Test/Main.idr	F16 vec2 lowering preserves width
+idris-shader-backend	fp16.test_vec3_mediump	src/Test/Main.idr	F16 vec3 lowering preserves width
+idris-shader-backend	fp16.test_vec4_mediump	src/Test/Main.idr	F16 vec4 lowering preserves width
+idris-shader-backend	fp16.test_generic_not_native	src/Test/Main.idr	generic GLES profile does not claim native mediump F16
+idris-shader-backend	fp16.test_powervr_native	src/Test/Main.idr	PowerVR profile records native mediump F16
+idris-shader-backend	fp16.test_powervr_vector	src/Test/Main.idr	PowerVR profile records vector F16
+idris-shader-backend	fp16.test_no_silent_f32_demotion	src/Test/Main.idr	F16 policy does not silently demote existing F32 shader
+idris-shader-backend	fp16.ir_scalar_width_carried	src/Backend/GLSLES/IR.idr	TFloat FloatWidth
+idris-shader-backend	fp16.ir_vector_width_carried	src/Backend/GLSLES/IR.idr	TVec FloatWidth Nat
+idris-shader-backend	fp16.ir_array_width_carried	src/Backend/GLSLES/IR.idr	AFloat FloatWidth
+idris-shader-backend	fp16.explicit_f16_to_f32	src/Backend/GLSLES/IR.idr	F16ToF32
+idris-shader-backend	fp16.explicit_f32_to_f16	src/Backend/GLSLES/IR.idr	F32ToF16
+idris-shader-backend	fp16.emitter_width_aware	src/Backend/GLSLES/Emit.idr	glslType : FloatWidth -> ValueTy
+idris-shader-backend	fp16.source_type_exposed	src/Shader/Source.idr	F16
+idris-shader-backend	fp16.powervr_framebuffer_oracle_ci	.github/workflows/ci.yml	PowerVR framebuffer
