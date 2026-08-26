@@ -39,8 +39,15 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: isomorphisms/idris-shader-backend
-          ref: float-semantics-f16-f32
+          ref: soap-f16-mode
           path: _backends/idris-shader-backend
+
+      - name: Check out Algebraic Variety Explorer FP16 consumer
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphisms/algebraic-variety-explorer-mobile
+          ref: dogfood/idris-shader-f16
+          path: _consumers/algebraic-variety-explorer-mobile
 
       - name: Self-test deterministic observer
         run: python3 -m unittest discover -s compiler_backends/tests -p 'test_*.py'
@@ -61,6 +68,13 @@ jobs:
             --root idris-shader-backend=_backends/idris-shader-backend \
             --output fp16-powervr-observations.tsv
 
+      - name: Measure downstream FP16 consumer surface
+        run: |
+          python3 compiler_backends/probe.py \
+            --matrix compiler_backends/fp16_consumers.tsv \
+            --root algebraic-variety-explorer-mobile=_consumers/algebraic-variety-explorer-mobile \
+            --output fp16-consumer-observations.tsv
+
       - name: Verify established FP16 and PowerVR baseline
         run: |
           python3 compiler_backends/fp16_baseline.py \
@@ -70,10 +84,11 @@ jobs:
       - name: Record observed revisions
         run: |
           {
-            printf 'backend\tref\trevision\n'
+            printf 'source\tref\trevision\n'
             printf 'idric-arm-thumb\tidric-ir-first-slice\t%s\n' "$(git -C _backends/idric-arm-thumb rev-parse HEAD)"
             printf 'idris-arm-backend\tmain\t%s\n' "$(git -C _backends/idris-arm-backend rev-parse HEAD)"
-            printf 'idris-shader-backend\tfloat-semantics-f16-f32\t%s\n' "$(git -C _backends/idris-shader-backend rev-parse HEAD)"
+            printf 'idris-shader-backend\tsoap-f16-mode\t%s\n' "$(git -C _backends/idris-shader-backend rev-parse HEAD)"
+            printf 'algebraic-variety-explorer-mobile\tdogfood/idris-shader-f16\t%s\n' "$(git -C _consumers/algebraic-variety-explorer-mobile rev-parse HEAD)"
           } > compiler-backend-revisions.tsv
 
       - name: Publish observation in the job summary
@@ -88,8 +103,12 @@ jobs:
             echo
             echo 'FP16 / PowerVR surface:'
             cat fp16-powervr-observations.tsv
+            echo
+            echo 'Downstream FP16 consumer surface:'
+            cat fp16-consumer-observations.tsv
             echo '```'
             echo
-            echo 'Established FP16 policy/test observations are gated by fp16_expected.tsv.'
-            echo 'Future implementation milestones remain observations until deliberately promoted into that baseline.'
+            echo 'Established FP16 policy, tests, and whole-shader compiler facts are gated by fp16_expected.tsv.'
+            echo 'The Algebraic Variety Explorer rows observe an independent downstream compile gate; they do not claim runtime PowerVR framebuffer evidence.'
+            echo 'Mixed-width IR, explicit conversion, source-level F16, and real-device evidence remain separate milestones.'
           } >> "$GITHUB_STEP_SUMMARY"
