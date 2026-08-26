@@ -497,7 +497,7 @@ static int relation_matches(const char *classification, const char *relation) {
 static int valid_result(const char *result) {
     static const char *const results[] = {
         "pass", "fail", "pass-unbound", "upstream-pass", "local-pass", "not-run",
-        "planned", "not-applicable", "inventory"
+        "planned", "decision-open", "not-applicable", "inventory"
     };
     return one_of(result, results, sizeof(results) / sizeof(results[0]));
 }
@@ -558,7 +558,8 @@ static int validate_matrix_row(const char *path, long number, MatrixRow *row,
         if (strcmp(row->idric_revision, "-") != 0 ||
             strcmp(row->components, "-") != 0 || strcmp(row->backend, "-") != 0 ||
             strcmp(row->backend_revision, "-") != 0 ||
-            strcmp(row->result, "not-applicable") != 0 || strcmp(row->gap, "-") != 0) {
+            !(strcmp(row->result, "not-applicable") == 0 ||
+              strcmp(row->result, "decision-open") == 0)) {
             return fail(verdict, "IDRIC-NO-DEPENDENCY", path, number,
                         "no-dependency row makes a dependency or compatibility claim");
         }
@@ -602,7 +603,8 @@ static int validate_matrix_row(const char *path, long number, MatrixRow *row,
                  strcmp(row->result, "upstream-pass") == 0 ||
                  strcmp(row->result, "local-pass") == 0 ||
                  strcmp(row->result, "not-run") == 0 ||
-                 strcmp(row->result, "planned") == 0;
+                 strcmp(row->result, "planned") == 0 ||
+                 strcmp(row->result, "decision-open") == 0;
     if (unresolved) {
         if (!unresolved_gap(row->gap, gaps, row->project)) {
             return fail(verdict, "IDRIC-UNRESOLVED-GAP", path, number,
