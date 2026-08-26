@@ -14,6 +14,11 @@ idris-shader-backend	fp16.test_generic_not_native	src/Test/Main.idr	generic GLES
 idris-shader-backend	fp16.test_powervr_native	src/Test/Main.idr	PowerVR profile records native mediump F16
 idris-shader-backend	fp16.test_powervr_vector	src/Test/Main.idr	PowerVR profile records vector F16
 idris-shader-backend	fp16.test_no_silent_f32_demotion	src/Test/Main.idr	F16 policy does not silently demote existing F32 shader
+idris-shader-backend	fp16.compiler_directive_parsed	src/Backend/GLSLES/Codegen.idr	selectedFloatWidth : List String -> Either String FloatWidth
+idris-shader-backend	fp16.checked_ir_width_selected	src/Backend/GLSLES/Codegen.idr	dumpFragmentIR width program
+idris-shader-backend	fp16.emitter_width_selected	src/Backend/GLSLES/Codegen.idr	emitFragment width program
+idris-shader-backend	fp16.invalid_width_rejected	src/Backend/GLSLES/FloatSemantics.idr	float-width must be f16 or f32
+idris-shader-backend	fp16.compiler_test_f16	tools/check_f16.py	F16 backend check passed: F16 IR, mediump GLSL, invalid-width rejection
 idris-shader-backend	fp16.ir_scalar_width_carried	src/Backend/GLSLES/IR.idr	TFloat FloatWidth
 idris-shader-backend	fp16.ir_vector_width_carried	src/Backend/GLSLES/IR.idr	TVec FloatWidth Nat
 idris-shader-backend	fp16.ir_array_width_carried	src/Backend/GLSLES/IR.idr	AFloat FloatWidth
