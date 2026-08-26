@@ -1,0 +1,13 @@
+unplanned introductory text from a future producer
+𝕋 provider
+some-provider-we-do-not-understand-yet
+𝕎 provenance
+some provenance field AICI does not consume yet
+𝕋 discrepancy
+0.25
+another unrelated line
+𝕋 timing
+17ns
+𝕎 warning
+THIS INFORMATION IS NOT TRUE: this ragged fixture exists only to prove that unknown records can pass through without hiding the warning.
+trailing material from another program

@@ -1,0 +1,56 @@
+name: equality assignment probe self-test
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  equality-self-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Check out pinned equality mock provider
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphisms/the-equality-sign-means-equality
+          ref: 3949258344472b9330cf701a940a8915051b5da3
+          path: _equality-provider
+      - name: Compile equality assignment observer
+        shell: sh
+        run: cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-equality src/aici_equality.c -lm
+      - name: Generate both deliberately dishonest provider signals
+        shell: sh
+        run: |
+          python3 _equality-provider/equality_mocks.py rubber-stamp > "$RUNNER_TEMP/rubber-stamp.signal"
+          python3 _equality-provider/equality_mocks.py cry-wolf > "$RUNNER_TEMP/cry-wolf.signal"
+      - name: Prove both ends of the mock discrepancy range and preserve warnings
+        shell: sh
+        run: /tmp/aici-equality self-test "$RUNNER_TEMP/rubber-stamp.signal" "$RUNNER_TEMP/cry-wolf.signal"
+      - name: Observe zero and infinite discrepancies without turning either into a build verdict
+        shell: sh
+        run: |
+          /tmp/aici-equality assignment "$RUNNER_TEMP/rubber-stamp.signal" 'answer' 'candidate'
+          /tmp/aici-equality assignment "$RUNNER_TEMP/cry-wolf.signal" 'answer' 'candidate'
+      - name: Tolerate ragged unknown UTF-8 records
+        shell: sh
+        run: /tmp/aici-equality assignment equality/tests/ragged-signal.txt 'lhs' 'rhs'
+      - name: Reject a signal that hides or omits its warning
+        shell: sh
+        run: |
+          if /tmp/aici-equality assignment equality/tests/missing-warning.signal 'lhs' 'rhs'; then
+            echo 'missing warning unexpectedly accepted' >&2
+            exit 1
+          fi
+      - name: Benchmark per-assignment adapter overhead
+        shell: sh
+        run: /tmp/aici-equality bench "$RUNNER_TEMP/rubber-stamp.signal" 100000
+      - name: Exercise the published equality action surface
+        uses: ./equality
+        with:
+          signal: ${{ runner.temp }}/rubber-stamp.signal
+          lhs: answer
+          rhs: candidate
+          benchmark-iterations: '10000'
