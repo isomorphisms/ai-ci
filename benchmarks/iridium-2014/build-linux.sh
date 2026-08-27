@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euxo pipefail
 
-# The pinned GHC/Cabal image runs as an unprivileged user but its baked
-# /root/.cabal tree belongs to root. Keep this reconstruction self-contained.
-export HOME=/tmp/iridium-2014-home
+# Keep the historical Idris installation under /work so the workflow can cache
+# it across runs without changing the pinned package universe.
+export HOME=/work/.cache/iridium-2014-home
 export PATH="$HOME/.cabal/bin:$PATH"
 CACHE="$HOME/.cabal/packages/hackage.haskell.org"
 mkdir -p "$HOME/.cabal" "$CACHE" artifacts
@@ -30,7 +30,9 @@ ghc --version | tee artifacts/ghc-version.txt
 cabal --version | tee artifacts/cabal-version.txt
 sha256sum "$CACHE/00-index.tar.gz" | tee artifacts/hackage-2014-index.sha256
 
-cabal v1-install --user --jobs=2 idris-0.9.14.3
+if ! command -v idris >/dev/null 2>&1 || [ "$(idris --version 2>/dev/null || true)" != "0.9.14.3" ]; then
+  cabal v1-install --user --jobs=2 idris-0.9.14.3
+fi
 idris --version | tee artifacts/idris-version.txt
 
 TIMEFORMAT='%3R'
@@ -47,10 +49,19 @@ TIMEFORMAT='wall=%3R user=%3U system=%3S'
 { time bash -c 'for i in 1 2 3; do artifacts/iridium-core >/dev/null; done'; } \
   2> artifacts/run-time-3x.txt
 
+# The full upstream application crosses into 2014 macOS/Cocoa APIs.  Keep its
+# code-generation result as separate evidence: failure here must not erase the
+# already-valid portable ELF benchmark.
 cd upstream-iridium
 TIMEFORMAT='%3R'
-{ time idris -S -i src -p effects -o /work/artifacts/iridium-quartz-generated.c src/Quartz.idr; } \
+set +e
+{ time idris -S -i src -p effects \
+    -o /work/artifacts/iridium-quartz-generated.c src/Quartz.idr \
+    2> /work/artifacts/quartz-codegen-stderr.txt; } \
   2> /work/artifacts/quartz-codegen-seconds.txt
+quartz_status=$?
+set -e
+printf '%s\n' "$quartz_status" > /work/artifacts/quartz-codegen-exit.txt
 cd /work
 
 chmod -R a+rwx artifacts
