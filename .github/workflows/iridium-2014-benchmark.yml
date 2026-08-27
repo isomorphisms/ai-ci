@@ -66,7 +66,7 @@ jobs:
             migamake/haskell-build:7.8@sha256:b380cec2689828577306a78d58407d2dbb0beb3a5bd556e1e8d969253918e56c \
             bash benchmarks/iridium-2014/build-linux.sh
 
-      - name: Inspect ELF ourselves
+      - name: Inspect ELF bytes on runner
         shell: bash
         run: |
           set -euxo pipefail
@@ -74,7 +74,6 @@ jobs:
           stat --printf='%s\n' artifacts/iridium-core | tee artifacts/file-bytes.txt
           sha256sum artifacts/iridium-core | tee artifacts/binary.sha256
           size artifacts/iridium-core | tee artifacts/size.txt
-          ldd artifacts/iridium-core | tee artifacts/ldd.txt
           readelf -hW artifacts/iridium-core > artifacts/readelf-header.txt
           readelf -SW artifacts/iridium-core > artifacts/readelf-sections.txt
           readelf -lW artifacts/iridium-core > artifacts/readelf-program-headers.txt
@@ -91,19 +90,6 @@ jobs:
             | tee artifacts/stripped-binary.sha256
           size artifacts/iridium-core-stripped | tee artifacts/stripped-size.txt
           strip --version > artifacts/strip-version.txt
-
-          : > artifacts/external-library-files.txt
-          total=0
-          while read -r library; do
-            resolved="$(readlink -f "$library")"
-            bytes="$(stat --printf='%s' "$resolved")"
-            digest="$(sha256sum "$resolved" | awk '{print $1}')"
-            printf '%s\t%s\t%s\n' "$bytes" "$digest" "$resolved" \
-              >> artifacts/external-library-files.txt
-            total=$((total + bytes))
-          done < <(awk '$2 == "=>" && $3 ~ /^\// {print $3} $1 ~ /^\// {print $1}' \
-            artifacts/ldd.txt | sort -u)
-          printf '%s\n' "$total" | tee artifacts/external-library-file-bytes.txt
 
           if [[ -f artifacts/iridium-quartz-generated.c ]]; then
             wc -c artifacts/iridium-quartz-generated.c | tee artifacts/quartz-generated-c-bytes.txt

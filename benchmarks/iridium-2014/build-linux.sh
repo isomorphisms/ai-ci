@@ -31,6 +31,8 @@ uname -m | tee artifacts/host-arch.txt
 cat /etc/os-release > artifacts/container-os-release.txt
 ghc --version | tee artifacts/ghc-version.txt
 cabal --version | tee artifacts/cabal-version.txt
+cc --version > artifacts/c-compiler-version.txt 2>&1
+ld --version > artifacts/linker-version.txt 2>&1
 sha256sum "$CACHE/00-index.tar.gz" | tee artifacts/hackage-2014-index.sha256
 
 if ! command -v idris >/dev/null 2>&1 || [ "$(idris --version 2>/dev/null || true)" != "0.9.14.3" ]; then
@@ -66,6 +68,25 @@ set +x
 { time bash -c 'for i in 1 2 3; do artifacts/iridium-core >/dev/null; done'; } \
   2> artifacts/run-time-3x.txt
 set -x
+
+# Resolve the dynamic dependency surface in the exact pinned environment that
+# executes the benchmark. Host-runner ldd output would describe Ubuntu 24.04
+# libraries instead of the runtime files actually used for these measurements.
+ldd --version > artifacts/runtime-ldd-version.txt 2>&1 || true
+ldd artifacts/iridium-core | tee artifacts/runtime-ldd.txt
+: > artifacts/runtime-library-files.txt
+runtime_library_total=0
+while read -r library; do
+  resolved="$(readlink -f "$library")"
+  bytes="$(stat --printf='%s' "$resolved")"
+  digest="$(sha256sum "$resolved" | awk '{print $1}')"
+  printf '%s\t%s\t%s\n' "$bytes" "$digest" "$resolved" \
+    >> artifacts/runtime-library-files.txt
+  runtime_library_total=$((runtime_library_total + bytes))
+done < <(awk '$2 == "=>" && $3 ~ /^\// {print $3} $1 ~ /^\// {print $1}' \
+  artifacts/runtime-ldd.txt | sort -u)
+printf '%s\n' "$runtime_library_total" \
+  > artifacts/runtime-library-file-bytes.txt
 
 # Quartz.idr contains %link directives for src/quartz.o and src/ir.o. The
 # original macOS package build created those objects before compiling Quartz.
