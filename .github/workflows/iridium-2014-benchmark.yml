@@ -42,6 +42,16 @@ jobs:
               set -euxo pipefail
               ghc --version | tee artifacts/ghc-version.txt
               cabal --version | tee artifacts/cabal-version.txt
+
+              # Cabal 2.4's bundled 2019 Hackage-security mirror list still points
+              # at an HTTP dream.io endpoint which now returns 403.  Use the
+              # canonical Hackage HTTPS endpoint directly; the package universe
+              # remains pinned below by index-state.
+              sed -i "s#http://hackage.haskell.org/#https://hackage.haskell.org/#g" /root/.cabal/config
+              if ! grep -q "secure: False" /root/.cabal/config; then
+                sed -i "/url: https:\/\/hackage.haskell.org\//a\\  secure: False" /root/.cabal/config
+              fi
+              grep -A3 -B1 "hackage.haskell.org" /root/.cabal/config
               cabal v1-update
               cabal v1-install --jobs=2 --index-state=2014-10-16T00:00:00Z idris-0.9.14.3
               idris --version | tee artifacts/idris-version.txt
