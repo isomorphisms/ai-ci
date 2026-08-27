@@ -5,6 +5,7 @@ IDRIC_COMMIT=081b9cde0591154839fb5d80d76e5570e0436300
 IDRIC_DIR=${IDRIC_DIR:-"$PWD/upstream-idric"}
 ARTIFACTS=${IDRIC_ARTIFACTS:-"$PWD/artifacts/idric"}
 PREFIX="$IDRIC_DIR/.comparison-install"
+PREFIX_MARKER="$PREFIX/.idric-source-commit"
 SOURCE="$PWD/benchmarks/iridium-2014/IdricBench.idric"
 EXPECTED="$PWD/benchmarks/iridium-2014/expected-output.txt"
 
@@ -24,18 +25,31 @@ ld --version > "$ARTIFACTS/linker-version.txt" 2>&1
 
 # Build the exact Idriç revision using its own pinned Chez bootstrap, then make
 # an isolated install so the benchmark does not depend on a system Idris 2.
-(
-  cd "$IDRIC_DIR"
-  ./edric bootstrap
-  make install \
-    PREFIX="$PREFIX" \
-    IDRIS2_PREFIX="$PREFIX" \
-    SCHEME="$IDRIC_DIR/.tools/bin/scheme"
-)
+# The install is safe to cache only behind an exact source-commit marker; the
+# workflow cache key also contains this commit and the pinned Chez archive hash.
+if [ -x "$PREFIX/bin/idris2" ] \
+   && [ -f "$PREFIX_MARKER" ] \
+   && [ "$(cat "$PREFIX_MARKER")" = "$IDRIC_COMMIT" ]; then
+  printf 'verified-cache-hit\n' > "$ARTIFACTS/idric-compiler-cache.txt"
+else
+  rm -rf "$PREFIX"
+  (
+    cd "$IDRIC_DIR"
+    ./edric bootstrap
+    make install \
+      PREFIX="$PREFIX" \
+      IDRIS2_PREFIX="$PREFIX" \
+      SCHEME="$IDRIC_DIR/.tools/bin/scheme"
+  )
+  printf '%s\n' "$IDRIC_COMMIT" > "$PREFIX_MARKER"
+  printf 'built-from-pinned-source\n' > "$ARTIFACTS/idric-compiler-cache.txt"
+fi
 
 COMPILER="$PREFIX/bin/idris2"
 test -x "$COMPILER"
+test "$(cat "$PREFIX_MARKER")" = "$IDRIC_COMMIT"
 IDRIS2_PREFIX="$PREFIX" "$COMPILER" --version | tee "$ARTIFACTS/idric-version.txt"
+sha256sum "$COMPILER" > "$ARTIFACTS/idric-compiler.sha256"
 sha256sum \
   "$IDRIC_DIR/src/Compiler/RefC/CC.idr" \
   "$IDRIC_DIR/src/Compiler/RefC/RefC.idr" \
@@ -125,18 +139,23 @@ printf '%s\n' "$runtime_library_total" \
 cat > "$ARTIFACTS/numeric-semantics.txt" <<'EOF'
 window identifiers: Int
 step counter: Int
-layout arithmetic: Double
-fixture values: 0, 8, 240, 1080, 1920 and their layout sums are exactly representable in binary floating point, so the exercised result is unchanged by the historical source's Float spelling versus Idriç Double spelling
+historical layout spelling: Float
+current Idriç layout spelling: Double
+Idris 1 renamed the floating primitive from Float to Double after the historical release; this row does not intentionally widen or narrow the arithmetic representation
+fixture values: 0, 8, 240, 1080, 1920 and their layout sums are exactly representable in binary floating point
 EOF
 
 cat > "$ARTIFACTS/comparison-status.txt" <<'EOF'
 semantic-oracle=supported-and-required
 idric-source-extension=.idric
 backend=RefC native Linux ELF
+exercised-iridium-lens-path=preserved
+cyclic-single-column-layout=preserved
 common-kernel-speed-ratio=unsupported-pending-symmetric-in-process-harness
 whole-process-startup-inclusive-timing=evidence-only
 optimization-policy-equivalence=not-yet-established-against-historical-generated-C-flags
-direct-historical-Idris1-module-import=not-claimed; this row is a semantic port of the display-free StackSet/layout kernel
+direct-historical-Idris1-module-import=unsupported-by-version-boundary; this row ports the exercised display-free kernel instead
+cocoa-effects-event-loop=outside-display-free-contract-and-not-ported
 native-ARM-phone-result=not-part-of-this-x86_64-CI-row
 deployment-footprint=measured-separately-as-executable-bytes-plus-resolved-external-library-bytes
 EOF
