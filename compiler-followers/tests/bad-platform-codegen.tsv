@@ -1,0 +1,4 @@
+target	repository	ref	layer	stage	mode	isa_closeness	device_closeness	scope	rule
+arm-thumb	isomorphisms/idric-arm-thumb	main	cpu-codegen	authority-active	authority	exact	exact	test	authority row
+switch	isomorphisms/idric-embedded	switch	platform-overlay	implementation-planned	boring-native	medium	high	test	platform branch must not masquerade as CPU codegen
+
