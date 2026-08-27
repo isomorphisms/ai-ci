@@ -1,0 +1,53 @@
+name: Iridium 2014 Idric comparison
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "benchmarks/iridium-2014/**"
+      - ".github/workflows/iridium-2014-idric.yml"
+  pull_request:
+    paths:
+      - "benchmarks/iridium-2014/**"
+      - ".github/workflows/iridium-2014-idric.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  idric-refc:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      IDRIC_COMMIT: 081b9cde0591154839fb5d80d76e5570e0436300
+      JOBS: "2"
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Pin Idric source
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git init upstream-idric
+          git -C upstream-idric remote add origin https://github.com/isomorphisms/Idric.git
+          git -C upstream-idric fetch --depth=1 origin "$IDRIC_COMMIT"
+          git -C upstream-idric checkout --detach FETCH_HEAD
+          test "$(git -C upstream-idric rev-parse HEAD)" = "$IDRIC_COMMIT"
+
+      - name: Cache pinned Chez toolchain
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: upstream-idric/.tools
+          key: idric-${{ runner.os }}-${{ env.IDRIC_COMMIT }}-chez-10.4.1-2e74952db7bc177f0c3602e2217a341ba677d733eec4cd7726418c3a4e1ef308
+
+      - name: Build and execute exact Idric comparison
+        shell: bash
+        run: bash benchmarks/iridium-2014/build-idric.sh
+
+      - name: Package Idric evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: iridium-2014-idric-refc
+          path: artifacts/idric/
+          if-no-files-found: error
