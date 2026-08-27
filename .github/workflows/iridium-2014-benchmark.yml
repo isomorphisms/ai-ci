@@ -51,7 +51,7 @@ jobs:
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
           path: .cache/iridium-2014-home
-          key: iridium-idris-0.9.14.3-ghc-7.8.4-hackage-2014-10-16-v2
+          key: iridium-idris-0.9.14.3-ghc-7.8.4-container-b380cec2-hackage-${{ hashFiles('hackage-2014/00-index.tar.gz') }}
 
       - name: Build historical Idris and Iridium ELF fixture
         shell: bash
