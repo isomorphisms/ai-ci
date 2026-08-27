@@ -132,14 +132,14 @@ member wid s =
   maybe False (\stack => elem wid (integrate stack)) (getL stackSetStack s)
 
 insertUp : Eq wid => wid -> StackSet wid sid -> StackSet wid sid
-insertUp wid s =
-  if member wid s
+insertUp newWid s =
+  if member newWid s
     then s
     else modL stackSetStack insertStack s
   where
     insertStack : Maybe (Stack wid) -> Maybe (Stack wid)
-    insertStack Nothing = Just (MkStack wid [] [])
-    insertStack (Just (MkStack t l r)) = Just (MkStack wid l (t :: r))
+    insertStack Nothing = Just (MkStack newWid [] [])
+    insertStack (Just (MkStack t l r)) = Just (MkStack newWid l (t :: r))
 
 modify' : (Stack wid -> Stack wid) -> StackSet wid sid -> StackSet wid sid
 modify' f = modL stackSetStack (map f)
