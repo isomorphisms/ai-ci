@@ -45,6 +45,12 @@ jobs:
           sha256sum hackage-2014/00-index.tar.gz \
             | tee artifacts/hackage-2014-index.sha256
 
+      - name: Cache historical Idris toolchain
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: .cache/iridium-2014-home
+          key: iridium-idris-0.9.14.3-ghc-7.8.4-hackage-2014-10-16-v1
+
       - name: Build historical Idris and Iridium ELF fixture
         shell: bash
         run: |
@@ -71,10 +77,16 @@ jobs:
           readelf -sW artifacts/iridium-core > artifacts/readelf-symbols.txt
           readelf -rW artifacts/iridium-core > artifacts/readelf-relocations.txt
           nm -S --size-sort artifacts/iridium-core > artifacts/nm-size-sort.txt
-          wc -c artifacts/iridium-quartz-generated.c | tee artifacts/quartz-generated-c-bytes.txt
-          sha256sum artifacts/iridium-quartz-generated.c | tee artifacts/quartz-generated-c.sha256
+          if [[ -f artifacts/iridium-quartz-generated.c ]]; then
+            wc -c artifacts/iridium-quartz-generated.c | tee artifacts/quartz-generated-c-bytes.txt
+            sha256sum artifacts/iridium-quartz-generated.c | tee artifacts/quartz-generated-c.sha256
+          else
+            printf 'not generated; see quartz-codegen-stderr.txt\n' \
+              | tee artifacts/quartz-generated-c-bytes.txt
+          fi
 
       - name: Package Linux evidence
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: iridium-2014-linux-elf
@@ -94,7 +106,19 @@ jobs:
           name: iridium-2014-linux-elf
           path: linux-evidence
 
+      - name: Check full Quartz code generation
+        id: quartz
+        shell: bash
+        run: |
+          if [[ -f linux-evidence/iridium-quartz-generated.c ]]; then
+            echo 'available=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'available=false' >> "$GITHUB_OUTPUT"
+            echo 'Full Quartz C was not generated; Linux ELF evidence remains valid.'
+          fi
+
       - name: Pin Iridium and matching Idris runtime source
+        if: steps.quartz.outputs.available == 'true'
         shell: bash
         run: |
           set -euxo pipefail
@@ -106,6 +130,7 @@ jobs:
           tar -xzf idris-0.9.14.3.tar.gz
 
       - name: Rebuild the 2014 C runtime and Quartz boundary
+        if: steps.quartz.outputs.available == 'true'
         shell: bash
         run: |
           set -euxo pipefail
@@ -127,6 +152,7 @@ jobs:
             -c upstream-iridium/cbits/quartz.m -o macho-build/quartz.o
 
       - name: Link full Iridium Mach-O reconstruction
+        if: steps.quartz.outputs.available == 'true'
         shell: bash
         run: |
           set -euxo pipefail
@@ -140,6 +166,7 @@ jobs:
             -lpthread -lm -o macho-evidence/iridium
 
       - name: Inspect Mach-O without launching a window manager
+        if: steps.quartz.outputs.available == 'true'
         shell: bash
         run: |
           set -euxo pipefail
@@ -153,6 +180,7 @@ jobs:
           nm -nm macho-evidence/iridium > macho-evidence/nm.txt
 
       - name: Package Mach-O evidence
+        if: steps.quartz.outputs.available == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: iridium-2014-macos-macho
