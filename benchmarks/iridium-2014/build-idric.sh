@@ -68,17 +68,18 @@ printf '%s\n' "$IDRIS2_CFLAGS" > "$ARTIFACTS/idric-cflags.txt"
 rm -rf "$COMPILER_WORK"
 mkdir -p "$COMPILER_WORK"
 printf '%s\n' \
-  "cd $COMPILER_WORK && IDRIS2_PREFIX=$PREFIX IDRIS2_CFLAGS='$IDRIS2_CFLAGS' $COMPILER --cg refc -o $OUTPUT_NAME $SOURCE" \
+  "cd $COMPILER_WORK && IDRIS2_PREFIX=$PREFIX IDRIS2_CFLAGS='$IDRIS2_CFLAGS' $COMPILER --source-dir $(dirname "$SOURCE") --cg refc -o $OUTPUT_NAME $SOURCE" \
   > "$ARTIFACTS/compile-command.txt"
 
 # Idris 2's -o names the executable inside its build/exec tree; it is not a
-# literal destination pathname. Compile from a controlled directory and copy
-# the exact generated executable into the evidence directory afterward.
+# literal destination pathname. Compile from a controlled directory, declare
+# the source tree explicitly, and copy the generated executable afterward.
 TIMEFORMAT='%3R'
 set +x
 (
   cd "$COMPILER_WORK"
-  { time "$COMPILER" --cg refc -o "$OUTPUT_NAME" "$SOURCE"; } \
+  { time "$COMPILER" --source-dir "$(dirname "$SOURCE")" \
+      --cg refc -o "$OUTPUT_NAME" "$SOURCE"; } \
     2> "$ARTIFACTS/compile-seconds.txt"
 )
 set -x
