@@ -40,12 +40,28 @@ $7 !~ /^(exact|high|medium|low|none)$/ || $8 !~ /^(exact|high|medium|low|none)$/
   print "unknown closeness value on line " NR > "/dev/stderr"
   exit 1
 }
+$4 == "cpu-codegen" && $5 !~ /^(authority-active|implementation-draft|implementation-planned)$/ {
+  print "CPU codegen row has non-codegen stage on line " NR > "/dev/stderr"
+  exit 1
+}
+$4 == "virtual-codegen" && $5 !~ /^(implementation-draft|implementation-planned)$/ {
+  print "virtual codegen row has non-codegen stage on line " NR > "/dev/stderr"
+  exit 1
+}
+$4 == "architecture-catalog" && $5 !~ /^(inventory-only|reference-only)$/ {
+  print "architecture catalog must remain inventory/reference-only on line " NR > "/dev/stderr"
+  exit 1
+}
 $4 == "platform-overlay" && ($5 != "platform-only" || $6 != "device-overlay") {
   print "platform overlay must be platform-only/device-overlay on line " NR > "/dev/stderr"
   exit 1
 }
-$4 == "shader-boundary" && $6 != "separate-track" {
-  print "shader boundary must remain separate-track on line " NR > "/dev/stderr"
+$4 == "target-profile" && $5 != "reference-only" {
+  print "target profile must remain reference-only on line " NR > "/dev/stderr"
+  exit 1
+}
+$4 == "shader-boundary" && ($5 != "reference-only" || $6 != "separate-track") {
+  print "shader boundary must remain reference-only/separate-track on line " NR > "/dev/stderr"
   exit 1
 }
 ($4 == "target-blocker" || $5 == "blocked" || $6 == "blocked") && !($4 == "target-blocker" && $5 == "blocked" && $6 == "blocked") {
@@ -70,4 +86,3 @@ END {
   }
 }
 ' "$policy"
-
