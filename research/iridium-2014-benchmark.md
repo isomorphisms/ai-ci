@@ -4,7 +4,7 @@
 
 This benchmark is built around [Brian McKenna's (`@puffnfresh`) Iridium](https://github.com/puffnfresh/iridium), pinned at commit `2dc438475962b62f6ca8d00f0dff3add87418dec`.
 
-Iridium is MIT licensed, copyright 2014 Brian McKenna. The benchmark imports the upstream code; it does not copy it into ai-ci or claim authorship of it.
+Iridium is MIT licensed, copyright 2014 Brian McKenna. The historical benchmark imports the upstream code. The Idriç comparison is a semantic port of the exercised display-free kernel and carries the upstream MIT license in [`benchmarks/iridium-2014/IRIDIUM-LICENSE.txt`](../benchmarks/iridium-2014/IRIDIUM-LICENSE.txt); it does not claim authorship of Iridium.
 
 A large thank-you to Brian. His 2014 Strange Loop presentation, **Idris: Practical Dependent Types with Practical Examples**, was memorable and inspiring, and the Iridium demonstration in particular remained a concrete example of practical dependent typing for more than a decade. The surviving presentation source is [`puffnfresh/stl-idris`](https://github.com/puffnfresh/stl-idris); its Iridium slide calls the project an abstracted window manager made from roughly 60% Idris and 40% Objective-C. The presentation repository is linked rather than copied because no root license was found there.
 
@@ -42,9 +42,9 @@ The full historical program is macOS/Cocoa. Therefore `readelf` is not meaningfu
 
 ## Fair comparison boundary
 
-This branch establishes historical evidence. It does **not** yet claim that old Idris is faster/slower or larger/smaller than current Idriç.
+This branch establishes historical evidence plus the first current-Idriç execution row. It does **not** claim that old Idris is faster/slower or larger/smaller than current Idriç.
 
-When an Idriç backend reaches this source surface, the cross-backend row must preserve these conditions:
+Every Idriç row must preserve these conditions:
 
 - run the same semantic fixture and check the same two semantic results; if a backend cannot express the fixture yet, record it as unsupported rather than substituting an easier program;
 - keep the 64-window initial state, 200,000 focus/swap steps, and eight-rectangle layout calculation the same;
@@ -55,7 +55,7 @@ When an Idriç backend reaches this source surface, the cross-backend row must p
 - compare unstripped with unstripped and stripped with equivalently stripped; do not compare an old symbol-rich executable with a new stripped deployment image;
 - keep executable bytes separate from external runtime/library bytes and list the dependency surface for dynamically linked builds;
 - use the same integer/float semantics for this value range rather than changing representation to make one backend easier;
-- treat the current `run-time-3x.txt` as an end-to-end whole-process sample including startup. Before publishing a cross-backend speed ratio, add an equivalent protocol that separates cold startup from repeated in-process work for every backend being compared.
+- treat `run-time-3x.txt` as an end-to-end whole-process sample including startup. Before publishing a cross-backend speed ratio, add an equivalent protocol that separates cold startup from repeated in-process work for every backend being compared.
 
 Keep two size/performance questions separate. A **common-kernel comparison** asks how the same StackSet/layout work performs behind equivalent input/result boundaries. A **deployment-footprint comparison** asks what each backend's naturally deployable artifact plus external runtime surface costs. Both are useful; combining them into one number would give either the old runtime-heavy build or the new runtime-free build an artificial advantage depending on what was silently included.
 
@@ -63,10 +63,32 @@ The startup distinction matters for the same reason: the historical ELF currentl
 
 When the GPU backend is usable, do not call the whole window manager a GPU benchmark. Stack/event/focus control is primarily scalar host work. Only add a GPU result for a separately identified operation whose semantics are genuinely data-parallel, and include transfer, launch/bind, synchronization, and readback in end-to-end timings.
 
+## First Idriç comparison row
+
+[`benchmarks/iridium-2014/IdricBench.idric`](../benchmarks/iridium-2014/IdricBench.idric) is pinned to `isomorphisms/Idric@081b9cde0591154839fb5d80d76e5570e0436300` and compiled with that revision's native RefC backend on Ubuntu 24.04 x86-64. The compiler itself is built from that exact revision with the repository's digest-pinned Chez bootstrap, then cached behind an exact source-commit marker.
+
+The port deliberately retains the exercised Iridium `Store`/`Lens` update path, `Stack`/`StackSet` representation, dependent-length `Vect` integration, cyclic `single columnLayout`, 64-window insertion, 200,000 `swapDown . focusDown` steps, and the eight-rectangle 1920×1080 layout calculation. The job is accepted only if its output is byte-for-byte the same `40\n17280\n` oracle as the historical fixture, twice in succession.
+
+RefC receives the explicit C policy `-O2 -fwrapv -fno-strict-overflow` through `IDRIS2_CFLAGS`. The exact compiler/backend revision, RefC source hashes, C compiler/linker versions, compile command, generated executable path, ELF metadata, stripped and unstripped bytes, `ldd` surface, resolved library hashes/bytes, output digest, and whole-process timing evidence are retained in the `iridium-2014-idric-refc` artifact.
+
+The Idriç row keeps these items explicitly unsupported, unresolved, or outside the claim rather than changing the benchmark:
+
+- **Common-kernel speed ratio:** unsupported until the historical and Idriç executables both have a symmetric repeated in-process harness with equivalent input/result-observation boundaries. The three-process timing file is evidence only.
+- **Optimization-policy equivalence:** unresolved until the historical Idris 0.9.14.3 generated-C/link policy is normalized against the explicit RefC policy. No speed ratio is reported before that is settled.
+- **Direct reuse of the 2014 Idris modules:** unsupported across the Idris 1 to current Idriç/Idris 2 source boundary. The comparison therefore ports the exercised display-free kernel semantically instead of deleting constructs that are difficult for the current compiler.
+- **Cocoa/Effects/event loop:** outside this display-free kernel and not ported into the RefC row. This does not stand in for the separate full historical Quartz/Cocoa reconstruction.
+- **Native ARM/phone performance:** not represented by this x86-64 CI row. Any phone result must be recorded separately on real hardware.
+
+Iridium's historical `Float` spelling and current Idriç's `Double` spelling do not by themselves imply different arithmetic width: Idris 1 later renamed that primitive. The fixture also uses integer-valued layout constants and sums exactly representable in binary floating point. The artifact records this naming boundary rather than claiming a representation change that the benchmark does not establish.
+
+Deployment footprint remains separate from timing. The artifact records compiler-produced and stripped executable bytes independently, plus the resolved external runtime/library files and their byte total. RefC support code linked into the executable is charged to the executable; it is not counted again as an external dependency.
+
 ## Evidence record
 
 For each successful run retain the produced artifacts rather than copying one headline number into prose. The artifact bundle is intended to remain the inspectable source of truth for compiler version, exact bytes, dynamic dependencies, ELF/Mach-O structure, output digest, and timing samples.
 
 The Linux bundle records both the compiler-produced ELF and a derived stripped copy. Dynamic library resolution is performed inside the digest-pinned historical container, which is also where the benchmark actually executes; `runtime-library-files.txt` records each resolved file's byte count, SHA-256, and path. Those shared-library bytes are a dependency-surface measurement, not bytes silently charged to the executable itself. Runner-side `readelf` and `nm` inspect the immutable ELF bytes but do not define its runtime dependency set.
+
+The Idriç RefC bundle uses the same separation on its Ubuntu 24.04 runner: executable bytes and a derived stripped copy are one set of measurements, while resolved `ldd` dependency files are recorded and totaled separately. Its startup-inclusive timing sample is retained only as whole-process evidence pending the symmetric common-kernel harness.
 
 The macOS bundle is deliberately a **reconstruction evidence** artifact even when the final Mach-O cannot be linked on the current runner. A green portable-ELF job must not be mistaken for proof that the 2014 Cocoa application has been fully reconstructed; inspect `reconstruction-status.txt` for that claim.
