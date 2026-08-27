@@ -1,0 +1,166 @@
+module Main
+
+import Data.Vect
+
+-- Semantic port of the pure Iridium benchmark kernel from
+-- puffnfresh/iridium@2dc438475962b62f6ca8d00f0dff3add87418dec.
+-- Copyright (c) 2014 Brian McKenna, MIT licensed; see IRIDIUM-LICENSE.txt.
+--
+-- This deliberately keeps the Stack/StackSet focus+swap algorithm, dependent
+-- Vect integration, 64-window initialization, 200000-step loop, and column
+-- layout arithmetic. It does not port Cocoa, Effects, or event handling because
+-- those are outside the display-free comparison boundary used by IridiumBench.idr.
+
+record Rectangle where
+  constructor MkRectangle
+  rectX : Double
+  rectY : Double
+  rectW : Double
+  rectH : Double
+
+record Stack wid where
+  constructor MkStack
+  stackFocus : wid
+  stackUp : List wid
+  stackDown : List wid
+
+stackLength : Stack wid -> Nat
+stackLength (MkStack _ ys zs) = S (length ys + length zs)
+
+integrate : (s : Stack wid) -> Vect (stackLength s) wid
+integrate (MkStack x ys zs) =
+  rewrite plusSuccRightSucc (length ys) (length zs) in
+    reverse (fromList ys) ++ x :: fromList zs
+
+LayoutF : Type -> Type
+LayoutF wid = Rectangle -> (s : Stack wid) -> Vect (stackLength s) (wid, Rectangle)
+
+record Workspace wid where
+  constructor MkWorkspace
+  workspaceLayout : LayoutF wid
+  workspaceStack : Maybe (Stack wid)
+
+record Screen wid sid where
+  constructor MkScreen
+  screenWorkspace : Workspace wid
+  screenId : sid
+  screenDetail : Rectangle
+
+record StackSet wid sid where
+  constructor MkStackSet
+  stackSetCurrent : Screen wid sid
+  stackSetVisible : List (Screen wid sid)
+  stackSetHidden : List (Workspace wid)
+
+currentStack : StackSet wid sid -> Maybe (Stack wid)
+currentStack (MkStackSet (MkScreen (MkWorkspace _ stack) _ _) _ _) = stack
+
+modifyStackSlot :
+  (Maybe (Stack wid) -> Maybe (Stack wid)) ->
+  StackSet wid sid ->
+  StackSet wid sid
+modifyStackSlot f (MkStackSet (MkScreen (MkWorkspace layout stack) sid rect) visible hidden) =
+  MkStackSet (MkScreen (MkWorkspace layout (f stack)) sid rect) visible hidden
+
+member : Eq wid => wid -> StackSet wid sid -> Bool
+member wid s =
+  case currentStack s of
+    Nothing => False
+    Just stack => elem wid (integrate stack)
+
+insertUp : Eq wid => wid -> StackSet wid sid -> StackSet wid sid
+insertUp wid s =
+  if member wid s
+    then s
+    else modifyStackSlot insert s
+  where
+    insert : Maybe (Stack wid) -> Maybe (Stack wid)
+    insert Nothing = Just (MkStack wid [] [])
+    insert (Just (MkStack t l r)) = Just (MkStack wid l (t :: r))
+
+modify' : (Stack wid -> Stack wid) -> StackSet wid sid -> StackSet wid sid
+modify' f = modifyStackSlot (map f)
+
+stackSetPeek : StackSet wid sid -> Maybe wid
+stackSetPeek s = map stackFocus (currentStack s)
+
+reverseStack : Stack wid -> Stack wid
+reverseStack (MkStack t ls rs) = MkStack t rs ls
+
+focusUp' : Stack wid -> Stack wid
+focusUp' (MkStack t [] []) = MkStack t [] []
+focusUp' (MkStack t (l :: ls) rs) = MkStack l ls (t :: rs)
+focusUp' (MkStack t [] rs) =
+  let (x :: xs) = reverse (t :: fromList rs)
+  in MkStack x (toList xs) []
+
+focusDown' : Stack wid -> Stack wid
+focusDown' = reverseStack . focusUp' . reverseStack
+
+focusDown : StackSet wid sid -> StackSet wid sid
+focusDown = modify' focusDown'
+
+swapUp' : Stack wid -> Stack wid
+swapUp' (MkStack t (l :: ls) rs) = MkStack t ls (l :: rs)
+swapUp' (MkStack t [] rs) = MkStack t (reverse rs) []
+
+swapDown : StackSet wid sid -> StackSet wid sid
+swapDown = modify' (reverseStack . swapUp' . reverseStack)
+
+step : StackSet wid sid -> StackSet wid sid
+step = swapDown . focusDown
+
+partial
+insertCount : Int -> StackSet Int Int -> StackSet Int Int
+insertCount n s =
+  if n <= 0
+    then s
+    else insertCount (n - 1) (insertUp n s)
+
+partial
+runSteps : Int -> StackSet Int Int -> StackSet Int Int
+runSteps n s =
+  if n <= 0
+    then s
+    else runSteps (n - 1) (step s)
+
+column : Rectangle -> (n : Nat) -> Vect n Rectangle
+column r n = column' n r n
+  where
+    column' : Nat -> Rectangle -> (m : Nat) -> Vect m Rectangle
+    column' _ _ Z = []
+    column' n (MkRectangle x y w h) (S m) =
+      let w' = w / cast n
+      in MkRectangle (x + w' * cast m) y w' h :: column' n r m
+
+columnLayout : LayoutF wid
+columnLayout rect s = zip (integrate s) (column rect (stackLength s))
+
+rectChecksum : Vect n (wid, Rectangle) -> Double
+rectChecksum [] = 0.0
+rectChecksum ((_, MkRectangle x y w h) :: xs) =
+  x + y + w + h + rectChecksum xs
+
+emptyStackSet : StackSet Int Int
+emptyStackSet =
+  let workspace = MkWorkspace columnLayout Nothing
+      screen = MkScreen workspace 0 (MkRectangle 0.0 0.0 1920.0 1080.0)
+  in MkStackSet screen [] []
+
+sampleStack : Stack Int
+sampleStack = MkStack 1 [] [2, 3, 4, 5, 6, 7, 8]
+
+emitChecksum : Double -> IO ()
+emitChecksum checksum =
+  if checksum == 17280.0
+    then putStrLn "17280"
+    else putStrLn ("checksum-mismatch:" ++ show checksum)
+
+partial
+main : IO ()
+main = do
+  let final = runSteps 200000 (insertCount 64 emptyStackSet)
+  case stackSetPeek final of
+    Just wid => putStrLn (show wid)
+    Nothing => putStrLn "empty"
+  emitChecksum (rectChecksum (columnLayout (MkRectangle 0.0 0.0 1920.0 1080.0) sampleStack))
