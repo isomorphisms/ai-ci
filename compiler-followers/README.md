@@ -76,7 +76,7 @@ The earlier embedded roadmap names RV32. Keep XLEN applicability explicit, do no
 - `idric-embedded:rp4080` names no real Raspberry Pi MCU. Do no implementation work until it is renamed to a concrete target such as RP2350 and every programmable ISA on that device is separated.
 - `idric-embedded:esp` is not one ISA. Select an exact Xtensa or RISC-V device/profile first.
 - `idric-embedded:tricore-aurix` is superseded by `idric-automotive-ecu:reference/tricore-tc18`.
-- `idric-big-iron:arch/x86-64` is a noncanonical architecture-note branch; complete x86 inventory and executable codegen belong in `idric-x86-aggressive-backend`.
+- `idric-big-iron:arch/x86-64` owns an independent LLVM-derived cross-vendor architecture catalog and comparative notes. Backend-facing XED/form inventory, the instruction encyclopedia, and executable codegen belong in `idric-x86-aggressive-backend`. Neither catalog implies emitted support.
 - Switch 2/T239/Ampere is not covered by the original-Switch Tegra-X1/Maxwell row.
 
 ## Advancing the checkpoint
@@ -84,4 +84,3 @@ The earlier embedded roadmap names RV32. Keep XLEN applicability explicit, do no
 Advance `arm-thumb.checkpoint` only after one reviewed sweep has classified the entire accumulated ARM/Thumb delta and recorded an outcome for every policy row that could be affected. `not-applicable`, observation-only, inventory-only, and implementation-behind are valid outcomes; silence is not.
 
 Until a machine-checked sweep receipt exists, an automated or low-context pass must not advance the checkpoint. Follower lag never blocks ARM/Thumb development.
-
