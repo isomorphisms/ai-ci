@@ -37,6 +37,8 @@ jobs:
           curl --fail --location --retry 3 \
             https://hackage.haskell.org/01-index.tar.gz \
             --output hackage-2014/01-index.tar.gz
+          sha256sum hackage-2014/01-index.tar.gz \
+            | tee artifacts/hackage-modern-01-index.sha256
           python3 benchmarks/iridium-2014/make-hackage-2014-index.py \
             --cutoff 2014-10-16T23:59:59Z \
             hackage-2014/01-index.tar.gz \
@@ -49,12 +51,15 @@ jobs:
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
           path: .cache/iridium-2014-home
-          key: iridium-idris-0.9.14.3-ghc-7.8.4-hackage-2014-10-16-v1
+          key: iridium-idris-0.9.14.3-ghc-7.8.4-hackage-2014-10-16-v2
 
       - name: Build historical Idris and Iridium ELF fixture
         shell: bash
         run: |
           set -euxo pipefail
+          printf '%s\n' \
+            'migamake/haskell-build:7.8@sha256:b380cec2689828577306a78d58407d2dbb0beb3a5bd556e1e8d969253918e56c' \
+            > artifacts/historical-container.txt
           docker run --rm \
             -v "$PWD:/work" \
             -w /work \
@@ -77,6 +82,29 @@ jobs:
           readelf -sW artifacts/iridium-core > artifacts/readelf-symbols.txt
           readelf -rW artifacts/iridium-core > artifacts/readelf-relocations.txt
           nm -S --size-sort artifacts/iridium-core > artifacts/nm-size-sort.txt
+
+          cp artifacts/iridium-core artifacts/iridium-core-stripped
+          strip --strip-all artifacts/iridium-core-stripped
+          stat --printf='%s\n' artifacts/iridium-core-stripped \
+            | tee artifacts/stripped-file-bytes.txt
+          sha256sum artifacts/iridium-core-stripped \
+            | tee artifacts/stripped-binary.sha256
+          size artifacts/iridium-core-stripped | tee artifacts/stripped-size.txt
+          strip --version > artifacts/strip-version.txt
+
+          : > artifacts/external-library-files.txt
+          total=0
+          while read -r library; do
+            resolved="$(readlink -f "$library")"
+            bytes="$(stat --printf='%s' "$resolved")"
+            digest="$(sha256sum "$resolved" | awk '{print $1}')"
+            printf '%s\t%s\t%s\n' "$bytes" "$digest" "$resolved" \
+              >> artifacts/external-library-files.txt
+            total=$((total + bytes))
+          done < <(awk '$2 == "=>" && $3 ~ /^\// {print $3} $1 ~ /^\// {print $1}' \
+            artifacts/ldd.txt | sort -u)
+          printf '%s\n' "$total" | tee artifacts/external-library-file-bytes.txt
+
           if [[ -f artifacts/iridium-quartz-generated.c ]]; then
             wc -c artifacts/iridium-quartz-generated.c | tee artifacts/quartz-generated-c-bytes.txt
             sha256sum artifacts/iridium-quartz-generated.c | tee artifacts/quartz-generated-c.sha256
@@ -110,6 +138,7 @@ jobs:
         id: quartz
         shell: bash
         run: |
+          mkdir -p macho-evidence
           if [[ -f linux-evidence/iridium-quartz-generated.c ]]; then
             echo 'available=true' >> "$GITHUB_OUTPUT"
           else
@@ -127,14 +156,22 @@ jobs:
           curl --fail --location --retry 3 \
             https://hackage.haskell.org/package/idris-0.9.14.3/idris-0.9.14.3.tar.gz \
             --output idris-0.9.14.3.tar.gz
+          shasum -a 256 idris-0.9.14.3.tar.gz \
+            > macho-evidence/idris-runtime-source.sha256
           tar -xzf idris-0.9.14.3.tar.gz
+          sw_vers > macho-evidence/sw-vers.txt
+          uname -a > macho-evidence/uname.txt
+          clang --version > macho-evidence/clang-version.txt
 
       - name: Rebuild the 2014 C runtime and Quartz boundary
+        id: macho_objects
         if: steps.quartz.outputs.available == 'true'
+        continue-on-error: true
         shell: bash
         run: |
           set -euxo pipefail
           mkdir -p macho-build macho-evidence
+          : > macho-evidence/object-build.log
           RTS="$PWD/idris-0.9.14.3/rts"
           CFLAGS="-O2 -fwrapv -fno-strict-overflow -DHAS_PTHREAD -I$RTS"
 
@@ -142,17 +179,22 @@ jobs:
             idris_rts.c idris_heap.c idris_gc.c idris_gmp.c idris_bitstring.c \
             idris_opts.c idris_stats.c mini-gmp.c idris_stdfgn.c idris_net.c
           do
-            clang $CFLAGS -c "$RTS/$src" -o "macho-build/${src%.c}.o"
+            clang $CFLAGS -c "$RTS/$src" -o "macho-build/${src%.c}.o" \
+              2>&1 | tee -a macho-evidence/object-build.log
           done
           ar rcs macho-build/libidris_rts.a macho-build/idris_*.o macho-build/mini-gmp.o
 
           clang -O2 -Wall -Iupstream-iridium/cbits \
-            -c upstream-iridium/cbits/ir.c -o macho-build/ir.o
+            -c upstream-iridium/cbits/ir.c -o macho-build/ir.o \
+            2>&1 | tee -a macho-evidence/object-build.log
           clang -O2 -Wall -fobjc-arc -fblocks -Iupstream-iridium/cbits \
-            -c upstream-iridium/cbits/quartz.m -o macho-build/quartz.o
+            -c upstream-iridium/cbits/quartz.m -o macho-build/quartz.o \
+            2>&1 | tee -a macho-evidence/object-build.log
 
       - name: Link full Iridium Mach-O reconstruction
-        if: steps.quartz.outputs.available == 'true'
+        id: macho_link
+        if: steps.quartz.outputs.available == 'true' && steps.macho_objects.outcome == 'success'
+        continue-on-error: true
         shell: bash
         run: |
           set -euxo pipefail
@@ -163,10 +205,11 @@ jobs:
             macho-build/ir.o macho-build/quartz.o macho-build/libidris_rts.a \
             -framework Cocoa -framework ApplicationServices \
             -F/System/Library/PrivateFrameworks -framework SkyLight \
-            -lpthread -lm -o macho-evidence/iridium
+            -lpthread -lm -o macho-evidence/iridium \
+            2>&1 | tee macho-evidence/link.log
 
       - name: Inspect Mach-O without launching a window manager
-        if: steps.quartz.outputs.available == 'true'
+        if: steps.quartz.outputs.available == 'true' && steps.macho_link.outcome == 'success'
         shell: bash
         run: |
           set -euxo pipefail
@@ -179,10 +222,22 @@ jobs:
           otool -L macho-evidence/iridium > macho-evidence/otool-libraries.txt
           nm -nm macho-evidence/iridium > macho-evidence/nm.txt
 
-      - name: Package Mach-O evidence
-        if: steps.quartz.outputs.available == 'true'
+      - name: Record Mach-O reconstruction status
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p macho-evidence
+          {
+            echo "generated_c=${{ steps.quartz.outputs.available }}"
+            echo "object_build=${{ steps.macho_objects.outcome }}"
+            echo "link=${{ steps.macho_link.outcome }}"
+          } | tee macho-evidence/reconstruction-status.txt
+          cat macho-evidence/reconstruction-status.txt >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Package Mach-O reconstruction evidence
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: iridium-2014-macos-macho
+          name: iridium-2014-macos-reconstruction
           path: macho-evidence/
           if-no-files-found: error

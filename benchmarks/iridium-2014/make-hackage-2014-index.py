@@ -2,9 +2,10 @@
 """Build the old-style Hackage index as it existed at a UTC cutoff.
 
 Modern Hackage's 01-index contains the complete append-only history of Cabal
-metadata.  Old cabal-install expects a 00-index containing only the effective
-.cabal file for each package version.  Keep the last revision at or before the
-cutoff and discard hackage-security JSON records that a 2014 client never knew.
+metadata. Old cabal-install expects a 00-index containing the effective .cabal
+file for each package version plus the top-level preferred-versions file. Keep
+the last revision at or before the cutoff and discard hackage-security records
+that a 2014 client never knew.
 """
 
 from __future__ import annotations
@@ -38,9 +39,10 @@ def main() -> None:
         for member in src:
             if not member.isfile() or member.mtime > cutoff:
                 continue
-            # Old 00-index semantics: one effective package .cabal file per
-            # package/version.  Ignore security JSON and later metadata types.
-            if not member.name.endswith(".cabal"):
+            # Legacy 00-index semantics include package .cabal files and one
+            # top-level preferred-versions file. Ignore security JSON and later
+            # metadata types unknown to a 2014 client.
+            if not (member.name.endswith(".cabal") or member.name == "preferred-versions"):
                 continue
             f = src.extractfile(member)
             if f is None:
@@ -63,7 +65,8 @@ def main() -> None:
                 out.addfile(info, io.BytesIO(data))
 
     print(f"cutoff={args.cutoff}")
-    print(f"cabal_files={len(latest)}")
+    print(f"cabal_files={sum(name.endswith('.cabal') for name in latest)}")
+    print(f"preferred_versions={'yes' if 'preferred-versions' in latest else 'no'}")
     print(f"bytes={args.dest.stat().st_size}")
 
 
