@@ -2,10 +2,6 @@ name: Iridium 2014 Idric comparison
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - "benchmarks/iridium-2014/**"
-      - ".github/workflows/iridium-2014-idric.yml"
   pull_request:
     paths:
       - "benchmarks/iridium-2014/**"
@@ -34,11 +30,13 @@ jobs:
           git -C upstream-idric checkout --detach FETCH_HEAD
           test "$(git -C upstream-idric rev-parse HEAD)" = "$IDRIC_COMMIT"
 
-      - name: Cache pinned Chez toolchain
+      - name: Cache pinned Idric compiler
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
-          path: upstream-idric/.tools
-          key: idric-${{ runner.os }}-${{ env.IDRIC_COMMIT }}-chez-10.4.1-2e74952db7bc177f0c3602e2217a341ba677d733eec4cd7726418c3a4e1ef308
+          path: |
+            upstream-idric/.tools
+            upstream-idric/.comparison-install
+          key: idric-compiler-v1-${{ runner.os }}-${{ env.IDRIC_COMMIT }}-chez-10.4.1-2e74952db7bc177f0c3602e2217a341ba677d733eec4cd7726418c3a4e1ef308
 
       - name: Build and execute exact Idric comparison
         shell: bash
