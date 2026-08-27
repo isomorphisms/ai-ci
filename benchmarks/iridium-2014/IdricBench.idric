@@ -2,14 +2,45 @@ module Main
 
 import Data.Vect
 
--- Semantic port of the pure Iridium benchmark kernel from
+-- Semantic port of the display-free Iridium benchmark kernel from
 -- puffnfresh/iridium@2dc438475962b62f6ca8d00f0dff3add87418dec.
 -- Copyright (c) 2014 Brian McKenna, MIT licensed; see IRIDIUM-LICENSE.txt.
 --
--- This deliberately keeps the Stack/StackSet focus+swap algorithm, dependent
--- Vect integration, 64-window initialization, 200000-step loop, and column
--- layout arithmetic. It does not port Cocoa, Effects, or event handling because
--- those are outside the display-free comparison boundary used by IridiumBench.idr.
+-- Keep the exercised Store/Lens path, Stack/StackSet updates, dependent Vect
+-- integration, cyclic single layout, 64-window initialization, 200000-step
+-- focus/swap loop, and eight-rectangle column calculation. Cocoa, Effects, and
+-- event handling are not exercised by IridiumBench.idr and are not pulled into
+-- this display-free comparison.
+
+data Store s a = MkStore (s -> a) s
+
+pos : Store s a -> s
+pos (MkStore _ s) = s
+
+peek : s -> Store s a -> a
+peek s (MkStore f _) = f s
+
+peeks : (s -> s) -> Store s a -> a
+peeks f (MkStore g s) = g (f s)
+
+data Lens a b = MkLens (a -> Store b a)
+
+lens : (a -> b) -> (b -> a -> a) -> Lens a b
+lens f g = MkLens (\a => MkStore (\b => g b a) (f a))
+
+composeL : Lens b c -> Lens a b -> Lens a c
+composeL (MkLens f) (MkLens g) =
+  MkLens (\a =>
+    case g a of
+      MkStore ba b =>
+        case f b of
+          MkStore cb c => MkStore (ba . cb) c)
+
+getL : Lens a b -> a -> b
+getL (MkLens f) a = pos (f a)
+
+modL : Lens a b -> (b -> b) -> a -> a
+modL (MkLens f) g = peeks g . f
 
 record Rectangle where
   constructor MkRectangle
@@ -24,6 +55,15 @@ record Stack wid where
   stackUp : List wid
   stackDown : List wid
 
+stackFocusL : Lens (Stack wid) wid
+stackFocusL = lens getFocus setFocus
+  where
+    getFocus : Stack wid -> wid
+    getFocus (MkStack x _ _) = x
+
+    setFocus : wid -> Stack wid -> Stack wid
+    setFocus x (MkStack _ a b) = MkStack x a b
+
 stackLength : Stack wid -> Nat
 stackLength (MkStack _ ys zs) = S (length ys + length zs)
 
@@ -35,10 +75,24 @@ integrate (MkStack x ys zs) =
 LayoutF : Type -> Type
 LayoutF wid = Rectangle -> (s : Stack wid) -> Vect (stackLength s) (wid, Rectangle)
 
+record Layout wid where
+  constructor MkLayout
+  layoutPure : LayoutF wid
+  layoutNext : Inf (Layout wid)
+
 record Workspace wid where
   constructor MkWorkspace
-  workspaceLayout : LayoutF wid
+  workspaceLayout : Layout wid
   workspaceStack : Maybe (Stack wid)
+
+workspaceStackL : Lens (Workspace wid) (Maybe (Stack wid))
+workspaceStackL = lens getStack setStack
+  where
+    getStack : Workspace wid -> Maybe (Stack wid)
+    getStack (MkWorkspace _ x) = x
+
+    setStack : Maybe (Stack wid) -> Workspace wid -> Workspace wid
+    setStack x (MkWorkspace a _) = MkWorkspace a x
 
 record Screen wid sid where
   constructor MkScreen
@@ -46,43 +100,52 @@ record Screen wid sid where
   screenId : sid
   screenDetail : Rectangle
 
+screenWorkspaceL : Lens (Screen wid sid) (Workspace wid)
+screenWorkspaceL = lens getWorkspace setWorkspace
+  where
+    getWorkspace : Screen wid sid -> Workspace wid
+    getWorkspace (MkScreen x _ _) = x
+
+    setWorkspace : Workspace wid -> Screen wid sid -> Screen wid sid
+    setWorkspace x (MkScreen _ a b) = MkScreen x a b
+
 record StackSet wid sid where
   constructor MkStackSet
   stackSetCurrent : Screen wid sid
   stackSetVisible : List (Screen wid sid)
   stackSetHidden : List (Workspace wid)
 
-currentStack : StackSet wid sid -> Maybe (Stack wid)
-currentStack (MkStackSet (MkScreen (MkWorkspace _ stack) _ _) _ _) = stack
+stackSetCurrentL : Lens (StackSet wid sid) (Screen wid sid)
+stackSetCurrentL = lens getCurrent setCurrent
+  where
+    getCurrent : StackSet wid sid -> Screen wid sid
+    getCurrent (MkStackSet x _ _) = x
 
-modifyStackSlot :
-  (Maybe (Stack wid) -> Maybe (Stack wid)) ->
-  StackSet wid sid ->
-  StackSet wid sid
-modifyStackSlot f (MkStackSet (MkScreen (MkWorkspace layout stack) sid rect) visible hidden) =
-  MkStackSet (MkScreen (MkWorkspace layout (f stack)) sid rect) visible hidden
+    setCurrent : Screen wid sid -> StackSet wid sid -> StackSet wid sid
+    setCurrent x (MkStackSet _ a b) = MkStackSet x a b
+
+stackSetStack : Lens (StackSet wid sid) (Maybe (Stack wid))
+stackSetStack = composeL workspaceStackL (composeL screenWorkspaceL stackSetCurrentL)
 
 member : Eq wid => wid -> StackSet wid sid -> Bool
 member wid s =
-  case currentStack s of
-    Nothing => False
-    Just stack => elem wid (integrate stack)
+  maybe False (\stack => elem wid (integrate stack)) (getL stackSetStack s)
 
 insertUp : Eq wid => wid -> StackSet wid sid -> StackSet wid sid
 insertUp wid s =
   if member wid s
     then s
-    else modifyStackSlot insert s
+    else modL stackSetStack insertStack s
   where
-    insert : Maybe (Stack wid) -> Maybe (Stack wid)
-    insert Nothing = Just (MkStack wid [] [])
-    insert (Just (MkStack t l r)) = Just (MkStack wid l (t :: r))
+    insertStack : Maybe (Stack wid) -> Maybe (Stack wid)
+    insertStack Nothing = Just (MkStack wid [] [])
+    insertStack (Just (MkStack t l r)) = Just (MkStack wid l (t :: r))
 
 modify' : (Stack wid -> Stack wid) -> StackSet wid sid -> StackSet wid sid
-modify' f = modifyStackSlot (map f)
+modify' f = modL stackSetStack (map f)
 
 stackSetPeek : StackSet wid sid -> Maybe wid
-stackSetPeek s = map stackFocus (currentStack s)
+stackSetPeek ss = map (\s => getL stackFocusL s) (getL stackSetStack ss)
 
 reverseStack : Stack wid -> Stack wid
 reverseStack (MkStack t ls rs) = MkStack t rs ls
@@ -136,6 +199,12 @@ column r n = column' n r n
 columnLayout : LayoutF wid
 columnLayout rect s = zip (integrate s) (column rect (stackLength s))
 
+single : LayoutF wid -> Layout wid
+single l = x
+  where
+    x : Layout wid
+    x = MkLayout l x
+
 rectChecksum : Vect n (wid, Rectangle) -> Double
 rectChecksum [] = 0.0
 rectChecksum ((_, MkRectangle x y w h) :: xs) =
@@ -143,7 +212,7 @@ rectChecksum ((_, MkRectangle x y w h) :: xs) =
 
 emptyStackSet : StackSet Int Int
 emptyStackSet =
-  let workspace = MkWorkspace columnLayout Nothing
+  let workspace = MkWorkspace (single columnLayout) Nothing
       screen = MkScreen workspace 0 (MkRectangle 0.0 0.0 1920.0 1080.0)
   in MkStackSet screen [] []
 
