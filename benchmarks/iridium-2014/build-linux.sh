@@ -21,7 +21,12 @@ EOF
 ghc --version | tee artifacts/ghc-version.txt
 cabal --version | tee artifacts/cabal-version.txt
 cabal v1-update
-cabal v1-install --user --jobs=2 --index-state=2014-10-16T00:00:00Z idris-0.9.14.3
+
+# With the old-style direct repository Cabal cannot honor index-state.  The
+# exact Idris target remains pinned; unlimited backtracking is needed because
+# the current Hackage index contains many newer dependency versions which do
+# not support GHC 7.8/base-4.7.
+cabal v1-install --user --jobs=2 --max-backjumps=-1 --reorder-goals idris-0.9.14.3
 idris --version | tee artifacts/idris-version.txt
 
 /usr/bin/time -f "%e" -o artifacts/compile-seconds.txt \
