@@ -8,6 +8,9 @@ PREFIX="$IDRIC_DIR/.comparison-install"
 PREFIX_MARKER="$PREFIX/.idric-source-commit"
 SOURCE="$PWD/benchmarks/iridium-2014/IdricBench.idric"
 EXPECTED="$PWD/benchmarks/iridium-2014/expected-output.txt"
+OUTPUT_NAME=iridium-idric-refc
+COMPILER_WORK="$ARTIFACTS/compiler-work"
+BINARY="$ARTIFACTS/$OUTPUT_NAME"
 
 mkdir -p "$ARTIFACTS"
 
@@ -62,22 +65,41 @@ sha256sum \
 export IDRIS2_PREFIX="$PREFIX"
 export IDRIS2_CFLAGS='-O2 -fwrapv -fno-strict-overflow'
 printf '%s\n' "$IDRIS2_CFLAGS" > "$ARTIFACTS/idric-cflags.txt"
+rm -rf "$COMPILER_WORK"
+mkdir -p "$COMPILER_WORK"
 printf '%s\n' \
-  "IDRIS2_PREFIX=$PREFIX IDRIS2_CFLAGS='$IDRIS2_CFLAGS' $COMPILER --cg refc -o $ARTIFACTS/iridium-idric-refc $SOURCE" \
+  "cd $COMPILER_WORK && IDRIS2_PREFIX=$PREFIX IDRIS2_CFLAGS='$IDRIS2_CFLAGS' $COMPILER --cg refc -o $OUTPUT_NAME $SOURCE" \
   > "$ARTIFACTS/compile-command.txt"
 
+# Idris 2's -o names the executable inside its build/exec tree; it is not a
+# literal destination pathname. Compile from a controlled directory and copy
+# the exact generated executable into the evidence directory afterward.
 TIMEFORMAT='%3R'
 set +x
-{ time "$COMPILER" --cg refc -o "$ARTIFACTS/iridium-idric-refc" "$SOURCE"; } \
-  2> "$ARTIFACTS/compile-seconds.txt"
+(
+  cd "$COMPILER_WORK"
+  { time "$COMPILER" --cg refc -o "$OUTPUT_NAME" "$SOURCE"; } \
+    2> "$ARTIFACTS/compile-seconds.txt"
+)
 set -x
 
-test -x "$ARTIFACTS/iridium-idric-refc"
-file "$ARTIFACTS/iridium-idric-refc" | tee "$ARTIFACTS/file.txt"
-file "$ARTIFACTS/iridium-idric-refc" | grep -q 'ELF'
+GENERATED_BINARY="$COMPILER_WORK/build/exec/$OUTPUT_NAME"
+if [ ! -x "$GENERATED_BINARY" ]; then
+  find "$COMPILER_WORK" -maxdepth 4 -printf '%y\t%p\n' \
+    > "$ARTIFACTS/compiler-work-tree.txt"
+  printf 'expected RefC executable missing: %s\n' "$GENERATED_BINARY" \
+    > "$ARTIFACTS/output-path-error.txt"
+  exit 1
+fi
+printf '%s\n' "$GENERATED_BINARY" > "$ARTIFACTS/generated-binary-path.txt"
+cp "$GENERATED_BINARY" "$BINARY"
 
-"$ARTIFACTS/iridium-idric-refc" > "$ARTIFACTS/result-1.txt"
-"$ARTIFACTS/iridium-idric-refc" > "$ARTIFACTS/result-2.txt"
+test -x "$BINARY"
+file "$BINARY" | tee "$ARTIFACTS/file.txt"
+file "$BINARY" | grep -q 'ELF'
+
+"$BINARY" > "$ARTIFACTS/result-1.txt"
+"$BINARY" > "$ARTIFACTS/result-2.txt"
 cp "$EXPECTED" "$ARTIFACTS/expected-output.txt"
 cmp "$ARTIFACTS/expected-output.txt" "$ARTIFACTS/result-1.txt"
 cmp "$ARTIFACTS/result-1.txt" "$ARTIFACTS/result-2.txt"
@@ -87,33 +109,32 @@ sha256sum "$ARTIFACTS/result-1.txt" > "$ARTIFACTS/result.sha256"
 # common-kernel timing because the historical row does not yet have an
 # equivalent repeated in-process timing boundary.
 printf '%s\n' \
-  "three separate executions of $ARTIFACTS/iridium-idric-refc; each performs 200000 focus/swap steps" \
+  "three separate executions of $BINARY; each performs 200000 focus/swap steps" \
   > "$ARTIFACTS/run-command.txt"
 TIMEFORMAT='wall=%3R user=%3U system=%3S'
 set +x
-{ time bash -c 'for i in 1 2 3; do "$1" >/dev/null; done' _ "$ARTIFACTS/iridium-idric-refc"; } \
+{ time bash -c 'for i in 1 2 3; do "$1" >/dev/null; done' _ "$BINARY"; } \
   2> "$ARTIFACTS/run-time-3x.txt"
 set -x
 
-stat --printf='%s\n' "$ARTIFACTS/iridium-idric-refc" \
-  | tee "$ARTIFACTS/file-bytes.txt"
-sha256sum "$ARTIFACTS/iridium-idric-refc" > "$ARTIFACTS/binary.sha256"
-size "$ARTIFACTS/iridium-idric-refc" > "$ARTIFACTS/size.txt"
-readelf -hW "$ARTIFACTS/iridium-idric-refc" > "$ARTIFACTS/readelf-header.txt"
-readelf -SW "$ARTIFACTS/iridium-idric-refc" > "$ARTIFACTS/readelf-sections.txt"
-readelf -lW "$ARTIFACTS/iridium-idric-refc" > "$ARTIFACTS/readelf-program-headers.txt"
-readelf -dW "$ARTIFACTS/iridium-idric-refc" > "$ARTIFACTS/readelf-dynamic.txt"
-readelf -sW "$ARTIFACTS/iridium-idric-refc" > "$ARTIFACTS/readelf-symbols.txt"
-readelf -rW "$ARTIFACTS/iridium-idric-refc" > "$ARTIFACTS/readelf-relocations.txt"
-nm -S --size-sort "$ARTIFACTS/iridium-idric-refc" > "$ARTIFACTS/nm-size-sort.txt"
+stat --printf='%s\n' "$BINARY" | tee "$ARTIFACTS/file-bytes.txt"
+sha256sum "$BINARY" > "$ARTIFACTS/binary.sha256"
+size "$BINARY" > "$ARTIFACTS/size.txt"
+readelf -hW "$BINARY" > "$ARTIFACTS/readelf-header.txt"
+readelf -SW "$BINARY" > "$ARTIFACTS/readelf-sections.txt"
+readelf -lW "$BINARY" > "$ARTIFACTS/readelf-program-headers.txt"
+readelf -dW "$BINARY" > "$ARTIFACTS/readelf-dynamic.txt"
+readelf -sW "$BINARY" > "$ARTIFACTS/readelf-symbols.txt"
+readelf -rW "$BINARY" > "$ARTIFACTS/readelf-relocations.txt"
+nm -S --size-sort "$BINARY" > "$ARTIFACTS/nm-size-sort.txt"
 
-cp "$ARTIFACTS/iridium-idric-refc" "$ARTIFACTS/iridium-idric-refc-stripped"
-strip --strip-all "$ARTIFACTS/iridium-idric-refc-stripped"
-stat --printf='%s\n' "$ARTIFACTS/iridium-idric-refc-stripped" \
+cp "$BINARY" "$ARTIFACTS/$OUTPUT_NAME-stripped"
+strip --strip-all "$ARTIFACTS/$OUTPUT_NAME-stripped"
+stat --printf='%s\n' "$ARTIFACTS/$OUTPUT_NAME-stripped" \
   | tee "$ARTIFACTS/stripped-file-bytes.txt"
-sha256sum "$ARTIFACTS/iridium-idric-refc-stripped" \
+sha256sum "$ARTIFACTS/$OUTPUT_NAME-stripped" \
   > "$ARTIFACTS/stripped-binary.sha256"
-size "$ARTIFACTS/iridium-idric-refc-stripped" > "$ARTIFACTS/stripped-size.txt"
+size "$ARTIFACTS/$OUTPUT_NAME-stripped" > "$ARTIFACTS/stripped-size.txt"
 strip --version > "$ARTIFACTS/strip-version.txt"
 
 # Deployment footprint is a separate measurement: executable bytes above,
@@ -121,7 +142,7 @@ strip --version > "$ARTIFACTS/strip-version.txt"
 # statically linked, so it is charged to the executable rather than duplicated
 # in this external-library total.
 ldd --version > "$ARTIFACTS/runtime-ldd-version.txt" 2>&1 || true
-ldd "$ARTIFACTS/iridium-idric-refc" | tee "$ARTIFACTS/runtime-ldd.txt"
+ldd "$BINARY" | tee "$ARTIFACTS/runtime-ldd.txt"
 : > "$ARTIFACTS/runtime-library-files.txt"
 runtime_library_total=0
 while read -r library; do
