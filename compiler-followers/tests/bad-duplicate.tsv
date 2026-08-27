@@ -1,0 +1,3 @@
+target	repository	ref	mode	isa_closeness	device_closeness	scope	rule
+same	isomorphisms/example	main	boring-native	low	low	test	first row
+same	isomorphisms/example	other	selective	low	low	test	duplicate target must be rejected
