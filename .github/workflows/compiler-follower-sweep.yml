@@ -38,6 +38,17 @@ jobs:
               exit 1
             fi
           done
+      - name: Validate referenced branches exist
+        shell: sh
+        run: |
+          tail -n +2 compiler-followers/policy.tsv |
+          while IFS="$(printf '\t')" read -r target repository ref layer stage mode isa_close device_close scope rule; do
+            remote="https://github.com/$repository.git"
+            if ! git ls-remote --exit-code --heads "$remote" "refs/heads/$ref" >/dev/null; then
+              echo "missing follower ref: $target -> $repository:$ref" >&2
+              exit 1
+            fi
+          done
       - name: Validate reviewed ARM Thumb checkpoint
         shell: sh
         run: |
@@ -106,4 +117,3 @@ jobs:
             echo
             echo 'The complete rules are checked in at `compiler-followers/policy.tsv`. Layer and stage are independent from propagation mode: an inventory or platform branch is not a codegen owner. This job is read-only and does not advance the checkpoint.'
           } >> "$GITHUB_STEP_SUMMARY"
-
