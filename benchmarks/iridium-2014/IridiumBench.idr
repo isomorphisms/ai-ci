@@ -42,6 +42,6 @@ main : IO ()
 main = do
   let final = runSteps 200000 (insertCount 64 emptyStackSet)
   case stackSetPeek final of
-    Just wid => printLn wid
+    Just wid => putStrLn (show wid)
     Nothing => putStrLn "empty"
-  printLn (rectChecksum (columnLayout (MkRectangle 0.0 0.0 1920.0 1080.0) sampleStack))
+  putStrLn (show (rectChecksum (columnLayout (MkRectangle 0.0 0.0 1920.0 1080.0) sampleStack)))
