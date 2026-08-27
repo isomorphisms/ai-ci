@@ -36,9 +36,9 @@ The goal is not `STRH` translated mechanically into a Wasm spelling. The goal is
 
 The CPU follower policy is not the shader policy.
 
-Phone-side shader development currently lives in `isomorphisms/idris-shader-backend`, including the PowerVR-focused and shared GLSL work. Switch/Maxwell, WebGPU/WGSL, and any later GPU/shader targets need the same exercise performed separately: identify which phone-shader decisions express mathematical/rendering intent, which are GLSL-level choices, which are PowerVR/driver-specific, and how each target should follow.
+Shader compiler work lives in `isomorphisms/idris-shader-backend`. The concrete tracked branches are PowerVR/phone, Switch/Maxwell, and `target/webgpu-wgsl`. The WGSL ownership question is now settled: `idris-shader-backend:target/webgpu-wgsl` is canonical for WGSL compiler work, while `idric-embedded:webgpu` is host/runtime only.
 
-Until that discussion is completed, `webgpu` remains `separate-track` here rather than receiving invented CPU-derived rules.
+The shader-specific propagation rules live in #21 and must distinguish shared mathematical/typed-IR semantics from shader-language lowering, precision, resource/address-space rules, execution/cooperation semantics, hardware/compiler tuning, and host/runtime boundaries. `webgpu` therefore remains `separate-track` in the CPU table and points at the canonical shader branch rather than receiving invented CPU-derived rules.
 
 ## Advancing the checkpoint
 
