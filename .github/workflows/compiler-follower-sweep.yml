@@ -29,13 +29,15 @@ jobs:
       - name: Validate follower policy
         shell: sh
         run: sh compiler-followers/validate-policy.sh compiler-followers/policy.tsv
-      - name: Prove duplicate target is rejected
+      - name: Prove unsafe fixtures are rejected
         shell: sh
         run: |
-          if sh compiler-followers/validate-policy.sh compiler-followers/tests/bad-duplicate.tsv; then
-            echo 'bad duplicate fixture was accepted' >&2
-            exit 1
-          fi
+          for fixture in compiler-followers/tests/bad-*.tsv; do
+            if sh compiler-followers/validate-policy.sh "$fixture"; then
+              echo "unsafe fixture was accepted: $fixture" >&2
+              exit 1
+            fi
+          done
       - name: Validate reviewed ARM Thumb checkpoint
         shell: sh
         run: |
@@ -98,9 +100,10 @@ jobs:
             echo
             echo '### Per-target mutatis-mutandis policy'
             echo
-            echo '| target | ref | mode | ISA close | device close | scope |'
-            echo '| --- | --- | --- | --- | --- | --- |'
-            awk -F '\t' 'NR > 1 { printf "| %s | `%s` | `%s` | %s | %s | %s |\n", $1, $3, $4, $5, $6, $7 }' compiler-followers/policy.tsv
+            echo '| target | ref | layer | stage | mode | ISA close | device close | scope |'
+            echo '| --- | --- | --- | --- | --- | --- | --- | --- |'
+            awk -F '\t' 'NR > 1 { printf "| %s | `%s` | `%s` | `%s` | `%s` | %s | %s | %s |\n", $1, $3, $4, $5, $6, $7, $8, $9 }' compiler-followers/policy.tsv
             echo
-            echo 'The complete rule text is checked in at `compiler-followers/policy.tsv`. This job is read-only: it does not mutate followers or advance the checkpoint.'
+            echo 'The complete rules are checked in at `compiler-followers/policy.tsv`. Layer and stage are independent from propagation mode: an inventory or platform branch is not a codegen owner. This job is read-only and does not advance the checkpoint.'
           } >> "$GITHUB_STEP_SUMMARY"
+
