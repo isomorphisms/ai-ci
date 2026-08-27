@@ -29,11 +29,26 @@ jobs:
           git -C upstream-iridium checkout 2dc438475962b62f6ca8d00f0dff3add87418dec
           test "$(git -C upstream-iridium rev-parse HEAD)" = 2dc438475962b62f6ca8d00f0dff3add87418dec
 
+      - name: Reconstruct Hackage as of 2014-10-16
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p hackage-2014 artifacts
+          curl --fail --location --retry 3 \
+            https://hackage.haskell.org/01-index.tar.gz \
+            --output hackage-2014/01-index.tar.gz
+          python3 benchmarks/iridium-2014/make-hackage-2014-index.py \
+            --cutoff 2014-10-16T23:59:59Z \
+            hackage-2014/01-index.tar.gz \
+            hackage-2014/00-index.tar.gz \
+            | tee artifacts/hackage-2014-index.txt
+          sha256sum hackage-2014/00-index.tar.gz \
+            | tee artifacts/hackage-2014-index.sha256
+
       - name: Build historical Idris and Iridium ELF fixture
         shell: bash
         run: |
           set -euxo pipefail
-          mkdir -p artifacts
           docker run --rm \
             -v "$PWD:/work" \
             -w /work \
