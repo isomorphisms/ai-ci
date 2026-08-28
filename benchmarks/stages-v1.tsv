@@ -1,7 +1,7 @@
 stage_id	plain_name	technical_examples	depends_on	input	output	what_it_proves
 S0	source	parsed-and-checked-source	-	source text	checked source	The compiler accepts the frozen language-level program.
-S1	named_steps	ANF; checked IR; explicit temporaries	S0	checked source	small named computations	The language has been reduced to an explicit compiler handoff rather than recognized by an ad-hoc source pattern.
-S2	backend_plan	backend IR; low-level operations	S1 or another declared checked seam	named steps	target-facing operations	The backend receives a small explicit plan such as WriteByte and Exit.
+S1	one_step_at_a_time	A-normal form (legacy literature term); checked IR; explicit temporaries	S0	checked source	small explicit computations	The language has been reduced to an explicit checked compiler handoff one step at a time rather than recognized by an ad-hoc source pattern.
+S2	backend_plan	backend IR; low-level operations	S1 or another declared checked seam	one-step-at-a-time form	target-facing operations	The backend receives a small explicit plan such as WriteByte and Exit.
 S3	target_code	instruction selection; instruction encoding; target-language emission	S2	backend plan	machine instructions or target-language stream	The backend can express the plan in the actual target vocabulary.
 S4	package	ELF; Wasm module; shader module; DEX/APK payload	S3	target code	loadable or executable artifact	The emitted target code is wrapped in the format the target actually consumes.
 S5	inspect	disassembly; byte listing; generated-source listing	S3 or S4	target code or package	inspectable evidence	The produced code can be checked rather than inferred from a successful run.
