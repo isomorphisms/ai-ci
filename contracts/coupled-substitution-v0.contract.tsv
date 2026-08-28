@@ -1,0 +1,5 @@
+# A coupled substitution returns an optional result, prechecks both sources,
+# and does not expose the old standalone fish-to-chickens operation.
+contains	COUPLED-RESULT	coupled-substitution.idric	apply : CoupledSubstitution → Text → Maybe Text
+contains	COUPLED-PRECHECK	coupled-substitution.idric	contains left_from text AND contains right_from text
+not_contains	COUPLED-NO-STANDALONE	coupled-substitution.idric	fish_to_chickens
