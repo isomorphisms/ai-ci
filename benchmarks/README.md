@@ -15,7 +15,7 @@ Use these names in AICI reports:
 
 ```text
 source
-  -> named_steps
+  -> one_step_at_a_time
   -> backend_plan
   -> target_code
   -> package
@@ -23,12 +23,24 @@ source
   -> measure
 ```
 
-`named_steps` is the local plain-English name for an ANF-like checked
-intermediate form. The idea is simple: nested computations are broken into
-small explicit steps and intermediate results are named. A backend can then
-consume those steps without having to understand the whole source language.
-The technical form may differ by compiler, so AICI records the actual technical
-name separately rather than pretending every compiler literally uses ANF.
+`one_step_at_a_time` is the plain-English name for the checked compiler handoff
+where nested computation is straightened into small explicit steps and later
+steps can refer to intermediate results. Compiler literature often calls one
+version of this A-normal form (ANF), but AICI does not require readers or
+backends to use that historical name, and different compilers may expose a
+different checked intermediate form.
+
+A temporary result in this form is not automatically a memory store. It may
+later become a register value, an immediate, a folded instruction, a reused
+register, a spill only when necessary, or nothing at all after optimization.
+AICI therefore must not infer emitted memory traffic from the number of
+one-step temporary names.
+
+Likewise, a real source/IR **put or store** operation is a different concept
+from merely naming a temporary result. Projects that use the heavy black left
+arrow for `place ⬅ value` should reserve that spelling for an operation whose
+semantics actually change a place; a one-step temporary name should not imply a
+store that may never exist in target code.
 
 `backend_plan` is a small target-facing plan such as `WriteByte` and `Exit`.
 It says what the backend intends to do without yet committing to x86, Thumb,
@@ -44,8 +56,8 @@ are not meaningful if the semantic oracle has not passed first.
 
 | Choice | Depends on | What changes when this choice changes |
 | --- | --- | --- |
-| `named_steps` | source/type checking | Potentially every backend, because this is the shared handoff from the language. |
-| `backend_plan` | named steps or another explicit compiler seam | Mainly backend structure and which operations every target must implement. |
+| `one_step_at_a_time` | source/type checking | Potentially every backend, because this is the shared handoff from the language. |
+| `backend_plan` | one-step form or another explicit compiler seam | Mainly backend structure and which operations every target must implement. |
 | `target_code` | backend plan | Instruction selection, register use, branches, SIMD, and target-specific optimizations. |
 | `package` | target code | ABI, entry point, linker/object format, relocations, sections, imports, and startup responsibilities. |
 | runtime surface | package/run route | Whether libc, CRT, VM, JS engine, driver, OS syscalls, or another runtime is part of the deployed system. |
@@ -56,6 +68,13 @@ from that route, but makes the backend responsible for ELF layout and process
 entry. Avoiding libc shrinks the external runtime surface, but makes the backend
 responsible for the relevant system-call ABI. Those are design choices to
 record, not universal requirements for every compiler target.
+
+A second design question is **when** to break work down one step at a time.
+Doing so is not inherently slow, but flattening stronger structure too early can
+throw away information that would have helped optimization. Polynomial form,
+finite dispatch, scans, loops, vectors, matrix operations, complex arithmetic,
+and other strong semantic operations may deserve to remain recognizable until
+the compiler has used the information they carry.
 
 ## Standard workloads
 
