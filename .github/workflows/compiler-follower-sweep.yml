@@ -26,6 +26,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
       - name: Validate follower policy
         shell: sh
         run: sh compiler-followers/validate-policy.sh compiler-followers/policy.tsv
@@ -54,6 +56,26 @@ jobs:
         run: |
           checkpoint=$(tr -d '\r\n ' < compiler-followers/arm-thumb.checkpoint)
           printf '%s\n' "$checkpoint" | grep -Eq '^[0-9a-f]{40}$'
+      - name: Validate full-sweep receipt
+        shell: sh
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -eu
+          current=$(tr -d '\r\n ' < compiler-followers/arm-thumb.checkpoint)
+          previous=$current
+          if [ "$EVENT_NAME" = pull_request ]; then
+            git fetch --quiet origin "$BASE_REF"
+            previous=$(git show "origin/$BASE_REF:compiler-followers/arm-thumb.checkpoint" | tr -d '\r\n ')
+          elif [ "$EVENT_NAME" = push ] && printf '%s\n' "$BEFORE_SHA" | grep -Eq '^[0-9a-f]{40}$' && [ "$BEFORE_SHA" != 0000000000000000000000000000000000000000 ]; then
+            previous=$(git show "$BEFORE_SHA:compiler-followers/arm-thumb.checkpoint" | tr -d '\r\n ')
+          fi
+          sh compiler-followers/validate-sweep.sh compiler-followers/policy.tsv compiler-followers/arm-thumb-sweep "$previous" "$current"
+      - name: Prove incomplete receipts are rejected
+        shell: sh
+        run: sh compiler-followers/tests/test-sweep-validator.sh
 
   arm-thumb-delta:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
