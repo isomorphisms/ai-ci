@@ -1,0 +1,7 @@
+field	value
+receipt_version	1
+upstream_repository	isomorphisms/idric-arm-thumb
+from	5f132d2f68cdd5ee7ddd98788af882598ad4c2f8
+through	5f132d2f68cdd5ee7ddd98788af882598ad4c2f8
+policy_sha256	720b4ecdad07496f8700aa7cd508aff7d1811c3c49aa966946a3c6e9d6de940f
+coverage	full-policy-matrix
