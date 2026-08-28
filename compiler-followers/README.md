@@ -6,6 +6,10 @@ The reviewed upstream commit is in `arm-thumb.checkpoint`. `policy.tsv` records 
 
 The workflow is intentionally read-only. It does not modify follower repositories and it does not advance the checkpoint.
 
+`arm-thumb-sweep/` is the machine-checked receipt for the checkpoint. Its metadata binds the exact old checkpoint, new checkpoint, upstream repository, and byte-exact policy. For every commit in a nonempty delta, `classifications.tsv` must contain exactly one outcome for every policy target. This deliberately conservative full matrix makes “possibly affected” auditable: irrelevant rows say `not-applicable`; they cannot disappear through silence. A zero-delta receipt has only the header because there are no changed commits to classify.
+
+`validate-sweep.sh` reconstructs the exact commit range from the upstream Git history and compares the required commit × policy-target matrix with the receipt. CI obtains the old checkpoint from the PR base (or the pre-push commit), so changing the checkpoint and pretending the sweep started at the new value is rejected. The validator clones read-only, and the workflow retains `contents: read` permission.
+
 ## Authority is layered
 
 - `isomorphisms/Idric` owns language semantics and target-independent checked compiler/IR contracts.
