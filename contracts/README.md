@@ -17,6 +17,7 @@ security sandbox (see the repository trust boundary).
 ```text
 nonempty       CODE  path
 equal          CODE  left-path  right-path
+contains       CODE  path       literal
 not_contains   CODE  path       literal
 scoped_contains CODE path       exact-scope literal
 scoped_not_contains CODE path   exact-scope literal
