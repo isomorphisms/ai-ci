@@ -42,7 +42,7 @@ The full historical program is macOS/Cocoa. Therefore `readelf` is not meaningfu
 
 ## Fair comparison boundary
 
-This branch establishes historical evidence plus the first current-Idriç execution row. It does **not** claim that old Idris is faster/slower or larger/smaller than current Idriç.
+This branch establishes historical evidence plus a backend-neutral current-Idriç fixture. It does **not** claim that old Idris is faster/slower or larger/smaller than current Idriç.
 
 Every Idriç row must preserve these conditions:
 
@@ -63,25 +63,25 @@ The startup distinction matters for the same reason: the historical ELF currentl
 
 When the GPU backend is usable, do not call the whole window manager a GPU benchmark. Stack/event/focus control is primarily scalar host work. Only add a GPU result for a separately identified operation whose semantics are genuinely data-parallel, and include transfer, launch/bind, synchronization, and readback in end-to-end timings.
 
-## First Idriç comparison row
+## Current Idriç fixture and archived RefC observation
 
-[`benchmarks/iridium-2014/IdricBench.idric`](../benchmarks/iridium-2014/IdricBench.idric) is pinned to `isomorphisms/Idric@081b9cde0591154839fb5d80d76e5570e0436300` and compiled with that revision's native RefC backend on Ubuntu 24.04 x86-64. The compiler itself is built from that exact revision with the repository's digest-pinned Chez bootstrap, then cached behind an exact source-commit marker.
+[`benchmarks/iridium-2014/IdricBench.idric`](../benchmarks/iridium-2014/IdricBench.idric) is the backend-neutral current-Idriç semantic fixture. It deliberately retains the exercised Iridium `Store`/`Lens` update path, `Stack`/`StackSet` representation, dependent-length `Vect` integration, cyclic `single columnLayout`, 64-window insertion, 200,000 `swapDown . focusDown` steps, and the eight-rectangle 1920×1080 layout calculation. A direct backend row is accepted only if it produces the same byte-for-byte `40\n17280\n` oracle twice in succession.
 
-The port deliberately retains the exercised Iridium `Store`/`Lens` update path, `Stack`/`StackSet` representation, dependent-length `Vect` integration, cyclic `single columnLayout`, 64-window insertion, 200,000 `swapDown . focusDown` steps, and the eight-rectangle 1920×1080 layout calculation. The job is accepted only if its output is byte-for-byte the same `40\n17280\n` oracle as the historical fixture, twice in succession.
+Before the RefC freeze, PR #19 successfully ran this fixture through pinned Idriç commit `081b9cde0591154839fb5d80d76e5570e0436300` and RefC on Ubuntu 24.04 x86-64. The compact, durable provenance and measurements are retained in [`historical-refc-observation.md`](../benchmarks/iridium-2014/historical-refc-observation.md).
 
-RefC receives the explicit C policy `-O2 -fwrapv -fno-strict-overflow` through `IDRIS2_CFLAGS`. The exact compiler/backend revision, RefC source hashes, C compiler/linker versions, compile command, generated executable path, ELF metadata, stripped and unstripped bytes, `ldd` surface, resolved library hashes/bytes, output digest, and whole-process timing evidence are retained in the `iridium-2014-idric-refc` artifact.
+That run is a closed historical observation, not an active comparison row. In accordance with the cross-repository [RefC freeze](https://github.com/isomorphisms/ai-ci/issues/24), this branch contains no RefC workflow or build script, nothing depends on RefC, and no future acceptance criterion may require it. New rows must connect the same fixture and oracle to direct backends.
 
-The Idriç row keeps these items explicitly unsupported, unresolved, or outside the claim rather than changing the benchmark:
+The archived observation kept these items explicitly unsupported, unresolved, or outside the claim rather than changing the benchmark:
 
 - **Common-kernel speed ratio:** unsupported until the historical and Idriç executables both have a symmetric repeated in-process harness with equivalent input/result-observation boundaries. The three-process timing file is evidence only.
-- **Optimization-policy equivalence:** unresolved until the historical Idris 0.9.14.3 generated-C/link policy is normalized against the explicit RefC policy. No speed ratio is reported before that is settled.
+- **Optimization-policy equivalence:** unresolved because the historical Idris 0.9.14.3 generated-C/link policy was not normalized against the archived RefC policy. No speed ratio is reported.
 - **Direct reuse of the 2014 Idris modules:** unsupported across the Idris 1 to current Idriç/Idris 2 source boundary. The comparison therefore ports the exercised display-free kernel semantically instead of deleting constructs that are difficult for the current compiler.
-- **Cocoa/Effects/event loop:** outside this display-free kernel and not ported into the RefC row. This does not stand in for the separate full historical Quartz/Cocoa reconstruction.
-- **Native ARM/phone performance:** not represented by this x86-64 CI row. Any phone result must be recorded separately on real hardware.
+- **Cocoa/Effects/event loop:** outside this display-free kernel and not ported into the archived observation. This does not stand in for the separate full historical Quartz/Cocoa reconstruction.
+- **Native ARM/phone performance:** not represented by this archived x86-64 observation. Any phone result must be recorded separately on real hardware.
 
-Iridium's historical `Float` spelling and current Idriç's `Double` spelling do not by themselves imply different arithmetic width: Idris 1 later renamed that primitive. The fixture also uses integer-valued layout constants and sums exactly representable in binary floating point. The artifact records this naming boundary rather than claiming a representation change that the benchmark does not establish.
+Iridium's historical `Float` spelling and current Idriç's `Double` spelling do not by themselves imply different arithmetic width: Idris 1 later renamed that primitive. The fixture also uses integer-valued layout constants and sums exactly representable in binary floating point. The archived record preserves this naming boundary rather than claiming a representation change that the benchmark does not establish.
 
-Deployment footprint remains separate from timing. The artifact records compiler-produced and stripped executable bytes independently, plus the resolved external runtime/library files and their byte total. RefC support code linked into the executable is charged to the executable; it is not counted again as an external dependency.
+Deployment footprint remains separate from timing. The archived record distinguishes compiler-produced and stripped executable bytes from the resolved external runtime/library files and their byte total.
 
 ## Evidence record
 
@@ -89,6 +89,6 @@ For each successful run retain the produced artifacts rather than copying one he
 
 The Linux bundle records both the compiler-produced ELF and a derived stripped copy. Dynamic library resolution is performed inside the digest-pinned historical container, which is also where the benchmark actually executes; `runtime-library-files.txt` records each resolved file's byte count, SHA-256, and path. Those shared-library bytes are a dependency-surface measurement, not bytes silently charged to the executable itself. Runner-side `readelf` and `nm` inspect the immutable ELF bytes but do not define its runtime dependency set.
 
-The Idriç RefC bundle uses the same separation on its Ubuntu 24.04 runner: executable bytes and a derived stripped copy are one set of measurements, while resolved `ldd` dependency files are recorded and totaled separately. Its startup-inclusive timing sample is retained only as whole-process evidence pending the symmetric common-kernel harness.
+The archived RefC observation uses the same separation: executable bytes and a derived stripped copy are one set of measurements, while resolved dynamic-library files are recorded and totaled separately. Its startup-inclusive timing sample is retained only as whole-process evidence and does not define an active backend lane.
 
 The macOS bundle is deliberately a **reconstruction evidence** artifact even when the final Mach-O cannot be linked on the current runner. A green portable-ELF job must not be mistaken for proof that the 2014 Cocoa application has been fully reconstructed; inspect `reconstruction-status.txt` for that claim.
