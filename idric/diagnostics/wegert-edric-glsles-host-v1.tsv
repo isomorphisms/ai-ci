@@ -1,0 +1,9 @@
+stage	code	meaning	failure_class	downstream
+host	HOST_ENV	x86_64 host compiler and Khronos GLSL validator are present	HOST_SETUP	continue_independently
+handwritten_glsl	WEGERT_GLSL_BASELINE	existing Wegert GLSL assembles and validates before Edric is involved	WEGERT_GLSL_BASELINE	continue_independently
+host_c_fallback	WEGERT_X86_C_FALLBACK	Wegert ordinary x86_64 complex-math fallback compiles and passes its regression	WEGERT_HOST_CPU_BASELINE	continue_independently
+edric_bootstrap	EDRIC_BOOTSTRAP	selected Idric revision produces its hosted compiler with its pinned Chez runtime	EDRIC_BOOTSTRAP	compiler_api_skip
+edric_compiler_api	EDRIC_COMPILER_API	exact bootstrapped Edric revision installs the compiler API required by external code generators	EDRIC_COMPILER_API	backend_build_skip
+glsles_backend_build	GLSLES_BACKEND_BUILD	idris-shader-backend builds against that Edric compiler API rather than stock Idris	GLSLES_BACKEND_BUILD	wegert_compile_skip
+wegert_idric_compile	WEGERT_IDRIC_TO_GLSL	real 64-zero/64-pole Wegert .idric probe lowers through the registered GLSL backend	WEGERT_IDRIC_TO_GLSL	generated_validation_skip
+generated_glsl_validate	GENERATED_GLSL_VALIDATE	compiler-generated Wegert fragment validates and links with the fullscreen vertex fixture	GENERATED_GLSL_VALIDATE	terminal
