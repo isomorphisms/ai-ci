@@ -4,6 +4,8 @@ handwritten_glsl	WEGERT_GLSL_BASELINE	existing Wegert GLSL assembles and validat
 host_c_fallback	WEGERT_X86_C_FALLBACK	Wegert ordinary x86_64 complex-math fallback compiles and passes its regression	WEGERT_HOST_CPU_BASELINE	continue_independently
 edric_bootstrap	EDRIC_BOOTSTRAP	selected Idric revision produces its hosted compiler with its pinned Chez runtime	EDRIC_BOOTSTRAP	compiler_api_skip
 edric_compiler_api	EDRIC_COMPILER_API	exact bootstrapped Edric revision installs the compiler API required by external code generators	EDRIC_COMPILER_API	backend_build_skip
-glsles_backend_build	GLSLES_BACKEND_BUILD	idris-shader-backend builds against that Edric compiler API rather than stock Idris	GLSLES_BACKEND_BUILD	wegert_compile_skip
-wegert_idric_compile	WEGERT_IDRIC_TO_GLSL	real 64-zero/64-pole Wegert .idric probe lowers through the registered GLSL backend	WEGERT_IDRIC_TO_GLSL	generated_validation_skip
-generated_glsl_validate	GENERATED_GLSL_VALIDATE	compiler-generated Wegert fragment validates and links with the fullscreen vertex fixture	GENERATED_GLSL_VALIDATE	terminal
+glsles_backend_build	GLSLES_BACKEND_BUILD	idris-shader-backend builds against that Edric compiler API rather than stock Idris	GLSLES_BACKEND_BUILD	shader_compile_skip
+wegert_idr_compile	WEGERT_IDR_TO_GLSL	the real 64-zero/64-pole SharedFactorPortrait compiles as ordinary .idr through the Edric-built GLSL code generator	WEGERT_IDR_TO_GLSL	generated_idr_validation_skip
+generated_idr_glsl_validate	GENERATED_IDR_GLSL_VALIDATE	the ordinary-.idr generated fragment validates and links with the fullscreen vertex fixture	GENERATED_IDR_GLSL_VALIDATE	continue_idric_probe
+wegert_idric_compile	WEGERT_IDRIC_TO_GLSL	the same Wegert family compiles through an actual .idric entry and the registered GLSL backend	WEGERT_IDRIC_TO_GLSL	generated_idric_validation_skip
+generated_idric_glsl_validate	GENERATED_IDRIC_GLSL_VALIDATE	the .idric-generated fragment validates and links with the fullscreen vertex fixture	GENERATED_IDRIC_GLSL_VALIDATE	terminal
