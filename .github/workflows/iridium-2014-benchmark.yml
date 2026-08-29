@@ -1,0 +1,229 @@
+name: Iridium 2014 benchmark
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "benchmarks/iridium-2014/**"
+      - ".github/workflows/iridium-2014-benchmark.yml"
+  pull_request:
+    paths:
+      - "benchmarks/iridium-2014/**"
+      - ".github/workflows/iridium-2014-benchmark.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  linux-elf:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Pin original Iridium source
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git clone https://github.com/puffnfresh/iridium.git upstream-iridium
+          git -C upstream-iridium checkout 2dc438475962b62f6ca8d00f0dff3add87418dec
+          test "$(git -C upstream-iridium rev-parse HEAD)" = 2dc438475962b62f6ca8d00f0dff3add87418dec
+
+      - name: Reconstruct Hackage as of 2014-10-16
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p hackage-2014 artifacts
+          curl --fail --location --retry 3 \
+            https://hackage.haskell.org/01-index.tar.gz \
+            --output hackage-2014/01-index.tar.gz
+          sha256sum hackage-2014/01-index.tar.gz \
+            | tee artifacts/hackage-modern-01-index.sha256
+          python3 benchmarks/iridium-2014/make-hackage-2014-index.py \
+            --cutoff 2014-10-16T23:59:59Z \
+            hackage-2014/01-index.tar.gz \
+            hackage-2014/00-index.tar.gz \
+            | tee artifacts/hackage-2014-index.txt
+          sha256sum hackage-2014/00-index.tar.gz \
+            | tee artifacts/hackage-2014-index.sha256
+
+      - name: Cache historical Idris toolchain
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: .cache/iridium-2014-home
+          key: iridium-idris-0.9.14.3-ghc-7.8.4-container-b380cec2-hackage-${{ hashFiles('hackage-2014/00-index.tar.gz') }}
+
+      - name: Build historical Idris and Iridium ELF fixture
+        shell: bash
+        run: |
+          set -euxo pipefail
+          printf '%s\n' \
+            'migamake/haskell-build:7.8@sha256:b380cec2689828577306a78d58407d2dbb0beb3a5bd556e1e8d969253918e56c' \
+            > artifacts/historical-container.txt
+          docker run --rm \
+            -v "$PWD:/work" \
+            -w /work \
+            migamake/haskell-build:7.8@sha256:b380cec2689828577306a78d58407d2dbb0beb3a5bd556e1e8d969253918e56c \
+            bash benchmarks/iridium-2014/build-linux.sh
+
+      - name: Inspect ELF bytes on runner
+        shell: bash
+        run: |
+          set -euxo pipefail
+          file artifacts/iridium-core | tee artifacts/file.txt
+          stat --printf='%s\n' artifacts/iridium-core | tee artifacts/file-bytes.txt
+          sha256sum artifacts/iridium-core | tee artifacts/binary.sha256
+          size artifacts/iridium-core | tee artifacts/size.txt
+          readelf -hW artifacts/iridium-core > artifacts/readelf-header.txt
+          readelf -SW artifacts/iridium-core > artifacts/readelf-sections.txt
+          readelf -lW artifacts/iridium-core > artifacts/readelf-program-headers.txt
+          readelf -dW artifacts/iridium-core > artifacts/readelf-dynamic.txt
+          readelf -sW artifacts/iridium-core > artifacts/readelf-symbols.txt
+          readelf -rW artifacts/iridium-core > artifacts/readelf-relocations.txt
+          nm -S --size-sort artifacts/iridium-core > artifacts/nm-size-sort.txt
+
+          cp artifacts/iridium-core artifacts/iridium-core-stripped
+          strip --strip-all artifacts/iridium-core-stripped
+          stat --printf='%s\n' artifacts/iridium-core-stripped \
+            | tee artifacts/stripped-file-bytes.txt
+          sha256sum artifacts/iridium-core-stripped \
+            | tee artifacts/stripped-binary.sha256
+          size artifacts/iridium-core-stripped | tee artifacts/stripped-size.txt
+          strip --version > artifacts/strip-version.txt
+
+          if [[ -f artifacts/iridium-quartz-generated.c ]]; then
+            wc -c artifacts/iridium-quartz-generated.c | tee artifacts/quartz-generated-c-bytes.txt
+            sha256sum artifacts/iridium-quartz-generated.c | tee artifacts/quartz-generated-c.sha256
+          else
+            printf 'not generated; see quartz-codegen-stderr.txt\n' \
+              | tee artifacts/quartz-generated-c-bytes.txt
+          fi
+
+      - name: Package Linux evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: iridium-2014-linux-elf
+          path: artifacts/
+          if-no-files-found: error
+
+  macos-macho:
+    needs: linux-elf
+    runs-on: macos-15-intel
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Recover generated Idris C
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: iridium-2014-linux-elf
+          path: linux-evidence
+
+      - name: Check full Quartz code generation
+        id: quartz
+        shell: bash
+        run: |
+          mkdir -p macho-evidence
+          if [[ -f linux-evidence/iridium-quartz-generated.c ]]; then
+            echo 'available=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'available=false' >> "$GITHUB_OUTPUT"
+            echo 'Full Quartz C was not generated; Linux ELF evidence remains valid.'
+          fi
+
+      - name: Pin Iridium and matching Idris runtime source
+        if: steps.quartz.outputs.available == 'true'
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git clone https://github.com/puffnfresh/iridium.git upstream-iridium
+          git -C upstream-iridium checkout 2dc438475962b62f6ca8d00f0dff3add87418dec
+          curl --fail --location --retry 3 \
+            https://hackage.haskell.org/package/idris-0.9.14.3/idris-0.9.14.3.tar.gz \
+            --output idris-0.9.14.3.tar.gz
+          shasum -a 256 idris-0.9.14.3.tar.gz \
+            > macho-evidence/idris-runtime-source.sha256
+          tar -xzf idris-0.9.14.3.tar.gz
+          sw_vers > macho-evidence/sw-vers.txt
+          uname -a > macho-evidence/uname.txt
+          clang --version > macho-evidence/clang-version.txt
+
+      - name: Rebuild the 2014 C runtime and Quartz boundary
+        id: macho_objects
+        if: steps.quartz.outputs.available == 'true'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p macho-build macho-evidence
+          : > macho-evidence/object-build.log
+          RTS="$PWD/idris-0.9.14.3/rts"
+          CFLAGS="-O2 -fwrapv -fno-strict-overflow -DHAS_PTHREAD -I$RTS"
+
+          for src in \
+            idris_rts.c idris_heap.c idris_gc.c idris_gmp.c idris_bitstring.c \
+            idris_opts.c idris_stats.c mini-gmp.c idris_stdfgn.c idris_net.c
+          do
+            clang $CFLAGS -c "$RTS/$src" -o "macho-build/${src%.c}.o" \
+              2>&1 | tee -a macho-evidence/object-build.log
+          done
+          ar rcs macho-build/libidris_rts.a macho-build/idris_*.o macho-build/mini-gmp.o
+
+          clang -O2 -Wall -Iupstream-iridium/cbits \
+            -c upstream-iridium/cbits/ir.c -o macho-build/ir.o \
+            2>&1 | tee -a macho-evidence/object-build.log
+          clang -O2 -Wall -fobjc-arc -fblocks -Iupstream-iridium/cbits \
+            -c upstream-iridium/cbits/quartz.m -o macho-build/quartz.o \
+            2>&1 | tee -a macho-evidence/object-build.log
+
+      - name: Link full Iridium Mach-O reconstruction
+        id: macho_link
+        if: steps.quartz.outputs.available == 'true' && steps.macho_objects.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euxo pipefail
+          RTS="$PWD/idris-0.9.14.3/rts"
+          clang -O2 -fwrapv -fno-strict-overflow -DHAS_PTHREAD \
+            -I"$RTS" -I"$PWD/upstream-iridium" -I"$PWD/upstream-iridium/cbits" \
+            linux-evidence/iridium-quartz-generated.c "$RTS/idris_main.c" \
+            macho-build/ir.o macho-build/quartz.o macho-build/libidris_rts.a \
+            -framework Cocoa -framework ApplicationServices \
+            -F/System/Library/PrivateFrameworks -framework SkyLight \
+            -lpthread -lm -o macho-evidence/iridium \
+            2>&1 | tee macho-evidence/link.log
+
+      - name: Inspect Mach-O without launching a window manager
+        if: steps.quartz.outputs.available == 'true' && steps.macho_link.outcome == 'success'
+        shell: bash
+        run: |
+          set -euxo pipefail
+          file macho-evidence/iridium | tee macho-evidence/file.txt
+          stat -f '%z' macho-evidence/iridium | tee macho-evidence/file-bytes.txt
+          shasum -a 256 macho-evidence/iridium | tee macho-evidence/binary.sha256
+          size macho-evidence/iridium | tee macho-evidence/size.txt
+          otool -hv macho-evidence/iridium > macho-evidence/otool-header.txt
+          otool -l macho-evidence/iridium > macho-evidence/otool-load-commands.txt
+          otool -L macho-evidence/iridium > macho-evidence/otool-libraries.txt
+          nm -nm macho-evidence/iridium > macho-evidence/nm.txt
+
+      - name: Record Mach-O reconstruction status
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p macho-evidence
+          {
+            echo "generated_c=${{ steps.quartz.outputs.available }}"
+            echo "object_build=${{ steps.macho_objects.outcome }}"
+            echo "link=${{ steps.macho_link.outcome }}"
+          } | tee macho-evidence/reconstruction-status.txt
+          cat macho-evidence/reconstruction-status.txt >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Package Mach-O reconstruction evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: iridium-2014-macos-reconstruction
+          path: macho-evidence/
+          if-no-files-found: error
