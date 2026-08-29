@@ -24,6 +24,44 @@ jobs:
           suite: tests/good-suite.tsv
           root: .
 
+  biology-self-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphisms/bioawk
+          ref: sample-data
+          path: _bioawk
+      - name: Compile biology verifier and rejecting candidate
+        shell: sh
+        run: |
+          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-biology src/aici_biology.c
+          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-biology-bad biology/tests/bad_candidate.c
+      - name: Prove the biology oracles on small exact fixtures
+        shell: sh
+        run: /tmp/aici-biology self-test biology/tests/cases.tsv biology/tests
+      - name: Exercise candidate comparison protocol
+        shell: sh
+        run: /tmp/aici-biology compare biology/tests/cases.tsv biology/tests /tmp/aici-biology
+      - name: Prove a wrong backend candidate is rejected
+        shell: sh
+        run: |
+          if /tmp/aici-biology compare biology/tests/cases.tsv biology/tests /tmp/aici-biology-bad; then
+            echo 'wrong biology candidate was accepted' >&2
+            exit 1
+          fi
+      - name: Verify the shared bioawk corpus bytes
+        shell: sh
+        run: /tmp/aici-biology verify-corpus '_bioawk/sample data/SOURCES.tsv' '_bioawk/sample data'
+      - name: Run the shared biology oracle cases
+        shell: sh
+        run: /tmp/aici-biology oracle biology/cases.tsv '_bioawk/sample data'
+      - name: Exercise the reusable biology action
+        uses: ./biology
+        with:
+          corpus_root: _bioawk/sample data
+
   video-self-test:
     runs-on: ubuntu-24.04
     steps:
