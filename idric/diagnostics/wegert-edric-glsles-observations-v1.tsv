@@ -1,0 +1,2 @@
+observed_at	lane	idric_revision	shader_backend_revision	first_failure	classification	detail
+2026-08-29	edric-float16-current_mali-mediump	218e9037c65f974277679ed8c17228bf59789717	a855d89ab0f25025d825afdc194f492e4c00ecff	edric_bootstrap	EDRIC_FLOAT16_BOOTSTRAP_TOTALITY	Prelude.Float16 is total but carrier-level prim__div_Double calls are considered non-covering; handwritten Wegert GLSL and hosted x86_64 C fallback passed before this boundary
