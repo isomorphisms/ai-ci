@@ -20,11 +20,14 @@ Edric bootstrap
 Edric compiler API install
         |
 GLSL backend built with Edric
-        |
-64-zero/64-pole Wegert .idric compile
-        |
-generated GLSL validation + vertex link
+       / \
+      /   \
+ordinary .idr Wegert   actual .idric Wegert
+      |                     |
+GLSL validate/link      GLSL validate/link
 ```
+
+The ordinary `.idr` leg is a control experiment, not the desired end state. It answers a precise question: can this exact Edric compiler API build the GLSL backend and compile the full 64-zero/64-pole Wegert mathematics when the Idric source-profile restrictions are not involved? If that passes while the `.idric` leg fails on `Double`, the hookup is working and the remaining gap is the source scalar vocabulary.
 
 A failed stage does not erase evidence from independent earlier stages. Dependent later stages should be marked `SKIP`, not incorrectly reported as separate failures. The producer should always retain one log per stage and the exact Wegert, Idric, and shader-backend revisions.
 
@@ -36,7 +39,7 @@ The shader backend currently has a distinction that must remain visible in diagn
 - the source shader API still uses inherited `Double` spelling for scalar values;
 - the no-wide-float Idric source profile may therefore reject a `.idric` shader before backend lowering even though the target GLSL arithmetic would have been `float`.
 
-That state is `SOURCE_FLOAT_PROFILE_BLOCKS_SHADER_API`. Do not collapse it into `GLSLES_BACKEND_BUILD`: the compiler API/code-generator hookup may already be working.
+That state is `SOURCE_FLOAT_PROFILE_BLOCKS_SHADER_API`, and it is only appropriate when the ordinary `.idr` Wegert control has already passed. Do not collapse it into `GLSLES_BACKEND_BUILD`: the compiler API/code-generator hookup has then been demonstrated independently.
 
 ### ICK is orthogonal
 
