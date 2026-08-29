@@ -5,7 +5,9 @@ WEGERT_HOST_CPU_BASELINE	the ordinary x86_64 Cartesian complex fallback cannot c
 EDRIC_BOOTSTRAP	selected Idric revision does not produce a usable hosted compiler	Idric	shader backend build
 EDRIC_COMPILER_API	bootstrapped Edric cannot install the compiler API expected by external code generators	Idric	Wegert source semantics
 GLSLES_BACKEND_BUILD	the GLSL code generator does not build against the selected Edric compiler API	idris-shader-backend	generated GLSL validation
-SOURCE_FLOAT_PROFILE_BLOCKS_SHADER_API	Edric reaches source checking but Shader.Source still exposes a forbidden scalar spelling such as Double	Idric_and_idris-shader-backend	compiler API hookup
-WEGERT_IDRIC_TO_GLSL	Wegert shader source reaches the registered backend but lowering fails for a non-precision source or backend reason	idris-shader-backend	GLSL driver or ICK
-GENERATED_GLSL_VALIDATE	generated fragment exists but fails Khronos validation or vertex/fragment link	idris-shader-backend	Edric bootstrap
+WEGERT_IDR_TO_GLSL	ordinary Idris SharedFactorPortrait does not lower through the Edric-built GLSL backend	idris-shader-backend	Idric source-profile policy
+GENERATED_IDR_GLSL_VALIDATE	ordinary-.idr generated fragment exists but fails Khronos validation or vertex/fragment link	idris-shader-backend	Idric source-profile policy
+SOURCE_FLOAT_PROFILE_BLOCKS_SHADER_API	ordinary .idr Wegert compilation passes but the .idric entry is rejected because Shader.Source or the entry still exposes a forbidden scalar spelling such as Double	Idric_and_idris-shader-backend	compiler API hookup
+WEGERT_IDRIC_TO_GLSL	actual .idric Wegert source reaches the registered backend but lowering fails for a non-precision source or backend reason	idris-shader-backend	GLSL driver or ICK
+GENERATED_IDRIC_GLSL_VALIDATE	.idric-generated fragment exists but fails Khronos validation or vertex/fragment link	idris-shader-backend	Edric bootstrap
 HOST_EDRIC_GLSL_PATH_PASS	all hosted compiler and generated-GLSL stages passed	observed_tuple	GPU execution
