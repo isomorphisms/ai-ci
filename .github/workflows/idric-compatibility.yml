@@ -1,0 +1,67 @@
+name: Idric compatibility registry
+
+on:
+  push:
+    paths:
+      - 'idric/**'
+      - 'src/aici_idric.c'
+      - '.github/workflows/idric-compatibility.yml'
+  pull_request:
+    paths:
+      - 'idric/**'
+      - 'src/aici_idric.c'
+      - '.github/workflows/idric-compatibility.yml'
+  schedule:
+    - cron: '17 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  registry-self-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Compile independent compatibility verifier
+        shell: sh
+        run: cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-idric src/aici_idric.c
+      - name: Prove targeted bad registries are rejected
+        shell: sh
+        run: /tmp/aici-idric self-test idric/tests/cases.tsv
+      - name: Exercise the published compatibility action
+        uses: ./idric
+        with:
+          scope: idric/scope-v1.tsv
+          backends: idric/backends-v1.tsv
+          matrix: idric/matrix-v1.tsv
+          gaps: idric/gaps-v1.tsv
+
+  default-head-drift:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Compile independent compatibility verifier
+        shell: sh
+        run: cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-idric src/aici_idric.c
+      - name: Fail when a surveyed default branch moved
+        shell: sh
+        run: |
+          set -eu
+          tab=$(printf '\t')
+          /tmp/aici-idric list-heads idric/scope-v1.tsv | (
+            failures=0
+            while IFS="$tab" read -r project branch expected; do
+              actual=$(git ls-remote "https://github.com/$project.git" "refs/heads/$branch" | awk 'NR == 1 { print $1 }')
+              if [ -z "$actual" ]; then
+                printf 'IDRIC-PROJECT-HEAD: cannot resolve %s %s\n' "$project" "$branch" >&2
+                failures=1
+              elif [ "$actual" != "$expected" ]; then
+                printf 'IDRIC-PROJECT-DRIFT: %s %s expected %s found %s\n' \
+                  "$project" "$branch" "$expected" "$actual" >&2
+                failures=1
+              fi
+            done
+            exit "$failures"
+          )

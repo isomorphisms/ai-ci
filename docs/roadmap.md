@@ -23,6 +23,13 @@
 
 ## Artifact probes
 
+- `language-stack-compatibility` first slice is implemented in `compat/`:
+  sparse receipts bind a consumer, Idriç/Grease and other language components,
+  compiler backend, target, and acceptance witnesses to exact revisions. A
+  future aggregation job should collect consumer receipts into an append-only
+  observation ledger and report newly unverified tuples without treating them
+  as known failures;
+
 - `video-acceptance` first slice is implemented in `video/`: decode the final
   MP4; check declared duration, dimensions, frame rate, audio, codec, pixel
   format, and explicit change/hold regions from frames rather than a sidecar;

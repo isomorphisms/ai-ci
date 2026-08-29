@@ -1,0 +1,3 @@
+backend	kind	repository	revision	compiler_repository	compiler_revision	components	status	gap
+chez	builtin	example/compiler	same-as-compiler	example/compiler	per-project	compiler,support,chez-toolchain	available	-
+glsles	external	example/backend	main	idris-lang/Idris2	v0.8.0	compiler-api,base,network	upstream-only	GAP-EXTERNAL

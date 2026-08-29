@@ -1,0 +1,4 @@
+gap	project	state	tracking_url	summary	acceptance
+GAP-EXTERNAL	example/backend	open	https://github.com/example/registry/issues/1	External backend is upstream only	Run it with exact Idric
+GAP-FUTURE	example/future	open	https://github.com/example/registry/issues/1	Future integration has not run	Record one exact passing tuple
+GAP-UPSTREAM	example/upstream	open	https://github.com/example/registry/issues/1	Consumer still uses upstream Idris	Record an Idric decision

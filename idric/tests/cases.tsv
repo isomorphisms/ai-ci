@@ -1,0 +1,9 @@
+expected	scope	backends	matrix	gaps	code
+pass	idric/tests/fixtures/scope-good.tsv	idric/tests/fixtures/backends-good.tsv	idric/tests/fixtures/matrix-good.tsv	idric/tests/fixtures/gaps-good.tsv	-
+fail	idric/tests/fixtures/scope-good.tsv	idric/tests/fixtures/backends-good.tsv	idric/tests/fixtures/matrix-missing-project.tsv	idric/tests/fixtures/gaps-good.tsv	IDRIC-SCOPE-COVERAGE
+fail	idric/tests/fixtures/scope-good.tsv	idric/tests/fixtures/backends-good.tsv	idric/tests/fixtures/matrix-bad-revision.tsv	idric/tests/fixtures/gaps-good.tsv	IDRIC-REVISION
+fail	idric/tests/fixtures/scope-good.tsv	idric/tests/fixtures/backends-good.tsv	idric/tests/fixtures/matrix-unknown-backend.tsv	idric/tests/fixtures/gaps-good.tsv	IDRIC-BACKEND-UNKNOWN
+fail	idric/tests/fixtures/scope-good.tsv	idric/tests/fixtures/backends-good.tsv	idric/tests/fixtures/matrix-missing-gap.tsv	idric/tests/fixtures/gaps-good.tsv	IDRIC-UNRESOLVED-GAP
+fail	idric/tests/fixtures/scope-good.tsv	idric/tests/fixtures/backends-good.tsv	idric/tests/fixtures/matrix-duplicate.tsv	idric/tests/fixtures/gaps-good.tsv	IDRIC-MATRIX-DUPLICATE
+fail	idric/tests/fixtures/scope-good.tsv	idric/tests/fixtures/backends-bad-revision.tsv	idric/tests/fixtures/matrix-good.tsv	idric/tests/fixtures/gaps-good.tsv	IDRIC-BACKEND-REVISION
+fail	idric/tests/fixtures/scope-good.tsv	idric/tests/fixtures/backends-good.tsv	idric/tests/fixtures/matrix-provider-moving-ref.tsv	idric/tests/fixtures/gaps-good.tsv	IDRIC-PROVIDER-ROW

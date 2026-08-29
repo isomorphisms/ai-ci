@@ -25,6 +25,18 @@ runs the verifier against the finished repository or artifact tree.
 - runtime evidence scoped to the exact process, job, service, or actor under
   test, with positive effects and fatal markers judged in that same scope.
 
+## Co-evolving language stacks
+
+The optional `compat/` action verifies exact, sparse compatibility observations
+for consumers built while Idriç, Grease, bridges, and compiler backends evolve
+together. It deliberately does not impose stable-release or semantic-version
+assumptions. A passing receipt binds the complete set of repository revisions,
+backend, target, and acceptance witnesses; it makes no claim about adjacent
+commits or untested backends. `NOT_VERIFIED` remains distinct from `FAIL` and
+blocks an acceptance gate without manufacturing an incompatibility result.
+
+See [`compat/README.md`](compat/README.md) for the tuple and receipt schemas.
+
 Every required assertion has a good contract fixture and a targeted known-bad
 fixture in `tests/cases.tsv`. The self-test audits that coverage mechanically;
 adding an assertion without a unique diagnostic and matching bad fixture makes
@@ -78,6 +90,9 @@ cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-fdroid src/aici_fdr
 cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-fdroid-fixtures fdroid/tests/make_receipt_fixtures.c
 /tmp/aici-fdroid-fixtures fdroid/contracts/native-upstream-v1.example.tsv /tmp/aici-fdroid-test-data
 /tmp/aici-fdroid self-test /tmp/aici-fdroid-test-data/cases.tsv
+
+cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-compat src/aici_compat.c
+/tmp/aici-compat self-test compat/tests/cases.tsv
 ```
 
 Those are direct compiler and verifier invocations, not a Bash- or
@@ -126,6 +141,20 @@ pinned F-Droid tools, reject mutable build inputs, inspect Fastlane's
 code-quality report, and preserve the independent logs. Its trusted caller must
 also anchor the contract's source revision to the release ref or CI event.
 
+For a co-evolving Idriç stack receipt:
+
+```yaml
+- uses: isomorphisms/ai-ci/compat@0123456789abcdef0123456789abcdef01234567
+  with:
+    contract: ci/idric-stack.contract.tsv
+    receipt: out/compat/receipt.tsv
+    root: out/compat
+```
+
+The consumer owns the acceptance probes and receipt production. The verifier
+requires exact component revisions and checks each witness against its current
+SHA-256 before accepting that precise combination.
+
 ## Limits
 
 The deterministic checks cannot decide whether an explanation is
@@ -139,6 +168,20 @@ The F-Droid verifier cannot infer copyright ownership, license compatibility,
 privacy behavior, anti-features, or game functionality. It requires explicit,
 source-bound witnesses for those reviews and never lets them override a failed
 deterministic check; F-Droid maintainers retain the final inclusion decision.
+
+## Idriç compiler and backend compatibility
+
+The optional `idric/` action validates a reviewed repository scope, the Idriç
+compiler pieces each project needs, built-in and external code-generator
+requirements, exact observed version tuples, and an open-gap ledger. It rejects
+abbreviated pins, unregistered backends, stale scope coverage, external-backend
+pin mismatches, and unresolved or moving tuples without a tracked acceptance
+condition.
+
+The checked-in fleet survey deliberately records that not every recent project
+currently depends on Idriç. Grease and Wegert are explicit integration gaps;
+they are not mislabeled as passing consumers. See
+[`idric/README.md`](idric/README.md) for the current matrix and boundary.
 
 ## Trust boundary
 
