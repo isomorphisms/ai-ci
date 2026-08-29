@@ -228,6 +228,9 @@ static int verify_corpus(const char *sources_path, const char *root) {
             fclose(f);
             return 0;
         }
+        if (strcmp(field[3], "blob_sha") == 0 && strcmp(field[4], "local_path") == 0) {
+            continue;
+        }
         if (!join_path(path, sizeof(path), root, field[4])) {
             fprintf(stderr, "%s:%u: path too long\n", sources_path, line_no);
             fclose(f);
