@@ -1,0 +1,82 @@
+name: Biology search contrast gate
+description: Verify the shared biology corpus and compare a backend search/branch candidate against exact C oracles.
+
+inputs:
+  corpus_root:
+    description: Root directory containing the checked-out bioawk sample data tree.
+    required: true
+  sources:
+    description: Optional SOURCES.tsv path. Defaults to CORPUS_ROOT/SOURCES.tsv.
+    required: false
+    default: ''
+  cases:
+    description: Optional case manifest. Defaults to ai-ci biology/cases.tsv.
+    required: false
+    default: ''
+  candidate:
+    description: Optional executable implementing the biology candidate protocol.
+    required: false
+    default: ''
+  results:
+    description: Result TSV path relative to GITHUB_WORKSPACE.
+    required: false
+    default: biology-contrast-results.tsv
+
+outputs:
+  results:
+    description: Path to the generated result TSV.
+    value: ${{ steps.contrast.outputs.results }}
+
+runs:
+  using: composite
+  steps:
+    - id: contrast
+      shell: sh
+      env:
+        AICI_BIOLOGY_ROOT: ${{ inputs.corpus_root }}
+        AICI_BIOLOGY_SOURCES: ${{ inputs.sources }}
+        AICI_BIOLOGY_CASES: ${{ inputs.cases }}
+        AICI_BIOLOGY_CANDIDATE: ${{ inputs.candidate }}
+        AICI_BIOLOGY_RESULTS: ${{ inputs.results }}
+      run: |
+        set -eu
+
+        bin="$RUNNER_TEMP/aici-biology"
+        root=$AICI_BIOLOGY_ROOT
+        sources=$AICI_BIOLOGY_SOURCES
+        cases=$AICI_BIOLOGY_CASES
+        candidate=$AICI_BIOLOGY_CANDIDATE
+        results=$AICI_BIOLOGY_RESULTS
+
+        if [ -z "$sources" ]; then
+          sources="$root/SOURCES.tsv"
+        fi
+        if [ -z "$cases" ]; then
+          cases="$GITHUB_ACTION_PATH/cases.tsv"
+        fi
+        case "$results" in
+          /*) ;;
+          *) results="$GITHUB_WORKSPACE/$results" ;;
+        esac
+
+        cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 \
+          -o "$bin" "$GITHUB_ACTION_PATH/../src/aici_biology.c"
+
+        : > "$results"
+        "$bin" verify-corpus "$sources" "$root" | tee -a "$results"
+        if [ -n "$candidate" ]; then
+          "$bin" compare "$cases" "$root" "$candidate" | tee -a "$results"
+        else
+          "$bin" oracle "$cases" "$root" | tee -a "$results"
+        fi
+
+        if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+          {
+            echo '### Biology search contrast'
+            echo
+            echo '```text'
+            cat "$results"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+        fi
+        echo "results=$results" >> "$GITHUB_OUTPUT"
