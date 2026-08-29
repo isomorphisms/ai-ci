@@ -29,6 +29,8 @@ jobs:
       - name: Prove targeted bad registries are rejected
         shell: sh
         run: /tmp/aici-idric self-test idric/tests/cases.tsv
+      - name: Prove Wegert staged diagnostics preserve failure boundaries
+        run: python3 idric/diagnostics/check_wegert_host_receipt.py self-test idric/diagnostics/tests
       - name: Exercise the published compatibility action
         uses: ./idric
         with:
