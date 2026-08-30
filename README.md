@@ -62,6 +62,20 @@ cannot be mislabeled as store acceptance. See [`fdroid/README.md`](fdroid/README
 for the receipt schema, ABI-split rules, current official-check mapping, and the
 manual-review boundary.
 
+## Hostile-web ingestion acceptance
+
+The optional `ingestion/` action owns a ten-case hostile-input corpus and a
+machine-readable seven-stage receipt. It keeps input acquisition, network,
+decompression, decoding, HTML recovery, document construction, and downstream
+extraction separate; rejects a later success after the first real failure; and
+requires `SKIP` to say why the stage did not run.
+
+An implementation-under-test receipt must name its executable and exact source
+revision, state `fallback=none`, and include an `execve` trace. The verifier
+rejects traces that invoke the side-by-side curl/libxml2 oracle. See
+[`ingestion/README.md`](ingestion/README.md) for the schema and current
+`document_log_subset_v0` boundary.
+
 ## Run locally
 
 ```text

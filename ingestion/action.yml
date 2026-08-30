@@ -1,0 +1,46 @@
+name: AICI hostile-ingestion receipt
+description: Verify the canonical hostile-web corpus and a stage-level receipt
+
+inputs:
+  receipt:
+    description: Candidate, oracle, or consumer receipt TSV
+    required: true
+  role:
+    description: implementation-under-test, oracle, or consumer
+    required: true
+  exec_trace:
+    description: execve trace; required for implementation-under-test
+    required: false
+    default: '-'
+  oracle_receipt:
+    description: Optional oracle receipt to compare with an implementation-under-test
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Compile hostile-ingestion verifier
+      shell: sh
+      run: >-
+        cc -std=c17 -Wall -Wextra -Werror -pedantic -O2
+        -o "$RUNNER_TEMP/aici-ingestion"
+        "$GITHUB_ACTION_PATH/src/aici_ingestion.c"
+    - name: Verify canonical corpus and receipt
+      shell: sh
+      env:
+        RECEIPT: ${{ inputs.receipt }}
+        ROLE: ${{ inputs.role }}
+        EXEC_TRACE: ${{ inputs.exec_trace }}
+        ORACLE_RECEIPT: ${{ inputs.oracle_receipt }}
+      run: |
+        (cd "$GITHUB_ACTION_PATH/corpus-v1" && sha256sum -c CORPUS.sha256)
+        "$RUNNER_TEMP/aici-ingestion" verify-corpus "$GITHUB_ACTION_PATH/corpus-v1"
+        if [ -n "$ORACLE_RECEIPT" ]; then
+          test "$ROLE" = implementation-under-test
+          "$RUNNER_TEMP/aici-ingestion" compare \
+            "$GITHUB_ACTION_PATH/corpus-v1" "$RECEIPT" "$EXEC_TRACE" "$ORACLE_RECEIPT"
+        else
+          "$RUNNER_TEMP/aici-ingestion" verify \
+            "$GITHUB_ACTION_PATH/corpus-v1" "$RECEIPT" "$ROLE" "$EXEC_TRACE"
+        fi
