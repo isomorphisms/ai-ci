@@ -118,3 +118,94 @@ jobs:
           contract: fdroid/contracts/native-upstream-v1.example.tsv
           receipt: ${{ runner.temp }}/aici-fdroid-fixtures/good/receipt.tsv
           root: ${{ runner.temp }}/aici-fdroid-fixtures/good
+
+  ingestion-self-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Install the explicit HTML oracle
+        shell: sh
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends libxml2-utils
+      - name: Compile verifier and deterministic fixture server
+        shell: sh
+        run: |
+          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 \
+            -o /tmp/aici-ingestion ingestion/src/aici_ingestion.c
+          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 \
+            -o /tmp/aici-ingestion-server ingestion/src/fixture_server.c
+      - name: Verify canonical corpus bytes
+        shell: sh
+        run: |
+          (cd ingestion/corpus-v1 && sha256sum -c CORPUS.sha256)
+          /tmp/aici-ingestion verify-corpus ingestion/corpus-v1
+      - name: Prove fallback and boundary lies are rejected
+        shell: sh
+        run: |
+          /tmp/aici-ingestion verify ingestion/corpus-v1 \
+            ingestion/tests/fixtures/good-candidate.tsv implementation-under-test \
+            ingestion/tests/fixtures/good-candidate.execve
+          /tmp/aici-ingestion verify ingestion/corpus-v1 \
+            ingestion/tests/fixtures/good-oracle.tsv oracle
+          /tmp/aici-ingestion compare ingestion/corpus-v1 \
+            ingestion/tests/fixtures/good-candidate.tsv \
+            ingestion/tests/fixtures/good-candidate.execve \
+            ingestion/tests/fixtures/good-oracle.tsv
+          if /tmp/aici-ingestion verify ingestion/corpus-v1 \
+              ingestion/tests/fixtures/bad-fallback.tsv implementation-under-test \
+              ingestion/tests/fixtures/good-candidate.execve; then
+            echo 'candidate oracle fallback was accepted' >&2
+            exit 1
+          fi
+          if /tmp/aici-ingestion verify ingestion/corpus-v1 \
+              ingestion/tests/fixtures/bad-after-failure.tsv implementation-under-test \
+              ingestion/tests/fixtures/good-candidate.execve; then
+            echo 'later PASS erased an earlier failure' >&2
+            exit 1
+          fi
+          if /tmp/aici-ingestion verify ingestion/corpus-v1 \
+              ingestion/tests/fixtures/good-candidate.tsv implementation-under-test \
+              ingestion/tests/fixtures/bad-candidate.execve; then
+            echo 'candidate oracle execution was accepted' >&2
+            exit 1
+          fi
+          if /tmp/aici-ingestion verify ingestion/corpus-v1 \
+              ingestion/tests/fixtures/good-candidate.tsv implementation-under-test -; then
+            echo 'candidate without an exec trace was accepted' >&2
+            exit 1
+          fi
+      - name: Run all ten fixtures through the external oracle
+        shell: sh
+        run: |
+          mkdir -p "$RUNNER_TEMP/ingestion-oracle"
+          /tmp/aici-ingestion-server 18098 ingestion/corpus-v1 \
+            >"$RUNNER_TEMP/ingestion-server.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT HUP INT TERM
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            grep -q READY "$RUNNER_TEMP/ingestion-server.log" 2>/dev/null && break
+            sleep 0.1
+          done
+          oracle_revision="version:$(curl --version | sed -n '1s/[[:space:]]/_/gp')"
+          corpus_repository_revision=$(git rev-parse HEAD)
+          for fixture in valid_utf8 malformed_html empty_success redirect_utf8 \
+              truncated_body invalid_utf8 unknown_charset truncated_gzip \
+              not_found tls_plaintext; do
+            sh ingestion/oracle/run_curl_libxml2.sh \
+              ingestion/corpus-v1 http://127.0.0.1:18098 "$fixture" \
+              "$corpus_repository_revision" "$oracle_revision" \
+              "$RUNNER_TEMP/ingestion-oracle/$fixture.tsv"
+            /tmp/aici-ingestion verify ingestion/corpus-v1 \
+              "$RUNNER_TEMP/ingestion-oracle/$fixture.tsv" oracle
+          done
+          kill "$server_pid"
+          wait "$server_pid" || true
+          trap - EXIT HUP INT TERM
+      - name: Exercise the published ingestion action
+        uses: ./ingestion
+        with:
+          receipt: ingestion/tests/fixtures/good-candidate.tsv
+          role: implementation-under-test
+          exec_trace: ingestion/tests/fixtures/good-candidate.execve
+          oracle_receipt: ingestion/tests/fixtures/good-oracle.tsv

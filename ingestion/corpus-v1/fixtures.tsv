@@ -1,0 +1,11 @@
+fixture_id	scheme	path	response	content_encoding	charset	expected_boundary
+valid_utf8	http	/valid	complete	identity	utf-8	document_construction
+malformed_html	http	/malformed	complete	identity	utf-8	document_construction
+empty_success	http	/empty	complete	identity	utf-8	document_construction
+redirect_utf8	http	/redirect	redirect_then_complete	identity	utf-8	document_construction
+truncated_body	http	/truncated	declared_length_mismatch	identity	utf-8	network
+invalid_utf8	http	/invalid-utf8	complete	identity	utf-8	decoding
+unknown_charset	http	/unknown-charset	complete	identity	x-hostile-unknown	decoding
+truncated_gzip	http	/gzip-truncated	complete	gzip	binary	decompression
+not_found	http	/not-found	non_2xx	identity	utf-8	network
+tls_plaintext	https	/	tls_handshake_failure	identity	binary	network
