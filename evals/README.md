@@ -21,3 +21,10 @@ match `contracts/evaluation-case-v0.contract.tsv`:
 The manifest is deliberately provider-neutral. A future runner may translate
 it to a hosted evaluation service, but the repository remains the authoritative
 source of objectives, cases, evidence requirements, and thresholds.
+
+## Blackball response comparison
+
+`blackball/` contains deterministic before/after comparison mocks for the
+Blackball experiment, including an OpenAI Responses-shaped local endpoint and
+an acceptance test. These fixtures test the client and classifier plumbing;
+they are synthetic and are not evidence about real model behavior.
