@@ -11,6 +11,8 @@ ICU=${ICU:-icu}
 LIVE=0
 ONLY_PROVIDER=
 status=0
+ITHON_TEST_ENV=()
+FIELDMOUSE_TEST_ENV=()
 
 usage() {
   printf 'usage: %s [--live] [--provider NAME]\n' "$0" >&2
@@ -146,7 +148,7 @@ run_ithon() {
   local out=$3
   local err=$4
   shift 4
-  ITHON_CHECK_RECEIPT="$receipt" ICU="$FAKE_ICU" \
+  env "ITHON_CHECK_RECEIPT=$receipt" "ICU=$FAKE_ICU" "${ITHON_TEST_ENV[@]}" \
     "$ITHON" "$src" "$@" >"$out" 2>"$err"
 }
 
@@ -250,6 +252,7 @@ check_ithon_provider() {
   local src=$3
   local receipt="$TMP/$provider-ithon-receipt.jsonl"
   local fixture expected query_file
+  ITHON_TEST_ENV=()
   : >"$receipt"
 
   case "$provider" in
@@ -266,13 +269,12 @@ check_ithon_provider() {
       else
         fail 'reddit/ithon/fixture materialize'
       fi
-      export REDDIT_ACCESS_TOKEN='test-token'
-      export REDDIT_USER_AGENT='api-checkpoint-test/1'
+      ITHON_TEST_ENV=('REDDIT_ACCESS_TOKEN=test-token' 'REDDIT_USER_AGENT=api-checkpoint-test/1')
       expect_ithon_skip 'reddit/ithon/live-header-boundary' "$src" "$receipt" search 'industrial maintenance'
-      unset REDDIT_ACCESS_TOKEN REDDIT_USER_AGENT
+      ITHON_TEST_ENV=()
       ;;
     nyt)
-      export NYT_API_KEY='test-key'
+      ITHON_TEST_ENV=('NYT_API_KEY=test-key')
       expect_ithon_output \
         'nyt/ithon/url' \
         'https://api.nytimes.com/svc/search/v2/articlesearch.json?q=labor%20unions&sort=oldest&api-key=test-key' \
@@ -281,10 +283,10 @@ check_ithon_provider() {
         'nyt/ithon/icu-get' \
         'https://api.nytimes.com/svc/search/v2/articlesearch.json?q=labor%20unions&sort=oldest&api-key=test-key' \
         "$src" "$receipt" search 'labor unions'
-      unset NYT_API_KEY
+      ITHON_TEST_ENV=()
       ;;
     guardian)
-      export GUARDIAN_API_KEY='test-key'
+      ITHON_TEST_ENV=('GUARDIAN_API_KEY=test-key')
       expect_ithon_output \
         'guardian/ithon/url' \
         'https://content.guardianapis.com/search?q=labor%20unions&order-by=oldest&api-key=test-key' \
@@ -293,7 +295,7 @@ check_ithon_provider() {
         'guardian/ithon/icu-get' \
         'https://content.guardianapis.com/search?q=labor%20unions&order-by=oldest&api-key=test-key' \
         "$src" "$receipt" search 'labor unions'
-      unset GUARDIAN_API_KEY
+      ITHON_TEST_ENV=()
       ;;
     economist)
       expect_ithon_output \
@@ -307,9 +309,9 @@ check_ithon_provider() {
         'ft/ithon/search-body' \
         '{"queryString":"labor unions","resultContext":{"aspects":["title","lifecycle","location","summary","editorial"],"sortOrder":"ASC","sortField":"initialPublishDateTime"}}' \
         "$src" "$receipt" search-body 'labor unions'
-      export FT_API_KEY='test-key'
+      ITHON_TEST_ENV=('FT_API_KEY=test-key')
       expect_ithon_skip 'ft/ithon/live-header-boundary' "$src" "$receipt" live-search 'labor unions'
-      unset FT_API_KEY
+      ITHON_TEST_ENV=()
       ;;
     reuters)
       query_file="$TMP/reuters-query.graphql"
@@ -318,18 +320,18 @@ check_ithon_provider() {
         'reuters/ithon/body' \
         '{"query":"query Search { search }"}' \
         "$src" "$receipt" body "$query_file"
-      export REUTERS_GRAPHQL_URL='https://example.test/graphql'
+      ITHON_TEST_ENV=('REUTERS_GRAPHQL_URL=https://example.test/graphql')
       expect_ithon_skip 'reuters/ithon/live-header-boundary' "$src" "$receipt" live "$query_file"
-      unset REUTERS_GRAPHQL_URL
+      ITHON_TEST_ENV=()
       ;;
     ap)
       expect_ithon_output \
         'ap/ithon/search-url' \
         'https://api.ap.org/media/v/content/search?q=labor%20unions&page_size=25' \
         "$src" "$receipt" search-url 'labor unions'
-      export AP_API_KEY='test-key'
+      ITHON_TEST_ENV=('AP_API_KEY=test-key')
       expect_ithon_skip 'ap/ithon/live-header-boundary' "$src" "$receipt" live-search 'labor unions'
-      unset AP_API_KEY
+      ITHON_TEST_ENV=()
       ;;
     wayback)
       expect_ithon_output \
@@ -346,6 +348,7 @@ check_ithon_provider() {
       ;;
   esac
 
+  ITHON_TEST_ENV=()
   if test -s "$receipt"; then
     pass "$provider/ithon/check-receipt"
   else
@@ -362,7 +365,8 @@ expect_fieldmouse_output() {
   local out="$TMP/$stem.out"
   local err="$TMP/$stem.err"
 
-  if ICU="$FAKE_ICU" "$FIELDMOUSE" "$src" "$@" >"$out" 2>"$err"; then
+  if env "ICU=$FAKE_ICU" "${FIELDMOUSE_TEST_ENV[@]}" \
+      "$FIELDMOUSE" "$src" "$@" >"$out" 2>"$err"; then
     if test "$(cat "$out")" = "$expected"; then
       pass "$label"
     else
@@ -380,6 +384,7 @@ check_fieldmouse_provider() {
   local provider=$1
   local src=$2
   local query_file
+  FIELDMOUSE_TEST_ENV=()
 
   case "$provider" in
     reddit)
@@ -389,20 +394,20 @@ check_fieldmouse_provider() {
         "$src" url 'industrial maintenance'
       ;;
     nyt)
-      export NYT_API_KEY='test-key'
+      FIELDMOUSE_TEST_ENV=('NYT_API_KEY=test-key')
       expect_fieldmouse_output \
         'nyt/fieldmouse/url' \
         'https://api.nytimes.com/svc/search/v2/articlesearch.json?q=labor%20unions&sort=oldest&api-key=test-key' \
         "$src" url 'labor unions'
-      unset NYT_API_KEY
+      FIELDMOUSE_TEST_ENV=()
       ;;
     guardian)
-      export GUARDIAN_API_KEY='test-key'
+      FIELDMOUSE_TEST_ENV=('GUARDIAN_API_KEY=test-key')
       expect_fieldmouse_output \
         'guardian/fieldmouse/url' \
         'https://content.guardianapis.com/search?q=labor%20unions&order-by=oldest&api-key=test-key' \
         "$src" url 'labor unions'
-      unset GUARDIAN_API_KEY
+      FIELDMOUSE_TEST_ENV=()
       ;;
     economist)
       expect_fieldmouse_output \
@@ -431,6 +436,8 @@ check_fieldmouse_provider() {
         "$src" url 'https://example.com/a b' 2020 2021
       ;;
   esac
+
+  FIELDMOUSE_TEST_ENV=()
 }
 
 check_live_ithon() {
