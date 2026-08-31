@@ -18,4 +18,19 @@ Initial result kinds:
 
 Do not collapse `failure` or `unknown` into `negative`. Do not treat `conspiratorial` as evidence that Blackball genuinely worsened the factual answer merely because its surface direction is pessimistic.
 
+## Local mock provider
+
+The local provider reads the same table used by the fixtures:
+
+```text
+cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 \
+  -o /tmp/aici-blackball-mock evals/blackball/mock_provider.c
+
+/tmp/aici-blackball-mock evals/blackball/mocks.tsv positive
+/tmp/aici-blackball-mock evals/blackball/mocks.tsv conspiratorial
+/tmp/aici-blackball-mock evals/blackball/mocks.tsv failure
+```
+
+Successful and `unknown` mocks write their fake response to standard output and exit 0. The `failure` mock writes its error text to standard error and exits 70, so a caller must treat it as an operational failure rather than as a negative substantive answer. An undeclared mock id exits 4.
+
 The first live experiment should hold the prompt, model, model settings, and evaluator constant and vary only whether the Blackball material is supplied. The transport can be ICU or another provider adapter; the verdict vocabulary remains provider-neutral.
