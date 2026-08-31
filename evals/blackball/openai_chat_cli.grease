@@ -1,0 +1,79 @@
+#!/usr/bin/env osh
+# Fresh OpenAI Responses client for the Blackball evaluator.
+# Grease shell syntax: no Bash [[ ]], &&, ||, or ! operators.
+
+if ¬ command -v curl >/dev/null 2>&1; then
+  echo 'openai_chat_cli: curl is required' >&2
+  exit 69
+fi
+
+if ¬ command -v jq >/dev/null 2>&1; then
+  echo 'openai_chat_cli: jq is required' >&2
+  exit 69
+fi
+
+if ⟦ -z "${OPENAI_API_KEY:-}" ⟧; then
+  echo 'openai_chat_cli: OPENAI_API_KEY is not set' >&2
+  exit 78
+fi
+
+model=${OPENAI_MODEL:-gpt-5.6-sol}
+base_url=${OPENAI_BASE_URL:-https://api.openai.com}
+web_search=${OPENAI_WEB_SEARCH:-1}
+endpoint="${base_url%/}/v1/responses"
+
+prompt=$(cat)
+if ⟦ -z "$prompt" ⟧; then
+  echo 'openai_chat_cli: stdin prompt is empty' >&2
+  exit 64
+fi
+
+work=$(mktemp -d) ∨ exit 70
+trap 'rm -rf "$work"' 0 1 2 15
+
+if ⟦ "$web_search" = 1 ⟧; then
+  request=$(jq -cn \
+    --arg model "$model" \
+    --arg input "$prompt" \
+    '{model:$model,input:$input,store:false,tools:[{type:"web_search_preview"}],tool_choice:"auto"}') ∨ exit 70
+else
+  request=$(jq -cn \
+    --arg model "$model" \
+    --arg input "$prompt" \
+    '{model:$model,input:$input,store:false}') ∨ exit 70
+fi
+
+http_code=$(curl \
+  --silent \
+  --show-error \
+  --location \
+  --output "$work/response.json" \
+  --write-out '%{http_code}' \
+  --header "Authorization: Bearer $OPENAI_API_KEY" \
+  --header 'Content-Type: application/json' \
+  --data-binary "$request" \
+  "$endpoint")
+curl_status=$?
+
+if ⟦ "$curl_status" -ne 0 ⟧; then
+  echo "openai_chat_cli: transport failure (curl exit $curl_status)" >&2
+  exit "$curl_status"
+fi
+
+case "$http_code" in
+  2??)
+    ;;
+  *)
+    echo "openai_chat_cli: HTTP $http_code" >&2
+    jq -r '.error.message // empty' "$work/response.json" >&2 2>/dev/null ∨ cat "$work/response.json" >&2
+    exit 69
+    ;;
+esac
+
+if ¬ jq -e '.status == "completed"' "$work/response.json" >/dev/null; then
+  echo 'openai_chat_cli: response did not complete' >&2
+  jq -c '{status,error,incomplete_details}' "$work/response.json" >&2 2>/dev/null ∨ true
+  exit 70
+fi
+
+jq -erj '[.output[]? | select(.type == "message") | .content[]? | select(.type == "output_text") | .text] | if length == 0 then error("response has no output_text") else join("") end' "$work/response.json"
