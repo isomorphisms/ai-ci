@@ -41,6 +41,8 @@ The three mock phases are:
 - `blackball` — return the fixed Blackball-conditioned answer, or a synthetic process failure;
 - `judge` — return the fixed JSON comparison judgment.
 
+A successful mock judgment uses `classification` for the canonical verdict from `verdicts.tsv` and separately reports `substantive_effect`, `evidence_status`, and `run_status`. The fixture ID is not a result kind.
+
 The evaluator-facing command boundary itself remains only stdin/stdout/stderr/exit status.
 
 ## Replacement rule
