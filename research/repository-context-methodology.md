@@ -61,11 +61,11 @@ Research bears out the practical limits:
 - When external evidence conflicts with parametric knowledge, receptiveness
   depends on how coherent and convincing the evidence is. Mixed evidence can
   produce confirmation bias toward the model's existing knowledge
-  ([Xie et al., 2024](https://openreview.net/forum?id=auKAUJZMO6)).
+  ([Xie et al., 2024](https://arxiv.org/abs/2305.13300)).
 - Irrelevant retrieved material can reduce performance rather than merely waste
   tokens. Training models when to use retrieval improved robustness in the
   experiments of
-  [Yoran et al. (2024)](https://openreview.net/forum?id=ZS4m74kZpH).
+  [Yoran et al. (2024)](https://arxiv.org/abs/2310.01558).
 
 Context position, length, density, redundancy, relevance, conflict, and source
 signals therefore affect the computation. None is a universal knob whose
