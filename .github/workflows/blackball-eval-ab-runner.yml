@@ -1,0 +1,28 @@
+name: Blackball eval A/B runner self-test
+
+on:
+  push:
+    paths:
+      - 'evals/blackball/run_cli_ab.py'
+      - 'evals/blackball/mock_chat_cli.py'
+      - 'evals/blackball/mocks/**'
+      - 'tests/check_blackball_eval_ab_runner.py'
+      - '.github/workflows/blackball-eval-ab-runner.yml'
+  pull_request:
+    paths:
+      - 'evals/blackball/run_cli_ab.py'
+      - 'evals/blackball/mock_chat_cli.py'
+      - 'evals/blackball/mocks/**'
+      - 'tests/check_blackball_eval_ab_runner.py'
+      - '.github/workflows/blackball-eval-ab-runner.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  ab-runner:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Prove literal baseline/Blackball CLI pairing
+        run: python3 tests/check_blackball_eval_ab_runner.py
