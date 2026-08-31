@@ -1,0 +1,52 @@
+name: blackball mock self-test
+
+on:
+  push:
+    paths:
+      - 'evals/blackball/**'
+      - '.github/workflows/blackball-mock-self-test.yml'
+  pull_request:
+    paths:
+      - 'evals/blackball/**'
+      - '.github/workflows/blackball-mock-self-test.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  mock-self-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Compile local mock provider
+        shell: sh
+        run: cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-blackball-mock evals/blackball/mock_provider.c
+      - name: Exercise substantive and unknown results
+        shell: sh
+        run: |
+          for mock_id in positive negative in_between terrible conspiratorial unknown; do
+            /tmp/aici-blackball-mock evals/blackball/mocks.tsv "$mock_id" > "$RUNNER_TEMP/$mock_id.out"
+            test -s "$RUNNER_TEMP/$mock_id.out"
+          done
+      - name: Prove failure is operational
+        shell: sh
+        run: |
+          if /tmp/aici-blackball-mock evals/blackball/mocks.tsv failure > "$RUNNER_TEMP/failure.out" 2> "$RUNNER_TEMP/failure.err"; then
+            echo 'failure mock returned success' >&2
+            exit 1
+          else
+            failure_code=$?
+          fi
+          test "$failure_code" -eq 70
+          test ! -s "$RUNNER_TEMP/failure.out"
+          test -s "$RUNNER_TEMP/failure.err"
+      - name: Reject an undeclared mock id
+        shell: sh
+        run: |
+          if /tmp/aici-blackball-mock evals/blackball/mocks.tsv definitely_not_a_mock > "$RUNNER_TEMP/missing.out" 2> "$RUNNER_TEMP/missing.err"; then
+            echo 'undeclared mock id returned success' >&2
+            exit 1
+          else
+            missing_code=$?
+          fi
+          test "$missing_code" -eq 4
