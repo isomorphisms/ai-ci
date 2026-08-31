@@ -1,0 +1,24 @@
+name: Blackball eval mock self-test
+
+on:
+  push:
+    paths:
+      - 'evals/blackball/**'
+      - 'tests/check_blackball_eval_mocks.py'
+      - '.github/workflows/blackball-eval-mocks.yml'
+  pull_request:
+    paths:
+      - 'evals/blackball/**'
+      - 'tests/check_blackball_eval_mocks.py'
+      - '.github/workflows/blackball-eval-mocks.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  blackball-eval-mocks:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Prove all Blackball comparison mocks
+        run: python3 tests/check_blackball_eval_mocks.py
