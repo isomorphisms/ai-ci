@@ -1,0 +1,9 @@
+# provider	branch	ithon	idric	fieldmouse	transport
+reddit	reddit-api	checkpoints/reddit/ithon/reddit.pi	checkpoints/reddit/idric/Reddit.idric	checkpoints/reddit/fieldmouse/reddit	header-skip
+nyt	nyt-api	checkpoints/nyt/ithon/nyt.pi	checkpoints/nyt/idric/Nyt.idric	checkpoints/nyt/fieldmouse/nyt	icu-get
+guardian	guardian-api	checkpoints/guardian/ithon/guardian.pi	checkpoints/guardian/idric/Guardian.idric	checkpoints/guardian/fieldmouse/guardian	icu-get
+economist	economist-api	checkpoints/economist/ithon/economist.pi	checkpoints/economist/idric/Economist.idric	checkpoints/economist/fieldmouse/economist	header-skip
+ft	ft-api	checkpoints/ft/ithon/ft.pi	checkpoints/ft/idric/Ft.idric	checkpoints/ft/fieldmouse/ft	header-skip
+reuters	reuters-api	checkpoints/reuters/ithon/reuters.pi	checkpoints/reuters/idric/Reuters.idric	checkpoints/reuters/fieldmouse/reuters	header-skip
+ap	ap-api	checkpoints/ap/ithon/ap.pi	checkpoints/ap/idric/Ap.idric	checkpoints/ap/fieldmouse/ap	header-skip
+wayback	wayback-api	checkpoints/wayback/ithon/wayback.pi	checkpoints/wayback/idric/Wayback.idric	checkpoints/wayback/fieldmouse/wayback	icu-get

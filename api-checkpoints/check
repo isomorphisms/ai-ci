@@ -1,0 +1,543 @@
+#!/usr/bin/env bash
+set -u
+
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+CASES="$ROOT/cases.tsv"
+AZ_REPO=${AZ_REPO:-"$ROOT/../../az"}
+ITHON=${ITHON:-ithon}
+FIELDMOUSE=${FIELDMOUSE:-fieldmouse}
+IDRIC=${IDRIC:-idris2}
+ICU=${ICU:-icu}
+LIVE=0
+ONLY_PROVIDER=
+status=0
+
+usage() {
+  printf 'usage: %s [--live] [--provider NAME]\n' "$0" >&2
+}
+
+while test "$#" -gt 0; do
+  case "$1" in
+    --live)
+      LIVE=1
+      shift
+      ;;
+    --provider)
+      test "$#" -ge 2 || { usage; exit 2; }
+      ONLY_PROVIDER=$2
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      usage
+      exit 2
+      ;;
+  esac
+done
+
+pass() {
+  printf 'PASS\t%s\n' "$1"
+}
+
+fail() {
+  printf 'FAIL\t%s\n' "$1"
+  status=1
+}
+
+skip() {
+  printf 'SKIP\t%s\n' "$1"
+}
+
+show_diagnostics() {
+  local path
+  for path in "$@"; do
+    if test -s "$path"; then
+      sed 's/^/  /' "$path"
+    fi
+  done
+}
+
+available() {
+  case "$1" in
+    */*) test -x "$1" ;;
+    *) command -v "$1" >/dev/null 2>&1 ;;
+  esac
+}
+
+if ! git -C "$AZ_REPO" rev-parse --git-dir >/dev/null 2>&1; then
+  fail "matrix/az-repo not a git repository: $AZ_REPO"
+  exit "$status"
+fi
+
+TMP=$(mktemp -d)
+trap 'rm -rf "$TMP"' EXIT HUP INT TERM
+
+FAKE_ICU="$TMP/icu"
+ICU_CALLS="$TMP/icu-calls"
+cat >"$FAKE_ICU" <<'EOF'
+#!/bin/sh
+set -eu
+printf '%s\n' "$*" >> "$API_CHECKPOINT_ICU_CALLS"
+printf '%s\n' '{"fixture":"icu"}'
+EOF
+chmod +x "$FAKE_ICU"
+: >"$ICU_CALLS"
+export API_CHECKPOINT_ICU_CALLS="$ICU_CALLS"
+
+resolve_ref() {
+  local branch=$1
+  if git -C "$AZ_REPO" rev-parse --verify --quiet "${branch}^{commit}" >/dev/null; then
+    printf '%s\n' "$branch"
+    return 0
+  fi
+  if git -C "$AZ_REPO" rev-parse --verify --quiet "origin/${branch}^{commit}" >/dev/null; then
+    printf 'origin/%s\n' "$branch"
+    return 0
+  fi
+  return 1
+}
+
+materialize() {
+  local ref=$1
+  local path=$2
+  local dest=$3
+  mkdir -p "$(dirname -- "$dest")"
+  git -C "$AZ_REPO" show "$ref:$path" >"$dest" 2>/dev/null
+}
+
+check_ithon_policy() {
+  local provider=$1
+  local transport=$2
+  local src=$3
+
+  if grep -Eq '^[[:space:]]*(import[[:space:]]+(http\.client|urllib\.request|requests)([[:space:]]|$)|from[[:space:]]+(http\.client|urllib\.request|requests)([[:space:]]|$))' "$src"; then
+    fail "$provider/ithon/no-http-fallback"
+  else
+    pass "$provider/ithon/no-http-fallback"
+  fi
+
+  case "$transport" in
+    icu-get)
+      if grep -F 'subprocess.call' "$src" >/dev/null && grep -F 'ICU' "$src" >/dev/null; then
+        pass "$provider/ithon/icu-boundary"
+      else
+        fail "$provider/ithon/icu-boundary"
+      fi
+      ;;
+    header-skip)
+      if grep -F 'ICU custom request headers' "$src" >/dev/null && grep -F 'SKIP\t' "$src" >/dev/null; then
+        pass "$provider/ithon/header-watchpoint"
+      else
+        fail "$provider/ithon/header-watchpoint"
+      fi
+      ;;
+    *)
+      fail "$provider/ithon/unknown-transport-policy"
+      ;;
+  esac
+}
+
+run_ithon() {
+  local src=$1
+  local receipt=$2
+  local out=$3
+  local err=$4
+  shift 4
+  ITHON_CHECK_RECEIPT="$receipt" ICU="$FAKE_ICU" \
+    "$ITHON" "$src" "$@" >"$out" 2>"$err"
+}
+
+expect_ithon_output() {
+  local label=$1
+  local expected=$2
+  local src=$3
+  local receipt=$4
+  shift 4
+  local stem=${label//\//_}
+  local out="$TMP/$stem.out"
+  local err="$TMP/$stem.err"
+
+  if run_ithon "$src" "$receipt" "$out" "$err" "$@"; then
+    if test "$(cat "$out")" = "$expected"; then
+      pass "$label"
+    else
+      fail "$label output"
+      printf '  expected: %s\n' "$expected"
+      show_diagnostics "$out"
+    fi
+  else
+    fail "$label check-or-run"
+    show_diagnostics "$out" "$err"
+  fi
+}
+
+expect_ithon_file() {
+  local label=$1
+  local expected_file=$2
+  local src=$3
+  local receipt=$4
+  shift 4
+  local stem=${label//\//_}
+  local out="$TMP/$stem.out"
+  local err="$TMP/$stem.err"
+
+  if run_ithon "$src" "$receipt" "$out" "$err" "$@"; then
+    if cmp -s "$expected_file" "$out"; then
+      pass "$label"
+    else
+      fail "$label output"
+      diff -u "$expected_file" "$out" || true
+    fi
+  else
+    fail "$label check-or-run"
+    show_diagnostics "$out" "$err"
+  fi
+}
+
+expect_ithon_transport() {
+  local label=$1
+  local expected_url=$2
+  local src=$3
+  local receipt=$4
+  shift 4
+  local stem=${label//\//_}
+  local out="$TMP/$stem.out"
+  local err="$TMP/$stem.err"
+  : >"$ICU_CALLS"
+
+  if run_ithon "$src" "$receipt" "$out" "$err" "$@"; then
+    if test "$(cat "$out")" = '{"fixture":"icu"}' && \
+       test "$(cat "$ICU_CALLS")" = "get $expected_url"; then
+      pass "$label"
+    else
+      fail "$label ICU-call"
+      printf '  expected ICU call: get %s\n' "$expected_url"
+      show_diagnostics "$ICU_CALLS" "$out" "$err"
+    fi
+  else
+    fail "$label check-or-run"
+    show_diagnostics "$out" "$err"
+  fi
+}
+
+expect_ithon_skip() {
+  local label=$1
+  local src=$2
+  local receipt=$3
+  shift 3
+  local stem=${label//\//_}
+  local out="$TMP/$stem.out"
+  local err="$TMP/$stem.err"
+  local rc
+
+  run_ithon "$src" "$receipt" "$out" "$err" "$@"
+  rc=$?
+  if test "$rc" -eq 3 && grep -F $'SKIP\t' "$err" >/dev/null; then
+    skip "$label $(tr '\t' ' ' < "$err" | tr -d '\n')"
+  else
+    fail "$label expected-explicit-skip"
+    printf '  exit: %s\n' "$rc"
+    show_diagnostics "$out" "$err"
+  fi
+}
+
+check_ithon_provider() {
+  local provider=$1
+  local ref=$2
+  local src=$3
+  local receipt="$TMP/$provider-ithon-receipt.jsonl"
+  local fixture expected query_file
+  : >"$receipt"
+
+  case "$provider" in
+    reddit)
+      expect_ithon_output \
+        'reddit/ithon/url' \
+        'https://oauth.reddit.com/search?raw_json=1&limit=25&sort=relevance&t=all&q=industrial%20maintenance' \
+        "$src" "$receipt" url 'industrial maintenance'
+      fixture="$TMP/reddit-search.json"
+      expected="$TMP/reddit-expected.tsv"
+      if materialize "$ref" 'checkpoints/reddit/fixture/search.json' "$fixture" && \
+         materialize "$ref" 'checkpoints/reddit/fixture/expected.tsv' "$expected"; then
+        expect_ithon_file 'reddit/ithon/fixture' "$expected" "$src" "$receipt" fixture "$fixture"
+      else
+        fail 'reddit/ithon/fixture materialize'
+      fi
+      export REDDIT_ACCESS_TOKEN='test-token'
+      export REDDIT_USER_AGENT='api-checkpoint-test/1'
+      expect_ithon_skip 'reddit/ithon/live-header-boundary' "$src" "$receipt" search 'industrial maintenance'
+      unset REDDIT_ACCESS_TOKEN REDDIT_USER_AGENT
+      ;;
+    nyt)
+      export NYT_API_KEY='test-key'
+      expect_ithon_output \
+        'nyt/ithon/url' \
+        'https://api.nytimes.com/svc/search/v2/articlesearch.json?q=labor%20unions&sort=oldest&api-key=test-key' \
+        "$src" "$receipt" url 'labor unions'
+      expect_ithon_transport \
+        'nyt/ithon/icu-get' \
+        'https://api.nytimes.com/svc/search/v2/articlesearch.json?q=labor%20unions&sort=oldest&api-key=test-key' \
+        "$src" "$receipt" search 'labor unions'
+      unset NYT_API_KEY
+      ;;
+    guardian)
+      export GUARDIAN_API_KEY='test-key'
+      expect_ithon_output \
+        'guardian/ithon/url' \
+        'https://content.guardianapis.com/search?q=labor%20unions&order-by=oldest&api-key=test-key' \
+        "$src" "$receipt" url 'labor unions'
+      expect_ithon_transport \
+        'guardian/ithon/icu-get' \
+        'https://content.guardianapis.com/search?q=labor%20unions&order-by=oldest&api-key=test-key' \
+        "$src" "$receipt" search 'labor unions'
+      unset GUARDIAN_API_KEY
+      ;;
+    economist)
+      expect_ithon_output \
+        'economist/ithon/articles' \
+        'https://api.economist.com/eco/content/all/b2b-content-api/v1/articles?start_date=2020-01-01&end_date=2020-01-31' \
+        "$src" "$receipt" articles 2020-01-01 2020-01-31
+      expect_ithon_skip 'economist/ithon/live-header-boundary' "$src" "$receipt" live
+      ;;
+    ft)
+      expect_ithon_output \
+        'ft/ithon/search-body' \
+        '{"queryString":"labor unions","resultContext":{"aspects":["title","lifecycle","location","summary","editorial"],"sortOrder":"ASC","sortField":"initialPublishDateTime"}}' \
+        "$src" "$receipt" search-body 'labor unions'
+      export FT_API_KEY='test-key'
+      expect_ithon_skip 'ft/ithon/live-header-boundary' "$src" "$receipt" live-search 'labor unions'
+      unset FT_API_KEY
+      ;;
+    reuters)
+      query_file="$TMP/reuters-query.graphql"
+      printf '%s' 'query Search { search }' >"$query_file"
+      expect_ithon_output \
+        'reuters/ithon/body' \
+        '{"query":"query Search { search }"}' \
+        "$src" "$receipt" body "$query_file"
+      export REUTERS_GRAPHQL_URL='https://example.test/graphql'
+      expect_ithon_skip 'reuters/ithon/live-header-boundary' "$src" "$receipt" live "$query_file"
+      unset REUTERS_GRAPHQL_URL
+      ;;
+    ap)
+      expect_ithon_output \
+        'ap/ithon/search-url' \
+        'https://api.ap.org/media/v/content/search?q=labor%20unions&page_size=25' \
+        "$src" "$receipt" search-url 'labor unions'
+      export AP_API_KEY='test-key'
+      expect_ithon_skip 'ap/ithon/live-header-boundary' "$src" "$receipt" live-search 'labor unions'
+      unset AP_API_KEY
+      ;;
+    wayback)
+      expect_ithon_output \
+        'wayback/ithon/url' \
+        'https://web.archive.org/cdx/search/cdx?url=https%3A%2F%2Fexample.com%2Fa%20b&matchType=exact&from=2020&to=2021&output=json&fl=timestamp,original,statuscode,mimetype,digest&filter=statuscode:200&filter=mimetype:text/html&collapse=digest&gzip=false' \
+        "$src" "$receipt" url 'https://example.com/a b' 2020 2021
+      expect_ithon_transport \
+        'wayback/ithon/icu-get' \
+        'https://web.archive.org/cdx/search/cdx?url=https%3A%2F%2Fexample.com%2Fa%20b&matchType=exact&from=2020&to=2021&output=json&fl=timestamp,original,statuscode,mimetype,digest&filter=statuscode:200&filter=mimetype:text/html&collapse=digest&gzip=false' \
+        "$src" "$receipt" search 'https://example.com/a b' 2020 2021
+      ;;
+    *)
+      fail "$provider/ithon/no-provider-test"
+      ;;
+  esac
+
+  if test -s "$receipt"; then
+    pass "$provider/ithon/check-receipt"
+  else
+    fail "$provider/ithon/check-receipt"
+  fi
+}
+
+expect_fieldmouse_output() {
+  local label=$1
+  local expected=$2
+  local src=$3
+  shift 3
+  local stem=${label//\//_}
+  local out="$TMP/$stem.out"
+  local err="$TMP/$stem.err"
+
+  if ICU="$FAKE_ICU" "$FIELDMOUSE" "$src" "$@" >"$out" 2>"$err"; then
+    if test "$(cat "$out")" = "$expected"; then
+      pass "$label"
+    else
+      fail "$label output"
+      printf '  expected: %s\n' "$expected"
+      show_diagnostics "$out" "$err"
+    fi
+  else
+    fail "$label run"
+    show_diagnostics "$out" "$err"
+  fi
+}
+
+check_fieldmouse_provider() {
+  local provider=$1
+  local src=$2
+  local query_file
+
+  case "$provider" in
+    reddit)
+      expect_fieldmouse_output \
+        'reddit/fieldmouse/url' \
+        'https://oauth.reddit.com/search?raw_json=1&limit=25&sort=relevance&t=all&q=industrial%20maintenance' \
+        "$src" url 'industrial maintenance'
+      ;;
+    nyt)
+      export NYT_API_KEY='test-key'
+      expect_fieldmouse_output \
+        'nyt/fieldmouse/url' \
+        'https://api.nytimes.com/svc/search/v2/articlesearch.json?q=labor%20unions&sort=oldest&api-key=test-key' \
+        "$src" url 'labor unions'
+      unset NYT_API_KEY
+      ;;
+    guardian)
+      export GUARDIAN_API_KEY='test-key'
+      expect_fieldmouse_output \
+        'guardian/fieldmouse/url' \
+        'https://content.guardianapis.com/search?q=labor%20unions&order-by=oldest&api-key=test-key' \
+        "$src" url 'labor unions'
+      unset GUARDIAN_API_KEY
+      ;;
+    economist)
+      expect_fieldmouse_output \
+        'economist/fieldmouse/articles' \
+        'https://api.economist.com/eco/content/all/b2b-content-api/v1/articles?start_date=2020-01-01&end_date=2020-01-31' \
+        "$src" articles 2020-01-01 2020-01-31
+      ;;
+    ft)
+      expect_fieldmouse_output 'ft/fieldmouse/content' 'https://api.ft.com/content/1234' "$src" content 1234
+      ;;
+    reuters)
+      query_file="$TMP/reuters-fieldmouse-query.graphql"
+      printf '%s' 'query Search { search }' >"$query_file"
+      expect_fieldmouse_output 'reuters/fieldmouse/body' '{"query":"query Search { search }"}' "$src" body "$query_file"
+      ;;
+    ap)
+      expect_fieldmouse_output \
+        'ap/fieldmouse/search-url' \
+        'https://api.ap.org/media/v/content/search?q=labor%20unions&page_size=25' \
+        "$src" search-url 'labor unions'
+      ;;
+    wayback)
+      expect_fieldmouse_output \
+        'wayback/fieldmouse/url' \
+        'https://web.archive.org/cdx/search/cdx?url=https%3A%2F%2Fexample.com%2Fa%20b&matchType=exact&from=2020&to=2021&output=json&fl=timestamp,original,statuscode,mimetype,digest&filter=statuscode:200&filter=mimetype:text/html&collapse=digest&gzip=false' \
+        "$src" url 'https://example.com/a b' 2020 2021
+      ;;
+  esac
+}
+
+check_live_ithon() {
+  local provider=$1
+  local src=$2
+  local receipt=$3
+  local out="$TMP/$provider-live.out"
+  local err="$TMP/$provider-live.err"
+
+  if ! available "$ICU"; then
+    skip "$provider/ithon/live transport not found: $ICU"
+    return
+  fi
+
+  case "$provider" in
+    wayback)
+      if ITHON_CHECK_RECEIPT="$receipt" ICU="$ICU" \
+          "$ITHON" "$src" search 'https://example.com' 2020 2021 >"$out" 2>"$err" && test -s "$out"; then
+        pass 'wayback/ithon/live-transport'
+      else
+        fail 'wayback/ithon/live-transport'
+        show_diagnostics "$out" "$err"
+      fi
+      ;;
+    guardian)
+      if test -z "${GUARDIAN_API_KEY:-}"; then
+        skip 'guardian/ithon/live missing GUARDIAN_API_KEY'
+      elif ITHON_CHECK_RECEIPT="$receipt" ICU="$ICU" \
+          "$ITHON" "$src" search 'labor unions' >"$out" 2>"$err" && test -s "$out"; then
+        pass 'guardian/ithon/live-transport'
+      else
+        fail 'guardian/ithon/live-transport'
+        show_diagnostics "$out" "$err"
+      fi
+      ;;
+    nyt)
+      if test -z "${NYT_API_KEY:-}"; then
+        skip 'nyt/ithon/live missing NYT_API_KEY'
+      elif ITHON_CHECK_RECEIPT="$receipt" ICU="$ICU" \
+          "$ITHON" "$src" search 'labor unions' >"$out" 2>"$err" && test -s "$out"; then
+        pass 'nyt/ithon/live-transport'
+      else
+        fail 'nyt/ithon/live-transport'
+        show_diagnostics "$out" "$err"
+      fi
+      ;;
+  esac
+}
+
+while IFS=$'\t' read -r provider branch ithon_path idric_path fieldmouse_path transport; do
+  case "$provider" in
+    ''|'#'*) continue ;;
+  esac
+  if test -n "$ONLY_PROVIDER" && test "$provider" != "$ONLY_PROVIDER"; then
+    continue
+  fi
+
+  ref=$(resolve_ref "$branch") || {
+    fail "$provider/branch missing: $branch"
+    continue
+  }
+
+  ithon_src="$TMP/$provider/ithon/$(basename -- "$ithon_path")"
+  idric_src="$TMP/$provider/idric/$(basename -- "$idric_path")"
+  fieldmouse_src="$TMP/$provider/fieldmouse/$(basename -- "$fieldmouse_path")"
+
+  if materialize "$ref" "$ithon_path" "$ithon_src"; then
+    pass "$provider/ithon/source"
+    check_ithon_policy "$provider" "$transport" "$ithon_src"
+    if available "$ITHON"; then
+      check_ithon_provider "$provider" "$ref" "$ithon_src"
+      if test "$LIVE" -eq 1; then
+        check_live_ithon "$provider" "$ithon_src" "$TMP/$provider-ithon-receipt.jsonl"
+      fi
+    else
+      skip "$provider/ithon/run not found: $ITHON"
+    fi
+  else
+    fail "$provider/ithon/source $ithon_path"
+  fi
+
+  if materialize "$ref" "$idric_path" "$idric_src"; then
+    pass "$provider/idric/source"
+    if available "$IDRIC"; then
+      if "$IDRIC" --check "$idric_src" >"$TMP/$provider-idric.out" 2>"$TMP/$provider-idric.err"; then
+        pass "$provider/idric/check"
+      else
+        fail "$provider/idric/check"
+        show_diagnostics "$TMP/$provider-idric.out" "$TMP/$provider-idric.err"
+      fi
+    else
+      skip "$provider/idric/check not found: $IDRIC"
+    fi
+  else
+    fail "$provider/idric/source $idric_path"
+  fi
+
+  if materialize "$ref" "$fieldmouse_path" "$fieldmouse_src"; then
+    pass "$provider/fieldmouse/source"
+    if available "$FIELDMOUSE"; then
+      check_fieldmouse_provider "$provider" "$fieldmouse_src"
+    else
+      skip "$provider/fieldmouse/run not found: $FIELDMOUSE"
+    fi
+  else
+    fail "$provider/fieldmouse/source $fieldmouse_path"
+  fi
+done <"$CASES"
+
+exit "$status"

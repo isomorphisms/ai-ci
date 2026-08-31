@@ -1,0 +1,42 @@
+name: API checkpoint matrix
+
+on:
+  push:
+    paths:
+      - 'api-checkpoints/**'
+      - '.github/workflows/api-checkpoints.yml'
+  pull_request:
+    paths:
+      - 'api-checkpoints/**'
+      - '.github/workflows/api-checkpoints.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  ithon:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphisms/az
+          ref: main
+          fetch-depth: 0
+          path: _az
+      - name: Fetch API checkpoint branches
+        shell: sh
+        run: git -C _az fetch origin '+refs/heads/*:refs/remotes/origin/*'
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: dilapidated-shed/ithon
+          ref: main
+          path: _ithon
+      - name: Run deterministic API checkpoint matrix
+        shell: bash
+        env:
+          AZ_REPO: ${{ github.workspace }}/_az
+          ITHON: ${{ github.workspace }}/_ithon/ithon
+          FIELDMOUSE: /nonexistent/fieldmouse
+          IDRIC: /nonexistent/idris2
+        run: ./api-checkpoints/check
