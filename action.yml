@@ -1,29 +1,36 @@
-name: ai-ci contract verifier
-description: Compile and run deterministic repository contracts
+name: "AI CI"
+description: "Strict AI-oriented repository checks"
 inputs:
-  suite:
-    description: Path to the consumer's suite TSV
-    required: true
   root:
-    description: Root inspected by the contracts
+    description: "Repository root"
     required: false
-    default: .
+    default: "."
+  suite:
+    description: "Suite file, relative to repository root"
+    required: false
+    default: ".github/ai-ci/suite.tsv"
 runs:
-  using: composite
+  using: "composite"
   steps:
-    - name: Compile independent verifiers
-      shell: sh
-      run: |
-        cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o "$RUNNER_TEMP/aici" "$GITHUB_ACTION_PATH/src/aici.c"
-        cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o "$RUNNER_TEMP/aici-idric-gitattributes" "$GITHUB_ACTION_PATH/src/check_idric_gitattributes.c"
-    - name: Verify Idriç source metadata
-      shell: sh
+    - shell: sh
       env:
         AICI_ROOT: ${{ inputs.root }}
-      run: '"$RUNNER_TEMP/aici-idric-gitattributes" "$AICI_ROOT"'
-    - name: Verify declared suite
-      shell: sh
-      env:
         AICI_SUITE: ${{ inputs.suite }}
-        AICI_ROOT: ${{ inputs.root }}
-      run: '"$RUNNER_TEMP/aici" suite "$AICI_SUITE" "$AICI_ROOT"'
+      run: |
+        set -eu
+
+        if [ -z "${RUNNER_TEMP:-}" ]; then
+          echo "RUNNER_TEMP is required"
+          exit 2
+        fi
+
+        cc -std=c17 -Wall -Wextra -Werror -O2 \
+          "$GITHUB_ACTION_PATH/src/aici.c" \
+          -o "$RUNNER_TEMP/aici"
+
+        cc -std=c17 -Wall -Wextra -Werror -O2 \
+          "$GITHUB_ACTION_PATH/src/check_idric_gitattributes.c" \
+          -o "$RUNNER_TEMP/aici-idric-gitattributes"
+
+        "$RUNNER_TEMP/aici-idric-gitattributes" "$AICI_ROOT"
+        "$RUNNER_TEMP/aici" suite "$AICI_SUITE" "$AICI_ROOT"
