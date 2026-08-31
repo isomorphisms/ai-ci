@@ -1,6 +1,6 @@
 # Fresh-chat command boundary
 
-The Blackball evaluator does not depend on the eventual API client's internal implementation or command name.
+The Blackball evaluator does not depend on the API client's internal implementation or command name.
 
 Its minimal process contract is:
 
@@ -21,9 +21,34 @@ No conversation identifier, prior response identifier, memory state, or previous
 
 Metadata needed for reproducibility belongs in the surrounding run receipt rather than mixed into answer stdout. That includes the executable revision, model name, provider, sampling settings, tool/retrieval configuration, Blackball ref, timestamp, and exit status.
 
+## Live ICU command
+
+The first real implementation is being built in `dilapidated-shed/icu#12` as:
+
+```text
+icu openai
+```
+
+It implements this boundary directly: complete prompt on stdin, answer text only on stdout, diagnostics on stderr, and nonzero exit when no answer exists. The OpenAI-specific layer is Idriç and uses ICU's own existing HTTP/TLS transport rather than curl, an OpenAI SDK, or another HTTP client.
+
+The A/B runner can therefore substitute it without an adapter:
+
+```text
+OPENAI_API_KEY=... \
+OPENAI_MODEL=gpt-5.6-sol \
+python3 evals/blackball/run_cli_ab.py \
+  --client /path/to/icu \
+  --client-arg openai \
+  --question 'question to test'
+```
+
+Each A/B sample is a new ICU process and each `icu openai` invocation creates one fresh Responses API request. No conversation or prior-response identifier crosses the boundary. The ICU request sets `store=false` and supplies no tools.
+
+The exact ICU revision, model, Responses endpoint/configuration, and Blackball revision still belong in the AICI run receipt. A green deterministic ICU mock-endpoint test establishes transport/parser/command behavior; it is not evidence about real model behavior.
+
 ## Mock command
 
-`mock_chat_cli.py` implements this boundary directly from the synthetic cases.
+`mock_chat_cli.py` implements the same boundary directly from the synthetic cases.
 
 Example:
 
@@ -33,7 +58,7 @@ AICI_BLACKBALL_MOCK_PHASE=baseline \
 python3 evals/blackball/mock_chat_cli.py < prompt.txt
 ```
 
-Mock-only environment variables are deliberately out-of-band. The eventual real API command does not need them and does not need to mimic the mock's implementation.
+Mock-only environment variables are deliberately out-of-band. The real API command does not implement them and does not mimic the mock's internal implementation.
 
 The three mock phases are:
 
@@ -45,4 +70,4 @@ The evaluator-facing command boundary itself remains only stdin/stdout/stderr/ex
 
 ## Replacement rule
 
-When the real ICU/API client lands, the suite should substitute that executable at the command boundary rather than rewrite the evaluation logic. If its native user interface is richer, a tiny adapter may normalize it to this boundary; the evidence receipt should identify that adapter explicitly.
+The evaluator depends on this process contract, not ICU specifically. ICU is the first live implementation because it dogfoods the project's own network path. A different provider or implementation may replace it later without rewriting the A/B logic if it preserves the same boundary and records its exact identity in the run receipt.
