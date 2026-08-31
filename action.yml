@@ -11,9 +11,16 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Compile independent verifier
+    - name: Compile independent verifiers
       shell: sh
-      run: cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o "$RUNNER_TEMP/aici" "$GITHUB_ACTION_PATH/src/aici.c"
+      run: |
+        cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o "$RUNNER_TEMP/aici" "$GITHUB_ACTION_PATH/src/aici.c"
+        cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o "$RUNNER_TEMP/aici-idric-gitattributes" "$GITHUB_ACTION_PATH/src/check_idric_gitattributes.c"
+    - name: Verify Idriç source metadata
+      shell: sh
+      env:
+        AICI_ROOT: ${{ inputs.root }}
+      run: '"$RUNNER_TEMP/aici-idric-gitattributes" "$AICI_ROOT"'
     - name: Verify declared suite
       shell: sh
       env:
