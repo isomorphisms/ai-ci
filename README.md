@@ -167,5 +167,7 @@ Ubuntu 24.04. Native Windows runners are not yet supported.
 
 See `docs/evaluation-protocol.md` for the normative evaluation method,
 `research/llm-failure-modes.md` for the empirical basis, and
-`docs/failure-ledger.md` for the reconstructed incident classes. The next
-contracts are in `docs/roadmap.md`.
+`docs/failure-ledger.md` for the reconstructed incident classes. The
+repository-backed reasoning architecture and evidence standard are in
+[`docs/retrieved-context-and-reasoning.md`](docs/retrieved-context-and-reasoning.md).
+The next contracts are in `docs/roadmap.md`.
