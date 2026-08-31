@@ -1,0 +1,4 @@
+# Blackball context-effect mocks must retain all declared result dimensions and all seven initial fixtures.
+nonempty	BLACKBALL-MOCKS-EMPTY	evals/blackball/mocks.tsv
+tsv_header	BLACKBALL-MOCKS-HEADER	evals/blackball/mocks.tsv	mock_id,result_kind,substantive_effect,evidence_status,run_status,response
+tsv	BLACKBALL-MOCKS-FIELDS	evals/blackball/mocks.tsv	6	8
