@@ -38,7 +38,7 @@ def error_message(raw: bytes) -> str:
     text = raw.decode("utf-8", errors="replace")
     try:
         payload = json.loads(text)
-        error = payload.get("error")
+        error = payload.get("error") if isinstance(payload, dict) else None
         if isinstance(error, dict) and isinstance(error.get("message"), str):
             return error["message"]
     except json.JSONDecodeError:
@@ -83,6 +83,9 @@ def main() -> int:
         print(f"OpenAI Responses request failed: {exc}", file=sys.stderr)
         return 1
 
+    if not isinstance(payload, dict):
+        print("OpenAI Responses request returned a non-object JSON payload", file=sys.stderr)
+        return 1
     if payload.get("status") != "completed":
         print(f"OpenAI Responses request did not complete: {payload.get('status')!r}", file=sys.stderr)
         return 1
