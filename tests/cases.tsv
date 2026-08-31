@@ -43,6 +43,10 @@ fail	contracts/scoped-evidence-v0.contract.tsv	tests/fixtures/runtime-missing-pa
 fail	contracts/scoped-evidence-v0.contract.tsv	tests/fixtures/runtime-target-fatal	RUNTIME-TARGET-FATAL
 fail	tests/contracts/empty.contract.tsv	tests/fixtures/narrative-good	AICI-NO-ASSERTIONS
 fail	contracts/narrative-sync-v0.contract.tsv	tests/fixtures/narrative-missing-voiceover	NARRATIVE-SCRIPT-VOICEOVER
+pass	contracts/coupled-substitution-v0.contract.tsv	tests/fixtures/coupled-good	-
+fail	contracts/coupled-substitution-v0.contract.tsv	tests/fixtures/coupled-bad-signature	COUPLED-RESULT
+fail	contracts/coupled-substitution-v0.contract.tsv	tests/fixtures/coupled-bad-precheck	COUPLED-PRECHECK
+fail	contracts/coupled-substitution-v0.contract.tsv	tests/fixtures/coupled-bad-partial	COUPLED-NO-STANDALONE
 pass	contracts/blackball-verdict-v0.contract.tsv	tests/fixtures/blackball-verdicts-good	-
 fail	contracts/blackball-verdict-v0.contract.tsv	tests/fixtures/blackball-verdicts-empty	BLACKBALL-VERDICTS-EMPTY
 fail	contracts/blackball-verdict-v0.contract.tsv	tests/fixtures/blackball-verdicts-bad-header	BLACKBALL-VERDICTS-HEADER
