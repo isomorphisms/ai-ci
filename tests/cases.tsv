@@ -43,3 +43,7 @@ fail	contracts/scoped-evidence-v0.contract.tsv	tests/fixtures/runtime-missing-pa
 fail	contracts/scoped-evidence-v0.contract.tsv	tests/fixtures/runtime-target-fatal	RUNTIME-TARGET-FATAL
 fail	tests/contracts/empty.contract.tsv	tests/fixtures/narrative-good	AICI-NO-ASSERTIONS
 fail	contracts/narrative-sync-v0.contract.tsv	tests/fixtures/narrative-missing-voiceover	NARRATIVE-SCRIPT-VOICEOVER
+pass	contracts/blackball-model-effect-v0.contract.tsv	tests/fixtures/blackball-mocks-good	-
+fail	contracts/blackball-model-effect-v0.contract.tsv	tests/fixtures/blackball-mocks-empty	BLACKBALL-MOCKS-EMPTY
+fail	contracts/blackball-model-effect-v0.contract.tsv	tests/fixtures/blackball-mocks-bad-header	BLACKBALL-MOCKS-HEADER
+fail	contracts/blackball-model-effect-v0.contract.tsv	tests/fixtures/blackball-mocks-bad-fields	BLACKBALL-MOCKS-FIELDS
