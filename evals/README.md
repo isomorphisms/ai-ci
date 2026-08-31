@@ -21,3 +21,8 @@ match `contracts/evaluation-case-v0.contract.tsv`:
 The manifest is deliberately provider-neutral. A future runner may translate
 it to a hosted evaluation service, but the repository remains the authoritative
 source of objectives, cases, evidence requirements, and thresholds.
+
+`blackball/` starts a paired context-effect evaluation for answers produced with
+and without Blackball material. Its initial fake results deliberately distinguish
+substantive effect, evidential support, operational failure, and epistemic
+unknown rather than reducing the comparison to a Boolean.
