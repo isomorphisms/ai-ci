@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
 
 #define MOCK_FIELDS 6
 #define MOCK_LINE_MAX (1024 * 1024)
