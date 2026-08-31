@@ -1,0 +1,8 @@
+mock_id	result_kind	effect	evidence_status	run_status	response
+positive	positive	improved	supported	complete	positive fixture row
+negative	negative	no_appreciable_difference	supported	complete	negative fixture row
+in_between	in_between	mixed	supported	complete	mixed fixture row
+terrible	terrible	worse	supported	complete	terrible fixture row
+conspiratorial	conspiratorial	pessimistic	unsupported	complete	conspiratorial fixture row
+failure	failure	not_evaluated	not_evaluated	failed	failure fixture row
+unknown	unknown	unclassified	insufficient	complete	unknown fixture row
