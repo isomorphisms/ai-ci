@@ -20,18 +20,33 @@ jobs:
       - name: Send one genuine prompt
         shell: python
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          AICI_SECRETS_JSON: ${{ toJSON(secrets) }}
         run: |
+          import json
           import os
           import subprocess
           import sys
 
+          available = json.loads(os.environ.get("AICI_SECRETS_JSON", "{}"))
+          candidates = [name for name, value in available.items()
+                        if name != "GITHUB_TOKEN" and value]
+          print("available user secret names:", ", ".join(sorted(candidates)) or "(none)")
+
+          if "OPENAI_API_KEY" in candidates:
+              secret_name = "OPENAI_API_KEY"
+          elif len(candidates) == 1:
+              secret_name = candidates[0]
+          else:
+              raise SystemExit("could not identify the OpenAI API key secret")
+
+          child_env = os.environ.copy()
+          child_env["OPENAI_API_KEY"] = available[secret_name]
           completed = subprocess.run(
               [sys.executable, "evals/blackball/openai_responses_cli.py", "gpt-5.6-luna"],
               input="Reply with exactly: live provider reached\n",
               text=True,
               capture_output=True,
-              env=os.environ,
+              env=child_env,
           )
           sys.stdout.write(completed.stdout)
           sys.stderr.write(completed.stderr)
