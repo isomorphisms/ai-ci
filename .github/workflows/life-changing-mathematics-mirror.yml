@@ -1,0 +1,29 @@
+name: Life-changing mathematics mirror
+
+on:
+  workflow_dispatch:
+    inputs:
+      syllabus_ref:
+        description: bl4ckb4ll/syllabus ref to compare
+        required: false
+        default: main
+      blackball_ref:
+        description: bl4ckb4ll/blackball ref to compare
+        required: false
+        default: main
+  schedule:
+    - cron: '17 */6 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compare life-changing mathematics mirrors
+        env:
+          SYLLABUS_REF: ${{ inputs.syllabus_ref || 'main' }}
+          BLACKBALL_REF: ${{ inputs.blackball_ref || 'main' }}
+        run: sh watchers/life-changing-mathematics.sh
