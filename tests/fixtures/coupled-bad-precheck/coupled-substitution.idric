@@ -1,0 +1,8 @@
+data CoupledSubstitution : Type where
+  together : Substitution → Substitution → CoupledSubstitution
+
+apply : CoupledSubstitution → Text → Maybe Text
+apply (together (left_from ↦ left_to) (right_from ↦ right_to)) text is
+  if contains left_from text
+    then Just (replace right_from right_to (replace left_from left_to text))
+    otherwise Nothing
