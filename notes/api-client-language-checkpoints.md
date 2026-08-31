@@ -15,6 +15,7 @@ examples include:
 - `ft-api`
 - `reuters-api`
 - `ap-api`
+- `wayback-api`
 
 Do not collapse unrelated services into one large API branch. A service branch
 should be independently useful as a checkpoint against an older or newer
@@ -60,9 +61,12 @@ boundary that moved.
 
 Current ICU represents GET and POST but does not expose arbitrary caller-supplied
 request headers. That makes public query-key APIs such as NYT and Guardian good
-near-term executable checkpoints, while header-authenticated APIs such as AP,
-FT, Economist, Reuters, and authenticated Reddit deliberately pressure the next
-ICU request-model feature.
+near-term executable checkpoints. Wayback CDX is even simpler: no API key or
+custom request header is needed, so a current language lane that can launch ICU
+can exercise a real historical-coverage GET immediately.
+
+Header-authenticated APIs such as AP, FT, Economist, Reuters, and authenticated
+Reddit deliberately pressure the next ICU request-model feature.
 
 Do not add a transparent fallback merely to turn those lanes green.
 
