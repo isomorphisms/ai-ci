@@ -1,0 +1,8 @@
+verdict	comparative	meaning	minimum_evidence
+improved	yes	Blackball materially improves decision-relevant accuracy or caution without introducing unsupported claims.	Identify the material improvement and the evidence or reasoning that supports it.
+no_appreciable_difference	yes	The Blackball-conditioned answer is not materially better or worse than baseline.	Compare the answers on the same decision-relevant dimensions; stylistic change alone does not count.
+mixed	yes	Blackball produces a material improvement and a material degradation, or the net direction is genuinely mixed.	Name at least one improvement and one degradation.
+worse	yes	Blackball materially worsens the answer, including by adding false, misleading, irrelevant, or overgeneralized claims.	Identify the degradation and why it matters to the decision.
+unsupported_pessimism	yes	The Blackball-conditioned answer becomes more negative or suspicious but does not supply adequate evidence, argument, or logic for that shift.	Show that the negativity is not substantiated; mere pessimism is not an improvement.
+failure	no	The comparison could not run because generation, retrieval, transport, parsing, or another required stage failed.	Record the failed stage and error; never convert failure into a substantive verdict.
+unknown	no	The available outputs are insufficient, ambiguous, or too inconsistent to classify reliably.	State what information prevents a reliable classification.
