@@ -12,43 +12,10 @@ permissions:
   contents: read
 
 jobs:
-  discover_environment:
-    runs-on: ubuntu-24.04
-    outputs:
-      environment_name: ${{ steps.discover.outputs.environment_name }}
-    steps:
-      - id: discover
-        name: Find the repository environment
-        shell: python
-        run: |
-          import json
-          import os
-          import urllib.request
-
-          repo = os.environ["GITHUB_REPOSITORY"]
-          request = urllib.request.Request(
-              f"https://api.github.com/repos/{repo}/environments",
-              headers={
-                  "Accept": "application/vnd.github+json",
-                  "User-Agent": "ai-ci-live-smoke",
-              },
-          )
-          with urllib.request.urlopen(request) as response:
-              payload = json.load(response)
-
-          names = [environment["name"] for environment in payload.get("environments", [])]
-          print("repository environments:", ", ".join(names) or "(none)")
-          if len(names) != 1:
-              raise SystemExit(f"expected exactly one repository environment, found {len(names)}")
-
-          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-              print(f"environment_name={names[0]}", file=output)
-
   live-openai-smoke:
-    needs: discover_environment
     runs-on: ubuntu-24.04
     environment:
-      name: ${{ needs.discover_environment.outputs.environment_name }}
+      name: OpenAI API key
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Send one genuine prompt
@@ -61,7 +28,7 @@ jobs:
           import sys
 
           if not os.environ.get("OPENAI_API_KEY"):
-              raise SystemExit("OPENAI_API_KEY is not present in the discovered environment")
+              raise SystemExit("OPENAI_API_KEY is not present in the OpenAI API key environment")
 
           completed = subprocess.run(
               [sys.executable, "evals/blackball/openai_responses_cli.py", "gpt-5.6-luna"],
