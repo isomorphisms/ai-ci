@@ -40,6 +40,18 @@
 - `narrative-audio`: compare canonical script/captions exactly and independently
   transcribe the generated audio rather than trusting a generation receipt.
 
+## Repository-backed reasoning
+
+Generic RAG case multiplication is paused until the diagnostic seed follows
+[`retrieved-context-and-reasoning.md`](retrieved-context-and-reasoning.md). The
+first seed must compare no repository evidence, actual retrieval, a
+reviewer-selected sufficient packet, and the typed/constrained evidence path.
+Each case must predeclare the substantive decision that should change and pair
+it with irrelevant, conflict, and missing-evidence controls. Fact mentions,
+citations, answer length, and lexical overlap are not acceptance criteria.
+Retrieval-aware training becomes a separate comparison arm only after those
+boundaries identify a repeated evidence-use failure.
+
 ## Semantic review cases
 
 The case schema and initial incident-derived corpus now exist in
