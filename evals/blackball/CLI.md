@@ -21,6 +21,24 @@ No conversation identifier, prior response identifier, memory state, or previous
 
 Metadata needed for reproducibility belongs in the surrounding run receipt rather than mixed into answer stdout. That includes the executable revision, model name, provider, sampling settings, tool/retrieval configuration, Blackball ref, timestamp, and exit status.
 
+## Live smoke test
+
+`live_chat_smoke.grease` is the minimal real-client smoke test for this boundary. It sends one fresh prompt asking for the exact answer `4`, requires exit status 0, and requires stdout to contain exactly `4` apart from trailing newlines removed by command substitution.
+
+Run it with the Grease-enabled OSH interpreter and the client command to test:
+
+```text
+osh evals/blackball/live_chat_smoke.grease ./openai_chat_cli
+```
+
+Additional client arguments may follow the client executable. On success the test prints:
+
+```text
+PASS live_chat_smoke
+```
+
+There is no fallback to a mock. A missing client, transport/API failure, or wrong answer is a failure. This smoke test establishes only that a real client can complete one fresh generation and honor the stdin/stdout/exit-status boundary; it does not establish Blackball retrieval quality or an A/B model effect.
+
 ## Mock command
 
 `mock_chat_cli.py` implements this boundary directly from the synthetic cases.
