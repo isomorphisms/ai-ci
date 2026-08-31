@@ -12,41 +12,63 @@ permissions:
   contents: read
 
 jobs:
-  live-openai-smoke:
+  discover_environment:
     runs-on: ubuntu-24.04
-    environment: openai-live
+    outputs:
+      environment_name: ${{ steps.discover.outputs.environment_name }}
+    steps:
+      - id: discover
+        name: Find the repository environment
+        shell: python
+        run: |
+          import json
+          import os
+          import urllib.request
+
+          repo = os.environ["GITHUB_REPOSITORY"]
+          request = urllib.request.Request(
+              f"https://api.github.com/repos/{repo}/environments",
+              headers={
+                  "Accept": "application/vnd.github+json",
+                  "User-Agent": "ai-ci-live-smoke",
+              },
+          )
+          with urllib.request.urlopen(request) as response:
+              payload = json.load(response)
+
+          names = [environment["name"] for environment in payload.get("environments", [])]
+          print("repository environments:", ", ".join(names) or "(none)")
+          if len(names) != 1:
+              raise SystemExit(f"expected exactly one repository environment, found {len(names)}")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              print(f"environment_name={names[0]}", file=output)
+
+  live-openai-smoke:
+    needs: discover_environment
+    runs-on: ubuntu-24.04
+    environment:
+      name: ${{ needs.discover_environment.outputs.environment_name }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Send one genuine prompt
         shell: python
         env:
-          AICI_SECRETS_JSON: ${{ toJSON(secrets) }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
-          import json
           import os
           import subprocess
           import sys
 
-          available = json.loads(os.environ.get("AICI_SECRETS_JSON", "{}"))
-          candidates = [name for name, value in available.items()
-                        if name != "GITHUB_TOKEN" and value]
-          print("available user secret names:", ", ".join(sorted(candidates)) or "(none)")
+          if not os.environ.get("OPENAI_API_KEY"):
+              raise SystemExit("OPENAI_API_KEY is not present in the discovered environment")
 
-          if "OPENAI_API_KEY" in candidates:
-              secret_name = "OPENAI_API_KEY"
-          elif len(candidates) == 1:
-              secret_name = candidates[0]
-          else:
-              raise SystemExit("could not identify the OpenAI API key secret")
-
-          child_env = os.environ.copy()
-          child_env["OPENAI_API_KEY"] = available[secret_name]
           completed = subprocess.run(
               [sys.executable, "evals/blackball/openai_responses_cli.py", "gpt-5.6-luna"],
               input="Reply with exactly: live provider reached\n",
               text=True,
               capture_output=True,
-              env=child_env,
+              env=os.environ,
           )
           sys.stdout.write(completed.stdout)
           sys.stderr.write(completed.stderr)
