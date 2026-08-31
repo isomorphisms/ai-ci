@@ -1,13 +1,16 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include <dirent.h>
+#include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 
 #define PATH_CAP 4096
 
 static const char expected[] = "*.idric linguist-language=Idris\n";
+static const char pattern[] = "*.idric";
 
 static int has_suffix(const char *name, const char *suffix) {
     size_t name_length = strlen(name);
@@ -56,24 +59,44 @@ static int tree_has_idric(const char *path, int *found) {
     return 1;
 }
 
+static int is_idric_rule(const char *line) {
+    size_t length = strlen(pattern);
+    return strncmp(line, pattern, length) == 0 &&
+           (line[length] == ' ' || line[length] == '\t' ||
+            line[length] == '\n' || line[length] == '\r' ||
+            line[length] == '\0');
+}
+
 static int canonical_gitattributes(const char *root) {
     char path[PATH_CAP];
-    char content[sizeof(expected)];
     FILE *file;
-    size_t got;
+    char *line = NULL;
+    size_t capacity = 0;
+    ssize_t length;
+    int canonical_count = 0;
+    int conflicting = 0;
     int written = snprintf(path, sizeof(path), "%s/.gitattributes", root);
 
     if (written < 0 || (size_t)written >= sizeof(path)) return -1;
+    errno = 0;
     file = fopen(path, "rb");
-    if (file == NULL) return 0;
-    got = fread(content, 1, sizeof(content), file);
+    if (file == NULL) return errno == ENOENT ? 0 : -1;
+    while ((length = getline(&line, &capacity, file)) >= 0) {
+        (void)length;
+        if (strcmp(line, expected) == 0) {
+            ++canonical_count;
+        } else if (is_idric_rule(line)) {
+            conflicting = 1;
+        }
+    }
     if (ferror(file)) {
+        free(line);
         fclose(file);
         return -1;
     }
+    free(line);
     fclose(file);
-    return got == sizeof(expected) - 1 &&
-           memcmp(content, expected, sizeof(expected) - 1) == 0;
+    return canonical_count == 1 && !conflicting;
 }
 
 int main(int argc, char **argv) {
