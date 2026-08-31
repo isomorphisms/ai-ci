@@ -1,0 +1,8 @@
+mock_id	result_kind	substantive_effect	evidence_status	run_status	response
+positive	positive	improved	supported	complete	Linking in the Blackball repository improved responses: it guarded against the college trap and held college administrators accountable for claims, whether implied or explicit.
+negative	negative	no_appreciable_difference	supported	complete	Linking in the Blackball repository produced no appreciable difference.
+in_between	in_between	mixed	supported	complete	Linking in the Blackball repository improved some parts of the response but not enough to support a clear overall positive or negative verdict.
+terrible	terrible	worse	supported	complete	Including the Blackball repository made the responses worse.
+conspiratorial	conspiratorial	pessimistic	unsupported	complete	Adding the Blackball repository made the responses more pessimistic, but the added negativity was not supported by evidence, argument, or logic and could not be substantiated from other sources.
+failure	failure	not_evaluated	not_evaluated	failed	The comparison failed before a substantive verdict could be produced.
+unknown	unknown	unclassified	insufficient	complete	The comparison completed, but I cannot classify the effect reliably.
