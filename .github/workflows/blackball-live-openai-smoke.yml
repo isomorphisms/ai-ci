@@ -1,0 +1,41 @@
+name: Blackball live OpenAI smoke
+
+on:
+  push:
+    branches:
+      - blackball-eval-consolidation
+    paths:
+      - '.github/workflows/blackball-live-openai-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-openai-smoke:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Send one genuine prompt
+        shell: python
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          import os
+          import subprocess
+          import sys
+
+          completed = subprocess.run(
+              [sys.executable, "evals/blackball/openai_responses_cli.py", "gpt-5.6-luna"],
+              input="Reply with exactly: live provider reached\n",
+              text=True,
+              capture_output=True,
+              env=os.environ,
+          )
+          sys.stdout.write(completed.stdout)
+          sys.stderr.write(completed.stderr)
+          if completed.returncode != 0:
+              raise SystemExit(completed.returncode)
+          if completed.stdout.strip() != "live provider reached":
+              raise SystemExit("provider answered, but not with the requested exact smoke text")
+          print("\nLIVE-PROVIDER-SMOKE: PASS")
