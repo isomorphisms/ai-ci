@@ -9,8 +9,9 @@
 
 #define PATH_CAP 4096
 
-static const char expected[] = "*.idric linguist-language=Idris\n";
 static const char pattern[] = "*.idric";
+static const char language_attribute[] = "linguist-language";
+static const char canonical_attribute[] = "linguist-language=Idris";
 
 static int has_suffix(const char *name, const char *suffix) {
     size_t name_length = strlen(name);
@@ -59,12 +60,13 @@ static int tree_has_idric(const char *path, int *found) {
     return 1;
 }
 
-static int is_idric_rule(const char *line) {
-    size_t length = strlen(pattern);
-    return strncmp(line, pattern, length) == 0 &&
-           (line[length] == ' ' || line[length] == '\t' ||
-            line[length] == '\n' || line[length] == '\r' ||
-            line[length] == '\0');
+static int is_language_attribute(const char *attribute) {
+    const char *candidate = attribute;
+    size_t length = strlen(language_attribute);
+
+    if (*candidate == '-' || *candidate == '!') ++candidate;
+    return strncmp(candidate, language_attribute, length) == 0 &&
+           (candidate[length] == '\0' || candidate[length] == '=');
 }
 
 static int canonical_gitattributes(const char *root) {
@@ -82,12 +84,30 @@ static int canonical_gitattributes(const char *root) {
     file = fopen(path, "rb");
     if (file == NULL) return errno == ENOENT ? 0 : -1;
     while ((length = getline(&line, &capacity, file)) >= 0) {
+        char *copy;
+        char *save = NULL;
+        char *token;
+
         (void)length;
-        if (strcmp(line, expected) == 0) {
-            ++canonical_count;
-        } else if (is_idric_rule(line)) {
-            conflicting = 1;
+        copy = strdup(line);
+        if (copy == NULL) {
+            free(line);
+            fclose(file);
+            return -1;
         }
+        token = strtok_r(copy, " \t\r\n", &save);
+        if (token == NULL || token[0] == '#' || strcmp(token, pattern) != 0) {
+            free(copy);
+            continue;
+        }
+        while ((token = strtok_r(NULL, " \t\r\n", &save)) != NULL) {
+            if (strcmp(token, canonical_attribute) == 0) {
+                ++canonical_count;
+            } else if (is_language_attribute(token)) {
+                conflicting = 1;
+            }
+        }
+        free(copy);
     }
     if (ferror(file)) {
         free(line);
