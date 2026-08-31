@@ -1,0 +1,3 @@
+event	status	source	revision	command
+source-preflight	pass	refs/tags/verified	acb1fdc658b880477b4389f6299fc9f87d4dfb63	git fetch --depth=1 origin refs/tags/verified
+heavyweight-mutation	pass	-	-	pkg install clang make
