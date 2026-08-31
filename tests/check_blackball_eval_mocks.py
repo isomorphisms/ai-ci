@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import json
+import os
+import subprocess
 import sys
 import threading
 import urllib.error
@@ -14,6 +16,7 @@ sys.path.insert(0, str(ROOT / "evals" / "blackball"))
 
 from mock_openai_responses import Handler, load_cases  # noqa: E402
 
+OPENAI_CLIENT = ROOT / "evals" / "blackball" / "openai_responses_cli.py"
 EXPECTED_DIMENSIONS = {
     "positive": {"substantive_effect": "improved", "evidence_status": "supported", "run_status": "complete"},
     "negative": {"substantive_effect": "no_appreciable_difference", "evidence_status": "supported", "run_status": "complete"},
@@ -41,6 +44,21 @@ def post(port: int, text: str) -> tuple[int, dict]:
 
 def extract_text(payload: dict) -> str:
     return payload["output"][0]["content"][0]["text"]
+
+
+def invoke_openai_client(port: int, text: str) -> subprocess.CompletedProcess[str]:
+    env = os.environ.copy()
+    env["OPENAI_API_KEY"] = "acceptance-test-key"
+    env["AICI_OPENAI_BASE_URL"] = f"http://127.0.0.1:{port}/v1"
+    return subprocess.run(
+        [sys.executable, str(OPENAI_CLIENT), "chat-latest"],
+        input=text,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        env=env,
+        check=False,
+    )
 
 
 def main() -> int:
@@ -82,6 +100,17 @@ def main() -> int:
             for key, value in case["dimensions"].items():
                 assert judge[key] == value, (mock_id, key, judge[key], value)
             print(f"PASS {mock_id}: {judge['classification']}")
+
+        live_boundary = invoke_openai_client(port, "aici-blackball-mock positive baseline")
+        assert live_boundary.returncode == 0, live_boundary.stderr
+        assert live_boundary.stdout == cases["positive"]["baseline"]
+        assert live_boundary.stderr == ""
+
+        live_failure = invoke_openai_client(port, "aici-blackball-mock failure blackball")
+        assert live_failure.returncode != 0
+        assert live_failure.stdout == ""
+        assert "OpenAI Responses HTTP 503" in live_failure.stderr
+        print("PASS OpenAI Responses CLI: stdout answer and nonzero/no-answer contract preserved")
     finally:
         server.shutdown()
         server.server_close()
