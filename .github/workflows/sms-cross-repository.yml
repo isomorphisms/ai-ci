@@ -1,0 +1,52 @@
+name: Current SMS cross-repository receipt
+
+on:
+  push:
+    paths:
+      - '.github/workflows/sms-cross-repository.yml'
+      - 'sms/**'
+  pull_request:
+    paths:
+      - '.github/workflows/sms-cross-repository.yml'
+      - 'sms/**'
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  executable-sms-path:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout ai-ci
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Checkout current Idric-Net SMS work
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphisms/Idric-Net
+          ref: sms-server-foundation
+          path: _Idric-Net
+      - name: Checkout current Grease SMS work
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphisms/grease
+          ref: sms-server-filesystem-foundation
+          path: _grease
+      - name: Checkout current Idriç compiler
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphisms/Idric
+          path: _Idric
+      - name: Build current Idriç compiler
+        shell: sh
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends chezscheme
+          make -C _Idric bootstrap SCHEME=scheme
+      - name: Run executable SMS receipt and hostile self-tests
+        shell: sh
+        env:
+          IDRIS2_PREFIX: ${{ github.workspace }}/_Idric/bootstrap-build
+        run: sms/run-cross-repository.sh _Idric-Net _grease _Idric/build/exec/idris2
