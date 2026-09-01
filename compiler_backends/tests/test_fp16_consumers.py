@@ -19,7 +19,8 @@ class FP16ConsumerMatrixTests(unittest.TestCase):
         self.assertEqual(
             metrics,
             {
-                "fp16.consumer.ave.backend_revision_pin",
+                "fp16.consumer.ave.backend_declared_ref",
+                "fp16.consumer.ave.backend_resolved_receipt",
                 "fp16.consumer.ave.f16_compile",
                 "fp16.consumer.ave.f32_compile",
                 "fp16.consumer.ave.f16_ir_and_mediump",
