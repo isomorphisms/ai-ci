@@ -49,4 +49,4 @@ jobs:
         shell: sh
         env:
           IDRIS2_PREFIX: ${{ github.workspace }}/_Idric/bootstrap-build
-        run: sms/run-cross-repository.sh _Idric-Net _grease _Idric/build/exec/idris2
+        run: sh sms/run-cross-repository.sh _Idric-Net _grease _Idric/build/exec/idris2
