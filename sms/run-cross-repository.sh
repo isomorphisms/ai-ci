@@ -2,10 +2,13 @@
 
 set -eu
 
-idric_net=${1:?usage: run-cross-repository.sh IDRIC_NET GREASE IDRIC_COMPILER}
-grease=${2:?usage: run-cross-repository.sh IDRIC_NET GREASE IDRIC_COMPILER}
-compiler=${3:?usage: run-cross-repository.sh IDRIC_NET GREASE IDRIC_COMPILER}
+idric_net_input=${1:?usage: run-cross-repository.sh IDRIC_NET GREASE IDRIC_COMPILER}
+grease_input=${2:?usage: run-cross-repository.sh IDRIC_NET GREASE IDRIC_COMPILER}
+compiler_input=${3:?usage: run-cross-repository.sh IDRIC_NET GREASE IDRIC_COMPILER}
 here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+idric_net=$(CDPATH= cd -- "$idric_net_input" && pwd)
+grease=$(CDPATH= cd -- "$grease_input" && pwd)
+compiler=$(CDPATH= cd -- "$(dirname -- "$compiler_input")" && pwd)/$(basename -- "$compiler_input")
 
 make -C "$idric_net" clean sms-request IDRIC="$compiler"
 parser=$(CDPATH= cd -- "$idric_net" && pwd)/build/exec/idric-sms-request
