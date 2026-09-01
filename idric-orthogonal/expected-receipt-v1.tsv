@@ -1,0 +1,15 @@
+IDRIC_ORTHOGONAL_CORE	1
+compiler_head	isomorphisms/Idric	47557b43053c829d4f8aa1581007002b57f9c59f
+verdict	BOUNDED_GREEN
+stage	semantic_model	PASS	compiler-owned unified higher-mathematics modules imported by edric009
+stage	compiler_typecheck	PASS	edric009 ordinary --check path
+stage	negative_typecheck	PASS	edric009 compiler failing declarations; no shell diagnostic substitution
+stage	exact_r128_execution	PASS	edric009 compiled executable and exact expected output
+stage	independent_invariant_oracle	PASS	Idric-owned dependency-free signed-permutation oracle
+stage	backend_handoff	NOT_VERIFIED	no merged generic lowering interface at this compiler revision
+stage	target_execution	NOT_VERIFIED	no backend or hardware target belongs to this semantic receipt
+scope	exact_sample_carrier	Integer coordinates in four closed named spaces
+scope	closed_transforms	identity, first-axis reflection, first-plane quarter-turn, integral unit-quaternion rotation, composition
+scope	sphere_action	absent; UnitSpherePoint exists but no transform action preserves its certificate
+scope	general_rotation	absent; no arbitrary angles, matrices, Householder family, alignment synthesis, or algorithm selection
+end
