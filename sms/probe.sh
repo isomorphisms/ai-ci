@@ -32,7 +32,7 @@ value_is() {
 }
 
 run_service() {
-  IDRIC_SMS_REQUEST="$parser" "$service" "$@"
+  IDRIC_SMS_REQUEST="$parser" sh "$service" "$@"
 }
 
 state="$test_root/remind"
