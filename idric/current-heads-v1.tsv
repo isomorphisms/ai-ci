@@ -9,5 +9,5 @@ sms	isomorphisms/Idric	Idriç	compiler	isomorphisms/ai-ci
 sms	isomorphisms/Idric-Net	sms-server-foundation	parser	isomorphisms/ai-ci
 sms	isomorphisms/grease	sms-server-filesystem-foundation	service	isomorphisms/ai-ci
 sms	isomorphisms/ai-ci	sms-cross-repository-receipt	acceptance	isomorphisms/ai-ci
-shader	isomorphisms/idris-shader-backend	soap-f16-mode	backend	isomorphisms/algebraic-variety-explorer-mobile
-shader	isomorphisms/algebraic-variety-explorer-mobile	dogfood/idris-shader-f16	consumer	isomorphisms/algebraic-variety-explorer-mobile
+shader	isomorphisms/idris-shader-backend	soap-f16-mode	backend	isomorphismes/algebraic-variety-explorer-mobile
+shader	isomorphismes/algebraic-variety-explorer-mobile	dogfood/idris-shader-f16	consumer	isomorphismes/algebraic-variety-explorer-mobile
