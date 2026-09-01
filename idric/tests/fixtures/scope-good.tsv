@@ -1,5 +1,5 @@
 project	classification	default_ref	survey_ref
-example/compiler	compiler-provider	main	1111111111111111111111111111111111111111
+example/compiler	compiler-provider	Idriç	1111111111111111111111111111111111111111
 example/registry	registry	main	2222222222222222222222222222222222222222
 example/app	direct-consumer	main	3333333333333333333333333333333333333333
 example/backend	backend-provider	main	4444444444444444444444444444444444444444

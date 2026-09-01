@@ -1,0 +1,13 @@
+lane	repository	requested_ref	role	receipt_owner
+x86	isomorphisms/Idric	Idriç	compiler	isomorphisms/idric-x86-aggressive-backend
+x86	isomorphisms/idric-x86-aggressive-backend	backend/checked-idric-direct-elf64	backend	isomorphisms/idric-x86-aggressive-backend
+dex	isomorphisms/Idric	Idriç	compiler	isomorphisms/idric-arm-thumb
+dex	isomorphisms/idric-arm-thumb	dex-executable-first-slice	backend	isomorphisms/idric-arm-thumb
+idric-net	isomorphisms/Idric	Idriç	compiler	isomorphisms/Idric-Net
+idric-net	isomorphisms/Idric-Net	net	library	isomorphisms/Idric-Net
+sms	isomorphisms/Idric	Idriç	compiler	isomorphisms/ai-ci
+sms	isomorphisms/Idric-Net	sms-server-foundation	parser	isomorphisms/ai-ci
+sms	isomorphisms/grease	sms-server-filesystem-foundation	service	isomorphisms/ai-ci
+sms	isomorphisms/ai-ci	sms-cross-repository-receipt	acceptance	isomorphisms/ai-ci
+shader	isomorphisms/idris-shader-backend	soap-f16-mode	backend	isomorphismes/algebraic-variety-explorer-mobile
+shader	isomorphismes/algebraic-variety-explorer-mobile	dogfood/idris-shader-f16	consumer	isomorphismes/algebraic-variety-explorer-mobile

@@ -5,6 +5,12 @@ active project actually uses. It distinguishes an immutable passing tuple from
 a moving branch, a local-only result, a planned integration, and a repository
 with no current Idriç dependency.
 
+The historical survey remains in `matrix-v1.tsv`. Active branch selection is
+separate in `current-heads-v1.tsv`; `resolve-current-heads.sh` records the exact
+SHAs those branch names resolve to without claiming that ref resolution is a
+compatibility test. The executable receipt owner for each lane is named in the
+manifest.
+
 That distinction matters here: the active repository fleet does **not** all
 currently depend on Idriç.
 
@@ -14,10 +20,10 @@ currently depend on Idriç.
 | --- | --- |
 | IB, ICU, Fieldmouse, Hopf Fibration | Idriç `61970be77769f607cca8650bf424c0f0b22ddee7`, `.idric` source, built-in Chez code generator. Fieldmouse also runs moving `main`, but the resolved SHA is not retained as durable evidence. |
 | Programmer's Unicode Picker | Idriç `d93b5cf538836325812813e81c2dfdac159397b0`, built-in Chez, generated C layout snapshot. |
-| Theta | Moving Idriç `main`, built-in `javascript` code generator, no durable resolved-compiler receipt. |
-| Conway and L | Moving Idriç `main` plus GLSL ES backend `7876b79058d6f59711151a21697369c1cf72df2f`; the backend pin is exact, the compiler pin is not. |
+| Theta | Moving Idriç `Idriç`, built-in `javascript` code generator, no durable resolved-compiler receipt. |
+| Conway and L | Moving Idriç `Idriç` plus GLSL ES backend `7876b79058d6f59711151a21697369c1cf72df2f`; the backend pin is exact, the compiler pin is not. |
 | Ortho | Idriç-authored generated C geometry, but current CI only builds the checked artifact and does not regenerate it. |
-| Catfood | Clones and builds moving Idriç `main`; it also clones both external backend repositories by branch without testing their compiler compatibility. |
+| Catfood | Clones and builds moving Idriç `Idriç`; it also clones both external backend repositories by branch without testing their compiler compatibility. |
 | Grease | Oils/YSH implementation with no current Idriç dependency or declared Idriç seam. |
 | Wegert and analytic continuation | No direct Idriç build. Their mathematics exist in the external GLSL backend, but the apps do not consume that path. |
 | `idris-koans` and Programmer's Keyboard | Upstream Idris 2 consumers, not current Idriç consumers. |

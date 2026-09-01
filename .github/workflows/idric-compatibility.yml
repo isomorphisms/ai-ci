@@ -4,11 +4,13 @@ on:
   push:
     paths:
       - 'idric/**'
+      - 'docs/idric-moving-head-audit.md'
       - 'src/aici_idric.c'
       - '.github/workflows/idric-compatibility.yml'
   pull_request:
     paths:
       - 'idric/**'
+      - 'docs/idric-moving-head-audit.md'
       - 'src/aici_idric.c'
       - '.github/workflows/idric-compatibility.yml'
   schedule:
@@ -19,6 +21,21 @@ permissions:
   contents: read
 
 jobs:
+  declared-current-heads:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Resolve declared moving refs
+        shell: sh
+        run: sh idric/resolve-current-heads.sh idric/current-heads-v1.tsv idric/current-heads.receipt.tsv
+      - name: Retain exact selection evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: idric-current-head-selection
+          path: idric/current-heads.receipt.tsv
+          if-no-files-found: warn
+
   registry-self-test:
     runs-on: ubuntu-24.04
     steps:
