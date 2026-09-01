@@ -166,6 +166,8 @@ The v0 Action requires a POSIX runner with a C17 `cc`; CI currently exercises
 Ubuntu 24.04. Native Windows runners are not yet supported.
 
 See `docs/evaluation-protocol.md` for the normative evaluation method,
-`research/llm-failure-modes.md` for the empirical basis, and
+`research/llm-failure-modes.md` for the empirical basis,
+`research/repository-context-methodology.md` for the boundary among retrieval,
+in-context learning, training, and constrained decision state, and
 `docs/failure-ledger.md` for the reconstructed incident classes. The next
 contracts are in `docs/roadmap.md`.
