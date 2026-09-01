@@ -9,7 +9,7 @@ command=$1
 state=$2
 shift 2
 
-"$real_service" "$command" "$state" "$@"
+sh "$real_service" "$command" "$state" "$@"
 
 [ "$command" = inbound ] || exit 0
 body=$4
