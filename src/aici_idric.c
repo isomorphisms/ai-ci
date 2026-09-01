@@ -145,6 +145,24 @@ static int simple_name(const char *text) {
     return 1;
 }
 
+static int git_ref_name(const char *text) {
+    const unsigned char *cursor = (const unsigned char *)text;
+    size_t length = strlen(text);
+    if (length == 0 || text[0] == '/' || text[0] == '.' ||
+        text[length - 1] == '/' || text[length - 1] == '.' ||
+        strstr(text, "..") != NULL || strstr(text, "@{") != NULL ||
+        strstr(text, "//") != NULL || strstr(text, "/.") != NULL ||
+        (length >= 5 && strcmp(text + length - 5, ".lock") == 0)) return 0;
+    while (*cursor != '\0') {
+        if (*cursor < 32 || *cursor == 127 || *cursor == ' ' ||
+            *cursor == '~' || *cursor == '^' || *cursor == ':' ||
+            *cursor == '?' || *cursor == '*' || *cursor == '[' ||
+            *cursor == '\\') return 0;
+        ++cursor;
+    }
+    return 1;
+}
+
 static int repository_name(const char *text) {
     const char *slash = strchr(text, '/');
     if (slash == NULL || slash == text || slash[1] == '\0' ||
@@ -195,8 +213,12 @@ static int valid_components(const char *value, int allow_none) {
 }
 
 static int moving_ref(const char *revision) {
-    return strcmp(revision, "main") == 0 || strcmp(revision, "master") == 0 ||
-           strcmp(revision, "trunk") == 0 || strcmp(revision, "develop") == 0;
+    return git_ref_name(revision) && !full_revision(revision) &&
+           strcmp(revision, "-") != 0 &&
+           strcmp(revision, "same-as-project") != 0 &&
+           strcmp(revision, "same-as-idric") != 0 &&
+           strcmp(revision, "same-as-compiler") != 0 &&
+           strncmp(revision, "upstream:", 9) != 0;
 }
 
 static int upstream_ref(const char *revision) {
@@ -240,7 +262,7 @@ static int read_scope(const char *path, Scope *scope, Verdict *verdict) {
         if (count != 4 || scope->count >= ROW_MAXIMUM ||
             !repository_name(fields[0]) ||
             !one_of(fields[1], classes, sizeof(classes) / sizeof(classes[0])) ||
-            !simple_name(fields[2]) || !full_revision(fields[3])) {
+            !git_ref_name(fields[2]) || !full_revision(fields[3])) {
             free(line); fclose(file);
             return fail(verdict, "IDRIC-SCOPE-FORMAT", path, number, "invalid scope row");
         }

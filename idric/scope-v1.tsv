@@ -1,5 +1,5 @@
 project	classification	default_ref	survey_ref
-isomorphisms/Idric	compiler-provider	main	081b9cde0591154839fb5d80d76e5570e0436300
+isomorphisms/Idric	compiler-provider	Idriç	081b9cde0591154839fb5d80d76e5570e0436300
 isomorphisms/ai-ci	registry	main	e342fc1e58bde3e7bcb82875b66f721725a600e8
 isomorphisms/ib	direct-consumer	main	73ca56ae41af18d3284f27a0eaaa7232c3bc3d01
 isomorphisms/wegert	integration-target	main	744fcdb514973ad9d26ac72fd02f38589fcea0ca
