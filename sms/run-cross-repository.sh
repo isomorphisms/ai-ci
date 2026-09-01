@@ -13,7 +13,7 @@ service=$(CDPATH= cd -- "$grease" && pwd)/services/sms/idric_sms_service.sh
 
 [ -x "$parser" ] || { printf 'FAIL\tcompiled_parser\tmissing %s\n' "$parser" >&2; exit 1; }
 IDRIC_SMS_REQUEST="$parser" make -C "$grease" test
-SMS_SERVICE="$service" IDRIC_SMS_REQUEST="$parser" "$here/probe.sh"
+SMS_SERVICE="$service" IDRIC_SMS_REQUEST="$parser" sh "$here/probe.sh"
 
 hostile_service="$here/fixtures/hostile-service.sh"
 for fixture in \
@@ -27,7 +27,7 @@ do
   log=$(mktemp)
   if REAL_SMS_SERVICE="$service" SMS_HOSTILE_CASE="$case_name" \
       SMS_SERVICE="$hostile_service" IDRIC_SMS_REQUEST="$parser" \
-      "$here/probe.sh" >"$log" 2>&1; then
+      sh "$here/probe.sh" >"$log" 2>&1; then
     printf 'FAIL\thostile_%s\tbroken service passed\n' "$case_name" >&2
     rm -f -- "$log"
     exit 1
