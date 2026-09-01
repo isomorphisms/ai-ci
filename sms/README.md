@@ -14,7 +14,7 @@ specific checks.
 Run it with three working trees and an already-built Idriç compiler:
 
 ```text
-sms/run-cross-repository.sh ../Idric-Net ../grease ../Idric/build/exec/idris2
+sh sms/run-cross-repository.sh ../Idric-Net ../grease ../Idric/build/exec/idris2
 ```
 
 The CI workflow checks out moving branches. Their resolved commits remain in
