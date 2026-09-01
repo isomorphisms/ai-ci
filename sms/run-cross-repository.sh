@@ -23,9 +23,6 @@ log=${SMS_CURRENT_HEAD_LOG:-"$aici/sms/build/current-head.log"}
 current_stage=compiler_build
 passed='repository_checkouts'
 
-mkdir -p "$(dirname -- "$receipt")"
-: > "$log"
-
 repo_sha() { git -C "$1" rev-parse HEAD; }
 repo_dirty() {
   if git -C "$1" status --porcelain | grep -q .; then printf dirty; else printf clean; fi
@@ -39,6 +36,9 @@ aici_dirty=$(repo_dirty "$aici")
 idric_dirty=$(repo_dirty "$idric")
 idric_net_dirty=$(repo_dirty "$idric_net")
 grease_dirty=$(repo_dirty "$grease")
+
+mkdir -p "$(dirname -- "$receipt")"
+: > "$log"
 
 write_receipt() {
   outcome=$1
