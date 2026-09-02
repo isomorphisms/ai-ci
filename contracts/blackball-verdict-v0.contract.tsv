@@ -1,0 +1,4 @@
+# Blackball response comparison has one canonical verdict vocabulary.
+nonempty	BLACKBALL-VERDICTS-EMPTY	evals/blackball/verdicts.tsv
+tsv_header	BLACKBALL-VERDICTS-HEADER	evals/blackball/verdicts.tsv	verdict,comparative,meaning,minimum_evidence
+tsv	BLACKBALL-VERDICTS-FIELDS	evals/blackball/verdicts.tsv	4	8
