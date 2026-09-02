@@ -1,0 +1,3 @@
+# Cat Food must feed Idriç CLI as an ordinary moving checkout.
+nonempty	CATFOOD-TOOLS-EMPTY	tools.tsv
+contains	CATFOOD-IDRIC-CLI	tools.tsv	idric-cli https://github.com/isomorphisms/idric-cli.git main none

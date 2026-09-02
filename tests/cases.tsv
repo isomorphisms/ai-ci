@@ -51,3 +51,6 @@ pass	contracts/blackball-verdict-v0.contract.tsv	tests/fixtures/blackball-verdic
 fail	contracts/blackball-verdict-v0.contract.tsv	tests/fixtures/blackball-verdicts-empty	BLACKBALL-VERDICTS-EMPTY
 fail	contracts/blackball-verdict-v0.contract.tsv	tests/fixtures/blackball-verdicts-bad-header	BLACKBALL-VERDICTS-HEADER
 fail	contracts/blackball-verdict-v0.contract.tsv	tests/fixtures/blackball-verdicts-bad-fields	BLACKBALL-VERDICTS-FIELDS
+pass	contracts/catfood-idric-cli-v0.contract.tsv	tests/fixtures/catfood-idric-cli-good	-
+fail	contracts/catfood-idric-cli-v0.contract.tsv	tests/fixtures/catfood-idric-cli-missing-tools	CATFOOD-TOOLS-EMPTY
+fail	contracts/catfood-idric-cli-v0.contract.tsv	tests/fixtures/catfood-idric-cli-missing-link	CATFOOD-IDRIC-CLI
