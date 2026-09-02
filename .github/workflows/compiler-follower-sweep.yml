@@ -1,0 +1,141 @@
+name: compiler follower sweep
+
+on:
+  push:
+    paths:
+      - 'compiler-followers/**'
+      - '.github/workflows/compiler-follower-sweep.yml'
+  pull_request:
+    paths:
+      - 'compiler-followers/**'
+      - '.github/workflows/compiler-follower-sweep.yml'
+  schedule:
+    - cron: '23 10 * * *'
+  workflow_dispatch:
+    inputs:
+      upstream_ref:
+        description: ARM/Thumb branch to inspect instead of main
+        required: false
+        default: main
+
+permissions:
+  contents: read
+
+jobs:
+  policy-self-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+      - name: Validate follower policy
+        shell: sh
+        run: sh compiler-followers/validate-policy.sh compiler-followers/policy.tsv
+      - name: Prove unsafe fixtures are rejected
+        shell: sh
+        run: |
+          for fixture in compiler-followers/tests/bad-*.tsv; do
+            if sh compiler-followers/validate-policy.sh "$fixture"; then
+              echo "unsafe fixture was accepted: $fixture" >&2
+              exit 1
+            fi
+          done
+      - name: Validate referenced branches exist
+        shell: sh
+        run: |
+          tail -n +2 compiler-followers/policy.tsv |
+          while IFS="$(printf '\t')" read -r target repository ref layer stage mode isa_close device_close scope rule; do
+            remote="https://github.com/$repository.git"
+            if ! git ls-remote --exit-code --heads "$remote" "refs/heads/$ref" >/dev/null; then
+              echo "missing follower ref: $target -> $repository:$ref" >&2
+              exit 1
+            fi
+          done
+      - name: Validate reviewed ARM Thumb checkpoint
+        shell: sh
+        run: |
+          checkpoint=$(tr -d '\r\n ' < compiler-followers/arm-thumb.checkpoint)
+          printf '%s\n' "$checkpoint" | grep -Eq '^[0-9a-f]{40}$'
+      - name: Validate full-sweep receipt
+        shell: sh
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -eu
+          current=$(tr -d '\r\n ' < compiler-followers/arm-thumb.checkpoint)
+          previous=$current
+          if [ "$EVENT_NAME" = pull_request ]; then
+            git fetch --quiet origin "$BASE_REF"
+            previous=$(git show "origin/$BASE_REF:compiler-followers/arm-thumb.checkpoint" | tr -d '\r\n ')
+          elif [ "$EVENT_NAME" = push ] && printf '%s\n' "$BEFORE_SHA" | grep -Eq '^[0-9a-f]{40}$' && [ "$BEFORE_SHA" != 0000000000000000000000000000000000000000 ]; then
+            previous=$(git show "$BEFORE_SHA:compiler-followers/arm-thumb.checkpoint" | tr -d '\r\n ')
+          fi
+          sh compiler-followers/validate-sweep.sh compiler-followers/policy.tsv compiler-followers/arm-thumb-sweep "$previous" "$current"
+      - name: Prove incomplete receipts are rejected
+        shell: sh
+        run: sh compiler-followers/tests/test-sweep-validator.sh
+
+  arm-thumb-delta:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    needs: policy-self-test
+    runs-on: ubuntu-24.04
+    env:
+      REQUESTED_REF: ${{ inputs.upstream_ref }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Build follower sweep packet
+        shell: sh
+        run: |
+          set -eu
+          ref=${REQUESTED_REF:-main}
+          remote=https://github.com/isomorphisms/idric-arm-thumb.git
+          checkpoint=$(tr -d '\r\n ' < compiler-followers/arm-thumb.checkpoint)
+          latest=$(git ls-remote --heads "$remote" "refs/heads/$ref" | awk 'NR == 1 { print $1 }')
+
+          if [ -z "$latest" ]; then
+            echo "ARM/Thumb ref not found: $ref" >&2
+            exit 1
+          fi
+
+          {
+            echo '## ARM/Thumb follower sweep'
+            echo
+            echo "- upstream ref: \`$ref\`"
+            echo "- reviewed checkpoint: \`$checkpoint\`"
+            echo "- current upstream: \`$latest\`"
+            echo "- policy issue: isomorphisms/ai-ci#20"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$checkpoint" = "$latest" ]; then
+            echo 'No unreviewed ARM/Thumb commits on this ref.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning title=ARM Thumb followers are stale::Reviewed checkpoint $checkpoint differs from $ref at $latest"
+            work="$RUNNER_TEMP/idric-arm-thumb"
+            git clone --quiet --filter=blob:none --no-checkout "$remote" "$work"
+            git -C "$work" fetch --quiet origin "$ref"
+            if ! git -C "$work" cat-file -e "$checkpoint^{commit}" 2>/dev/null; then
+              git -C "$work" fetch --quiet origin "$checkpoint"
+            fi
+
+            echo '### Unreviewed ARM/Thumb delta' >> "$GITHUB_STEP_SUMMARY"
+            echo >> "$GITHUB_STEP_SUMMARY"
+            if git -C "$work" merge-base --is-ancestor "$checkpoint" "$latest"; then
+              git -C "$work" log --reverse --format='- `%h` %s' "$checkpoint..$latest" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo '- checkpoint is not an ancestor of the selected ref; inspect the ref relationship manually before propagation.' >> "$GITHUB_STEP_SUMMARY"
+            fi
+          fi
+
+          {
+            echo
+            echo '### Per-target mutatis-mutandis policy'
+            echo
+            echo '| target | ref | layer | stage | mode | ISA close | device close | scope |'
+            echo '| --- | --- | --- | --- | --- | --- | --- | --- |'
+            awk -F '\t' 'NR > 1 { printf "| %s | `%s` | `%s` | `%s` | `%s` | %s | %s | %s |\n", $1, $3, $4, $5, $6, $7, $8, $9 }' compiler-followers/policy.tsv
+            echo
+            echo 'The complete rules are checked in at `compiler-followers/policy.tsv`. Layer and stage are independent from propagation mode: an inventory or platform branch is not a codegen owner. This job is read-only and does not advance the checkpoint.'
+          } >> "$GITHUB_STEP_SUMMARY"
