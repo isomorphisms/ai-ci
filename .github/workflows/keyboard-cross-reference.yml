@@ -1,0 +1,95 @@
+name: observe keyboard cross-reference
+
+on:
+  push:
+    paths:
+      - keyboard_cross_reference/**
+      - .github/workflows/keyboard-cross-reference.yml
+  pull_request:
+    paths:
+      - keyboard_cross_reference/**
+      - .github/workflows/keyboard-cross-reference.yml
+  schedule:
+    - cron: '17 13 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  observe:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out AICI
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Check out hardware programmer keyboard
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphisms/programmers-keyboard
+          ref: main
+          path: _keyboards/programmers-keyboard
+
+      - name: Check out phone utilities
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphisms/utilities-android-phone-user
+          ref: main
+          path: _keyboards/utilities-android-phone-user
+
+      - name: Self-test deterministic cross-reference
+        run: python3 -m unittest discover -s keyboard_cross_reference/tests -p 'test_*.py'
+
+      - name: Compare keyboard concepts
+        run: |
+          python3 keyboard_cross_reference/observe.py \
+            --hardware _keyboards/programmers-keyboard/render-keypads/src/Renderer.idr \
+            --software _keyboards/utilities-android-phone-user/math-characters/idric/UnicodePicker.idric \
+            --map keyboard_cross_reference/cross_reference.tsv \
+            --output keyboard-cross-reference.tsv
+
+      - name: Compare moving heads with reviewed baseline
+        shell: sh
+        run: |
+          hardware_actual="$(git -C _keyboards/programmers-keyboard rev-parse HEAD)"
+          software_actual="$(git -C _keyboards/utilities-android-phone-user rev-parse HEAD)"
+          hardware_expected="$(awk -F '\t' '$1 == "hardware" { print $4 }' keyboard_cross_reference/baseline.tsv)"
+          software_expected="$(awk -F '\t' '$1 == "software" { print $4 }' keyboard_cross_reference/baseline.tsv)"
+
+          {
+            printf 'role\tbaseline\tobserved\tstatus\n'
+            if [ "$hardware_actual" = "$hardware_expected" ]; then
+              printf 'hardware\t%s\t%s\treviewed\n' "$hardware_expected" "$hardware_actual"
+            else
+              printf 'hardware\t%s\t%s\tchanged\n' "$hardware_expected" "$hardware_actual"
+              printf '::warning title=Keyboard cross-reference::programmers-keyboard moved from %s to %s; review hardware-only concepts as software-keyboard candidates\n' "$hardware_expected" "$hardware_actual"
+            fi
+
+            if [ "$software_actual" = "$software_expected" ]; then
+              printf 'software\t%s\t%s\treviewed\n' "$software_expected" "$software_actual"
+            else
+              printf 'software\t%s\t%s\tchanged\n' "$software_expected" "$software_actual"
+              printf '::notice title=Keyboard cross-reference::phone software keyboard moved from %s to %s; hardware may optionally review software-only concepts\n' "$software_expected" "$software_actual"
+            fi
+          } | tee keyboard-revisions.tsv
+
+      - name: Publish cross-reference
+        shell: sh
+        run: |
+          {
+            echo '### Keyboard revision watch'
+            echo
+            echo '```text'
+            cat keyboard-revisions.tsv
+            echo '```'
+            echo
+            echo 'Hardware drift is the stronger signal because PCB changes are physically slower to revise.'
+            echo
+            echo '### Keyboard concept cross-reference'
+            echo
+            echo '```text'
+            cat keyboard-cross-reference.tsv
+            echo '```'
+            echo
+            echo 'Differences are observations, not automatic copy requests or build failures.'
+          } >> "$GITHUB_STEP_SUMMARY"
