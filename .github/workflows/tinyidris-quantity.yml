@@ -1,0 +1,45 @@
+name: TinyIdris quantity receipt
+
+on:
+  pull_request:
+    paths:
+      - evals/tinyidris_quantity.sh
+      - .github/workflows/tinyidris-quantity.yml
+  push:
+    branches:
+      - main
+    paths:
+      - evals/tinyidris_quantity.sh
+      - .github/workflows/tinyidris-quantity.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  current-idric:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphisms/Idric
+          ref: Idriç
+          path: _idric
+      - name: Install compiler build tools
+        shell: sh
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends build-essential curl
+      - name: Build current Idriç compiler
+        shell: sh
+        run: _idric/_/edric bootstrap
+      - name: Emit TinyIdris quantity receipt
+        shell: sh
+        run: |
+          compiler_revision=$(git -C _idric rev-parse HEAD)
+          export CHEZ="$PWD/_idric/_/.tools/bin/scheme"
+          export PATH="$PWD/_idric/_/.tools/bin:$PATH"
+          sh evals/tinyidris_quantity.sh \
+            "$PWD/_idric/_/build/exec/idris2" \
+            "$compiler_revision"
