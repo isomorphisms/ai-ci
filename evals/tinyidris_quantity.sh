@@ -22,20 +22,20 @@ cat > TinyIdrisHole.idr <<'IDRIS'
 module TinyIdrisHole
 
 duplicate :
-  {0 value_type : Type} →
+  (0 value_type : Type) →
   (1 value : value_type) →
   (value_type, value_type)
-duplicate value = ?duplicate_right
+duplicate _ value = ?duplicate_right
 IDRIS
 
 cat > TinyIdrisDouble.idr <<'IDRIS'
 module TinyIdrisDouble
 
 duplicate_bad :
-  {0 value_type : Type} →
+  (0 value_type : Type) →
   (1 value : value_type) →
   (value_type, value_type)
-duplicate_bad value = (value, value)
+duplicate_bad _ value = (value, value)
 IDRIS
 
 cat > TinyIdrisPositive.idr <<'IDRIS'
@@ -43,19 +43,19 @@ module TinyIdrisPositive
 
 %noinline
 keep_once :
-  {0 value_type : Type} →
+  (0 value_type : Type) →
   (1 value : value_type) →
   value_type
-keep_once value = value
+keep_once _ value = value
 
 duplicate_unrestricted :
-  {0 value_type : Type} →
+  (0 value_type : Type) →
   value_type →
   (value_type, value_type)
-duplicate_unrestricted value = (value, value)
+duplicate_unrestricted _ value = (value, value)
 
 main : IO ()
-main = printLn (keep_once {value_type = Int} 7)
+main = printLn (keep_once Int 7)
 IDRIS
 
 if "$compiler" --check --no-color --console-width 0 TinyIdrisHole.idr > hole.log 2>&1; then
