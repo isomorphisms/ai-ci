@@ -40,6 +40,7 @@ jobs:
           compiler_revision=$(git -C _idric rev-parse HEAD)
           export CHEZ="$PWD/_idric/_/.tools/bin/scheme"
           export PATH="$PWD/_idric/_/.tools/bin:$PATH"
+          export IDRIS2_PATH="$PWD/_idric/_/libs/prelude/build/ttc:$PWD/_idric/_/libs/base/build/ttc:$PWD/_idric/_/libs/linear/build/ttc:$PWD/_idric/_/libs/network/build/ttc:$PWD/_idric/_/libs/contrib/build/ttc:$PWD/_idric/_/libs/test/build/ttc"
           sh evals/tinyidris_quantity.sh \
             "$PWD/_idric/_/build/exec/idris2" \
             "$compiler_revision"
