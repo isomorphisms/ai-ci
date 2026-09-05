@@ -35,12 +35,21 @@ jobs:
         shell: sh
         run: _idric/_/edric bootstrap
       - name: Emit TinyIdris quantity receipt
-        shell: sh
+        shell: bash
         run: |
+          set -o pipefail
           compiler_revision=$(git -C _idric rev-parse HEAD)
           export CHEZ="$PWD/_idric/_/.tools/bin/scheme"
           export PATH="$PWD/_idric/_/.tools/bin:$PATH"
           export IDRIS2_PATH="$PWD/_idric/_/libs/prelude/build/ttc:$PWD/_idric/_/libs/base/build/ttc:$PWD/_idric/_/libs/linear/build/ttc:$PWD/_idric/_/libs/network/build/ttc:$PWD/_idric/_/libs/contrib/build/ttc:$PWD/_idric/_/libs/test/build/ttc"
           sh evals/tinyidris_quantity.sh \
             "$PWD/_idric/_/build/exec/idris2" \
-            "$compiler_revision"
+            "$compiler_revision" \
+            | tee tinyidris-quantity-receipt.tsv
+      - name: Retain TinyIdris quantity receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tinyidris-quantity-receipt
+          path: tinyidris-quantity-receipt.tsv
+          if-no-files-found: warn
