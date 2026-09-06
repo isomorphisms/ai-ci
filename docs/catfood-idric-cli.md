@@ -3,7 +3,7 @@
 Cat Food should feed `isomorphisms/idric-cli` as an ordinary moving checkout:
 
 ```text
-idric-cli https://github.com/isomorphisms/idric-cli.git main none
+idric-cli https://github.com/isomorphisms/idric-cli.git cli none
 ```
 
 This is deliberately not a submodule or commit pin. The CLI repository is adjacent to the Idriç compiler rather than part of the compiler, and merely making the CLI available must not pin Idriç or ICU.
