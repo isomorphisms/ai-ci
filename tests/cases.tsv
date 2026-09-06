@@ -50,3 +50,6 @@ fail	contracts/coupled-substitution-v0.contract.tsv	tests/fixtures/coupled-bad-p
 pass	contracts/catfood-idric-cli-v0.contract.tsv	tests/fixtures/catfood-idric-cli-good	-
 fail	contracts/catfood-idric-cli-v0.contract.tsv	tests/fixtures/catfood-idric-cli-missing-tools	CATFOOD-TOOLS-EMPTY
 fail	contracts/catfood-idric-cli-v0.contract.tsv	tests/fixtures/catfood-idric-cli-missing-link	CATFOOD-IDRIC-CLI
+pass	contracts/catfood-issh-v0.contract.tsv	tests/fixtures/catfood-issh-good	-
+fail	contracts/catfood-issh-v0.contract.tsv	tests/fixtures/catfood-issh-missing-tools	CATFOOD-TOOLS-EMPTY
+fail	contracts/catfood-issh-v0.contract.tsv	tests/fixtures/catfood-issh-missing-link	CATFOOD-ISSH
