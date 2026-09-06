@@ -27,7 +27,9 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
+          persist-credentials: false
       - name: Validate follower policy
         shell: sh
         run: sh compiler-followers/validate-policy.sh compiler-followers/policy.tsv
@@ -40,6 +42,9 @@ jobs:
               exit 1
             fi
           done
+      - name: Test full receipts and read-only checkpoint proposals
+        shell: sh
+        run: sh compiler-followers/tests/test-sweep-validator.sh
       - name: Validate referenced branches exist
         shell: sh
         run: |
@@ -51,91 +56,75 @@ jobs:
               exit 1
             fi
           done
-      - name: Validate reviewed ARM Thumb checkpoint
-        shell: sh
-        run: |
-          checkpoint=$(tr -d '\r\n ' < compiler-followers/arm-thumb.checkpoint)
-          printf '%s\n' "$checkpoint" | grep -Eq '^[0-9a-f]{40}$'
-      - name: Validate full-sweep receipt
-        shell: sh
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          BASE_REF: ${{ github.base_ref }}
-          BEFORE_SHA: ${{ github.event.before }}
-        run: |
-          set -eu
-          current=$(tr -d '\r\n ' < compiler-followers/arm-thumb.checkpoint)
-          previous=$current
-          if [ "$EVENT_NAME" = pull_request ]; then
-            git fetch --quiet origin "$BASE_REF"
-            previous=$(git show "origin/$BASE_REF:compiler-followers/arm-thumb.checkpoint" | tr -d '\r\n ')
-          elif [ "$EVENT_NAME" = push ] && printf '%s\n' "$BEFORE_SHA" | grep -Eq '^[0-9a-f]{40}$' && [ "$BEFORE_SHA" != 0000000000000000000000000000000000000000 ]; then
-            previous=$(git show "$BEFORE_SHA:compiler-followers/arm-thumb.checkpoint" | tr -d '\r\n ')
-          fi
-          sh compiler-followers/validate-sweep.sh compiler-followers/policy.tsv compiler-followers/arm-thumb-sweep "$previous" "$current"
-      - name: Prove incomplete receipts are rejected
-        shell: sh
-        run: sh compiler-followers/tests/test-sweep-validator.sh
 
-  arm-thumb-delta:
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+  full-sweep-receipt:
     needs: policy-self-test
     runs-on: ubuntu-24.04
     env:
       REQUESTED_REF: ${{ inputs.upstream_ref }}
+      # Immutable event SHAs, not a moving base branch or the candidate checkpoint.
+      BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before || github.sha }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - name: Build follower sweep packet
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Report accumulated delta and check full-sweep receipt
         shell: sh
         run: |
           set -eu
           ref=${REQUESTED_REF:-main}
-          remote=https://github.com/isomorphisms/idric-arm-thumb.git
-          checkpoint=$(tr -d '\r\n ' < compiler-followers/arm-thumb.checkpoint)
-          latest=$(git ls-remote --heads "$remote" "refs/heads/$ref" | awk 'NR == 1 { print $1 }')
-
-          if [ -z "$latest" ]; then
-            echo "ARM/Thumb ref not found: $ref" >&2
+          git check-ref-format "refs/heads/$ref" >/dev/null
+          checkpoint=$(cat compiler-followers/arm-thumb.checkpoint)
+          printf '%s\n' "$checkpoint" | grep -Eq '^[0-9a-f]{40}$'
+          work=$(mktemp -d)
+          trap 'rm -rf "$work"' EXIT HUP INT TERM
+          # Fetch the selected branch once, with all ancestry. This head is the snapshot.
+          git init --quiet "$work/upstream"
+          git -C "$work/upstream" remote add origin https://github.com/isomorphisms/idric-arm-thumb.git
+          git -C "$work/upstream" fetch --quiet --no-tags --filter=blob:none origin "+refs/heads/$ref:refs/remotes/origin/sweep"
+          latest=$(git -C "$work/upstream" rev-parse 'refs/remotes/origin/sweep^{commit}')
+          {
+            echo '## ARM/Thumb follower sweep (read-only)'
+            echo
+            echo "- Selected ref: \`$ref\`"
+            echo "- Stored checkpoint: \`$checkpoint\`"
+            echo "- Resolved upstream snapshot: \`$latest\`"
+            echo '- Policy issue: isomorphisms/ai-ci#20; draft PR #22 is not a merge-readiness claim.'
+            echo
+            echo '### Accumulated delta'
+            if git -C "$work/upstream" merge-base --is-ancestor "$checkpoint" "$latest"; then
+              git -C "$work/upstream" log --reverse --topo-order --format='- `%H` %s' "$checkpoint..$latest"
+            else
+              echo 'Checkpoint is not an ancestor of this ref. No advancement is permitted.'
+            fi
+            echo
+            echo '### Per-target policy (not implementation evidence)'
+            echo
+            echo '| target | repository / ref | layer | stage | mode | ISA close | device close | scope | target rule |'
+            echo '| --- | --- | --- | --- | --- | --- | --- | --- | --- |'
+            awk -F '\t' 'NR > 1 { printf "| %s | `%s:%s` | %s | %s | %s | %s | %s | %s | %s |\n", $1, $2, $3, $4, $5, $6, $7, $8, $9, $10 }' compiler-followers/policy.tsv
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+          export UPSTREAM_GIT="$work/upstream"
+          if sh compiler-followers/check-checkpoint.sh "$BASE_SHA" "$latest" "$ref" > "$work/result.tsv" 2> "$work/errors"; then
+            cat "$work/result.tsv"
+            {
+              echo '### Machine-checked receipt'
+              echo '```tsv'
+              cat "$work/result.tsv"
+              echo '```'
+              echo 'Coverage is checked; review correctness, target execution, checkpoint approval and merge readiness are not inferred.'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            cat "$work/errors" >&2
+            {
+              echo '### Receipt: FAIL'
+              echo 'The complete selected delta has not passed this receipt gate. Checkpoint and followers were not modified.'
+              echo '```text'
+              cat "$work/errors"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
-
-          {
-            echo '## ARM/Thumb follower sweep'
-            echo
-            echo "- upstream ref: \`$ref\`"
-            echo "- reviewed checkpoint: \`$checkpoint\`"
-            echo "- current upstream: \`$latest\`"
-            echo "- policy issue: isomorphisms/ai-ci#20"
-            echo
-          } >> "$GITHUB_STEP_SUMMARY"
-
-          if [ "$checkpoint" = "$latest" ]; then
-            echo 'No unreviewed ARM/Thumb commits on this ref.' >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "::warning title=ARM Thumb followers are stale::Reviewed checkpoint $checkpoint differs from $ref at $latest"
-            work="$RUNNER_TEMP/idric-arm-thumb"
-            git clone --quiet --filter=blob:none --no-checkout "$remote" "$work"
-            git -C "$work" fetch --quiet origin "$ref"
-            if ! git -C "$work" cat-file -e "$checkpoint^{commit}" 2>/dev/null; then
-              git -C "$work" fetch --quiet origin "$checkpoint"
-            fi
-
-            echo '### Unreviewed ARM/Thumb delta' >> "$GITHUB_STEP_SUMMARY"
-            echo >> "$GITHUB_STEP_SUMMARY"
-            if git -C "$work" merge-base --is-ancestor "$checkpoint" "$latest"; then
-              git -C "$work" log --reverse --format='- `%h` %s' "$checkpoint..$latest" >> "$GITHUB_STEP_SUMMARY"
-            else
-              echo '- checkpoint is not an ancestor of the selected ref; inspect the ref relationship manually before propagation.' >> "$GITHUB_STEP_SUMMARY"
-            fi
-          fi
-
-          {
-            echo
-            echo '### Per-target mutatis-mutandis policy'
-            echo
-            echo '| target | ref | layer | stage | mode | ISA close | device close | scope |'
-            echo '| --- | --- | --- | --- | --- | --- | --- | --- |'
-            awk -F '\t' 'NR > 1 { printf "| %s | `%s` | `%s` | `%s` | `%s` | %s | %s | %s |\n", $1, $3, $4, $5, $6, $7, $8, $9 }' compiler-followers/policy.tsv
-            echo
-            echo 'The complete rules are checked in at `compiler-followers/policy.tsv`. Layer and stage are independent from propagation mode: an inventory or platform branch is not a codegen owner. This job is read-only and does not advance the checkpoint.'
-          } >> "$GITHUB_STEP_SUMMARY"
