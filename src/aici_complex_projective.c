@@ -20,7 +20,7 @@
 #define NAME_MAXIMUM 160
 #define VALUE_MAXIMUM 512
 
-static const char *contract_schema = "complex-projective-backend-contract-v1";
+static const char *contract_schema = "complex-projective-backend-contract-v2";
 static const char *corpus_schema_marker =
     "\"schema\": \"edric-complex-projective-corpus-v1\"";
 
@@ -43,6 +43,7 @@ typedef struct {
     char identity_code[CODE_MAXIMUM];
     char corpus_code[CODE_MAXIMUM];
     char provenance_code[CODE_MAXIMUM];
+    char frontend_code[CODE_MAXIMUM];
     char gpu_code[CODE_MAXIMUM];
     char target[NAME_MAXIMUM];
     char family[32];
@@ -52,9 +53,12 @@ typedef struct {
     char corpus_revision[65];
     char corpus_path[PATH_MAXIMUM];
     char corpus_sha256[65];
-    char compiler_repository[VALUE_MAXIMUM];
-    char compiler_ref[VALUE_MAXIMUM];
-    char compiler_revision[65];
+    char semantic_repository[VALUE_MAXIMUM];
+    char semantic_ref[VALUE_MAXIMUM];
+    char semantic_revision[65];
+    char frontend_repository[VALUE_MAXIMUM];
+    char frontend_ref[VALUE_MAXIMUM];
+    char frontend_revision[65];
     char backend_repository[VALUE_MAXIMUM];
     char backend_ref[VALUE_MAXIMUM];
     char backend_revision[65];
@@ -66,6 +70,7 @@ typedef struct {
     int identity_seen;
     int corpus_seen;
     int provenance_seen;
+    int frontend_seen;
     int gpu_seen;
     int requirement_count;
     Requirement requirements[REQUIREMENT_MAXIMUM];
@@ -83,9 +88,12 @@ typedef struct {
     char corpus_revision[65];
     char corpus_path[PATH_MAXIMUM];
     char corpus_sha256[65];
-    char compiler_repository[VALUE_MAXIMUM];
-    char compiler_ref[VALUE_MAXIMUM];
-    char compiler_revision[65];
+    char semantic_repository[VALUE_MAXIMUM];
+    char semantic_ref[VALUE_MAXIMUM];
+    char semantic_revision[65];
+    char frontend_repository[VALUE_MAXIMUM];
+    char frontend_ref[VALUE_MAXIMUM];
+    char frontend_revision[65];
     char backend_repository[VALUE_MAXIMUM];
     char backend_ref[VALUE_MAXIMUM];
     char backend_revision[65];
@@ -456,6 +464,7 @@ static int code_in_contract(const Contract *contract, const char *code) {
     if ((contract->identity_seen && strcmp(contract->identity_code, code) == 0) ||
         (contract->corpus_seen && strcmp(contract->corpus_code, code) == 0) ||
         (contract->provenance_seen && strcmp(contract->provenance_code, code) == 0) ||
+        (contract->frontend_seen && strcmp(contract->frontend_code, code) == 0) ||
         (contract->gpu_seen && strcmp(contract->gpu_code, code) == 0)) {
         return 1;
     }
@@ -521,18 +530,26 @@ static int contract_complete(const Contract *contract) {
     const char *required_categories[] = {"exact", "numeric", "projective", "render"};
     if (!contract->schema_seen || !contract->identity_seen ||
         !contract->corpus_seen || !contract->provenance_seen ||
+        !contract->frontend_seen ||
         contract->requirement_count == 0) {
         return 0;
     }
-    if (strcmp(contract->corpus_repository, contract->compiler_repository) != 0 ||
-        strcmp(contract->corpus_ref, contract->compiler_ref) != 0 ||
-        strcmp(contract->corpus_revision, contract->compiler_revision) != 0) {
+    if (strcmp(contract->corpus_repository, contract->semantic_repository) != 0 ||
+        strcmp(contract->corpus_ref, contract->semantic_ref) != 0 ||
+        strcmp(contract->corpus_revision, contract->semantic_revision) != 0) {
         return 0;
     }
     if (!same_application_shape(contract)) return 0;
     if (strcmp(contract->family, "x86-64-cpu") == 0) {
         if (strcmp(contract->role, "leader") != 0 || contract->gpu_seen ||
             strcmp(contract->application_repository, "-") == 0) {
+            return 0;
+        }
+        if (strcmp(contract->frontend_repository,
+                   contract->semantic_repository) != 0 ||
+            strcmp(contract->frontend_ref, contract->semantic_ref) != 0 ||
+            strcmp(contract->frontend_revision,
+                   contract->semantic_revision) != 0) {
             return 0;
         }
         if (!requirement_exists(contract, "exact", "exact-corpus", "pass") ||
@@ -623,11 +640,12 @@ static int parse_contract(const char *path, Contract *contract) {
                    fields[6][0] != '\0' && full_revision(fields[7])) {
             ok = copy_value(contract->provenance_code,
                             sizeof(contract->provenance_code), fields[1]) &&
-                 copy_value(contract->compiler_repository,
-                            sizeof(contract->compiler_repository), fields[2]) &&
-                 copy_value(contract->compiler_ref, sizeof(contract->compiler_ref), fields[3]) &&
-                 copy_value(contract->compiler_revision,
-                            sizeof(contract->compiler_revision), fields[4]) &&
+                 copy_value(contract->semantic_repository,
+                            sizeof(contract->semantic_repository), fields[2]) &&
+                 copy_value(contract->semantic_ref,
+                            sizeof(contract->semantic_ref), fields[3]) &&
+                 copy_value(contract->semantic_revision,
+                            sizeof(contract->semantic_revision), fields[4]) &&
                  copy_value(contract->backend_repository,
                             sizeof(contract->backend_repository), fields[5]) &&
                  copy_value(contract->backend_ref, sizeof(contract->backend_ref), fields[6]) &&
@@ -640,6 +658,20 @@ static int parse_contract(const char *path, Contract *contract) {
                  copy_value(contract->application_revision,
                             sizeof(contract->application_revision), fields[10]);
             contract->provenance_seen = ok;
+        } else if (strcmp(fields[0], "frontend") == 0 && count == 5 &&
+                   !contract->frontend_seen &&
+                   add_contract_code(contract, fields[1]) &&
+                   valid_repository(fields[2]) && fields[3][0] != '\0' &&
+                   full_revision(fields[4])) {
+            ok = copy_value(contract->frontend_code,
+                            sizeof(contract->frontend_code), fields[1]) &&
+                 copy_value(contract->frontend_repository,
+                            sizeof(contract->frontend_repository), fields[2]) &&
+                 copy_value(contract->frontend_ref,
+                            sizeof(contract->frontend_ref), fields[3]) &&
+                 copy_value(contract->frontend_revision,
+                            sizeof(contract->frontend_revision), fields[4]);
+            contract->frontend_seen = ok;
         } else if (strcmp(fields[0], "require") == 0 && count == 6 &&
                    contract->requirement_count < REQUIREMENT_MAXIMUM &&
                    add_contract_code(contract, fields[1]) && category_valid(fields[2]) &&
@@ -678,8 +710,9 @@ static int exact_receipt_header(char *line) {
     static const char *fields[] = {
         "target", "family", "role", "category", "stage", "status",
         "corpus_repository", "corpus_ref", "corpus_revision", "corpus_path",
-        "corpus_sha256", "compiler_repository", "compiler_ref",
-        "compiler_revision", "backend_repository", "backend_ref",
+        "corpus_sha256", "semantic_repository", "semantic_ref",
+        "semantic_revision", "frontend_repository", "frontend_ref",
+        "frontend_revision", "backend_repository", "backend_ref",
         "backend_revision", "application_repository", "application_ref",
         "application_revision", "environment", "witness", "sha256"
     };
@@ -705,20 +738,23 @@ static int receipt_row_copy(ReceiptRow *row, char **fields) {
            copy_value(row->corpus_revision, sizeof(row->corpus_revision), fields[8]) &&
            copy_value(row->corpus_path, sizeof(row->corpus_path), fields[9]) &&
            copy_value(row->corpus_sha256, sizeof(row->corpus_sha256), fields[10]) &&
-           copy_value(row->compiler_repository, sizeof(row->compiler_repository), fields[11]) &&
-           copy_value(row->compiler_ref, sizeof(row->compiler_ref), fields[12]) &&
-           copy_value(row->compiler_revision, sizeof(row->compiler_revision), fields[13]) &&
-           copy_value(row->backend_repository, sizeof(row->backend_repository), fields[14]) &&
-           copy_value(row->backend_ref, sizeof(row->backend_ref), fields[15]) &&
-           copy_value(row->backend_revision, sizeof(row->backend_revision), fields[16]) &&
+           copy_value(row->semantic_repository, sizeof(row->semantic_repository), fields[11]) &&
+           copy_value(row->semantic_ref, sizeof(row->semantic_ref), fields[12]) &&
+           copy_value(row->semantic_revision, sizeof(row->semantic_revision), fields[13]) &&
+           copy_value(row->frontend_repository, sizeof(row->frontend_repository), fields[14]) &&
+           copy_value(row->frontend_ref, sizeof(row->frontend_ref), fields[15]) &&
+           copy_value(row->frontend_revision, sizeof(row->frontend_revision), fields[16]) &&
+           copy_value(row->backend_repository, sizeof(row->backend_repository), fields[17]) &&
+           copy_value(row->backend_ref, sizeof(row->backend_ref), fields[18]) &&
+           copy_value(row->backend_revision, sizeof(row->backend_revision), fields[19]) &&
            copy_value(row->application_repository,
-                      sizeof(row->application_repository), fields[17]) &&
-           copy_value(row->application_ref, sizeof(row->application_ref), fields[18]) &&
+                      sizeof(row->application_repository), fields[20]) &&
+           copy_value(row->application_ref, sizeof(row->application_ref), fields[21]) &&
            copy_value(row->application_revision,
-                      sizeof(row->application_revision), fields[19]) &&
-           copy_value(row->environment, sizeof(row->environment), fields[20]) &&
-           copy_value(row->witness, sizeof(row->witness), fields[21]) &&
-           copy_value(row->sha256, sizeof(row->sha256), fields[22]);
+                      sizeof(row->application_revision), fields[22]) &&
+           copy_value(row->environment, sizeof(row->environment), fields[23]) &&
+           copy_value(row->witness, sizeof(row->witness), fields[24]) &&
+           copy_value(row->sha256, sizeof(row->sha256), fields[25]);
 }
 
 static int duplicate_receipt_key(const Receipt *receipt, const ReceiptRow *candidate) {
@@ -764,7 +800,7 @@ static int read_receipt(const char *path, Receipt *receipt) {
         }
         count = split_tabs(content, fields, FIELD_MAXIMUM);
         memset(&candidate, 0, sizeof(candidate));
-        if (count != 23 || receipt->count >= ROW_MAXIMUM ||
+        if (count != 26 || receipt->count >= ROW_MAXIMUM ||
             !receipt_row_copy(&candidate, fields) ||
             !valid_name(candidate.target) || !valid_name(candidate.family) ||
             (strcmp(candidate.role, "leader") != 0 &&
@@ -775,9 +811,12 @@ static int read_receipt(const char *path, Receipt *receipt) {
             candidate.corpus_ref[0] == '\0' || !full_revision(candidate.corpus_revision) ||
             !safe_relative_path(candidate.corpus_path) ||
             !lower_hex(candidate.corpus_sha256, 64) ||
-            !valid_repository(candidate.compiler_repository) ||
-            candidate.compiler_ref[0] == '\0' ||
-            !full_revision(candidate.compiler_revision) ||
+            !valid_repository(candidate.semantic_repository) ||
+            candidate.semantic_ref[0] == '\0' ||
+            !full_revision(candidate.semantic_revision) ||
+            !valid_repository(candidate.frontend_repository) ||
+            candidate.frontend_ref[0] == '\0' ||
+            !full_revision(candidate.frontend_revision) ||
             !valid_repository(candidate.backend_repository) ||
             candidate.backend_ref[0] == '\0' ||
             !full_revision(candidate.backend_revision) ||
@@ -825,15 +864,21 @@ static int row_corpus_matches(const ReceiptRow *row, const Contract *contract) {
 }
 
 static int row_provenance_matches(const ReceiptRow *row, const Contract *contract) {
-    return strcmp(row->compiler_repository, contract->compiler_repository) == 0 &&
-           strcmp(row->compiler_ref, contract->compiler_ref) == 0 &&
-           strcmp(row->compiler_revision, contract->compiler_revision) == 0 &&
+    return strcmp(row->semantic_repository, contract->semantic_repository) == 0 &&
+           strcmp(row->semantic_ref, contract->semantic_ref) == 0 &&
+           strcmp(row->semantic_revision, contract->semantic_revision) == 0 &&
            strcmp(row->backend_repository, contract->backend_repository) == 0 &&
            strcmp(row->backend_ref, contract->backend_ref) == 0 &&
            strcmp(row->backend_revision, contract->backend_revision) == 0 &&
            strcmp(row->application_repository, contract->application_repository) == 0 &&
            strcmp(row->application_ref, contract->application_ref) == 0 &&
            strcmp(row->application_revision, contract->application_revision) == 0;
+}
+
+static int row_frontend_matches(const ReceiptRow *row, const Contract *contract) {
+    return strcmp(row->frontend_repository, contract->frontend_repository) == 0 &&
+           strcmp(row->frontend_ref, contract->frontend_ref) == 0 &&
+           strcmp(row->frontend_revision, contract->frontend_revision) == 0;
 }
 
 static int witness_matches(const ReceiptRow *row, const char *root) {
@@ -910,6 +955,7 @@ static int verify_files(const char *contract_path, const char *receipt_path,
     int index;
     int identity_ok = 1;
     int provenance_ok = 1;
+    int frontend_ok = 1;
     int receipt_corpus_ok = 1;
     if (!parse_contract(contract_path, &contract)) {
         record_result(result, 0, "AICI-CP-CONTRACT", "contract",
@@ -938,13 +984,16 @@ static int verify_files(const char *contract_path, const char *receipt_path,
         if (!row_identity_matches(&receipt.rows[index], &contract)) identity_ok = 0;
         if (!row_corpus_matches(&receipt.rows[index], &contract)) receipt_corpus_ok = 0;
         if (!row_provenance_matches(&receipt.rows[index], &contract)) provenance_ok = 0;
+        if (!row_frontend_matches(&receipt.rows[index], &contract)) frontend_ok = 0;
     }
     record_result(result, identity_ok, contract.identity_code, "identity",
                   "every row names the contracted target family and leader/follower role");
     record_result(result, receipt_corpus_ok, "CP-CORPUS-BINDING", "corpus-binding",
                   "every row names the same corpus repository, ref, revision, path, and bytes");
     record_result(result, provenance_ok, contract.provenance_code, "provenance",
-                  "every row names the contracted compiler, backend, and application revisions");
+                  "every row names the contracted semantic authority, backend, and application revisions");
+    record_result(result, frontend_ok, contract.frontend_code, "frontend",
+                  "every row names the frontend revision that actually built the backend input");
     for (index = 0; index < contract.requirement_count; ++index) {
         Requirement *requirement = &contract.requirements[index];
         ReceiptRow *row = find_requirement_row(&receipt, requirement);
@@ -1009,7 +1058,8 @@ static int add_contract_codes(CodeNode **codes, const Contract *contract) {
     int index;
     if (!code_list_add(codes, contract->identity_code) ||
         !code_list_add(codes, contract->corpus_code) ||
-        !code_list_add(codes, contract->provenance_code)) {
+        !code_list_add(codes, contract->provenance_code) ||
+        !code_list_add(codes, contract->frontend_code)) {
         return 0;
     }
     if (contract->gpu_seen && !code_list_add(codes, contract->gpu_code)) return 0;

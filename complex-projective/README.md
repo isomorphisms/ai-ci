@@ -15,20 +15,36 @@ the pinned revisions and writing a truthful status.
 Contracts are UTF-8 TSV. Blank lines and `#` comments are ignored. Diagnostic
 codes are unique uppercase ASCII letters, digits, and hyphens.
 
+Version 2 is intentionally fail-closed against version 1 contracts and
+receipts: the earlier format could not distinguish semantic authority from the
+frontend that actually ran.
+
 ```text
-schema<TAB>complex-projective-backend-contract-v1
+schema<TAB>complex-projective-backend-contract-v2
 identity<TAB>CODE<TAB>target<TAB>x86-64-cpu|arm-thumb2|gpu<TAB>leader|follower
 corpus<TAB>CODE<TAB>owner/repository<TAB>ref<TAB>full-revision<TAB>relative-path<TAB>sha256
-provenance<TAB>CODE<TAB>compiler-repository<TAB>compiler-ref<TAB>compiler-revision<TAB>backend-repository<TAB>backend-ref<TAB>backend-revision<TAB>application-repository|-<TAB>application-ref|-<TAB>application-revision|-
+provenance<TAB>CODE<TAB>semantic-repository<TAB>semantic-ref<TAB>semantic-revision<TAB>backend-repository<TAB>backend-ref<TAB>backend-revision<TAB>application-repository|-<TAB>application-ref|-<TAB>application-revision|-
+frontend<TAB>CODE<TAB>frontend-repository<TAB>frontend-ref<TAB>frontend-revision
 require<TAB>CODE<TAB>exact|numeric|projective|render|pipeline<TAB>stage<TAB>environment<TAB>pass|skip|blocked
 gpu_ceiling<TAB>CODE<TAB>strongest-demonstrated-stage
 ```
 
-The corpus must live at the compiler repository/ref/revision named by
-`provenance`. Every contract has at least one explicit requirement in each of
-the `exact`, `numeric`, `projective`, and `render` categories.
+The corpus must live at the semantic repository/ref/revision named by
+`provenance`. That triple identifies the canonical Idric definitions and
+corpus whose contract the target follows. It does **not** claim that an
+executable from that repository compiled the tested artifact. The separate
+`frontend` triple identifies the compiler or frontend that actually produced
+the backend input. This distinction lets a provisional follower report an
+upstream Idris2 frontend honestly without promoting it to mathematical
+authority.
+
+Every contract has at least one explicit requirement in each of the `exact`,
+`numeric`, `projective`, and `render` categories.
 
 An `x86-64-cpu` identity must be `leader`, must name an application, and must
+name the canonical semantic repository/ref/revision as its actual frontend.
+Thus a leader receipt cannot claim canonical Idric frontend integration while
+running only a separately versioned compiler. It must also
 require `pass` for these exact category/stage pairs:
 
 | Category | Stage |
@@ -59,7 +75,7 @@ the ceiling are `pass`; all later rows are `skip` or `blocked`. This prevents a
 generated or compiling shader from being reported as loaded, executed, or
 captured on hardware.
 
-`contracts/x86-leader-v1.template.tsv` spells out the mandatory leader rows.
+`contracts/x86-leader-v2.template.tsv` spells out the mandatory leader rows.
 It contains zero-valued placeholders and is intentionally not a runnable
 receipt contract until every repository, ref, revision, corpus digest, target,
 and environment is replaced by the receipt-producing workflow.
@@ -69,7 +85,7 @@ and environment is replaced by the receipt-producing workflow.
 The first non-comment line is this exact header:
 
 ```text
-target<TAB>family<TAB>role<TAB>category<TAB>stage<TAB>status<TAB>corpus_repository<TAB>corpus_ref<TAB>corpus_revision<TAB>corpus_path<TAB>corpus_sha256<TAB>compiler_repository<TAB>compiler_ref<TAB>compiler_revision<TAB>backend_repository<TAB>backend_ref<TAB>backend_revision<TAB>application_repository<TAB>application_ref<TAB>application_revision<TAB>environment<TAB>witness<TAB>sha256
+target<TAB>family<TAB>role<TAB>category<TAB>stage<TAB>status<TAB>corpus_repository<TAB>corpus_ref<TAB>corpus_revision<TAB>corpus_path<TAB>corpus_sha256<TAB>semantic_repository<TAB>semantic_ref<TAB>semantic_revision<TAB>frontend_repository<TAB>frontend_ref<TAB>frontend_revision<TAB>backend_repository<TAB>backend_ref<TAB>backend_revision<TAB>application_repository<TAB>application_ref<TAB>application_revision<TAB>environment<TAB>witness<TAB>sha256
 ```
 
 Every contracted requirement has exactly one matching row by category, stage,
@@ -82,9 +98,11 @@ below `root`, with the SHA-256 of its current bytes.
 Full revisions are 40- or 64-character lowercase hexadecimal object IDs. Refs
 are retained as provenance rather than inferred from a revision. Before
 invocation, the trusted workflow must compare the contract's repository refs
-and revisions to the current checked-out compiler, backend, and application
-inputs. That event binding prevents an internally consistent old receipt from
-another branch being replayed as current success.
+and revisions to the current checked-out semantic authority, actual frontend,
+backend, and application inputs. Build tools below the named frontend (for
+example `glslangValidator`, Mesa, or a linker) belong in the witness; they do
+not replace the frontend revision. That event binding prevents an internally
+consistent old receipt from another branch being replayed as current success.
 
 ## Run
 

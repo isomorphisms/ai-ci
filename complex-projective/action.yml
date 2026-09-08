@@ -1,5 +1,5 @@
 name: ai-ci complex/projective backend receipt verifier
-description: Fail closed on stale, incomplete, or overstated complex/projective backend evidence
+description: Fail closed on stale, incomplete, or overstated revision-bound backend evidence
 inputs:
   contract:
     description: Path to the trusted complex/projective backend contract TSV

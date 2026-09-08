@@ -1,9 +1,10 @@
 # Template only: replace every fixture name, ref, revision, path, and digest.
 # A receipt producer must bind these fields to the current checked-out inputs.
-schema	complex-projective-backend-contract-v1
+schema	complex-projective-backend-contract-v2
 identity	CP-IDENTITY	x86-64-baseline	x86-64-cpu	leader
-corpus	CP-CORPUS	owner/compiler-repository	refs/heads/current-compiler-branch	0000000000000000000000000000000000000000	_/examples/complex-projective/corpus-v1.json	0000000000000000000000000000000000000000000000000000000000000000
-provenance	CP-PROVENANCE	owner/compiler-repository	refs/heads/current-compiler-branch	0000000000000000000000000000000000000000	owner/x86-backend-repository	refs/heads/current-backend-branch	0000000000000000000000000000000000000000	owner/application-repository	refs/heads/current-application-branch	0000000000000000000000000000000000000000
+corpus	CP-CORPUS	owner/semantic-repository	refs/heads/current-semantic-branch	0000000000000000000000000000000000000000	_/examples/complex-projective/corpus-v1.json	0000000000000000000000000000000000000000000000000000000000000000
+provenance	CP-PROVENANCE	owner/semantic-repository	refs/heads/current-semantic-branch	0000000000000000000000000000000000000000	owner/x86-backend-repository	refs/heads/current-backend-branch	0000000000000000000000000000000000000000	owner/application-repository	refs/heads/current-application-branch	0000000000000000000000000000000000000000
+frontend	CP-FRONTEND	owner/semantic-repository	refs/heads/current-semantic-branch	0000000000000000000000000000000000000000
 require	CP-EXACT	exact	exact-corpus	native-x86-64	pass
 require	CP-NUMERIC	numeric	numerical-corpus	native-x86-64	pass
 require	CP-PROJECTIVE	projective	projective-equivalence-corpus	native-x86-64	pass

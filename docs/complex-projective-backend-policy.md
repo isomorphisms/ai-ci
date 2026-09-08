@@ -38,7 +38,9 @@ The reusable verifier under `complex-projective/` checks a contract written by
 the trusted receipt-producing workflow. Every row is bound to:
 
 - the canonical corpus repository, ref, full revision, path, and SHA-256;
-- the compiler repository, ref, and full revision;
+- the canonical semantic repository, ref, and full revision;
+- the compiler/frontend repository, ref, and full revision actually used to
+  produce the backend input;
 - the backend repository, ref, and full revision;
 - an application repository, ref, and full revision when an application is in
   the tested path;
@@ -53,6 +55,15 @@ irreducible trust boundary: a local verifier cannot independently learn which
 remote branch head a CI coordinator intended. A receipt-producing workflow
 must write evidence only after the named command ran against those exact
 checkouts, and must preserve the resulting witness bytes.
+
+Semantic authority and executable frontend are deliberately separate. The
+semantic triple names the canonical Idric source and owns the corpus; it cannot
+be replaced by whichever compiler happens to build a follower. The frontend
+triple names that actual compiler. For the x86-64 leader they must be the same
+repository, ref, and revision, so leader evidence cannot be produced from a
+standalone upstream frontend while claiming canonical compiler integration.
+Followers may name a different frontend, but that difference remains explicit
+and does not confer semantic authority on it.
 
 For the x86-64 leader, a complete contract requires successful evidence for
 direct build, native execution, exact corpus, numerical corpus, projective

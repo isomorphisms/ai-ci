@@ -1,7 +1,8 @@
-schema	complex-projective-backend-contract-v1
+schema	complex-projective-backend-contract-v2
 identity	CP-IDENTITY	x86-fixture	x86-64-cpu	leader
 corpus	CP-CORPUS	isomorphisms/Idric	refs/heads/fixture-compiler	1111111111111111111111111111111111111111	_/examples/complex-projective/corpus-v1.json	a8e9bee442ee6af2545c636795611559ed8ae266c4b4a008a3723bc7dc81c5a5
 provenance	CP-PROVENANCE	isomorphisms/Idric	refs/heads/fixture-compiler	1111111111111111111111111111111111111111	isomorphisms/idric-x86-aggressive-backend	refs/heads/fixture-x86	2222222222222222222222222222222222222222	isomorphisms/analytic-continuation	refs/heads/fixture-application	3333333333333333333333333333333333333333
+frontend	CP-FRONTEND	isomorphisms/Idric	refs/heads/fixture-compiler	1111111111111111111111111111111111111111
 require	CP-EXACT	exact	exact-corpus	native-x86-64	pass
 require	CP-NUMERIC	numeric	numerical-corpus	native-x86-64	pass
 require	CP-PROJECTIVE	projective	projective-equivalence-corpus	native-x86-64	pass

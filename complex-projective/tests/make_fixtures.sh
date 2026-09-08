@@ -16,7 +16,7 @@ for fixture in corpus-v1.json evidence.txt x86.contract.tsv x86.receipt.tsv \
 done
 
 awk -F '\t' 'BEGIN { OFS="\t" }
-  $1 == "schema" { $2="wrong-contract-schema" }
+  $1 == "schema" { $2="complex-projective-backend-contract-v1" }
   { print }
 ' "$output_directory/x86.contract.tsv" >"$output_directory/bad-contract.tsv"
 
@@ -29,6 +29,11 @@ awk -F '\t' 'BEGIN { OFS="\t" }
   $1 == "identity" { $5="leader" }
   { print }
 ' "$output_directory/thumb.contract.tsv" >"$output_directory/bad-thumb-leader.contract.tsv"
+
+awk -F '\t' 'BEGIN { OFS="\t" }
+  $1 == "frontend" { $3="idris-lang/Idris2" }
+  { print }
+' "$output_directory/x86.contract.tsv" >"$output_directory/bad-x86-frontend.contract.tsv"
 
 awk -F '\t' 'BEGIN { OFS="\t" }
   NR == 1 { $1="wrong_header" }
@@ -46,16 +51,21 @@ awk -F '\t' 'BEGIN { OFS="\t" }
 ' "$output_directory/x86.receipt.tsv" >"$output_directory/bad-corpus-binding.tsv"
 
 awk -F '\t' 'BEGIN { OFS="\t" }
-  NR == 2 { $16="refs/heads/stale-backend" }
+  NR == 2 { $19="refs/heads/stale-backend" }
   { print }
 ' "$output_directory/x86.receipt.tsv" >"$output_directory/bad-provenance.tsv"
+
+awk -F '\t' 'BEGIN { OFS="\t" }
+  NR == 2 { $16="refs/heads/stale-frontend" }
+  { print }
+' "$output_directory/x86.receipt.tsv" >"$output_directory/bad-frontend.tsv"
 
 # A lexical `root/relative` join is insufficient: an intermediate symlink can
 # otherwise make valid witness bytes escape the receipt root.
 ln -s /etc "$output_directory/escape"
 host_sha=$(sha256sum /etc/hostname | cut -d' ' -f1)
 awk -F '\t' -v sha="$host_sha" 'BEGIN { OFS="\t" }
-  NR == 2 { $22="escape/hostname"; $23=sha }
+  NR == 2 { $25="escape/hostname"; $26=sha }
   { print }
 ' "$output_directory/x86.receipt.tsv" >"$output_directory/bad-witness-escape.tsv"
 
@@ -85,7 +95,7 @@ awk -F '\t' 'BEGIN { OFS="\t" }
   NR == 2 {
     $4="pipeline"
     $5="undeclared-stage"
-    $21="undeclared-environment"
+    $24="undeclared-environment"
     print
   }
 ' "$output_directory/x86.receipt.tsv" >>"$output_directory/bad-extra.tsv"
@@ -124,6 +134,10 @@ cases=$output_directory/cases.tsv
     "$output_directory/bad-thumb-leader.contract.tsv" \
     "$output_directory/thumb.receipt.tsv" \
     "$output_directory/corpus-v1.json" "$output_directory"
+  printf 'fail\t%s\t%s\t%s\t%s\tAICI-CP-CONTRACT\n' \
+    "$output_directory/bad-x86-frontend.contract.tsv" \
+    "$output_directory/x86.receipt.tsv" \
+    "$output_directory/corpus-v1.json" "$output_directory"
   printf 'fail\t%s\t%s\t%s\t%s\tCP-RECEIPT\n' \
     "$output_directory/x86.contract.tsv" \
     "$output_directory/bad-receipt.tsv" \
@@ -143,6 +157,10 @@ cases=$output_directory/cases.tsv
   printf 'fail\t%s\t%s\t%s\t%s\tCP-PROVENANCE\n' \
     "$output_directory/x86.contract.tsv" \
     "$output_directory/bad-provenance.tsv" \
+    "$output_directory/corpus-v1.json" "$output_directory"
+  printf 'fail\t%s\t%s\t%s\t%s\tCP-FRONTEND\n' \
+    "$output_directory/x86.contract.tsv" \
+    "$output_directory/bad-frontend.tsv" \
     "$output_directory/corpus-v1.json" "$output_directory"
   printf 'fail\t%s\t%s\t%s\t%s\tCP-EXACT\n' \
     "$output_directory/x86.contract.tsv" \
