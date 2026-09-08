@@ -40,6 +40,10 @@
 - `narrative-audio`: compare canonical script/captions exactly and independently
   transcribe the generated audio rather than trusting a generation receipt.
 
+## Cross-backend mathematical evidence
+
+[`holomorphic-explorer-evidence.md`](holomorphic-explorer-evidence.md) defines the evidence layers and capability names for the Analytic Continuation whole-plane explorer. It deliberately does not add an executable contract yet: the general complex/projective arithmetic corpus is being established separately, while the application still needs a stable candidate-descriptor corpus and target-device receipts. A future executable profile must follow this repository's normal rule of one distinct diagnostic and known-bad fixture for every required assertion.
+
 ## Semantic review cases
 
 The case schema and initial incident-derived corpus now exist in
