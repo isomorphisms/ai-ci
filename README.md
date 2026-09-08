@@ -76,6 +76,25 @@ rejects traces that invoke the side-by-side curl/libxml2 oracle. See
 [`ingestion/README.md`](ingestion/README.md) for the schema and current
 `document_log_subset_v0` boundary.
 
+## Complex/projective backend receipts
+
+The optional `complex-projective/` action enforces the narrow backend
+leadership exception for Idric complex and projective arithmetic. x86-64 is the
+current executable leader and CPU oracle for this subsystem; Thumb-2 and
+GPU/shader implementations are followers of the shared mathematical corpus.
+This does not change Thumb-2's human-in-the-loop leadership for general backend
+development, and the current Thumb complex/projective lowering is explicitly
+provisional and disposable.
+
+The gate separates exact, numerical, projective-equivalence, rendering, and
+pipeline evidence; pins compiler, backend, application, and corpus provenance;
+and prevents GPU tooling stages from being reported as later hardware stages.
+The x86 leader profile cannot omit direct execution, thin-Debian, GitHub
+Actions, or headless-render receipts. See
+[`complex-projective/README.md`](complex-projective/README.md) for the receipt
+schema and [`docs/complex-projective-backend-policy.md`](docs/complex-projective-backend-policy.md)
+for the durable policy.
+
 ## Run locally
 
 ```text
@@ -92,10 +111,14 @@ cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-fdroid src/aici_fdr
 cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-fdroid-fixtures fdroid/tests/make_receipt_fixtures.c
 /tmp/aici-fdroid-fixtures fdroid/contracts/native-upstream-v1.example.tsv /tmp/aici-fdroid-test-data
 /tmp/aici-fdroid self-test /tmp/aici-fdroid-test-data/cases.tsv
+
+cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-complex-projective src/aici_complex_projective.c
+complex-projective/tests/make_fixtures.sh /tmp/aici-complex-projective-test-data
+/tmp/aici-complex-projective self-test /tmp/aici-complex-projective-test-data/cases.tsv
 ```
 
-Those are direct compiler and verifier invocations, not a Bash- or
-Python-authored command layer.
+The acceptance verifiers themselves are direct native C invocations. Fixture
+generation does not mediate production verification.
 
 ## Use from another repository
 
@@ -139,6 +162,22 @@ verifies evidence and finished APK bytes; the receipt-producing job must run the
 pinned F-Droid tools, reject mutable build inputs, inspect Fastlane's
 code-quality report, and preserve the independent logs. Its trusted caller must
 also anchor the contract's source revision to the release ref or CI event.
+
+For a complex/projective backend receipt:
+
+```yaml
+- uses: isomorphisms/ai-ci/complex-projective@0123456789abcdef0123456789abcdef01234567
+  with:
+    contract: ci/complex-projective.contract.tsv
+    receipt: out/complex-projective/receipt.tsv
+    corpus: _compiler/_/examples/complex-projective/corpus-v1.json
+    root: out/complex-projective
+```
+
+The runner must provide `sha256sum` and a C17 compiler. The trusted caller must
+bind the contract to the compiler, backend, application, and corpus revisions
+checked out for the current event; a matching old contract and old receipt are
+not current-branch evidence.
 
 ## Limits
 

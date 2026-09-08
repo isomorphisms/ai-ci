@@ -1,0 +1,14 @@
+# Template only: replace every fixture name, ref, revision, path, and digest.
+# A receipt producer must bind these fields to the current checked-out inputs.
+schema	complex-projective-backend-contract-v1
+identity	CP-IDENTITY	x86-64-baseline	x86-64-cpu	leader
+corpus	CP-CORPUS	owner/compiler-repository	refs/heads/current-compiler-branch	0000000000000000000000000000000000000000	_/examples/complex-projective/corpus-v1.json	0000000000000000000000000000000000000000000000000000000000000000
+provenance	CP-PROVENANCE	owner/compiler-repository	refs/heads/current-compiler-branch	0000000000000000000000000000000000000000	owner/x86-backend-repository	refs/heads/current-backend-branch	0000000000000000000000000000000000000000	owner/application-repository	refs/heads/current-application-branch	0000000000000000000000000000000000000000
+require	CP-EXACT	exact	exact-corpus	native-x86-64	pass
+require	CP-NUMERIC	numeric	numerical-corpus	native-x86-64	pass
+require	CP-PROJECTIVE	projective	projective-equivalence-corpus	native-x86-64	pass
+require	CP-RENDER	render	headless-render	native-x86-64	pass
+require	CP-DIRECT-BUILD	pipeline	direct-build	native-x86-64	pass
+require	CP-NATIVE-EXECUTION	pipeline	native-execution	native-x86-64	pass
+require	CP-THIN-DEBIAN	pipeline	thin-debian-execution	thin-debian-x86-64	pass
+require	CP-GITHUB-ACTIONS	pipeline	github-actions-execution	github-actions-x86-64	pass

@@ -222,3 +222,29 @@ jobs:
           role: implementation-under-test
           exec_trace: ingestion/tests/fixtures/good-candidate.execve
           oracle_receipt: ingestion/tests/fixtures/good-oracle.tsv
+
+  complex-projective-self-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Require receipt probes
+        shell: sh
+        run: command -v sha256sum >/dev/null
+      - name: Compile complex/projective verifier
+        shell: sh
+        run: |
+          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 \
+            -o /tmp/aici-complex-projective src/aici_complex_projective.c
+      - name: Generate synthetic verifier fixtures
+        shell: sh
+        run: complex-projective/tests/make_fixtures.sh "$RUNNER_TEMP/aici-complex-projective-fixtures"
+      - name: Prove every receipt assertion rejects its targeted failure
+        shell: sh
+        run: /tmp/aici-complex-projective self-test "$RUNNER_TEMP/aici-complex-projective-fixtures/cases.tsv"
+      - name: Exercise the reusable complex/projective action
+        uses: ./complex-projective
+        with:
+          contract: ${{ runner.temp }}/aici-complex-projective-fixtures/x86.contract.tsv
+          receipt: ${{ runner.temp }}/aici-complex-projective-fixtures/x86.receipt.tsv
+          corpus: ${{ runner.temp }}/aici-complex-projective-fixtures/corpus-v1.json
+          root: ${{ runner.temp }}/aici-complex-projective-fixtures

@@ -1,0 +1,33 @@
+name: ai-ci complex/projective backend receipt verifier
+description: Fail closed on stale, incomplete, or overstated complex/projective backend evidence
+inputs:
+  contract:
+    description: Path to the trusted complex/projective backend contract TSV
+    required: true
+  receipt:
+    description: Path to the revision-bound backend evidence receipt TSV
+    required: true
+  corpus:
+    description: Path to the canonical complex/projective corpus bytes
+    required: true
+  root:
+    description: Root containing the receipt witness files
+    required: false
+    default: .
+runs:
+  using: composite
+  steps:
+    - name: Require receipt probes
+      shell: sh
+      run: command -v sha256sum >/dev/null
+    - name: Compile complex/projective receipt verifier
+      shell: sh
+      run: cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o "$RUNNER_TEMP/aici-complex-projective" "$GITHUB_ACTION_PATH/../src/aici_complex_projective.c"
+    - name: Verify complex/projective backend evidence
+      shell: sh
+      env:
+        AICI_CP_CONTRACT: ${{ inputs.contract }}
+        AICI_CP_RECEIPT: ${{ inputs.receipt }}
+        AICI_CP_CORPUS: ${{ inputs.corpus }}
+        AICI_CP_ROOT: ${{ inputs.root }}
+      run: '"$RUNNER_TEMP/aici-complex-projective" verify "$AICI_CP_CONTRACT" "$AICI_CP_RECEIPT" "$AICI_CP_CORPUS" "$AICI_CP_ROOT"'

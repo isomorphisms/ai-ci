@@ -1,0 +1,5 @@
+{
+  "schema": "edric-complex-projective-corpus-v1",
+  "complex_cases": [{"id": "synthetic-verifier-fixture"}],
+  "projective_cases": [{"id": "synthetic-verifier-fixture"}]
+}
