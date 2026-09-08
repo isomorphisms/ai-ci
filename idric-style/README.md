@@ -19,14 +19,17 @@ re-read the canonical Idriç style guidance and reconsider the declaration as a 
 
 ## GitHub Actions
 
-Check out the repository with full history, then use:
+Check out the repository with full history, then use the `idric-style` action at the
+exact reviewed `ai-ci` commit SHA:
 
 ```yaml
-- uses: actions/checkout@v4
+- uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
   with:
     fetch-depth: 0
-- uses: isomorphisms/ai-ci/idric-style@main
+- uses: isomorphisms/ai-ci/idric-style@0123456789abcdef0123456789abcdef01234567
 ```
+
+Do not copy the placeholder SHA. Pin the exact reviewed revision.
 
 The action infers the comparison base from pull-request or push metadata. `base` and
 `head` inputs are available when a caller needs to specify the range explicitly.
