@@ -16,6 +16,12 @@ on:
 permissions:
   contents: read
 
+env:
+  AICI_REF: sms-cross-repository-receipt
+  IDRIC_REF: Idriç
+  IDRIC_NET_REF: sms-server-foundation
+  GREASE_REF: sms-server-filesystem-foundation
+
 jobs:
   executable-sms-path:
     runs-on: ubuntu-24.04
@@ -26,27 +32,36 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: isomorphisms/Idric-Net
-          ref: sms-server-foundation
+          ref: ${{ env.IDRIC_NET_REF }}
           path: _Idric-Net
       - name: Checkout current Grease SMS work
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: isomorphisms/grease
-          ref: sms-server-filesystem-foundation
+          ref: ${{ env.GREASE_REF }}
           path: _grease
       - name: Checkout current Idriç compiler
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: isomorphisms/Idric
+          ref: ${{ env.IDRIC_REF }}
           path: _Idric
-      - name: Build current Idriç compiler
+      - name: Install current Idriç bootstrap dependency
         shell: sh
         run: |
           sudo apt-get update
           sudo apt-get install --yes --no-install-recommends chezscheme
-          make -C _Idric bootstrap SCHEME=scheme
       - name: Run executable SMS receipt and hostile self-tests
-        shell: sh
+        shell: bash
         env:
           IDRIS2_PREFIX: ${{ github.workspace }}/_Idric/bootstrap-build
-        run: sh sms/run-cross-repository.sh _Idric-Net _grease _Idric/build/exec/idris2
+        run: sms/run-cross-repository.sh _Idric-Net _grease _Idric
+      - name: Retain exact current-head SMS evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sms-current-head-receipt
+          path: |
+            sms/build/current-head-receipt.tsv
+            sms/build/current-head.log
+          if-no-files-found: warn

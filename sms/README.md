@@ -11,13 +11,16 @@ the same path and requires the probe to reject missing authorization, early
 delivery, delivery after cancellation, and collapsed same-time events at their
 specific checks.
 
-Run it with three working trees and an already-built Idriç compiler:
+Run it with the three dependency working trees; the runner builds the declared
+Idriç checkout itself:
 
 ```text
-sh sms/run-cross-repository.sh ../Idric-Net ../grease ../Idric/build/exec/idris2
+bash sms/run-cross-repository.sh ../Idric-Net ../grease ../Idric
 ```
 
-The CI workflow checks out moving branches. Their resolved commits remain in
-the ordinary Actions log, but the acceptance contract does not pin the two
-projects together. It also runs every six hours, so a new commit in either
-project is picked up and fails visibly when the executable boundary drifts.
+The CI workflow checks out moving branches. `sms/build/current-head-receipt.tsv`
+records every requested ref, resolved SHA, clean/dirty state, stage result, and
+first failure. A failed prerequisite leaves later stages as `SKIP`; it is never
+relabeled as an independent downstream failure. The workflow runs every six
+hours, so a new commit in any component is picked up and fails visibly when the
+executable boundary drifts.
