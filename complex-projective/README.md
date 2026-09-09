@@ -70,7 +70,7 @@ specific vendor/device receipt
 
 Compile/link evidence may be `PASS` while all hardware stages remain `SKIP`. No receipt may infer GPU execution merely from shader compilation.
 
-Declared precision belongs in the receipt. A target may not silently narrow Float32/highp semantics to FP16/mediump because the hardware supports it.
+Declared precision belongs in the receipt. GLSL precision class is an emission/application choice, not the mathematical definition of the value. An application may deliberately request `lowp`, `mediump`, or `highp`; a backend must not silently substitute a different class and must not claim that changing precision repaired an unrelated structural/codegen defect.
 
 ## Application consumers
 
