@@ -20,20 +20,18 @@ different backend, or another target. Consumers may advance several components
 in one change, but the resulting receipt must preserve the complete tested
 combination.
 
-Name separately relevant pieces that share a repository revision—for example
-`idric-core`, `idric-chez-backend`, and `idric-racket-backend`—when a consumer
-does not exercise the whole tree. Backend coverage is never inferred from
-compiler-revision coverage. Chez is currently the primary Idriç path; Racket is
-an alternate path and must earn its own receipt. RefC/native C, Chicken, Android,
-and other paths remain `NOT_VERIFIED` for a tuple until their own acceptance
-probe runs.
+Name separately relevant pieces that share a repository revision when a
+consumer does not exercise the whole tree. Backend coverage is never inferred
+from compiler-revision coverage, and a backend or target is not current merely
+because it appears in an example or in a passing sibling tuple. Each materially
+distinct backend/target path must earn its own receipt.
 
 ## Contract format
 
 The header is exact:
 
 ```text
-kind	name	role	repository	revision	target	code
+kind\tname\trole\trepository\trevision\ttarget\tcode
 ```
 
 `component` rows use an HTTPS repository URL, a full lowercase 40- or 64-digit
@@ -45,14 +43,15 @@ Names, targets, and diagnostic codes must be unique where the schema requires
 them.
 
 The example is intentionally structural. Its repeated hexadecimal revisions
-are placeholders, not claims about a real tested stack.
+are placeholders, not claims about a real tested stack or a currently selected
+backend.
 
 ## Receipt format
 
 The header is exact:
 
 ```text
-kind	name	status	role	repository	revision	target	code	witness	sha256
+kind\tname\tstatus\trole\trepository\trevision\ttarget\tcode\twitness\tsha256
 ```
 
 The receipt must contain exactly one row matching each contract row and no

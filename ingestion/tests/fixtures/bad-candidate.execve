@@ -1,0 +1,1 @@
+123 execve("/usr/bin/curl", ["curl", "http://127.0.0.1/valid"], 0x0) = 0

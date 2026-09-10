@@ -1,0 +1,3 @@
+event	status	source	revision	command
+source-preflight	pass	refs/tags/broken	30647e64b10bcc5fb0b63fdf9a02fdc9b5701569	git fetch --depth=1 origin refs/tags/broken
+source-compatibility	fail	refs/tags/broken	30647e64b10bcc5fb0b63fdf9a02fdc9b5701569	git cat-file -e FETCH_HEAD:s/armv7.def
