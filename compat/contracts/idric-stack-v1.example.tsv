@@ -1,0 +1,6 @@
+kind	name	role	repository	revision	target	code
+component	example-consumer	consumer	https://github.com/example/consumer.git	1111111111111111111111111111111111111111	android-armv7	COMPAT-CONSUMER
+component	idric	language	https://github.com/isomorphisms/Idric.git	2222222222222222222222222222222222222222	android-armv7	COMPAT-IDRIC
+component	grease	command-language	https://github.com/isomorphisms/grease.git	3333333333333333333333333333333333333333	ubuntu-24-04	COMPAT-GREASE
+component	chez	backend	https://github.com/cisco/ChezScheme.git	4444444444444444444444444444444444444444	android-armv7	COMPAT-BACKEND
+probe	end-to-end	acceptance	-	-	android-armv7	COMPAT-END-TO-END
