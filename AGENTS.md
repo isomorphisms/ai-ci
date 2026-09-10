@@ -6,46 +6,62 @@ the canonical shared guardrail for recurrent agent failures. Repository-local
 `AGENTS.md` files may add stricter rules; do not copy this whole section into
 every repository.
 
-## Cross-repository anti-patterns
+## Recurrent agent anti-patterns
 
-- Before designing or editing, inspect the current branch, current architecture,
-  established interfaces, and nearby current work. Explicit later human
-  corrections and current architecture outrank stale source, generated code,
-  old branches, upstream convention, and familiar practice.
-- Do not invent continuity. If an earlier decision, artifact, branch state, or
-  conversation fact cannot be recovered from available evidence, report it as
-  missing or uncertain rather than synthesizing a plausible history.
-- Claim only the boundary actually exercised. Source presence, generation,
-  compilation, packaging, installation, launch, semantic execution, backend
-  execution, physical-device execution, and publication are distinct evidence
-  levels. Report stronger boundaries as unverified until they are exercised.
-- The named mechanism is part of acceptance. An oracle, mock, fallback,
-  alternate backend, alternate executable, lookalike renderer, or convenient
-  reimplementation may provide comparison data, but it cannot pass the named
-  implementation.
-- Bind acceptance to the exact head and material pins that produced the result.
-  Green results from an ancestor, sibling branch, old artifact, mutable
-  dependency, or previous compiler/backend pin are historical evidence only.
-- Do not weaken the promised property to obtain green. Do not delete or dilute
-  refusal cases, broaden malformed-input acceptance, replace semantic checks
-  with file/smoke checks, hide failures, or change expected output merely to
-  match a broken implementation. Change a contract only for an independent,
-  explicit semantic decision.
-- Preserve stage boundaries. A later success does not erase an earlier failure;
-  build is not install, install is not launch, launch is not semantic behavior,
-  and local packaging is not publication.
-- Keep semantic objects independent of convenient representations. Tuples,
-  matrices, compiler nodes, ABI records, transport bytes, storage shapes, and UI
-  payloads are representations unless the semantics explicitly make them part
-  of the object.
-- Do not restore a rejected ontology under its old name or a near-synonym merely
-  because stale code or conventional terminology still contains it.
-- Do not introduce a familiar language, framework, build system, runtime, or
-  abstraction solely because it is conventional. Preserve the repository's
-  established implementation path unless the task explicitly changes it.
-- Mocks, fixtures, harnesses, and platform adapters must cross replaceable
-  interfaces. Do not let today's fixture or easiest platform layer define the
-  permanent architecture.
+- **Do not claim stronger evidence than was produced.** Source presence,
+  generation, compilation, packaging, installation, launch, semantic execution,
+  backend execution, physical-device execution, and publication are different
+  evidence levels. Claim only the strongest level actually demonstrated.
+
+- **Do not substitute the requested mechanism.** An oracle, mock, fallback,
+  handwritten equivalent, alternate backend, alternate executable, lookalike
+  renderer, or convenient reimplementation does not count as acceptance of the
+  named implementation.
+
+- **Do not weaken acceptance to obtain green.** Repair the implementation.
+  Change a test or contract only when the intended requirement itself is
+  independently shown to be wrong or obsolete.
+
+- **Do not reuse stale acceptance.** A successful run from an ancestor, sibling
+  branch, previous dependency pin, different artifact, or old PR head is
+  historical evidence only. Bind acceptance to the exact revision and material
+  pins under review.
+
+- **Do not invent missing continuity.** If an earlier decision, branch state,
+  artifact, or conversation fact cannot actually be recovered, report it as
+  missing or uncertain rather than reconstructing a plausible history.
+
+- **Do not restore rejected abstractions from stale precedent.** Explicit current
+  human corrections and current architecture outrank inherited code, generated
+  files, old branches, bootstrap history, upstream conventions, and familiar
+  terminology. Do not reintroduce a rejected ontology under a synonym.
+
+- **Do not let representation define semantics.** Matrices, tuples, compiler
+  nodes, ABI records, transport bytes, storage formats, and UI payloads are
+  representations unless the semantics explicitly make them part of the object.
+
+- **Do not replace deliberate repository design with conventional practice merely
+  because it is familiar.** Before introducing a framework, build system,
+  runtime, language, directory structure, or abstraction, inspect the
+  repository's established implementation path and current architecture.
+
+- **Do not design from fixtures.** Mocks, sample data, test harnesses, temporary
+  platform adapters, and today's first executable path must remain replaceable.
+  They do not define the permanent interface.
+
+- **Before adding a parallel design, inspect the surrounding current work.**
+  Check the current branch, architecture documents, established interfaces,
+  terminology, and nearby active changes before inventing another model for the
+  same concept.
+
+- **Preserve meaningful stage boundaries.** A later-stage success does not erase
+  an earlier-stage failure. Build is not install; install is not launch; launch
+  is not semantic behavior; local packaging is not publication.
+
+- **Keep repository-specific conventions local.** Do not turn a convention such
+  as `_` build layout, a particular backend hierarchy, or temporary subsystem
+  leadership into a universal rule unless it is actually shared across
+  repositories.
 
 ## ai-ci-specific enforcement
 
