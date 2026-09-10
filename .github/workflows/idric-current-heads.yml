@@ -1,0 +1,49 @@
+name: Idriç current head selection
+
+on:
+  push:
+    paths:
+      - 'idric/**'
+      - 'docs/idric-moving-head-audit.md'
+      - '.github/workflows/idric-current-heads.yml'
+  pull_request:
+    paths:
+      - 'idric/**'
+      - 'docs/idric-moving-head-audit.md'
+      - '.github/workflows/idric-current-heads.yml'
+  schedule:
+    - cron: '17 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  current-heads:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Prove malformed and missing selectors are rejected
+        shell: sh
+        run: |
+          set -eu
+          if sh idric/resolve-current-heads.sh idric/tests/invalid-header.tsv "$RUNNER_TEMP/invalid-current-heads.tsv"; then
+            echo 'invalid current-head header was accepted' >&2
+            exit 1
+          fi
+          if sh idric/resolve-current-heads.sh idric/tests/missing-ref.tsv "$RUNNER_TEMP/missing-current-head.tsv"; then
+            echo 'missing current-head branch was accepted' >&2
+            exit 1
+          fi
+          tab=$(printf '\t')
+          grep -F "${tab}FAIL${tab}declared ref not found; compatibility SKIP" "$RUNNER_TEMP/missing-current-head.tsv" >/dev/null
+      - name: Resolve declared moving refs
+        shell: sh
+        run: sh idric/resolve-current-heads.sh idric/current-heads-v1.tsv "$RUNNER_TEMP/idric-current-heads.receipt.tsv"
+      - name: Retain exact selection evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: idric-current-head-selection
+          path: ${{ runner.temp }}/idric-current-heads.receipt.tsv
+          if-no-files-found: warn
