@@ -1,51 +1,43 @@
-# Idriç moving-head dependency audit
+# Idriç current-head dependency audit
 
-This audit separates active dependency selection from exact evidence. Active
-Idriç ecosystem lanes select declared branches and record the SHA resolved for
-the run. Exact historical tuples remain exact.
+Current dependency selection and historical evidence are different records.
+Active lanes select declared branches and resolve them to exact SHAs for each
+run. Historical receipts keep the exact SHAs that supported earlier claims, but
+those SHAs do not become current checkout selectors.
 
-## Active dependency pins converted
+## Active selection
 
-| Location | Previous selector | Classification | Moving selector |
-| --- | --- | --- | --- |
-| `idric-x86-aggressive-backend` checked ELF64 workflow, revision file, and integration guard | Idric `dd313277fedb2b678ff0df6769ed1330a2e80523` | `ACTIVE_DEPENDENCY_PIN` | Idric `Idriç` |
-| `idric-arm-thumb` DEX workflow and `IDRIC_REVISION` guard | Idric `081b9cde0591154839fb5d80d76e5570e0436300` | `ACTIVE_DEPENDENCY_PIN` | Idric `Idriç` |
-| `Idric-Net` ordinary CI | Idric `47557b43053c829d4f8aa1581007002b57f9c59f` | `ACTIVE_DEPENDENCY_PIN` | Idric `Idriç` |
-| Algebraic Variety Explorer shader dogfood | shader backend `66214e3da0443fe4887062549e9ef5810c586dd7` | `ACTIVE_DEPENDENCY_PIN` | `soap-f16-mode` |
+The machine-readable source is `idric/current-heads-v1.tsv`. Each row names a
+lane, repository, requested branch, role, and the repository that owns the
+stronger compatibility receipt. `idric/resolve-current-heads.sh` proves that the
+branch exists and records the SHA selected for that run.
 
-The x86 and DEX exact tuples remain in their historical documentation. The
-moving lanes do not fall back to them.
+Resolution proves only what source was selected. Compatibility still requires
+the executable lane owned by the named receipt owner.
 
-The SMS workflow already selected `sms-server-foundation` and
-`sms-server-filesystem-foundation`. Its selection was correct but its evidence
-was incomplete, so the runner now records Idriç, Idric-Net, Grease, and AICI
-requested refs, resolved SHAs, clean/dirty state, ordered stages, and the first
-failure. Later stages are `SKIP` after a failed prerequisite.
+The DEX lane selects `isomorphisms/Idric@Idriç` together with
+`isomorphisms/idric-arm-thumb@dex/sibling-backend-boundary`. This deliberately
+follows the reconstructed DEX sibling boundary rather than the old ARM/Thumb
+implementation ancestry. A resolved DEX ref is not a DEX execution or
+physical-phone receipt.
 
-## Exact revisions deliberately preserved
+## Historical and fixed evidence
 
-| Exact use | Classification | Reason |
-| --- | --- | --- |
-| x86 first-green compiler/backend tuple in baseline documentation | `HISTORICAL_EVIDENCE` | Records what first completed the direct compiler→ELF64 path. |
-| DEX first-green compiler/backend/artifact tuple in DEX audit and PR evidence | `HISTORICAL_EVIDENCE` | Records the software that produced and executed the first `classes.dex`. |
-| `idric/matrix-v1.tsv` exact project/compiler/backend rows | `HISTORICAL_EVIDENCE` | Survey observations and workflow receipts, not checkout selectors. |
-| AICI bounded R128 contract receipt | `REPRODUCTION_FIXTURE` | Intentionally frozen semantic regression; it does not define active x86 selection. |
-| ARM/Thumb and shader follower checkpoint files | `HISTORICAL_EVIDENCE` | Reviewed adoption points compared with moving branch heads. |
-| Idriç higher-mathematics reconciliation commit references | `HISTORICAL_EVIDENCE` | Provenance only. |
-| GitHub action SHAs, Chez archive digest, Idris 2 release tag, XED/mbuild revisions, smali/baksmali jars | `EXTERNAL_TOOLCHAIN_PIN` | Supply-chain or independent-validator reproducibility. |
-| Grease Oils source submodule revision | `EXTERNAL_TOOLCHAIN_PIN` | Grease implementation source snapshot, not an Idriç/compiler compatibility selector. |
-| `Idric-Net`'s exact AICI action revision | `EXTERNAL_TOOLCHAIN_PIN` | Pins the verifier implementation; the compiler checkout now moves independently. |
+Exact revisions remain exact when they are evidence for an earlier passing or
+failing tuple, a reproduction fixture, or an independent toolchain pin. Those
+uses are immutable by design. They are not evidence that the same revision is
+the dependency active work should select today.
 
-No inspected exact revision remained `UNKNOWN` after tracing its use.
+The August fleet/backend survey formerly carried by the base branch mixed a
+useful historical snapshot with present-tense drift policy. That survey remains
+recoverable in Git history, but it is intentionally absent from the active tree.
+The scheduled check now resolves only the explicitly declared current branches.
 
-## Current declared refs
+This keeps two claims separate:
 
-`idric/current-heads-v1.tsv` is the small explicit branch manifest. The resolver
-proves that each declared branch exists and writes its current SHA. That receipt
-is selection evidence only: compatibility is owned by the x86, DEX, Idric-Net,
-SMS, and shader-consumer executable lanes named in the manifest.
+1. **Selection:** which moving branch current work should follow, and which SHA
+   that branch resolved to for this run.
+2. **Acceptance:** whether the exact selected compiler/backend/consumer tuple
+   actually built and executed through the required lane and target.
 
-`isomorphisms/idris-shader-backend` itself has no active Idriç compiler
-selector: its present compiler API lane is upstream Idris 2. The active moving
-shader seam audited here is the algebraic-surface consumer of
-`soap-f16-mode`.
+A successful selection receipt must never be promoted to acceptance evidence.

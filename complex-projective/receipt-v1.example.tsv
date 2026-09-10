@@ -1,0 +1,11 @@
+COMPLEX_PROJECTIVE_RECEIPT	1
+role	X86_LEADER
+repository	isomorphisms/idric-x86-aggressive-backend
+source_head_sha	1111111111111111111111111111111111111111
+tested_checkout_sha	2222222222222222222222222222222222222222
+stage	direct_backend_generation	PASS
+stage	native_execution	PASS
+stage	numerical_corpus	PASS
+stage	projective_corpus	PASS
+stage	thin_debian_execution	PASS
+stage	headless_render	PASS

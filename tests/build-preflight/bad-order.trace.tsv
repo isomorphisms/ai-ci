@@ -1,0 +1,3 @@
+event	status	source	revision	command
+heavyweight-mutation	pass	-	-	pkg install clang make
+source-preflight	fail	45b39d5	-	git fetch --depth=1 origin 45b39d5

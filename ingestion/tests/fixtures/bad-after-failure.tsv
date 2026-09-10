@@ -1,0 +1,20 @@
+meta	schema	aici-ingestion-receipt-v1
+meta	corpus_revision	hostile-web-v1-2026-08-30
+meta	corpus_repository_revision	0000000000000000000000000000000000000000
+meta	fixture_id	invalid_utf8
+meta	implementation_role	implementation-under-test
+meta	implementation_name	icu-idric-native-transport
+meta	implementation_revision	1111111111111111111111111111111111111111
+meta	executable_sha256	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+meta	fallback	none
+meta	scope	network-through-document
+meta	producer	idric+native-c
+stage	invalid_utf8	input_acquisition	PASS	attempted	idric	attempted
+stage	invalid_utf8	network	PASS	complete_response	idric+native-c	status=200;body_sha256=0123456789abcdef
+stage	invalid_utf8	decompression	PASS	identity	idric	identity
+stage	invalid_utf8	decoding	FAIL	invalid_utf8	idric	invalid-byte-offset=7
+stage	invalid_utf8	html_recovery	PASS	should_not_run	idric	bad
+stage	invalid_utf8	document_construction	SKIP	blocked_by_decoding	idric	not-run
+stage	invalid_utf8	downstream_extraction	SKIP	blocked_by_decoding	idric	not-run
+summary	first_failure	decoding
+summary	first_incomplete	decoding

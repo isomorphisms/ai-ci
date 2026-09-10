@@ -1,0 +1,12 @@
+# case	operation	corpus path	argument
+biopython-f002-acgt	fasta-motif-count	biopython/f002.fasta	ACGT
+biopython-f002-bases	fasta-base-histogram	biopython/f002.fasta	-
+htslib-realn01-acgt	fasta-motif-count	htslib/realn01.fa	ACGT
+htslib-realn01-bases	fasta-base-histogram	htslib/realn01.fa	-
+biopython-example-fastq-at	bytes-count	biopython/example.fastq	@
+biopython-tricky-fastq-plus	bytes-count	biopython/tricky.fastq	+
+biopython-zero-length-fastq-at	bytes-count	biopython/zero_length.fastq	@
+htslib-sam-cigar-token	bytes-count	htslib/realn01.sam	NM:i:
+htslib-vcf-header	bytes-count	htslib/vcf44_1.vcf	#CHROM
+bedtools-bed-chr	bytes-count	bedtools/a.bed	chr
+bedtools-gff-parent	bytes-count	bedtools/gdc.gff	Parent=
