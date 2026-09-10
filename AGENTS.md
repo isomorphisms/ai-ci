@@ -6,6 +6,32 @@ the canonical shared guardrail for recurrent agent failures. Repository-local
 `AGENTS.md` files may add stricter rules; do not copy this whole section into
 every repository.
 
+## Establish repository state before changing anything
+
+Do not edit, build, pull, rebase, create files, create branches, or run repair
+commands until the current repository state has been established.
+
+Before acting, verify at minimum:
+
+- repository and remote;
+- current branch;
+- exact HEAD;
+- upstream/base relationship;
+- dirty or untracked files;
+- existing worktrees;
+- whether the named file, directory, branch, or artifact already exists;
+- when working on a PR, its exact current head and base.
+
+Do not assume repository state from an earlier message, an earlier command,
+another clone, or another agent's report.
+
+If the observed state conflicts with the task's assumptions, reconcile the
+discrepancy before continuing. Do not stack additional commands on top of an
+unresolved checkout, pull, merge, path, or branch failure.
+
+A failed state-changing command invalidates later steps that depended on it.
+Re-establish the actual state before proceeding.
+
 ## Recurrent agent anti-patterns
 
 - **Do not claim stronger evidence than was produced.** Source presence,
