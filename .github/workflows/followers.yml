@@ -9,9 +9,17 @@ permissions:
 
 jobs:
   follower-ledger:
-    runs-on: ubuntu-24.04
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, linux, debian]
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Prove follower state cannot overclaim acceptance
         shell: sh
         run: sh tests/followers.sh
+      - name: Verify repository follower ledger
+        shell: sh
+        run: |
+          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 \
+            -o /tmp/aici-followers src/aici_followers.c
+          /tmp/aici-followers verify followers/jobs followers/receipts
+          /tmp/aici-followers pending followers/jobs followers/receipts

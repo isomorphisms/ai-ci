@@ -76,6 +76,20 @@ rejects traces that invoke the side-by-side curl/libxml2 oracle. See
 [`ingestion/README.md`](ingestion/README.md) for the schema and current
 `document_log_subset_v0` boundary.
 
+## GitHub runner policy
+
+The optional `github/` action scans all maintained workflow YAML in a checked-out
+repository. Linux jobs must target exactly `[self-hosted, linux, debian]`;
+dynamic runner selection is rejected; concrete GitHub-hosted runners require a
+specific exception; and public `pull_request` workflows must guard each
+self-hosted job so fork PRs skip before runner assignment.
+
+The policy is deliberately source-only. A Debian label in YAML does not prove a
+runner is registered, online, actually Debian, provisioned correctly, or that a
+workflow executed. Those claims still require real follower receipts bound to
+the exact source revision. See [`github/README.md`](github/README.md) and
+[`docs/followers.md`](docs/followers.md).
+
 ## Run locally
 
 ```text
@@ -92,6 +106,9 @@ cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-fdroid src/aici_fdr
 cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-fdroid-fixtures fdroid/tests/make_receipt_fixtures.c
 /tmp/aici-fdroid-fixtures fdroid/contracts/native-upstream-v1.example.tsv /tmp/aici-fdroid-test-data
 /tmp/aici-fdroid self-test /tmp/aici-fdroid-test-data/cases.tsv
+
+cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-github src/aici_github.c
+/tmp/aici-github verify . .github/aici-runner-exceptions.tsv public
 ```
 
 Those are direct compiler and verifier invocations, not a Bash- or
@@ -140,6 +157,20 @@ pinned F-Droid tools, reject mutable build inputs, inspect Fastlane's
 code-quality report, and preserve the independent logs. Its trusted caller must
 also anchor the contract's source revision to the release ref or CI event.
 
+For repository runner policy:
+
+```yaml
+- uses: isomorphisms/ai-ci/github@0123456789abcdef0123456789abcdef01234567
+  with:
+    root: .
+    exceptions: '-'
+    visibility: public
+```
+
+If a repository has a real non-Debian exception, replace `-` with its reviewed
+exception TSV. Do not use an exception to disguise a Linux job that should have
+a Debian follower.
+
 ## Limits
 
 The deterministic checks cannot decide whether an explanation is
@@ -162,8 +193,11 @@ in a trusted, reviewed location. Do not run PR-controlled contracts in a
 `..` segments and matching final-component symlinks, but do not claim complete
 filesystem confinement through a symlinked root.
 
-The v0 Action requires a POSIX runner with a C17 `cc`; CI currently exercises
-Ubuntu 24.04. Native Windows runners are not yet supported.
+The v0 Action requires a POSIX runner with a C17 `cc`. Maintained Linux GitHub
+Actions jobs are policy-bound to repository self-hosted Debian runners labelled
+`self-hosted`, `linux`, and `debian`. GitHub-hosted non-Debian jobs need an
+explicit reviewed exception. A checked-in label is not runner-registration or
+execution evidence.
 
 See `docs/evaluation-protocol.md` for the normative evaluation method,
 `research/llm-failure-modes.md` for the empirical basis, and

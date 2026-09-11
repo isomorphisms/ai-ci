@@ -1,0 +1,2 @@
+workflow	job	runs_on	reason
+.github/workflows/iridium-2014-benchmark.yml	macos-macho	macos-15-intel	Historical Iridium Quartz reconstruction requires native macOS/Mach-O tooling.

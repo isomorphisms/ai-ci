@@ -42,6 +42,8 @@ The optional final argument to `pending` or `matrix` is an exact trigger commit.
 
 The consumer repository decides which changed files affect which targets. That inference belongs close to its real target metadata rather than in a universal AICI hard-coded architecture list. A consumer's reconciliation step should fail when an affected maintained follower has neither a valid accepted receipt nor durable unresolved work.
 
+When Linux GitHub Actions are assigned to the Debian follower, the consumer's impact mapping must treat changes to workflow files, runner setup, package prerequisites, toolchains, and other declared CI inputs as affecting that follower. A phone- or tablet-led change that alters those requirements therefore needs either an exact accepted Debian receipt or a durable pending/blocked Debian follower job. Merely changing the workflow labels does not satisfy the follower.
+
 When a follower cannot be executed from the current machine, create the job anyway. A later agent must be able to execute it cold from the repository record without recovering intent from chat or CI logs.
 
 Receipts are evidence, not wishes. Credentials, unavailable hardware, an inaccessible cloud host, or an unsupported backend should leave a blocked or unsupported job rather than an invented pass.
