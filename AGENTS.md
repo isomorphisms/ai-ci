@@ -74,3 +74,22 @@ every repository.
   performed the work; a wrapper may not hide or relabel a fallback.
 - Keep receipts explicit about executable/artifact identity, exact source
   revision, and the stage each result proves.
+
+## Leader/follower enforcement
+
+- Before finishing work led from a phone, tablet, or other architecture-specific
+  environment, inspect the consumer repository's follower policy and target
+  metadata. Run followers available in the current environment and leave
+  durable jobs for the rest.
+- Every follower job must name the exact source commit or artifact it follows.
+  Do not leave follower obligations only in chat, agent context, or CI logs.
+- Close or mark a follower accepted only when its required acceptance kind has a
+  matching receipt. Build, runtime, artifact validation, and physical-device
+  execution are not interchangeable.
+- `unsupported`, inaccessible, and `not run` are never synonyms for green.
+  Conditional `n/a` needs a reason.
+- If newer work supersedes an unfinished follower, record the supersession
+  explicitly. Do not erase the original dependency merely because the branch
+  moved forward.
+- See [`docs/followers.md`](docs/followers.md) and use `src/aici_followers.c` to
+  verify, list pending followers, and render the exact-trigger matrix.
