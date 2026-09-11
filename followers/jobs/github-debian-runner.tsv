@@ -1,9 +1,9 @@
 schema	aici-follower-job-v1
 job_id	github-debian-runner
 repository	isomorphisms/ai-ci
-branch	debian-runner-policy
+branch	main
 pr	84
-trigger_commit	dc468bcbf5126153e993b1cb3cc25a8d723865f1
+trigger_commit	4f4f02a023ac3c5c093f4abeb121ef527f6c44b2
 leader_platform	repository-policy
 leader_arch	source
 leader_evidence	github/README.md
