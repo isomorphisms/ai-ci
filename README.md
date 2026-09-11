@@ -76,6 +76,15 @@ rejects traces that invoke the side-by-side curl/libxml2 oracle. See
 [`ingestion/README.md`](ingestion/README.md) for the schema and current
 `document_log_subset_v0` boundary.
 
+## Idriç bounded orthogonal-core acceptance
+
+The optional [`idric-orthogonal/`](idric-orthogonal/) gate pins one exact Idriç
+revision and reruns the compiler-owned unified higher-mathematics receipt plus
+its independent exact R128 oracle.  Its machine-readable output is explicitly
+`BOUNDED_GREEN`: backend handoff, target execution, certified sphere action,
+arbitrary transforms, and numerical algorithm choice do not silently inherit
+`PASS` from the closed R128 sample.
+
 ## Run locally
 
 ```text
