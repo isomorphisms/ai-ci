@@ -1,0 +1,25 @@
+schema	aici-follower-job-v1
+job_id	github-debian-runner
+repository	isomorphisms/ai-ci
+branch	debian-runner-policy
+pr	-
+trigger_commit	dc468bcbf5126153e993b1cb3cc25a8d723865f1
+leader_platform	repository-policy
+leader_arch	source
+leader_evidence	github/README.md
+artifact	-
+artifact_sha256	-
+follower_platform	hetzner-debian-13
+follower_arch	x86_64
+required	yes
+action	Register a repository-level GitHub Actions runner on the maintained Hetzner Debian 13 x86-64 host with self-hosted, linux, and debian labels; provision the checked-in workflow dependencies; then execute the exact source state.
+acceptance_kind	runtime
+acceptance_action	Record the real runner OS and service identity plus an exact-commit GitHub workflow execution result and evidence URL.
+state	pending
+last_attempt_commit	-
+blocker	Repository-side policy is implemented; runner registration, online service state, provisioning, and execution have not been demonstrated.
+evidence	-
+depends_on	-
+reason	Do not infer Hetzner or GitHub runner acceptance from checked-in runs-on labels.
+superseded_by	-
+follow_policy	exact
