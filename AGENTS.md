@@ -93,3 +93,22 @@ every repository.
   moved forward.
 - See [`docs/followers.md`](docs/followers.md) and use `src/aici_followers.c` to
   verify, list pending followers, and render the exact-trigger matrix.
+
+## GitHub runner enforcement
+
+- Maintained Linux GitHub Actions jobs use exactly `[self-hosted, linux, debian]`.
+  Do not introduce `ubuntu-*`, `windows-*`, `macos-*`, dynamic `runs-on`, or a
+  different self-hosted label set except through a concrete reviewed exception
+  accepted by `src/aici_github.c`.
+- A public repository workflow that listens to `pull_request` must guard every
+  self-hosted Debian job at job scope so fork PRs skip before runner assignment.
+  Step-level guards do not satisfy this requirement.
+- Checked-in runner labels are configuration, not runtime evidence. Do not call a
+  Debian follower registered, online, provisioned, or accepted without the real
+  runner/service and an exact-head execution receipt.
+- When phone/tablet work changes workflows, runner setup, packages, toolchains,
+  or other CI requirements, update the consumer's Debian follower work as part
+  of the same change. A pending or blocked follower job is valid durable state;
+  invented acceptance is not.
+- See [`github/README.md`](github/README.md) and use the `github/` action to scan
+  repository workflow policy.
