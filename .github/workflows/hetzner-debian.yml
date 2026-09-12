@@ -1,0 +1,50 @@
+name: hetzner-debian
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/hetzner-debian.yml'
+      - 'tests/hetzner-debian.sh'
+  pull_request:
+    paths:
+      - '.github/workflows/hetzner-debian.yml'
+      - 'tests/hetzner-debian.sh'
+  workflow_dispatch:
+
+jobs:
+  debian-base:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - debian:12-slim
+          - debian:13-slim
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify Debian package substrate
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v "$PWD:/ai-ci:ro" \
+            "${{ matrix.image }}" \
+            sh /ai-ci/tests/hetzner-debian.sh base
+
+  catfood-current-debian-13:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Provision current Catfood from a fresh Debian root console
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v "$PWD:/ai-ci:ro" \
+            -e CATFOOD_REF=main \
+            -e CATFOOD_DEPTH=1 \
+            -e CATFOOD_NO_PROFILE=1 \
+            debian:13-slim \
+            sh /ai-ci/tests/hetzner-debian.sh catfood
