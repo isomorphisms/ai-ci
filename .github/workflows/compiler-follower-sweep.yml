@@ -1,0 +1,130 @@
+name: compiler follower sweep
+
+on:
+  push:
+    paths:
+      - 'compiler-followers/**'
+      - '.github/workflows/compiler-follower-sweep.yml'
+  pull_request:
+    paths:
+      - 'compiler-followers/**'
+      - '.github/workflows/compiler-follower-sweep.yml'
+  schedule:
+    - cron: '23 10 * * *'
+  workflow_dispatch:
+    inputs:
+      upstream_ref:
+        description: ARM/Thumb branch to inspect instead of main
+        required: false
+        default: main
+
+permissions:
+  contents: read
+
+jobs:
+  policy-self-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate follower policy
+        shell: sh
+        run: sh compiler-followers/validate-policy.sh compiler-followers/policy.tsv
+      - name: Prove unsafe fixtures are rejected
+        shell: sh
+        run: |
+          for fixture in compiler-followers/tests/bad-*.tsv; do
+            if sh compiler-followers/validate-policy.sh "$fixture"; then
+              echo "unsafe fixture was accepted: $fixture" >&2
+              exit 1
+            fi
+          done
+      - name: Test full receipts and read-only checkpoint proposals
+        shell: sh
+        run: sh compiler-followers/tests/test-sweep-validator.sh
+      - name: Validate referenced branches exist
+        shell: sh
+        run: |
+          tail -n +2 compiler-followers/policy.tsv |
+          while IFS="$(printf '\t')" read -r target repository ref layer stage mode isa_close device_close scope rule; do
+            remote="https://github.com/$repository.git"
+            if ! git ls-remote --exit-code --heads "$remote" "refs/heads/$ref" >/dev/null; then
+              echo "missing follower ref: $target -> $repository:$ref" >&2
+              exit 1
+            fi
+          done
+
+  full-sweep-receipt:
+    needs: policy-self-test
+    runs-on: ubuntu-24.04
+    env:
+      REQUESTED_REF: ${{ inputs.upstream_ref }}
+      # Immutable event SHAs, not a moving base branch or the candidate checkpoint.
+      BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before || github.sha }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Report accumulated delta and check full-sweep receipt
+        shell: sh
+        run: |
+          set -eu
+          ref=${REQUESTED_REF:-main}
+          git check-ref-format "refs/heads/$ref" >/dev/null
+          checkpoint=$(cat compiler-followers/arm-thumb.checkpoint)
+          printf '%s\n' "$checkpoint" | grep -Eq '^[0-9a-f]{40}$'
+          work=$(mktemp -d)
+          trap 'rm -rf "$work"' EXIT HUP INT TERM
+          # Fetch the selected branch once, with all ancestry. This head is the snapshot.
+          git init --quiet "$work/upstream"
+          git -C "$work/upstream" remote add origin https://github.com/isomorphisms/idric-arm-thumb.git
+          git -C "$work/upstream" fetch --quiet --no-tags --filter=blob:none origin "+refs/heads/$ref:refs/remotes/origin/sweep"
+          latest=$(git -C "$work/upstream" rev-parse 'refs/remotes/origin/sweep^{commit}')
+          {
+            echo '## ARM/Thumb follower sweep (read-only)'
+            echo
+            echo "- Selected ref: \`$ref\`"
+            echo "- Stored checkpoint: \`$checkpoint\`"
+            echo "- Resolved upstream snapshot: \`$latest\`"
+            echo '- Policy issue: isomorphisms/ai-ci#20; draft PR #22 is not a merge-readiness claim.'
+            echo
+            echo '### Accumulated delta'
+            if git -C "$work/upstream" merge-base --is-ancestor "$checkpoint" "$latest"; then
+              git -C "$work/upstream" log --reverse --topo-order --format='- `%H` %s' "$checkpoint..$latest"
+            else
+              echo 'Checkpoint is not an ancestor of this ref. No advancement is permitted.'
+            fi
+            echo
+            echo '### Per-target policy (not implementation evidence)'
+            echo
+            echo '| target | repository / ref | layer | stage | mode | ISA close | device close | scope | target rule |'
+            echo '| --- | --- | --- | --- | --- | --- | --- | --- | --- |'
+            awk -F '\t' 'NR > 1 { printf "| %s | `%s:%s` | %s | %s | %s | %s | %s | %s | %s |\n", $1, $2, $3, $4, $5, $6, $7, $8, $9, $10 }' compiler-followers/policy.tsv
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+          export UPSTREAM_GIT="$work/upstream"
+          if sh compiler-followers/check-checkpoint.sh "$BASE_SHA" "$latest" "$ref" > "$work/result.tsv" 2> "$work/errors"; then
+            cat "$work/result.tsv"
+            {
+              echo '### Machine-checked receipt'
+              echo '```tsv'
+              cat "$work/result.tsv"
+              echo '```'
+              echo 'Coverage is checked; review correctness, target execution, checkpoint approval and merge readiness are not inferred.'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            cat "$work/errors" >&2
+            {
+              echo '### Receipt: FAIL'
+              echo 'The complete selected delta has not passed this receipt gate. Checkpoint and followers were not modified.'
+              echo '```text'
+              cat "$work/errors"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi

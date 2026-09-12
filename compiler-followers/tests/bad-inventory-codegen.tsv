@@ -1,0 +1,3 @@
+target	repository	ref	layer	stage	mode	isa_closeness	device_closeness	scope	rule
+arm-thumb	isomorphisms/idric-arm-thumb	main	cpu-codegen	authority-active	authority	exact	exact	test	authority row
+power	isomorphisms/idric-big-iron	arch/power	architecture-catalog	implementation-planned	boring-native	low	low	test	inventory branch must not masquerade as executable backend

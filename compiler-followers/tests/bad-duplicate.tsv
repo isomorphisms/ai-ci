@@ -1,0 +1,5 @@
+target	repository	ref	layer	stage	mode	isa_closeness	device_closeness	scope	rule
+arm-thumb	isomorphisms/idric-arm-thumb	main	cpu-codegen	authority-active	authority	exact	exact	test	authority row
+same	isomorphisms/example	main	cpu-codegen	implementation-planned	boring-native	low	low	test	first row
+same	isomorphisms/example	other	architecture-catalog	inventory-only	selective	low	low	test	duplicate target must be rejected
+
