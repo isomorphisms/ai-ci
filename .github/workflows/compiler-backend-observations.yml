@@ -1,0 +1,114 @@
+name: observe Idris compiler backends
+
+on:
+  push:
+    paths:
+      - compiler_backends/**
+      - .github/workflows/compiler-backend-observations.yml
+  pull_request:
+    paths:
+      - compiler_backends/**
+      - .github/workflows/compiler-backend-observations.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  observe:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out AICI
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Check out active Idriç ARM/Thumb backend
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphisms/idric-arm-thumb
+          ref: idric-ir-first-slice
+          path: _backends/idric-arm-thumb
+
+      - name: Check out Idris ARM backend
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphisms/idris-arm-backend
+          ref: main
+          path: _backends/idris-arm-backend
+
+      - name: Check out active FP16 GLSL ES backend
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphisms/idris-shader-backend
+          ref: soap-f16-mode
+          path: _backends/idris-shader-backend
+
+      - name: Check out Algebraic Variety Explorer FP16 consumer
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphisms/algebraic-variety-explorer-mobile
+          ref: dogfood/idris-shader-f16
+          path: _consumers/algebraic-variety-explorer-mobile
+
+      - name: Self-test deterministic observer
+        run: python3 -m unittest discover -s compiler_backends/tests -p 'test_*.py'
+
+      - name: Measure the same feature surface across backends
+        run: |
+          python3 compiler_backends/probe.py \
+            --matrix compiler_backends/probes.tsv \
+            --root idric-arm-thumb=_backends/idric-arm-thumb \
+            --root idris-arm-backend=_backends/idris-arm-backend \
+            --root idris-shader-backend=_backends/idris-shader-backend \
+            --output compiler-backend-observations.tsv
+
+      - name: Measure FP16 and PowerVR implementation surface
+        run: |
+          python3 compiler_backends/probe.py \
+            --matrix compiler_backends/fp16_probes.tsv \
+            --root idris-shader-backend=_backends/idris-shader-backend \
+            --output fp16-powervr-observations.tsv
+
+      - name: Measure downstream FP16 consumer surface
+        run: |
+          python3 compiler_backends/probe.py \
+            --matrix compiler_backends/fp16_consumers.tsv \
+            --root algebraic-variety-explorer-mobile=_consumers/algebraic-variety-explorer-mobile \
+            --output fp16-consumer-observations.tsv
+
+      - name: Verify established FP16 and PowerVR baseline
+        run: |
+          python3 compiler_backends/fp16_baseline.py \
+            --expected compiler_backends/fp16_expected.tsv \
+            --observations fp16-powervr-observations.tsv
+
+      - name: Record observed revisions
+        run: |
+          {
+            printf 'source\tref\trevision\n'
+            printf 'idric-arm-thumb\tidric-ir-first-slice\t%s\n' "$(git -C _backends/idric-arm-thumb rev-parse HEAD)"
+            printf 'idris-arm-backend\tmain\t%s\n' "$(git -C _backends/idris-arm-backend rev-parse HEAD)"
+            printf 'idris-shader-backend\tsoap-f16-mode\t%s\n' "$(git -C _backends/idris-shader-backend rev-parse HEAD)"
+            printf 'algebraic-variety-explorer-mobile\tdogfood/idris-shader-f16\t%s\n' "$(git -C _consumers/algebraic-variety-explorer-mobile rev-parse HEAD)"
+          } > compiler-backend-revisions.tsv
+
+      - name: Publish observation in the job summary
+        run: |
+          {
+            echo '### Compiler backend observations'
+            echo
+            echo '```text'
+            cat compiler-backend-revisions.tsv
+            echo
+            cat compiler-backend-observations.tsv
+            echo
+            echo 'FP16 / PowerVR surface:'
+            cat fp16-powervr-observations.tsv
+            echo
+            echo 'Downstream FP16 consumer surface:'
+            cat fp16-consumer-observations.tsv
+            echo '```'
+            echo
+            echo 'Established FP16 policy, tests, and whole-shader compiler facts are gated by fp16_expected.tsv.'
+            echo 'The Algebraic Variety Explorer rows observe an independent downstream compile gate; they do not claim runtime PowerVR framebuffer evidence.'
+            echo 'Mixed-width IR, explicit conversion, source-level F16, and real-device evidence remain separate milestones.'
+          } >> "$GITHUB_STEP_SUMMARY"
