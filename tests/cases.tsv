@@ -47,6 +47,10 @@ pass	contracts/coupled-substitution-v0.contract.tsv	tests/fixtures/coupled-good	
 fail	contracts/coupled-substitution-v0.contract.tsv	tests/fixtures/coupled-bad-signature	COUPLED-RESULT
 fail	contracts/coupled-substitution-v0.contract.tsv	tests/fixtures/coupled-bad-precheck	COUPLED-PRECHECK
 fail	contracts/coupled-substitution-v0.contract.tsv	tests/fixtures/coupled-bad-partial	COUPLED-NO-STANDALONE
+pass	contracts/blackball-verdict-v0.contract.tsv	tests/fixtures/blackball-verdicts-good	-
+fail	contracts/blackball-verdict-v0.contract.tsv	tests/fixtures/blackball-verdicts-empty	BLACKBALL-VERDICTS-EMPTY
+fail	contracts/blackball-verdict-v0.contract.tsv	tests/fixtures/blackball-verdicts-bad-header	BLACKBALL-VERDICTS-HEADER
+fail	contracts/blackball-verdict-v0.contract.tsv	tests/fixtures/blackball-verdicts-bad-fields	BLACKBALL-VERDICTS-FIELDS
 pass	contracts/catfood-idric-cli-v0.contract.tsv	tests/fixtures/catfood-idric-cli-good	-
 fail	contracts/catfood-idric-cli-v0.contract.tsv	tests/fixtures/catfood-idric-cli-missing-tools	CATFOOD-TOOLS-EMPTY
 fail	contracts/catfood-idric-cli-v0.contract.tsv	tests/fixtures/catfood-idric-cli-missing-link	CATFOOD-IDRIC-CLI
