@@ -6,6 +6,13 @@ actual F-Droid build and review jobs. It does not treat an upstream Gradle build
 as an F-Droid build, and it does not turn “the command ran” into “the release is
 accepted.”
 
+For candidate releases, ai-ci requires Triple-T as the upstream localized
+source-metadata layout under `<module>/src/main/play`. The receipt check is still
+named `fastlane` because the pinned fdroiddata checker is named
+`tools/check-fastlane.py`; under this contract, that legacy key passes only when
+the consumed source metadata is Triple-T and a legacy Fastlane source tree is
+not available as a fallback.
+
 The gate binds every observation to:
 
 - one full immutable source revision;
@@ -121,7 +128,7 @@ The candidate profile requires these check names:
 | `update-check` | The current fdroiddata update check made no unexpected change. |
 | `git-redirect` | The repository URL is direct rather than a redirect. |
 | `metadata-tools` | Current fdroiddata localized-metadata, image/EXIF, summary, and signature checks passed. |
-| `fastlane` | Run the current fdroiddata source/Fastlane check, inspect its code-quality JSON rather than trusting exit zero, and require the release title, en-US summary and full description, icon, screenshots, and version-code changelog. |
+| `fastlane` | Legacy receipt key for F-Droid's `tools/check-fastlane.py`: require the source metadata actually consumed by the pinned fdroiddata checker to be Triple-T under `<module>/src/main/play`, reject a legacy Fastlane source tree that could be selected instead, inspect the checker's code-quality JSON rather than trusting exit zero, and require the release title, en-US summary and full description, icon, screenshots, and release note. |
 | `fdroid-build` | The production-like buildserver job built the declared app/version from source with scanner refresh enabled. |
 | `gradle-audit` | Current fdroiddata Gradle audit passed. At the pinned snapshot this only rejects plain-HTTP Gradle repositories. |
 | `build-input-pinning` | The exact Gradle distribution selected by F-Droid and its digest, build plugins, required JDK/SDK/NDK/CMake inputs, and dependency closure are immutable and recorded; dynamic versions, snapshots, and mutable source/tool refs block unless resolved to a preserved immutable closure. |
