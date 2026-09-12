@@ -1,0 +1,25 @@
+schema	aici-follower-job-v1
+job_id	native-boundary-aarch64-16k
+repository	isomorphisms/ai-ci
+branch	native-bionic-boundary
+pr	86
+trigger_commit	db58a65c1076e4e70c73299ecc79396045672463
+leader_platform	local-debian-container
+leader_arch	x86_64
+leader_evidence	native-boundary/README.md
+artifact	-
+artifact_sha256	-
+follower_platform	android-16k-runtime
+follower_arch	aarch64
+required	yes
+action	Execute the exact-source AArch64 bundle on an independently identified Android emulator or device whose runtime page size is actually 16384 bytes. Verify archive digest and run sh bundle/run.sh in a fresh directory.
+acceptance_kind	runtime
+acceptance_action	Require page_size=16384 in both probe logs, both offset-mode results passing, ELF/load evidence, image or device identity and exact source/artifact digest. Classify emulator versus physical device explicitly.
+state	blocked
+last_attempt_commit	-
+blocker	No 16-KiB Android execution environment or exact-source AArch64 bundle is available in this session.
+evidence	-
+depends_on	native-boundary-aarch64-build
+reason	Successful linking with 16-KiB alignment or execution on a 4-KiB system does not establish 16-KiB runtime compatibility.
+superseded_by	-
+follow_policy	exact
