@@ -1,0 +1,27 @@
+name: Shader codegen receipt policy
+
+on:
+  push:
+    paths:
+      - "shader-codegen/**"
+      - "complex-projective/README.md"
+      - ".github/workflows/shader-codegen-policy.yml"
+  pull_request:
+    paths:
+      - "shader-codegen/**"
+      - "complex-projective/README.md"
+      - ".github/workflows/shader-codegen-policy.yml"
+  workflow_dispatch:
+
+jobs:
+  receipt-policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run rejecting and accepting receipt fixtures
+        run: python shader-codegen/verify_receipt.py self-test
+      - name: Verify the checked-in example receipt
+        run: python shader-codegen/verify_receipt.py verify shader-codegen/receipt-v1.example.tsv
