@@ -1,0 +1,36 @@
+name: ai-ci equality assignment observer
+description: Observe an LHS/RHS discrepancy signal without turning discrepancy magnitude into a build verdict
+inputs:
+  signal:
+    description: Path to UTF-8 equality-sign-means-equality output
+    required: true
+  lhs:
+    description: Human-readable left-hand side for this assignment observation
+    required: true
+  rhs:
+    description: Human-readable right-hand side for this assignment observation
+    required: true
+  benchmark-iterations:
+    description: Optional adapter-only benchmark iterations; 0 disables the benchmark
+    required: false
+    default: '0'
+runs:
+  using: composite
+  steps:
+    - name: Compile equality observer
+      shell: sh
+      run: cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o "$RUNNER_TEMP/aici-equality" "$GITHUB_ACTION_PATH/../src/aici_equality.c" -lm
+    - name: Observe assignment discrepancy and warning
+      shell: sh
+      env:
+        AICI_EQUALITY_SIGNAL: ${{ inputs.signal }}
+        AICI_EQUALITY_LHS: ${{ inputs.lhs }}
+        AICI_EQUALITY_RHS: ${{ inputs.rhs }}
+      run: '"$RUNNER_TEMP/aici-equality" assignment "$AICI_EQUALITY_SIGNAL" "$AICI_EQUALITY_LHS" "$AICI_EQUALITY_RHS"'
+    - name: Benchmark assignment observer
+      if: ${{ inputs.benchmark-iterations != '0' }}
+      shell: sh
+      env:
+        AICI_EQUALITY_SIGNAL: ${{ inputs.signal }}
+        AICI_EQUALITY_BENCHMARK_ITERATIONS: ${{ inputs.benchmark-iterations }}
+      run: '"$RUNNER_TEMP/aici-equality" bench "$AICI_EQUALITY_SIGNAL" "$AICI_EQUALITY_BENCHMARK_ITERATIONS"'
