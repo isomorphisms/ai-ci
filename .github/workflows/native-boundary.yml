@@ -1,0 +1,46 @@
+name: Native libc boundary
+
+on:
+  push:
+    paths: ['native-boundary/**', '.github/workflows/native-boundary.yml']
+  pull_request:
+    paths: ['native-boundary/**', '.github/workflows/native-boundary.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-boundary:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, linux, debian]
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [host, armv7a, aarch64]
+    steps:
+      - name: Check Debian build environment
+        shell: bash
+        run: |
+          set -eu
+          . /etc/os-release
+          test "$ID" = debian
+          test "$(uname -m)" = x86_64
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Build native probes and run available host checks
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+          OUTPUT: ${{ runner.temp }}/native-boundary-${{ matrix.target }}-${{ github.run_id }}-${{ github.run_attempt }}
+        run: bash native-boundary/build.sh "$TARGET" "$OUTPUT"
+      - name: Retain exact-source bundle, ELF inspection and available receipts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: native-boundary-${{ matrix.target }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/native-boundary-${{ matrix.target }}-${{ github.run_id }}-${{ github.run_attempt }}/
+          if-no-files-found: error
