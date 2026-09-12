@@ -1,0 +1,59 @@
+name: Cat Food bare-cloud acceptance
+
+on:
+  push:
+    paths:
+      - ".github/workflows/catfood-cloud.yml"
+      - "catfood/**"
+  pull_request:
+    paths:
+      - ".github/workflows/catfood-cloud.yml"
+      - "catfood/**"
+  schedule:
+    - cron: "23 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  provision-and-exercise:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    container:
+      image: ubuntu:noble-20260810@sha256:33ceb71981b602c1a7443a53469e4dba065f7503eab3078a2d7a57a2ab987517
+    env:
+      DEBIAN_FRONTEND: noninteractive
+    steps:
+      - name: Run Cat Food's first README command block
+        shell: sh
+        run: |
+          apt-get update
+          apt-get install -y git ca-certificates
+          mkdir -p /opt
+
+          git clone https://github.com/isomorphisms/catfood.git /opt/catfood
+          cd /opt/catfood
+          ./provision.sh
+
+      - name: Prove the documented entry point was exercised
+        shell: sh
+        run: |
+          grep -Fx 'The normal full-setup entry point is **`./provision.sh`**.' \
+            /opt/catfood/README.md
+
+      - name: Fetch the exact ai-ci fixtures under test
+        env:
+          AICI_REF: ${{ github.event.pull_request.head.sha || github.sha }}
+        shell: sh
+        run: |
+          git init -q /opt/ai-ci-under-test
+          git -C /opt/ai-ci-under-test remote add origin \
+            https://github.com/isomorphisms/ai-ci.git
+          git -C /opt/ai-ci-under-test fetch --depth 1 origin "$AICI_REF"
+          git -C /opt/ai-ci-under-test checkout --detach -q FETCH_HEAD
+          test "$(git -C /opt/ai-ci-under-test rev-parse HEAD)" = "$AICI_REF"
+
+      - name: Run exact-output language and tool fixtures
+        shell: sh
+        run: sh /opt/ai-ci-under-test/catfood/run-fixtures.sh /opt/ai-ci-under-test/catfood/fixtures

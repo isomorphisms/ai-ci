@@ -1,0 +1,16 @@
+module Main
+
+%default total
+
+choice signal one_of
+  red
+  amber
+  green
+
+signal_name : signal → String
+signal_name red = "red"
+signal_name amber = "amber"
+signal_name green = "green"
+
+main : IO ()
+main = putStrLn ("idric=" ++ signal_name green)
