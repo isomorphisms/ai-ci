@@ -1,0 +1,3 @@
+target	repository	ref	role	math_ir	language	precision	resources	execution	host_boundary	evidence	rule
+powervr-phone	isomorphisms/idris-shader-backend	target/powervr-ge8322-gles	phone-reference	reference	local	measure	local	local	local	device-driver	first copy
+powervr-phone	isomorphisms/idris-shader-backend	target/powervr-ge8322-gles	phone-reference	reference	local	measure	local	local	local	device-driver	duplicate copy
