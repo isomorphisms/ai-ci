@@ -1,0 +1,25 @@
+schema	aici-follower-job-v1
+job_id	native-boundary-debian
+repository	isomorphisms/ai-ci
+branch	native-bionic-boundary
+pr	86
+trigger_commit	db58a65c1076e4e70c73299ecc79396045672463
+leader_platform	local-debian-container
+leader_arch	x86_64
+leader_evidence	docs/native-boundary-validation-2026-09-11.md
+artifact	-
+artifact_sha256	-
+follower_platform	hetzner-debian-13
+follower_arch	x86_64
+required	yes
+action	Check out the exact trigger commit on the registered Debian x86-64 runner; provision C17 headers/compiler, Bash, sh, Git, awk, coreutils, readelf, tar and gzip; run bash native-boundary/build.sh host with a fresh output directory.
+acceptance_kind	runtime
+acceptance_action	Retain actual runner/service and OS identity, exact source SHA, compiler commands, both offset-mode native/self-test results, damaged-bundle rejections, artifact digest and workflow URL.
+state	pending
+last_attempt_commit	-
+blocker	Local byte-matched Debian/glibc checks passed; execution on the actual registered GitHub/Hetzner follower is not established.
+evidence	-
+depends_on	github-debian-runner
+reason	Local container execution does not establish registration, provisioning or execution on the maintained Debian follower.
+superseded_by	-
+follow_policy	exact

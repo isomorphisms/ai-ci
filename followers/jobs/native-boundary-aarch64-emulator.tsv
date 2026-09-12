@@ -1,0 +1,25 @@
+schema	aici-follower-job-v1
+job_id	native-boundary-aarch64-emulator
+repository	isomorphisms/ai-ci
+branch	native-bionic-boundary
+pr	86
+trigger_commit	db58a65c1076e4e70c73299ecc79396045672463
+leader_platform	local-debian-container
+leader_arch	x86_64
+leader_evidence	native-boundary/README.md
+artifact	-
+artifact_sha256	-
+follower_platform	android-emulator
+follower_arch	aarch64
+required	yes
+action	Run the exact-source AArch64 bundle in an identified Android emulator, with matching ABI and API at least 24, after verifying the trusted archive digest. Invoke sh bundle/run.sh in a writable executable directory and preserve all outputs.
+acceptance_kind	runtime
+acceptance_action	Bind emulator implementation/system-image identity, API, actual page size, exact source, archive/binary digests and both offset-mode results. Keep emulator identity explicit and do not mark any physical-device job accepted.
+state	blocked
+last_attempt_commit	-
+blocker	No Android emulator or exact-source AArch64 runtime bundle is available in this session.
+evidence	-
+depends_on	native-boundary-aarch64-build
+reason	An Android runtime observation is needed separately from compilation and from physical-device acceptance.
+superseded_by	-
+follow_policy	exact

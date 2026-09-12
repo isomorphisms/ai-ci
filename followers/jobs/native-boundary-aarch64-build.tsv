@@ -1,0 +1,25 @@
+schema	aici-follower-job-v1
+job_id	native-boundary-aarch64-build
+repository	isomorphisms/ai-ci
+branch	native-bionic-boundary
+pr	86
+trigger_commit	db58a65c1076e4e70c73299ecc79396045672463
+leader_platform	local-debian-container
+leader_arch	x86_64
+leader_evidence	docs/native-boundary-validation-2026-09-11.md
+artifact	-
+artifact_sha256	-
+follower_platform	debian-ndk-bionic-api24
+follower_arch	aarch64
+required	yes
+action	On Debian x86-64 provision Android NDK 27.3.13750724; check out the exact trigger commit; set ANDROID_NDK_HOME and run bash native-boundary/build.sh aarch64 with a fresh output directory.
+acceptance_kind	build
+acceptance_action	Require both offset-mode builds, actual AArch64 ELF64 PIE/interpreter/dependency checks, 16-KiB LOAD/RELRO alignment checks, bundle digest and exact compiler/NDK/source logs. Build alignment is not 16-KiB runtime evidence.
+state	blocked
+last_attempt_commit	-
+blocker	No pinned NDK is available in the current local environment; no exact-source AArch64 build result has been established.
+evidence	-
+depends_on	github-debian-runner
+reason	AArch64 remains a distinct target; aligned ELF files do not prove target execution.
+superseded_by	-
+follow_policy	exact
