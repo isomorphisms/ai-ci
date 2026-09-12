@@ -200,6 +200,8 @@ explicit reviewed exception. A checked-in label is not runner-registration or
 execution evidence.
 
 See `docs/evaluation-protocol.md` for the normative evaluation method,
-`research/llm-failure-modes.md` for the empirical basis, and
+`research/llm-failure-modes.md` for the empirical basis,
+`research/repository-context-methodology.md` for the boundary among retrieval,
+in-context learning, training, and constrained decision state, and
 `docs/failure-ledger.md` for the reconstructed incident classes. The next
 contracts are in `docs/roadmap.md`.
