@@ -1,5 +1,6 @@
 backend	metric	path	needle
-algebraic-variety-explorer-mobile	fp16.consumer.ave.backend_revision_pin	.github/workflows/idris-shader-dogfood.yml	SHADER_BACKEND_REVISION: 66214e3da0443fe4887062549e9ef5810c586dd7
+algebraic-variety-explorer-mobile	fp16.consumer.ave.backend_declared_ref	.github/workflows/idris-shader-dogfood.yml	SHADER_BACKEND_REF: soap-f16-mode
+algebraic-variety-explorer-mobile	fp16.consumer.ave.backend_resolved_receipt	ci/check-idris-shader-dogfood.sh	dependent_resolved_sha
 algebraic-variety-explorer-mobile	fp16.consumer.ave.f16_compile	ci/check-idris-shader-dogfood.sh	compile_width f16 surfer-f16
 algebraic-variety-explorer-mobile	fp16.consumer.ave.f32_compile	ci/check-idris-shader-dogfood.sh	compile_width f32 surfer-f32
 algebraic-variety-explorer-mobile	fp16.consumer.ave.f16_ir_and_mediump	ci/check-idris-shader-dogfood.sh	check_width f16 F16 mediump F32 highp

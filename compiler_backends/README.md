@@ -26,10 +26,11 @@ still-open mixed-width IR, explicit conversion, source-level F16, and real
 PowerVR framebuffer milestones independently.
 
 `fp16_consumers.tsv` observes the Algebraic Variety Explorer dogfood gate. That
-consumer pins an exact shader-backend revision and compiles the bounded Surfer
-root-search path as both F16 and F32, validates the generated GLSL, and rejects
-F64. Those rows prove that the downstream test surface exists; the consumer's
-own CI run is the stronger compile evidence.
+consumer follows the declared shader-backend branch `soap-f16-mode`, records
+the exact SHA resolved for each run, and compiles the bounded Surfer root-search
+path as both F16 and F32, validates the generated GLSL, and rejects F64. Those
+rows prove that the downstream test surface exists; the consumer's own CI run
+is the stronger compile evidence.
 
 `probe.py` reads exact UTF-8 source files and exact literal needles and emits a
 stable TSV. It performs no language-model inference and no fuzzy matching.
