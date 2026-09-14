@@ -93,3 +93,22 @@ every repository.
   moved forward.
 - See [`docs/followers.md`](docs/followers.md) and use `src/aici_followers.c` to
   verify, list pending followers, and render the exact-trigger matrix.
+
+## GitHub runner enforcement
+
+- Ordinary maintained Linux GitHub Actions jobs use GitHub-hosted Ubuntu.
+  `ubuntu-latest` and concrete `ubuntu-*` labels do not need a special exception.
+- Do not recreate the superseded repository-wide self-hosted Debian rule or a
+  generic Debian follower merely to satisfy GitHub Actions policy.
+- A workload-specific self-hosted Debian job may use exactly
+  `[self-hosted, linux, debian]`. In a public `pull_request` workflow, that
+  self-hosted job still needs the same-repository job-level guard before runner
+  assignment. Hosted Ubuntu jobs do not.
+- Concrete Windows or macOS runners need a reviewed exact exception with a real
+  workload reason. Dynamic `runs-on` selection remains outside the source-audited
+  contract.
+- Checked-in runner labels are configuration, not runtime evidence. Do not infer
+  runner availability, provisioning, OS identity, or successful execution from
+  workflow text alone.
+- See [`github/README.md`](github/README.md) and use the `github/` action to scan
+  repository workflow policy.
