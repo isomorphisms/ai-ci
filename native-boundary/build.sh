@@ -9,7 +9,7 @@ target=$1
 output=$2
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 . /etc/os-release
-if [[ "$ID" != debian ]]; then echo 'requires a Debian build environment' >&2; exit 2; fi
+if [[ "$ID" != ubuntu ]]; then echo 'requires an Ubuntu build environment' >&2; exit 2; fi
 case "$target" in host|armv7a|aarch64) ;; *) echo 'unknown target' >&2; exit 2;; esac
 if [[ -e "$output" ]]; then echo 'output already exists; use a fresh directory' >&2; exit 2; fi
 revision=$(git -C "$root" rev-parse HEAD)
