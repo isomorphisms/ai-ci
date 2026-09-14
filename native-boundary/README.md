@@ -1,4 +1,4 @@
-# Native libc boundary: Bionic and the Debian/glibc follower
+# Native libc boundary: Bionic cross-builds and hosted-Linux checks
 
 This is a reusable **platform probe**, independent of curses. It exercises real
 libc calls through the selected C compiler/headers/linker. It is not a replacement
@@ -31,9 +31,9 @@ bad observations, not exhaustive coverage of every possible libc/ABI defect.
 
 ## Target matrix
 
-| Target | Compiler/libc | Offset builds | Execution here |
+| Target | Compiler/libc | Offset builds | Execution in GitHub CI |
 | --- | --- | --- | --- |
-| Debian x86-64 | native C17 / glibc | default and `_FILE_OFFSET_BITS=64` | Host checks run during build |
+| Ubuntu 24.04 x86-64 | native C17 / glibc | default and `_FILE_OFFSET_BITS=64` | Host checks run during build |
 | Android ARMv7a | NDK 27.3.13750724 / Bionic / API 24 | default and `_FILE_OFFSET_BITS=64` | Cross-build only |
 | Android AArch64 | same pinned NDK / Bionic / API 24 | default and `_FILE_OFFSET_BITS=64` | Cross-build only |
 
@@ -59,7 +59,7 @@ Use a clean checkout at the intended immutable commit. Output directories must
 be new: existing directories are rejected rather than recycled as evidence.
 The build scripts are an explicit Bash/POSIX-shell build/test boundary; the
 assertions and negative-test runner are C17. No Python, Java, Gradle, compiler
-backend, or package-manager bootstrap is introduced.
+backend, or package-manager bootstrap is introduced by the suite itself.
 
 ```sh
 bash native-boundary/build.sh host /tmp/native-host
@@ -69,15 +69,17 @@ ANDROID_NDK_HOME=/opt/android-ndk-r27d \
   bash native-boundary/build.sh aarch64 /tmp/native-aarch64
 ```
 
-Prerequisites: Debian, Bash/POSIX sh, a C17 compiler and development headers,
-Git, awk, coreutils, tar/gzip and readelf. Cross-building additionally requires
-exactly NDK `27.3.13750724` with its Linux x86-64 toolchain. Provisioning is outside
-the script: absent/wrong NDK is a failure, never another toolchain or runner OS.
+The checked-in build script expects an Ubuntu x86-64 build environment, Bash/POSIX
+sh, a C17 compiler and development headers, Git, awk, coreutils, tar/gzip and
+readelf. Cross-building additionally requires exactly NDK `27.3.13750724` with
+its Linux x86-64 toolchain. The GitHub workflow installs the host prerequisites
+and downloads and verifies that NDK itself; absent or wrong NDK remains a failure.
 
-GitHub jobs use `[self-hosted, linux, debian]`, check the userspace and architecture,
-guard fork PRs at job scope, use immutable action pins, and check out the event's
-exact source SHA. They do not establish runner registration or Hetzner execution
-just by containing those labels. There is no Ubuntu-hosted fallback here.
+GitHub jobs use `ubuntu-24.04`, immutable action pins, and check out the event's
+exact source SHA. There is no self-hosted runner, Debian-host requirement, or
+Hetzner dependency. ARMv7/AArch64 jobs use Ubuntu only as the build host; their
+actual Android ABI checks come from the pinned NDK compiler, headers, linker and
+inspected ELF output.
 
 The build records the actual checkout SHA, native-boundary tree, source hashes,
 compiler version, compiler commands, target/API/NDK, inspected ELF files and
@@ -142,8 +144,9 @@ Follow-up obligations remain explicit:
   result alongside it, including real page size, large offsets and error handling.
 - Grease/Ish: exercise actual native file/mapping/wait wrappers and retain the
   distinction between fd, handle, queue and other event-source representations.
-- Debian/Hetzner, ARMv7 runtime, AArch64 runtime and AArch64 16-KiB runtime each need
-  their own exact-source follower evidence; one cannot stand in for another.
+- Android emulator, ARMv7 physical runtime, AArch64 physical runtime and AArch64
+  16-KiB runtime each need their own exact-artifact evidence; one cannot stand in
+  for another.
 
 More API-specific coverage should be driven by real consumer imports, not by an
 invented universal libc checklist. Cancellation, realtime signal ABI, raw syscalls,
