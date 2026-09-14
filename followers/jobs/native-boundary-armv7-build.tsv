@@ -9,17 +9,17 @@ leader_arch	x86_64
 leader_evidence	docs/native-boundary-validation-2026-09-11.md
 artifact	-
 artifact_sha256	-
-follower_platform	debian-ndk-bionic-api24
+follower_platform	github-hosted-ubuntu-ndk-bionic-api24
 follower_arch	armv7a
 required	yes
-action	On Debian x86-64 provision Android NDK 27.3.13750724; check out the exact trigger commit; set ANDROID_NDK_HOME and run bash native-boundary/build.sh armv7a with a fresh output directory.
+action	Run the exact-source GitHub-hosted Ubuntu matrix job with Android NDK 27.3.13750724 and target armv7a.
 acceptance_kind	build
 acceptance_action	Require both default and large-file builds, actual ARM ELF32 PIE/interpreter/dependency inspection, full bundle checksums, exact compiler/NDK/source identity and retained build logs. Attach the resulting archive digest; do not claim Android execution.
-state	blocked
+state	pending
 last_attempt_commit	-
-blocker	No pinned NDK is available in the current local environment; no exact-source ARMv7 build result has been established.
+blocker	Exact-head GitHub-hosted Ubuntu execution has not yet completed.
 evidence	-
-depends_on	github-debian-runner
+depends_on	-
 reason	ARMv7 Bionic LP32 must not inherit host, AArch64 or historical ncurses build acceptance.
 superseded_by	-
 follow_policy	exact
