@@ -7,7 +7,7 @@ The local session had Debian 13 userspace, x86-64, GCC and Clang, but no Android
 NDK and no Android emulator or physical-device connection. Repository reads and
 writes succeeded, while direct container network access did not.
 
-## Evidence actually obtained
+## Evidence actually obtained locally
 
 - Both compilers passed strict C17 compilation (`-Wall -Wextra -Werror -pedantic -O2`).
 - For each compiler, both offset-mode self-tests passed: 34 positive native
@@ -38,7 +38,7 @@ Git blob identities:
 | README.md | 4375cac6bbb868d374c51679b03edd1dedb7cdcb |
 
 Byte-identical tested source is useful evidence, but the local receipt must not
-be relabeled as an exact remote-head, registered-runner execution.
+be relabeled as an exact remote-head execution.
 
 An additional exploratory GCC `-fanalyzer -Werror` invocation did not pass. It
 flagged intentional invalid-descriptor calls in the errno tests and early-return
@@ -46,13 +46,22 @@ resource cleanup (cases immediately exit their isolated process). No analyzer
 cleanliness claim is made, and this was not substituted for the strict compiler
 and executable tests above.
 
+## GitHub-hosted build evidence
+
+The self-hosted Debian requirement was removed. Exact-head GitHub Actions now run
+on `ubuntu-24.04`; the Android build jobs download and verify Android NDK
+27.3.13750724 themselves.
+
+At PR head `128adbc09a7f167ef971ff70ea905c36dea42c6d`, Native libc boundary run
+34848766075 completed successfully for host, ARMv7a and AArch64. The host job ran
+the executable probes. ARMv7a and AArch64 establish compile/link/ELF/package
+evidence only; they do not establish Android execution.
+
 ## Outstanding evidence
 
-The two pinned-NDK cross-builds, actual Debian/Hetzner runner execution, Android
-emulator execution, ARMv7 physical phone, AArch64 physical tablet and AArch64
-16-KiB runtime have separate durable records in `followers/jobs/native-boundary-*.tsv`.
-Those records follow the implementation commit above; the later ledger commit
-adds no native implementation changes. None is accepted by this local report.
+Android emulator execution, ARMv7 physical phone, AArch64 physical tablet and
+AArch64 16-KiB runtime remain separate durable acceptance boundaries. Cross-build
+success does not satisfy those runtime obligations.
 
 Consumer-specific calls through JNI, compiler bindings, IB mapped storage and
 Grease/Ish wrappers are also not tested by this standalone C suite. Consumers must
