@@ -77,24 +77,15 @@ jobs:
           arch: x86_64
           disable-animations: true
           script: |
-            set -eu
-            revision=$(git rev-parse HEAD)
-            remote=/data/local/tmp/aici-native-boundary
-            receipts="$OUTPUT/emulator-runtime-$LANE"
-            adb shell "rm -rf $remote && mkdir -p $remote"
-            adb push "$OUTPUT/bundle" "$remote/"
-            adb shell "chmod 755 $remote/bundle/probe-default $remote/bundle/probe-largefile"
-            adb shell "cd $remote && sh bundle/run.sh receipts"
-            mkdir "$receipts"
-            adb pull "$remote/receipts/." "$receipts/"
-            for file in default.tsv largefile.tsv; do
-              grep -F "$(printf 'source\t%s' "$revision")" "$receipts/$file"
-              grep -F "$(printf 'libc\tbionic')" "$receipts/$file"
-              grep -F "$(printf 'page_size\t%s' "$EXPECTED_PAGE_SIZE")" "$receipts/$file"
-              grep -F "$(printf 'summary\tPASS\tfailures=0')" "$receipts/$file"
-            done
-            grep -F "$(printf 'execution_class\tandroid-runtime-unclassified')" "$receipts/runtime.tsv"
-            grep -F "$(printf 'result\tPASS')" "$receipts/runtime.tsv"
+            adb shell 'rm -rf /data/local/tmp/aici-native-boundary && mkdir -p /data/local/tmp/aici-native-boundary'
+            adb push "$OUTPUT/bundle" /data/local/tmp/aici-native-boundary/
+            adb shell 'chmod 755 /data/local/tmp/aici-native-boundary/bundle/probe-default /data/local/tmp/aici-native-boundary/bundle/probe-largefile'
+            adb shell 'cd /data/local/tmp/aici-native-boundary && sh bundle/run.sh receipts'
+            mkdir "$OUTPUT/emulator-runtime-$LANE"
+            adb pull /data/local/tmp/aici-native-boundary/receipts/. "$OUTPUT/emulator-runtime-$LANE/"
+            revision=$(git rev-parse HEAD); for file in default.tsv largefile.tsv; do grep -F "$(printf 'source\t%s' "$revision")" "$OUTPUT/emulator-runtime-$LANE/$file"; grep -F "$(printf 'libc\tbionic')" "$OUTPUT/emulator-runtime-$LANE/$file"; grep -F "$(printf 'page_size\t%s' "$EXPECTED_PAGE_SIZE")" "$OUTPUT/emulator-runtime-$LANE/$file"; grep -F "$(printf 'summary\tPASS\tfailures=0')" "$OUTPUT/emulator-runtime-$LANE/$file"; done
+            grep -F "$(printf 'execution_class\tandroid-runtime-unclassified')" "$OUTPUT/emulator-runtime-$LANE/runtime.tsv"
+            grep -F "$(printf 'result\tPASS')" "$OUTPUT/emulator-runtime-$LANE/runtime.tsv"
 
       - name: Retain exact bundle and emulator runtime receipts
         if: always()
