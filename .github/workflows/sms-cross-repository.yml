@@ -46,15 +46,13 @@ jobs:
           repository: isomorphisms/Idric
           ref: ${{ env.IDRIC_REF }}
           path: _Idric
-      - name: Install current Idriç bootstrap dependency
+      - name: Install current Idriç bootstrap dependencies
         shell: sh
         run: |
           sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends chezscheme
+          sudo apt-get install --yes --no-install-recommends build-essential curl
       - name: Run executable SMS receipt and hostile self-tests
         shell: bash
-        env:
-          IDRIS2_PREFIX: ${{ github.workspace }}/_Idric/bootstrap-build
         run: sms/run-cross-repository.sh _Idric-Net _grease _Idric
       - name: Retain exact current-head SMS evidence
         if: always()
