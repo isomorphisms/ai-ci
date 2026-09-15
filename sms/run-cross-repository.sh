@@ -10,14 +10,10 @@ aici=$(CDPATH='' cd -- "$here/.." && pwd)
 idric_net=$(CDPATH='' cd -- "$idric_net_input" && pwd)
 grease=$(CDPATH='' cd -- "$grease_input" && pwd)
 idric=$(CDPATH='' cd -- "$idric_input" && pwd)
-compiler="$idric/build/exec/idris2"
-idris_prefix=${IDRIS2_PREFIX:-"$idric/bootstrap-build"}
+compiler="$idric/_/build/exec/idris2"
+idris_prefix=${IDRIS2_PREFIX:-"$idric/_/bootstrap-build"}
 LD_LIBRARY_PATH="$idris_prefix/idris2-0.8.0/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export IDRIS2_PREFIX="$idris_prefix" LD_LIBRARY_PATH
-scheme=${IDRIC_SCHEME:-scheme}
-case "$scheme" in
-  */*) PATH="$(dirname -- "$scheme"):$PATH"; export PATH ;;
-esac
 receipt=${SMS_CURRENT_HEAD_RECEIPT:-"$aici/sms/build/current-head-receipt.tsv"}
 log=${SMS_CURRENT_HEAD_LOG:-"$aici/sms/build/current-head.log"}
 current_stage=compiler_build
@@ -83,7 +79,7 @@ run_logged() {
 
 current_stage=compiler_build
 if [[ ! -x "$compiler" ]]; then
-  run_logged make -C "$idric" bootstrap SCHEME="$scheme"
+  run_logged "$idric/_/edric" bootstrap
 fi
 run_logged "$compiler" --version
 passed="$passed compiler_build"
