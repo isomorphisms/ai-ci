@@ -1,0 +1,25 @@
+schema	aici-follower-job-v1
+job_id	native-boundary-armv7-build
+repository	isomorphisms/ai-ci
+branch	native-bionic-boundary
+pr	86
+trigger_commit	e424d6d7dff0eca092351b9d601212645011782c
+leader_platform	github-hosted-ubuntu
+leader_arch	x86_64
+leader_evidence	https://github.com/isomorphisms/ai-ci/actions/runs/35012458599/job/104527531400
+artifact	native-boundary-armv7a.tar.gz
+artifact_sha256	c13136a004bf6f7a7e786ef0dbba4707b03155892af925674480e5024782b1f7
+follower_platform	github-hosted-ubuntu-ndk-bionic-api24
+follower_arch	armv7a
+required	yes
+action	Run the exact-source GitHub-hosted Ubuntu matrix job with Android NDK 27.3.13750724 and target armv7a.
+acceptance_kind	build
+acceptance_action	Require both default and large-file builds, actual ARM ELF32 PIE/interpreter/dependency inspection, full bundle checksums, exact compiler/NDK/source identity and retained build logs. Attach the resulting archive digest; do not claim Android execution.
+state	accepted
+last_attempt_commit	e424d6d7dff0eca092351b9d601212645011782c
+blocker	-
+evidence	native-boundary-armv7-build.tsv
+depends_on	-
+reason	ARMv7 Bionic LP32 must not inherit host, AArch64 or historical ncurses build acceptance.
+superseded_by	-
+follow_policy	exact
