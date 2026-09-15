@@ -28,7 +28,7 @@ target=$(awk -F '\t' '$1=="target" {print $2}' build.tsv)
 revision=$(awk -F '\t' '$1=="suite_revision" {print $2}' build.tsv)
 case "$target" in
   host) expected_libc=glibc; evidence=host-runtime ;;
-  armv7a|aarch64)
+  armv7a|aarch64|android-x86_64)
     expected_libc=bionic; evidence=android-runtime-unclassified
     if [ ! -x /system/bin/getprop ]; then echo 'Android runtime required' >&2; exit 2; fi
     /system/bin/getprop ro.build.version.sdk > "$receipts/android-api.txt"
