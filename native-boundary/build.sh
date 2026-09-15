@@ -2,7 +2,7 @@
 # Build/test orchestration only; the assertions and self-test live in native C.
 set -euo pipefail
 if [[ $# != 2 ]]; then
-  echo 'usage: bash native-boundary/build.sh host|armv7a|aarch64 OUTPUT_DIRECTORY' >&2
+  echo 'usage: bash native-boundary/build.sh host|armv7a|aarch64|android-x86_64 OUTPUT_DIRECTORY' >&2
   exit 2
 fi
 target=$1
@@ -10,7 +10,7 @@ output=$2
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 . /etc/os-release
 if [[ "$ID" != ubuntu ]]; then echo 'requires an Ubuntu build environment' >&2; exit 2; fi
-case "$target" in host|armv7a|aarch64) ;; *) echo 'unknown target' >&2; exit 2;; esac
+case "$target" in host|armv7a|aarch64|android-x86_64) ;; *) echo 'unknown target' >&2; exit 2;; esac
 if [[ -e "$output" ]]; then echo 'output already exists; use a fresh directory' >&2; exit 2; fi
 revision=$(git -C "$root" rev-parse HEAD)
 tree=$(git -C "$root" rev-parse HEAD:native-boundary)
@@ -38,8 +38,10 @@ if [[ "$target" != host ]]; then
   tools="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin"
   api=24
   case "$target" in
-    armv7a) triple=armv7a-linux-androideabi; machine=ARM; class=ELF32; interpreter=/system/bin/linker; width=4 ;;
-    aarch64) triple=aarch64-linux-android; machine=AArch64; class=ELF64; interpreter=/system/bin/linker64; width=8
+    armv7a) triple=armv7a-linux-androideabi; machine='ARM'; class=ELF32; interpreter=/system/bin/linker; width=4 ;;
+    aarch64) triple=aarch64-linux-android; machine='AArch64'; class=ELF64; interpreter=/system/bin/linker64; width=8
+      links+=(-Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=16384) ;;
+    android-x86_64) triple=x86_64-linux-android; machine='Advanced Micro Devices X86-64'; class=ELF64; interpreter=/system/bin/linker64; width=8
       links+=(-Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=16384) ;;
   esac
   compiler="$tools/${triple}${api}-clang"
@@ -76,7 +78,11 @@ for name in libnative-fixture.so probe-default probe-largefile; do
   if [[ "$target" != host ]]; then
     awk -v machine="$machine" -v class="$class" '
       /Class:/ {if ($2 != class) exit 1; c++}
-      /Machine:/ {if ($2 != machine) exit 1; m++}
+      /Machine:/ {
+        value=$0; sub(/^.*Machine:[[:space:]]*/, "", value)
+        if (value != machine) exit 1
+        m++
+      }
       /Type:/ && $2 == "DYN" {t++}
       END {if (c != 1 || m != 1 || t != 1) exit 1}
     ' "$output/$name.elf.txt"
@@ -87,7 +93,7 @@ for name in libnative-fixture.so probe-default probe-largefile; do
       value=$0; sub(/^.*\[/, "", value); sub(/\].*$/, "", value)
       if (value != "libc.so" && value != "libdl.so" && value != "libm.so") exit 1
     }' "$output/$name.elf.txt"
-    if [[ "$target" == aarch64 ]]; then
+    if [[ "$target" == aarch64 || "$target" == android-x86_64 ]]; then
       awk '
         function hex(s, n,i,d) {
           sub(/^0x/, "", s); n=0
