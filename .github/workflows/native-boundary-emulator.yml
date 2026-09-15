@@ -2,6 +2,7 @@ name: Native Android emulator boundary
 
 on:
   push:
+    branches: [main]
     paths: ['native-boundary/**', '.github/workflows/native-boundary-emulator.yml']
   pull_request:
     paths: ['native-boundary/**', '.github/workflows/native-boundary-emulator.yml']
@@ -9,6 +10,10 @@ on:
 
 permissions:
   contents: read
+
+concurrency:
+  group: native-android-emulator-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   android-emulator:
