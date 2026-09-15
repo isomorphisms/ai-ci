@@ -26,7 +26,7 @@ jobs:
             expected_page_size: '16384'
     env:
       NDK_ARCHIVE_SHA1: 22105e410cf29afcf163760cc95522b9fb981121
-      OUTPUT: ${{ runner.temp }}/native-boundary-android-x86_64-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.lane }}
+      OUTPUT: native-boundary-android-x86_64-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.lane }}
       EXPECTED_PAGE_SIZE: ${{ matrix.expected_page_size }}
       LANE: ${{ matrix.lane }}
     steps:
