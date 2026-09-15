@@ -1,4 +1,4 @@
-# Native libc boundary: Bionic cross-builds and hosted-Linux checks
+# Native libc boundary: Bionic cross-builds, emulator runtime, and hosted-Linux checks
 
 This is a reusable **platform probe**, independent of curses. It exercises real
 libc calls through the selected C compiler/headers/linker. It is not a replacement
@@ -36,6 +36,11 @@ bad observations, not exhaustive coverage of every possible libc/ABI defect.
 | Ubuntu 24.04 x86-64 | native C17 / glibc | default and `_FILE_OFFSET_BITS=64` | Host checks run during build |
 | Android ARMv7a | NDK 27.3.13750724 / Bionic / API 24 | default and `_FILE_OFFSET_BITS=64` | Cross-build only |
 | Android AArch64 | same pinned NDK / Bionic / API 24 | default and `_FILE_OFFSET_BITS=64` | Cross-build only |
+| Android x86-64 emulator | same pinned NDK / Bionic / API 24 | default and `_FILE_OFFSET_BITS=64` | Executes on API-35 4-KiB and 16-KiB emulator images |
+
+The x86-64 Android target exists to automate Bionic runtime semantics in CI. It is
+not an architectural substitute for ARMv7 or AArch64 execution. Physical ARM
+receipts remain separate from emulator receipts.
 
 Both explicit `mmap64` and ordinary `mmap` are exercised. The large ordinary-mmap
 case runs only when the actual `off_t` is wide enough; the explicit 64-bit case
@@ -47,11 +52,14 @@ Mapping lengths and offsets use `sysconf(_SC_PAGESIZE)`. The ARM `mmap2` syscall
 Applications call libc `mmap`/`mmap64` with byte offsets; the libc wrapper owns
 syscall conversion. No syscall encoding is duplicated here.
 
-AArch64 binaries use the two NDK-r27 16-KiB linker flags and their actual ELF
-LOAD/RELRO alignment is checked. A 4-KiB run does not establish 16-KiB runtime
-acceptance. A 16-KiB emulator/device run remains a separate follower obligation.
-The sparse-file test writes only a few bytes, but the filesystem must support a
-logical file size above 4 GiB. Lack of support is a visible setup failure.
+AArch64 and Android x86-64 emulator binaries use the NDK-r27 16-KiB linker flags,
+and their actual ELF LOAD/RELRO alignment is checked. The automated x86-64
+`google_apis_ps16k` lane then executes the same probe on an Android runtime that
+reports a 16384-byte page size. That establishes a generic Android/Bionic 16-KiB
+runtime boundary for this probe; it does **not** establish AArch64 16-KiB runtime
+execution or physical-device acceptance. The sparse-file test writes only a few
+bytes, but the filesystem must support a logical file size above 4 GiB. Lack of
+support is a visible setup failure.
 
 ## Build and host verification
 
@@ -67,26 +75,31 @@ ANDROID_NDK_HOME=/opt/android-ndk-r27d \
   bash native-boundary/build.sh armv7a /tmp/native-armv7a
 ANDROID_NDK_HOME=/opt/android-ndk-r27d \
   bash native-boundary/build.sh aarch64 /tmp/native-aarch64
+ANDROID_NDK_HOME=/opt/android-ndk-r27d \
+  bash native-boundary/build.sh android-x86_64 /tmp/native-android-x86_64
 ```
 
 The checked-in build script expects an Ubuntu x86-64 build environment, Bash/POSIX
 sh, a C17 compiler and development headers, Git, awk, coreutils, tar/gzip and
 readelf. Cross-building additionally requires exactly NDK `27.3.13750724` with
-its Linux x86-64 toolchain. The GitHub workflow installs the host prerequisites
-and downloads and verifies that NDK itself; absent or wrong NDK remains a failure.
+its Linux x86-64 toolchain. The GitHub workflows install the host prerequisites
+and download and verify that NDK themselves; absent or wrong NDK remains a failure.
 
 GitHub jobs use `ubuntu-24.04`, immutable action pins, and check out the event's
 exact source SHA. There is no self-hosted runner, Debian-host requirement, or
 Hetzner dependency. ARMv7/AArch64 jobs use Ubuntu only as the build host; their
 actual Android ABI checks come from the pinned NDK compiler, headers, linker and
-inspected ELF output.
+inspected ELF output. The emulator workflow separately builds the x86-64 Bionic
+bundle, boots Android API 35 on ordinary 4-KiB and `google_apis_ps16k` 16-KiB
+system images, executes `bundle/run.sh`, and retains the runtime receipts.
 
 The build records the actual checkout SHA, native-boundary tree, source hashes,
 compiler version, compiler commands, target/API/NDK, inspected ELF files and
 checksums. Android preprocessing must identify Bionic and the requested pointer
 width; ELF checks verify class, machine, DYN/PIE interpreter, dependencies and
-AArch64 LOAD/RELRO alignment. None of these inspect-and-package steps execute
-Android code.
+required LOAD/RELRO alignment. Those inspect-and-package steps do not execute
+Android code; only the separate emulator workflow establishes emulator runtime
+execution.
 
 The host path also runs 34 positive cases and 34 targeted semantic rejections
 across the two offset builds, executes the actual packaged probes, and rejects
@@ -101,10 +114,10 @@ CC=clang bash native-boundary/test.sh /tmp/native-clang-fixtures
 ## Execute the bundle on Android
 
 Copy the **matching ABI bundle**, not a host executable, to an executable private
-Termux directory. The normal delivery path is binary-only: do not install a
-compiler or build the suite on the phone as a missing-package fallback.
-Verify the archive's expected SHA-256 from its trusted build/publisher before
-extracting. For a bundle already extracted into `bundle/`:
+Termux directory. The normal physical-device delivery path is binary-only: do not
+install a compiler or build the suite on the phone/tablet as a missing-package
+fallback. Verify the archive's expected SHA-256 from its trusted build/publisher
+before extracting. For a bundle already extracted into `bundle/`:
 
 ```sh
 sh bundle/run.sh "$HOME/native-receipt-001"
@@ -120,10 +133,10 @@ actual page size and type widths. A failure in either build remains a failure.
 `runtime.tsv` says `android-runtime-unclassified`, not physical-device accepted.
 `ro.kernel.qemu` is recorded as an observation, never used to promote an emulator
 or an unknown Android environment into physical-device evidence. An actual
-operator/runner must attach this output to the existing follower-receipt system
-with independently identified emulator/device and exact artifact digest.
-Checksums detect changed bytes relative to the manifest; they do not authenticate
-a manifest supplied by an untrusted party.
+operator/runner must attach physical-device output to the existing follower-receipt
+system with independently identified device and exact artifact digest. Checksums
+detect changed bytes relative to the manifest; they do not authenticate a manifest
+supplied by an untrusted party.
 
 ## Consumer integration and limits
 
@@ -134,7 +147,7 @@ its independent linked PTY harness; no pruned implementation is restored.
 
 Follow-up obligations remain explicit:
 
-- Cat Food: publish and deliver both ABI bundles with digests, without compiling
+- Cat Food: publish and deliver both ARM ABI bundles with digests, without compiling
   on the device or changing intended inventory to conceal missing deliverables.
 - Idric/native/JNI: run corresponding operations through the **actual** bindings
   and retain a separate receipt. Do not gate independent direct-DEX generation on
@@ -144,9 +157,10 @@ Follow-up obligations remain explicit:
   result alongside it, including real page size, large offsets and error handling.
 - Grease/Ish: exercise actual native file/mapping/wait wrappers and retain the
   distinction between fd, handle, queue and other event-source representations.
-- Android emulator, ARMv7 physical runtime, AArch64 physical runtime and AArch64
-  16-KiB runtime each need their own exact-artifact evidence; one cannot stand in
-  for another.
+- ARMv7 physical runtime and AArch64 physical runtime still need their own
+  exact-artifact evidence. AArch64-specific 16-KiB execution remains separate if
+  that architectural boundary is required; the x86-64 16-KiB emulator result does
+  not stand in for it.
 
 More API-specific coverage should be driven by real consumer imports, not by an
 invented universal libc checklist. Cancellation, realtime signal ABI, raw syscalls,
