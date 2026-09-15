@@ -1,0 +1,45 @@
+name: Idric bounded orthogonal core
+
+on:
+  push:
+    paths:
+      - 'idric-orthogonal/**'
+      - '.github/workflows/idric-orthogonal.yml'
+  pull_request:
+    paths:
+      - 'idric-orthogonal/**'
+      - '.github/workflows/idric-orthogonal.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  pinned-idric-receipt:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      IDRIC_HEAD: 47557b43053c829d4f8aa1581007002b57f9c59f
+    steps:
+      - name: Check out AICI
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Check out exact Idric revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphisms/Idric
+          ref: ${{ env.IDRIC_HEAD }}
+          path: _idric
+
+      - name: Install Idric bootstrap prerequisite
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends libgmp-dev
+
+      - name: Run compiler and independent exact receipts
+        shell: sh
+        run: |
+          sh idric-orthogonal/run.sh _idric "$IDRIC_HEAD" \
+            "$RUNNER_TEMP/idric-orthogonal-receipt.tsv"
+          diff -u idric-orthogonal/expected-receipt-v1.tsv \
+            "$RUNNER_TEMP/idric-orthogonal-receipt.tsv"
+
