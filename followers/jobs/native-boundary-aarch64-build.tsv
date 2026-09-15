@@ -3,22 +3,22 @@ job_id	native-boundary-aarch64-build
 repository	isomorphisms/ai-ci
 branch	native-bionic-boundary
 pr	86
-trigger_commit	db58a65c1076e4e70c73299ecc79396045672463
-leader_platform	local-debian-container
+trigger_commit	e424d6d7dff0eca092351b9d601212645011782c
+leader_platform	github-hosted-ubuntu
 leader_arch	x86_64
-leader_evidence	docs/native-boundary-validation-2026-09-11.md
-artifact	-
-artifact_sha256	-
+leader_evidence	https://github.com/isomorphisms/ai-ci/actions/runs/35012458599/job/104527531439
+artifact	native-boundary-aarch64.tar.gz
+artifact_sha256	c2a896dae713659968f5910bae2fb993837de0cd1bb047caa6a21bcb7b02383c
 follower_platform	github-hosted-ubuntu-ndk-bionic-api24
 follower_arch	aarch64
 required	yes
 action	Run the exact-source GitHub-hosted Ubuntu matrix job with Android NDK 27.3.13750724 and target aarch64.
 acceptance_kind	build
 acceptance_action	Require both offset-mode builds, actual AArch64 ELF64 PIE/interpreter/dependency checks, 16-KiB LOAD/RELRO alignment checks, bundle digest and exact compiler/NDK/source logs. Build alignment is not 16-KiB runtime evidence.
-state	pending
-last_attempt_commit	-
-blocker	Exact-head GitHub-hosted Ubuntu execution has not yet completed.
-evidence	-
+state	accepted
+last_attempt_commit	e424d6d7dff0eca092351b9d601212645011782c
+blocker	-
+evidence	native-boundary-aarch64-build.tsv
 depends_on	-
 reason	AArch64 remains a distinct target; aligned ELF files do not prove target execution.
 superseded_by	-
