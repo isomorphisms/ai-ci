@@ -1,0 +1,28 @@
+name: Enforce GitHub runner policy
+description: Accept maintained GitHub-hosted Ubuntu and reject unreviewed runner drift.
+inputs:
+  root:
+    description: Repository root to scan.
+    required: false
+    default: .
+  exceptions:
+    description: Repository-relative non-Ubuntu hosted-runner exception TSV, or - when none are allowed.
+    required: false
+    default: '-'
+  visibility:
+    description: Repository visibility for self-hosted fork-safety enforcement (public or private).
+    required: false
+    default: public
+runs:
+  using: composite
+  steps:
+    - name: Compile GitHub policy verifier
+      shell: sh
+      run: |
+        cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 \
+          -o "$RUNNER_TEMP/aici-github" "$GITHUB_ACTION_PATH/../src/aici_github.c"
+    - name: Enforce GitHub runner policy
+      shell: sh
+      run: |
+        "$RUNNER_TEMP/aici-github" verify \
+          "${{ inputs.root }}" "${{ inputs.exceptions }}" "${{ inputs.visibility }}"
