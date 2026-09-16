@@ -81,6 +81,8 @@ current_stage=compiler_build
 if [[ ! -x "$compiler" ]]; then
   run_logged "$idric/_/edric" bootstrap
 fi
+PATH="$idric/_/.tools/bin:$PATH"
+export PATH
 run_logged "$compiler" --version
 passed="$passed compiler_build"
 
