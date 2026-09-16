@@ -10,7 +10,7 @@ inputs:
     required: false
     default: '-'
   visibility:
-    description: Repository visibility for self-hosted fork-safety enforcement (public or private).
+    description: Repository visibility retained for verifier interface compatibility (public or private).
     required: false
     default: public
 runs:
