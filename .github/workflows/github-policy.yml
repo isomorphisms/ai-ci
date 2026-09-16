@@ -2,19 +2,7 @@ name: GitHub runner policy
 
 on:
   push:
-    paths:
-      - '.github/workflows/**'
-      - '.github/aici-runner-exceptions.tsv'
-      - 'github/**'
-      - 'src/aici_github.c'
-      - 'tests/github.sh'
   pull_request:
-    paths:
-      - '.github/workflows/**'
-      - '.github/aici-runner-exceptions.tsv'
-      - 'github/**'
-      - 'src/aici_github.c'
-      - 'tests/github.sh'
   workflow_dispatch:
 
 permissions:
