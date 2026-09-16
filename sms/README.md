@@ -18,15 +18,13 @@ Idriç checkout itself:
 bash sms/run-cross-repository.sh ../Idric-Net ../grease ../Idric
 ```
 
-The CI workflow checks out moving branches whenever it runs.
+The CI workflow checks out the configured moving branches whenever it runs.
 `sms/build/current-head-receipt.tsv` records every requested ref, resolved SHA,
 clean/dirty state, stage result, and first failure. A failed prerequisite leaves
 later stages as `SKIP`; it is never relabeled as an independent downstream
 failure.
 
-The workflow file declares a six-hour schedule, but GitHub scheduled workflows
-run only from the repository default branch. While this workflow remains only
-on an unmerged PR branch, its push and pull-request runs provide the available
-moving-head evidence; the cron does not supply six-hour surveillance. Once the
-workflow lands on the default branch, the declared `17 */6 * * *` schedule can
-provide that periodic check.
+On the repository default branch, the workflow is scheduled once per day at
+00:17 UTC (`17 0 * * *`). Pull-request and push runs provide additional evidence
+when this gate itself changes. A cron declaration on a non-default branch does
+not by itself provide scheduled surveillance.
