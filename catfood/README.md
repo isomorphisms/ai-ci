@@ -27,6 +27,10 @@ ordered-history operation. The Grease fixture uses YSH `var` and `write`
 syntax, so ordinary POSIX shell cannot satisfy it while pretending to be
 Grease.
 
-The scheduled run catches drift in Cat Food or any moving repository it feeds.
-Pull-request runs prove changes to this acceptance gate against the exact
-ai-ci commit under review.
+The workflow file declares a daily scheduled run intended to catch drift in Cat
+Food or any moving repository it feeds. GitHub scheduled workflows run only
+from the repository default branch, so that daily surveillance is not active
+while this workflow exists only on this unmerged PR branch. Pull-request and
+push runs prove changes to this acceptance gate against the exact ai-ci commit
+under review; the cron becomes operative only if the workflow lands on the
+default branch.
