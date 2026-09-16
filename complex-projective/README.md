@@ -38,10 +38,11 @@ An `X86_LEADER` receipt must prove all of these:
 - native x86-64 execution;
 - numerical complex corpus;
 - projective-equivalence/non-equivalence corpus;
-- thin-Debian execution;
 - deterministic headless mathematical render.
 
 Those stages may not be `SKIP` in a leader receipt.
+
+The maintained GitHub host boundary is GitHub-hosted Ubuntu. A historical Debian execution receipt or a deliberately separate portability experiment may be retained as additional evidence, but neither is required for x86 leader acceptance and neither replaces exact-head Ubuntu execution.
 
 The candidate must remain a direct backend path where the backend repository requires one; C, RefC, LLVM, an external assembler, or another host compiler may not be smuggled in as the implementation.
 
