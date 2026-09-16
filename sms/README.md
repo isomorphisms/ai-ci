@@ -1,9 +1,9 @@
 # Executable SMS cross-repository receipt
 
 This check compiles the current Idric-Net `Network.SMS` command-line parser and
-passes that executable to the current Grease filesystem service. It does not
-substitute a shell parser, contact a provider, use a real telephone number, or
-invoke a model.
+passes that executable to the current `az` command-line/filesystem service. It
+does not substitute a shell parser, contact a provider, use a real telephone
+number, or invoke a model.
 
 The normal probe emits one tab-separated `PASS` or `FAIL` line per observable
 claim. The self-test then places four deliberately broken service wrappers in
@@ -15,7 +15,7 @@ Run it with the three dependency working trees; the runner builds the declared
 Idriç checkout itself:
 
 ```text
-bash sms/run-cross-repository.sh ../Idric-Net ../grease ../Idric
+bash sms/run-cross-repository.sh ../Idric-Net ../az ../Idric
 ```
 
 The CI workflow checks out the configured moving branches whenever it runs.
@@ -23,6 +23,10 @@ The CI workflow checks out the configured moving branches whenever it runs.
 clean/dirty state, stage result, and first failure. A failed prerequisite leaves
 later stages as `SKIP`; it is never relabeled as an independent downstream
 failure.
+
+Idric-Net owns SMS meanings and the deterministic request parser. `az` owns the
+command-line/filesystem service state and fake transport used by this receipt.
+Grease is not an SMS-service dependency.
 
 On the repository default branch, the workflow is scheduled once per day at
 00:17 UTC (`17 0 * * *`). Pull-request and push runs provide additional evidence

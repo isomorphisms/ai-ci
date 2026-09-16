@@ -19,7 +19,7 @@ permissions:
 env:
   IDRIC_REF: Idriç
   IDRIC_NET_REF: sms-server-foundation
-  GREASE_REF: sms-server-filesystem-foundation
+  AZ_REF: sms-service-foundation
 
 jobs:
   executable-sms-path:
@@ -33,12 +33,12 @@ jobs:
           repository: isomorphisms/Idric-Net
           ref: ${{ env.IDRIC_NET_REF }}
           path: _Idric-Net
-      - name: Checkout current Grease SMS work
+      - name: Checkout current az SMS service work
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          repository: isomorphisms/grease
-          ref: ${{ env.GREASE_REF }}
-          path: _grease
+          repository: isomorphisms/az
+          ref: ${{ env.AZ_REF }}
+          path: _az
       - name: Checkout current Idriç compiler
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -55,7 +55,7 @@ jobs:
         env:
           AICI_REF: ${{ github.head_ref || github.ref_name }}
           AICI_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: sms/run-cross-repository.sh _Idric-Net _grease _Idric
+        run: sms/run-cross-repository.sh _Idric-Net _az _Idric
       - name: Retain exact current-head SMS evidence
         if: always()
         uses: actions/upload-artifact@v4
