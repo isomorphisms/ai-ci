@@ -46,11 +46,16 @@ the normalized labels match; it does not prove the actions behave the same.
 ## Reviewed baseline
 
 `baseline.tsv` records the last pair of repository revisions reviewed as the
-starting state. The scheduled workflow deliberately checks out moving `main`
-heads, records their exact revisions, and compares them with this baseline.
+starting state. Whenever the workflow runs, it deliberately checks out moving
+`main` heads, records their exact revisions, and compares them with this
+baseline.
 
 A hardware revision mismatch remains a warning until the cross-reference has
 been reviewed and the baseline is intentionally advanced. A software mismatch
 remains only a notice.
 
-The workflow runs daily and on changes to the observer itself.
+The workflow file declares a daily schedule and also runs on changes to the
+observer itself. GitHub scheduled workflows run only from the repository
+default branch, so the daily schedule is not active while this workflow exists
+only on this unmerged PR branch. Until it lands on the default branch, push and
+pull-request executions are the available evidence for moving-head drift.
