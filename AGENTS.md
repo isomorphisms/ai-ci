@@ -136,14 +136,14 @@ every repository.
 
 ## GitHub runner enforcement
 
-- Ordinary maintained Linux GitHub Actions jobs use GitHub-hosted Ubuntu.
-  `ubuntu-latest` and concrete `ubuntu-*` labels do not need a special exception.
-- Do not recreate the superseded repository-wide self-hosted Debian rule or a
-  generic Debian follower merely to satisfy GitHub Actions policy.
-- A workload-specific self-hosted Debian job may use exactly
-  `[self-hosted, linux, debian]`. In a public `pull_request` workflow, that
-  self-hosted job still needs the same-repository job-level guard before runner
-  assignment. Hosted Ubuntu jobs do not.
+- Maintained Linux GitHub Actions jobs use GitHub-hosted Ubuntu. `ubuntu-latest`
+  and concrete `ubuntu-*` labels do not need a special exception.
+- Do not recreate the superseded self-hosted Debian rule, a workload-specific
+  Debian runner exception, or a generic Debian follower merely to satisfy GitHub
+  Actions policy.
+- Self-hosted Linux runners are outside the maintained runner policy. A historical
+  self-hosted or Debian receipt remains historical evidence; it does not define
+  current acceptance or authorize a new self-hosted job.
 - Concrete Windows or macOS runners need a reviewed exact exception with a real
   workload reason. Dynamic `runs-on` selection remains outside the source-audited
   contract.
