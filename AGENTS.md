@@ -75,6 +75,16 @@ every repository.
   inside the script. Never require the human to `cd` first or rely on relative
   paths against their current working directory.
 
+- **Deliver runnable repository work through GitHub, not chat attachments, by
+  default.** When the human needs a script, executable, APK, package, or other
+  artifact produced by repository work, put or publish it in the repository,
+  a GitHub release, or a GitHub Actions artifact and provide a self-contained
+  current-directory-independent script or command that retrieves it from
+  GitHub. Do not make a chat/sandbox download link the normal delivery path
+  unless the human explicitly asks for one. Pin or report the repository ref,
+  workflow run, artifact, or release being fetched; do not silently substitute
+  an unrelated or stale artifact.
+
 ## ai-ci-specific enforcement
 
 - Every new required assertion needs a passing fixture and a targeted known-bad
