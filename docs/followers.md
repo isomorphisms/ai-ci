@@ -13,6 +13,30 @@ A receipt records the same source and follower identity plus the exact attempted
 
 Version 1 uses `follow_policy=exact`. Rolling a job to a descendant is therefore an explicit new job or supersession, never a silent rewrite of history.
 
+## Target identity is not architecture identity
+
+A follower target is the concrete environment named by the consumer repository, not merely its CPU architecture. Two targets may both be `x86_64` and still require independent evidence because the operating system, package manager, persistence model, hardware access, or runtime boundary differs.
+
+Examples include GitHub-hosted Ubuntu, a disposable Ubuntu container, a persistent Hetzner host, and a Void Linux development machine. A receipt from one does not satisfy another merely because all four execute x86-64 code. Likewise, AArch64 tablet evidence cannot satisfy ARMv7 phone evidence.
+
+Consumer repositories own this target catalog because only they know which distinctions are material to their delivered system. AICI verifies exact identities and receipts; it must not collapse distinct consumer targets into a generic architecture bucket.
+
+## Acceptance kinds must describe what actually ran
+
+`build`, `runtime`, `artifact`, `physical-device`, and `publication` are evidence classes, not labels of convenience. The acceptance action and receipt must actually perform the operation named by the class.
+
+In particular:
+
+- a repository contract test, target-selection test, or manifest validation is not by itself a `runtime` receipt;
+- a compile is not an install or execution receipt;
+- an artifact hash/metadata check is not a runtime receipt;
+- emulator execution is not a physical-device receipt;
+- publication is not implied by a locally produced package.
+
+A wrapper may sequence several stages, but the receipt may claim only the stage it actually records. If a runtime follower depends on provisioning first, its acceptance action should provision the exact target state and then execute the delivered command or program. If that cannot run in the current environment, leave a durable pending or blocked job rather than substituting a cheaper contract check.
+
+Architecture-neutral source does not require inventing architecture-specific binaries. A shell script, data file, or other portable artifact may legitimately be byte-identical across targets while its runtime dependency is architecture-specific. Delivery, installation, and target execution still receive separate target receipts.
+
 ## States
 
 `accepted` means an exact passing receipt exists. `pending` and `blocked` remain unresolved. `unsupported` is also unresolved and is never green. `n/a` is permitted only for a conditional target and requires a reason. `superseded` requires the successor job to exist.

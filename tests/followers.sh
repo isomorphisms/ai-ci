@@ -75,12 +75,14 @@ rewrite() {
 job accepted accepted yes accepted.tsv - github-x86_64 x86_64 runtime
 receipt accepted pass github-x86_64 x86_64 runtime
 job pending pending yes - - hetzner-x86_64 x86_64 runtime
+job void-pending pending yes - - void-x86_64 x86_64 runtime
 job conditional n/a conditional - 'phone-only path was unchanged' phone armv7 physical-device
 job unsupported unsupported yes - 'runtime is explicitly not supported yet' legacy-x86 x86 runtime
 
 "$binary" verify "$tmp/jobs" "$tmp/receipts" >/dev/null
 pending=$($binary pending "$tmp/jobs" "$tmp/receipts" "$sha")
 printf '%s\n' "$pending" | grep -F 'pending' >/dev/null
+printf '%s\n' "$pending" | grep -F 'void-pending' >/dev/null
 printf '%s\n' "$pending" | grep -F 'unsupported' >/dev/null
 if printf '%s\n' "$pending" | grep '^accepted[[:space:]]' >/dev/null; then
     echo 'accepted follower remained pending' >&2
@@ -121,6 +123,19 @@ rewrite "$bad/jobs/accepted.tsv" \
     's/^artifact_sha256	-$/artifact_sha256	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/'
 if "$binary" verify "$bad/jobs" "$bad/receipts" >/dev/null 2>&1; then
     echo 'artifact mismatch was accepted' >&2
+    exit 1
+fi
+
+# Same architecture is not the same follower. A GitHub/Ubuntu receipt must not
+# satisfy a Void Linux job merely because both are x86_64.
+rm -rf "$bad/jobs" "$bad/receipts"
+mkdir -p "$bad/jobs" "$bad/receipts"
+cp "$tmp/jobs/accepted.tsv" "$bad/jobs/accepted.tsv"
+cp "$tmp/receipts/accepted.tsv" "$bad/receipts/accepted.tsv"
+rewrite "$bad/jobs/accepted.tsv" \
+    's/^follower_platform	github-x86_64$/follower_platform	void-x86_64/'
+if "$binary" verify "$bad/jobs" "$bad/receipts" >/dev/null 2>&1; then
+    echo 'same-architecture cross-platform receipt was accepted' >&2
     exit 1
 fi
 
