@@ -17,7 +17,6 @@ permissions:
   contents: read
 
 env:
-  AICI_REF: sms-cross-repository-receipt
   IDRIC_REF: Idriç
   IDRIC_NET_REF: sms-server-foundation
   GREASE_REF: sms-server-filesystem-foundation
@@ -53,6 +52,9 @@ jobs:
           sudo apt-get install --yes --no-install-recommends build-essential curl
       - name: Run executable SMS receipt and hostile self-tests
         shell: bash
+        env:
+          AICI_REF: ${{ github.head_ref || github.ref_name }}
+          AICI_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: sms/run-cross-repository.sh _Idric-Net _grease _Idric
       - name: Retain exact current-head SMS evidence
         if: always()
