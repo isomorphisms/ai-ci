@@ -47,6 +47,21 @@ The case manifest is checked by
 `contracts/evaluation-case-v0.contract.tsv`. The schema is only the admission
 gate; it does not prove that the declared oracle is good.
 
+### Repository-backed reasoning cases
+
+Retrieval success and answer grounding are not evidence that a repository
+improved a decision. A repository-backed case must identify the
+decision-bearing record, the intermediate state it should change, and the
+independent downstream oracle. It must include an ablation or replacement of
+the decisive record, a paired fact change that should alter the result, and an
+irrelevant-context control that should not.
+
+Grade retrieval, interpretation, state update, and downstream outcome
+separately. Only the last two can support a claim that repository detail
+improved reasoning. See
+`research/repository-context-methodology.md` for the mechanism and the ASE /
+Blackball architecture boundary.
+
 ## Evaluate four distinct things
 
 Do not collapse these into one impressionistic score:
