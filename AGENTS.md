@@ -36,6 +36,11 @@ every repository.
   files, old branches, bootstrap history, upstream conventions, and familiar
   terminology. Do not reintroduce a rejected ontology under a synonym.
 
+- **Use the current Idriç spelling in prose.** When the language name is written
+  as `Edric` or `Edriç`, correct it to `Idriç`. Do not rewrite literal repository
+  names, paths, file extensions, identifiers, or executable names such as
+  `edric` solely to enforce the prose spelling.
+
 - **Do not let representation define semantics.** Matrices, tuples, compiler
   nodes, ABI records, transport bytes, storage formats, and UI payloads are
   representations unless the semantics explicitly make them part of the object.
