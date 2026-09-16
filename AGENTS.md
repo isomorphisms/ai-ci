@@ -68,6 +68,13 @@ every repository.
   leadership into a universal rule unless it is actually shared across
   repositories.
 
+- **Make human-facing scripts independent of the current directory.** Whenever
+  giving the human a script or command block, assume `$PWD` is arbitrary. Resolve
+  repository and file paths from the script's own location, an explicit project
+  location, or a discovered repository root, and perform any required `cd`
+  inside the script. Never require the human to `cd` first or rely on relative
+  paths against their current working directory.
+
 ## ai-ci-specific enforcement
 
 - Every new required assertion needs a passing fixture and a targeted known-bad
