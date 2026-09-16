@@ -56,25 +56,25 @@ jobs:
 YAML
 "$root/aici-github" verify "$root/good-pinned" - public >/dev/null
 
-make_case good-debian
-cat > "$root/good-debian/.github/workflows/ci.yml" <<'YAML'
+make_case self-hosted-debian
+cat > "$root/self-hosted-debian/.github/workflows/ci.yml" <<'YAML'
 on:
   pull_request:
 jobs:
-  workload-specific-debian:
+  old-debian-runner:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: [self-hosted, linux, debian]
     steps:
       - run: true
 YAML
-"$root/aici-github" verify "$root/good-debian" - public >/dev/null
+expect_fail self-hosted-debian GITHUB-RUNNER-FORBIDDEN
 
-make_case good-block-list
-cat > "$root/good-block-list/.github/workflows/ci.yaml" <<'YAML'
+make_case self-hosted-block-list
+cat > "$root/self-hosted-block-list/.github/workflows/ci.yaml" <<'YAML'
 on:
   push:
 jobs:
-  workload-specific-debian:
+  old-debian-runner:
     runs-on:
       - debian
       - self-hosted
@@ -82,7 +82,31 @@ jobs:
     steps:
       - run: true
 YAML
-"$root/aici-github" verify "$root/good-block-list" - public >/dev/null
+expect_fail self-hosted-block-list GITHUB-RUNNER-FORBIDDEN
+
+make_case self-hosted-generic
+cat > "$root/self-hosted-generic/.github/workflows/ci.yml" <<'YAML'
+on:
+  push:
+jobs:
+  test:
+    runs-on: [self-hosted, linux]
+    steps:
+      - run: true
+YAML
+expect_fail self-hosted-generic GITHUB-RUNNER-FORBIDDEN
+
+make_case self-hosted-private
+cat > "$root/self-hosted-private/.github/workflows/ci.yml" <<'YAML'
+on:
+  pull_request:
+jobs:
+  test:
+    runs-on: [self-hosted, linux, debian]
+    steps:
+      - run: true
+YAML
+expect_fail self-hosted-private GITHUB-RUNNER-FORBIDDEN - private
 
 make_case hosted-non-ubuntu
 cat > "$root/hosted-non-ubuntu/.github/workflows/ci.yml" <<'YAML'
@@ -95,43 +119,6 @@ jobs:
       - run: true
 YAML
 expect_fail hosted-non-ubuntu GITHUB-RUNNER-FORBIDDEN
-
-make_case labels
-cat > "$root/labels/.github/workflows/ci.yml" <<'YAML'
-on:
-  push:
-jobs:
-  test:
-    runs-on: [self-hosted, linux]
-    steps:
-      - run: true
-YAML
-expect_fail labels GITHUB-RUNNER-SELF-HOSTED-LABELS
-
-make_case fork
-cat > "$root/fork/.github/workflows/ci.yml" <<'YAML'
-on:
-  pull_request:
-jobs:
-  test:
-    runs-on: [self-hosted, linux, debian]
-    steps:
-      - run: true
-YAML
-expect_fail fork GITHUB-FORK-GUARD
-
-make_case step-guard
-cat > "$root/step-guard/.github/workflows/ci.yml" <<'YAML'
-on:
-  pull_request:
-jobs:
-  test:
-    runs-on: [self-hosted, linux, debian]
-    steps:
-      - if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-        run: true
-YAML
-expect_fail step-guard GITHUB-FORK-GUARD
 
 make_case dynamic
 cat > "$root/dynamic/.github/workflows/ci.yml" <<'YAML'
@@ -195,17 +182,5 @@ workflow	job	runs_on	reason
 .github/workflows/ci.yml	old-macos	macos-15-intel	obsolete exception
 TSV
 expect_fail stale GITHUB-EXCEPTION-STALE exceptions.tsv
-
-make_case private
-cat > "$root/private/.github/workflows/ci.yml" <<'YAML'
-on:
-  pull_request:
-jobs:
-  workload-specific-debian:
-    runs-on: [self-hosted, linux, debian]
-    steps:
-      - run: true
-YAML
-"$root/aici-github" verify "$root/private" - private >/dev/null
 
 printf '%s\n' 'GitHub runner policy fixtures passed'
