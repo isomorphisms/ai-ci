@@ -7,6 +7,11 @@ Its rule is stricter than ordinary green CI:
 > A check must demonstrate the promised result, and it must prove that it
 > rejects a deliberately broken example of the same result.
 
+The `sms/` receipt applies that rule across the moving Idric-Net and Grease SMS
+branches. It compiles the real `Network.SMS` parser, drives the filesystem
+service through that executable, and proves four hostile service mutations are
+rejected. See [`sms/README.md`](sms/README.md).
+
 The initial kernel is a small native C verifier. It has no package-manager
 bootstrap and does not treat file existence alone as acceptance. A consumer pins
 this repository by full commit SHA, supplies a tab-separated contract, and
