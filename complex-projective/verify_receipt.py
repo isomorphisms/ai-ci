@@ -97,7 +97,6 @@ def verify(receipt: Receipt) -> None:
             "native_execution",
             "numerical_corpus",
             "projective_corpus",
-            "thin_debian_execution",
             "headless_render",
         ):
             require_pass(receipt, stage)
@@ -147,7 +146,6 @@ stage\tdirect_backend_generation\tPASS
 stage\tnative_execution\tPASS
 stage\tnumerical_corpus\tPASS
 stage\tprojective_corpus\tPASS
-stage\tthin_debian_execution\tPASS
 stage\theadless_render\tPASS
 """
 

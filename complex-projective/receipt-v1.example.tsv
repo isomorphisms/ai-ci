@@ -7,5 +7,4 @@ stage	direct_backend_generation	PASS
 stage	native_execution	PASS
 stage	numerical_corpus	PASS
 stage	projective_corpus	PASS
-stage	thin_debian_execution	PASS
 stage	headless_render	PASS

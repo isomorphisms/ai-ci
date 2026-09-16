@@ -235,56 +235,15 @@ static char *yaml_scalar(char *text) {
     return trim(s);
 }
 
-static int canonical_guard(const char *value) {
-    char buf[2048];
-    char *s;
-    size_t n;
-    if (strlen(value) >= sizeof(buf)) return 0;
-    strcpy(buf, value);
-    s = trim(buf);
-    n = strlen(s);
-    if (n >= 5 && strncmp(s, "${{", 3) == 0 && strcmp(s + n - 2, "}}") == 0) {
-        s[n - 2] = '\0';
-        s = trim(s + 3);
-    }
-    return strcmp(s,
-        "github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository") == 0 ||
-           strcmp(s,
-        "github.event_name != \"pull_request\" || github.event.pull_request.head.repo.full_name == github.repository") == 0;
-}
-
-static int parse_inline_labels(const char *value, int *self_hosted, int *linux_label,
-                               int *debian_label, int *extra) {
+static int inline_runner_list(const char *value) {
     char buf[1024];
     char *p, *end;
-    *self_hosted = *linux_label = *debian_label = *extra = 0;
     if (strlen(value) >= sizeof(buf)) return 0;
     strcpy(buf, value);
     p = trim(buf);
     if (*p != '[') return 0;
     end = strrchr(p, ']');
-    if (end == NULL || *trim(end + 1) != '\0') return 0;
-    *end = '\0';
-    ++p;
-    while (*p != '\0') {
-        char *comma = strchr(p, ',');
-        char *item;
-        if (comma != NULL) *comma = '\0';
-        item = yaml_scalar(p);
-        if (*item == '\0') return 0;
-        if (strcmp(item, "self-hosted") == 0) ++*self_hosted;
-        else if (strcmp(item, "linux") == 0) ++*linux_label;
-        else if (strcmp(item, "debian") == 0) ++*debian_label;
-        else ++*extra;
-        if (comma == NULL) break;
-        p = comma + 1;
-    }
-    return 1;
-}
-
-static int exact_debian_labels(int self_hosted, int linux_label, int debian_label,
-                               int extra) {
-    return self_hosted == 1 && linux_label == 1 && debian_label == 1 && extra == 0;
+    return end != NULL && *trim(end + 1) == '\0';
 }
 
 typedef struct {
@@ -295,16 +254,10 @@ typedef struct {
     int has_runs_on;
     int collecting_runs_on;
     size_t runs_on_indent;
-    int self_hosted;
-    int linux_label;
-    int debian_label;
-    int extra_label;
-    int exact_debian;
     int ordinary_ubuntu;
     int exception_hosted;
     int dynamic;
     char scalar_runs_on[512];
-    int has_guard;
 } Job;
 
 static void clear_job(Job *job) {
@@ -316,6 +269,8 @@ static void finish_job(Result *result, Exception *exceptions,
                        const char *workflow, int public_repo, int pull_request,
                        Job *job) {
     Exception *exception;
+    (void)public_repo;
+    (void)pull_request;
     if (job->name[0] == '\0') return;
     ++result->jobs;
     if (!job->has_runs_on) {
@@ -340,15 +295,8 @@ static void finish_job(Result *result, Exception *exceptions,
         }
         return;
     }
-    if (!job->exact_debian) {
-        fail(result, "GITHUB-RUNNER-SELF-HOSTED-LABELS", workflow, job->name,
-             "ordinary Linux jobs use ubuntu-*; self-hosted Debian jobs require exactly [self-hosted, linux, debian]");
-        return;
-    }
-    if (public_repo && pull_request && !job->has_guard) {
-        fail(result, "GITHUB-FORK-GUARD", workflow, job->name,
-             "public pull_request self-hosted job lacks canonical same-repository guard");
-    }
+    fail(result, "GITHUB-RUNNER-FORBIDDEN", workflow, job->name,
+         "maintained Linux jobs use GitHub-hosted ubuntu-*; self-hosted Linux runners are not accepted");
 }
 
 static int line_is_job_key(const char *content, char *name, size_t name_size) {
@@ -460,13 +408,7 @@ static int scan_workflow(Result *result, Exception *exceptions, const char *root
 
         if (job.collecting_runs_on) {
             if (indent > job.runs_on_indent && content[0] == '-') {
-                char *item = yaml_scalar(content + 1);
-                if (strcmp(item, "self-hosted") == 0) ++job.self_hosted;
-                else if (strcmp(item, "linux") == 0) ++job.linux_label;
-                else if (strcmp(item, "debian") == 0) ++job.debian_label;
-                else ++job.extra_label;
-                job.exact_debian = exact_debian_labels(job.self_hosted, job.linux_label,
-                                                       job.debian_label, job.extra_label);
+                snprintf(job.scalar_runs_on, sizeof(job.scalar_runs_on), "%s", "runner list");
                 continue;
             }
             job.collecting_runs_on = 0;
@@ -475,7 +417,6 @@ static int scan_workflow(Result *result, Exception *exceptions, const char *root
         if (job.child_indent_set && indent == job.child_indent &&
             strncmp(content, "runs-on:", 8) == 0) {
             char *value = trim(content + 8);
-            int sh, linux_label, debian_label, extra;
             job.has_runs_on = 1;
             job.runs_on_indent = indent;
             if (*value == '\0') {
@@ -483,12 +424,8 @@ static int scan_workflow(Result *result, Exception *exceptions, const char *root
             } else if (strstr(value, "${{") != NULL) {
                 job.dynamic = 1;
                 snprintf(job.scalar_runs_on, sizeof(job.scalar_runs_on), "%s", value);
-            } else if (parse_inline_labels(value, &sh, &linux_label, &debian_label, &extra)) {
-                job.self_hosted = sh;
-                job.linux_label = linux_label;
-                job.debian_label = debian_label;
-                job.extra_label = extra;
-                job.exact_debian = exact_debian_labels(sh, linux_label, debian_label, extra);
+            } else if (inline_runner_list(value)) {
+                snprintf(job.scalar_runs_on, sizeof(job.scalar_runs_on), "%s", value);
             } else {
                 char *scalar = yaml_scalar(value);
                 snprintf(job.scalar_runs_on, sizeof(job.scalar_runs_on), "%s", scalar);
@@ -496,11 +433,6 @@ static int scan_workflow(Result *result, Exception *exceptions, const char *root
                 job.exception_hosted = exception_runner(scalar);
             }
             continue;
-        }
-        if (job.child_indent_set && indent == job.child_indent &&
-            strncmp(content, "if:", 3) == 0) {
-            char *value = trim(content + 3);
-            if (canonical_guard(value)) job.has_guard = 1;
         }
     }
     finish_job(result, exceptions, relative, public_repo, pull_request, &job);
