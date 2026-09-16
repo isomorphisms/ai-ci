@@ -20,11 +20,15 @@ current_stage=compiler_build
 passed='repository_checkouts'
 
 repo_sha() { git -C "$1" rev-parse HEAD; }
+repo_ref() {
+  git -C "$1" symbolic-ref --quiet --short HEAD || printf detached
+}
 repo_dirty() {
   if git -C "$1" status --porcelain | grep -q .; then printf dirty; else printf clean; fi
 }
 
-aici_sha=$(repo_sha "$aici")
+aici_ref=${AICI_REF:-$(repo_ref "$aici")}
+aici_sha=${AICI_SHA:-$(repo_sha "$aici")}
 idric_sha=$(repo_sha "$idric")
 idric_net_sha=$(repo_sha "$idric_net")
 grease_sha=$(repo_sha "$grease")
@@ -41,7 +45,7 @@ write_receipt() {
   diagnostic=${2:-none}
   {
     printf 'CURRENT_HEAD_COMPATIBILITY\t1\n'
-    printf 'dependency\tisomorphisms/ai-ci\t%s\t%s\t%s\n' "${AICI_REF:-sms-cross-repository-receipt}" "$aici_sha" "$aici_dirty"
+    printf 'dependency\tisomorphisms/ai-ci\t%s\t%s\t%s\n' "$aici_ref" "$aici_sha" "$aici_dirty"
     printf 'dependency\tisomorphisms/Idric\t%s\t%s\t%s\n' "${IDRIC_REF:-Idriç}" "$idric_sha" "$idric_dirty"
     printf 'dependency\tisomorphisms/Idric-Net\t%s\t%s\t%s\n' "${IDRIC_NET_REF:-sms-server-foundation}" "$idric_net_sha" "$idric_net_dirty"
     printf 'dependency\tisomorphisms/grease\t%s\t%s\t%s\n' "${GREASE_REF:-sms-server-filesystem-foundation}" "$grease_sha" "$grease_dirty"
