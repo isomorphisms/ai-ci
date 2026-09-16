@@ -63,6 +63,24 @@ every repository.
   an earlier-stage failure. Build is not install; install is not launch; launch
   is not semantic behavior; local packaging is not publication.
 
+- **Structure build and delivery scripts as composable stages.** Keep dependency
+  provisioning, source build, packaging/publication, target detection,
+  installation/deployment, runtime acceptance, and receipt recording separately
+  inspectable. A wrapper may sequence them, but must not blur their evidence or
+  make one stage silently perform an unrelated one.
+
+- **Keep device delivery runtime-only unless the target explicitly is a build
+  environment.** Phone/tablet installers should consume declared published
+  packages and commodity runtime dependencies rather than cloning source,
+  bootstrapping compilers, or falling back to source builds. Keep host build and
+  publication work separate from physical-device installation and acceptance.
+
+- **Keep target detection separate from target acceptance.** Detecting `phone`,
+  `tablet`, `x86_64`, or another target selects the path to run; it is not proof
+  that the selected implementation built, installed, launched, or behaved
+  correctly. Acceptance must execute the named target-specific action and record
+  that result independently.
+
 - **Keep repository-specific conventions local.** Do not turn a convention such
   as `_` build layout, a particular backend hierarchy, or temporary subsystem
   leadership into a universal rule unless it is actually shared across
