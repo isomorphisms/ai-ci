@@ -48,7 +48,7 @@ write_receipt() {
     printf 'dependency\tisomorphisms/ai-ci\t%s\t%s\t%s\n' "$aici_ref" "$aici_sha" "$aici_dirty"
     printf 'dependency\tisomorphisms/Idric\t%s\t%s\t%s\n' "${IDRIC_REF:-Idriç}" "$idric_sha" "$idric_dirty"
     printf 'dependency\tisomorphisms/Idric-Net\t%s\t%s\t%s\n' "${IDRIC_NET_REF:-sms-server-foundation}" "$idric_net_sha" "$idric_net_dirty"
-    printf 'dependency\tisomorphisms/az\t%s\t%s\t%s\n' "${AZ_REF:-sms-service-foundation}" "$az_sha" "$az_dirty"
+    printf 'dependency\tisomorphisms/az\t%s\t%s\t%s\n' "${AZ_REF:-main}" "$az_sha" "$az_dirty"
     for stage in repository_checkouts compiler_build parser_build command_line_service_tests cross_repository_probe hostile_self_tests; do
       if [[ " $passed " == *" $stage "* ]]; then
         printf 'stage\t%s\tPASS\n' "$stage"
