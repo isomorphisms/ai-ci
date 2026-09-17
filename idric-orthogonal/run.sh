@@ -18,31 +18,31 @@ prebuilt_root=${4:-}
 
 case "$expected_revision" in
   [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]) ;;
-  *) echo "Idric orthogonal gate: expected revision must be a full lowercase commit" >&2; exit 2 ;;
+  *) echo "Idriç orthogonal gate: expected revision must be a full lowercase commit" >&2; exit 2 ;;
 esac
 
 is_worktree=$(git -C "$idric_root" rev-parse --is-inside-work-tree 2>/dev/null || true)
 [ "$is_worktree" = true ] || {
-  echo "Idric orthogonal gate: not an Idric checkout: $idric_root" >&2
+  echo "Idriç orthogonal gate: not an Idriç compiler checkout: $idric_root" >&2
   exit 2
 }
 
 actual_revision=$(git -C "$idric_root" rev-parse HEAD)
 [ "$actual_revision" = "$expected_revision" ] || {
-  echo "Idric orthogonal gate: expected $expected_revision, found $actual_revision" >&2
+  echo "Idriç orthogonal gate: expected $expected_revision, found $actual_revision" >&2
   exit 1
 }
 
 [ -z "$(git -C "$idric_root" status --porcelain --untracked-files=all)" ] || {
-  echo "Idric orthogonal gate: checkout must be clean before observation" >&2
+  echo "Idriç orthogonal gate: checkout must be clean before observation" >&2
   exit 1
 }
 
 fixture=tests/idris2/basic/edric009
 oracle=examples/unified-higher-mathematics/verify_r128.py
-[ -x "$idric_root/edric" ] || { echo "Idric orthogonal gate: edric command missing" >&2; exit 1; }
-[ -x "$idric_root/$fixture/run" ] || { echo "Idric orthogonal gate: compiler receipt missing" >&2; exit 1; }
-[ -f "$idric_root/$oracle" ] || { echo "Idric orthogonal gate: independent oracle missing" >&2; exit 1; }
+[ -x "$idric_root/edric" ] || { echo "Idriç orthogonal gate: edric command missing" >&2; exit 1; }
+[ -x "$idric_root/$fixture/run" ] || { echo "Idriç orthogonal gate: compiler receipt missing" >&2; exit 1; }
+[ -f "$idric_root/$oracle" ] || { echo "Idriç orthogonal gate: independent oracle missing" >&2; exit 1; }
 
 tmp_dir=$(mktemp -d)
 tmp_output="$output.tmp.$$"
@@ -58,19 +58,19 @@ if [ -z "$prebuilt_root" ]; then
 else
   prebuilt_revision=$(git -C "$prebuilt_root" rev-parse HEAD)
   [ "$prebuilt_revision" = "$expected_revision" ] || {
-    echo "Idric orthogonal gate: prebuilt compiler is from $prebuilt_revision" >&2
+    echo "Idriç orthogonal gate: prebuilt compiler is from $prebuilt_revision" >&2
     exit 1
   }
   compiler="$prebuilt_root/build/exec/idris2"
   scheme_dir="$prebuilt_root/.tools/bin"
   support_dir="$prebuilt_root/support/c"
-  [ -x "$compiler" ] || { echo "Idric orthogonal gate: prebuilt compiler missing" >&2; exit 1; }
-  [ -x "$scheme_dir/scheme" ] || { echo "Idric orthogonal gate: prebuilt Scheme missing" >&2; exit 1; }
+  [ -x "$compiler" ] || { echo "Idriç orthogonal gate: prebuilt compiler missing" >&2; exit 1; }
+  [ -x "$scheme_dir/scheme" ] || { echo "Idriç orthogonal gate: prebuilt Scheme missing" >&2; exit 1; }
   short_revision=$(printf '%.9s' "$expected_revision")
   compiler_version=$(LD_LIBRARY_PATH="$support_dir${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" "$compiler" --version)
   case "$compiler_version" in
     *"$short_revision"*) ;;
-    *) echo "Idric orthogonal gate: prebuilt compiler version is not revision $short_revision" >&2; exit 1 ;;
+    *) echo "Idriç orthogonal gate: prebuilt compiler version is not revision $short_revision" >&2; exit 1 ;;
   esac
   (
     cd "$idric_root/$fixture"
@@ -79,7 +79,7 @@ else
       ./run "$compiler"
   ) >"$tmp_dir/compiler-receipt.txt"
   if ! diff -u "$idric_root/$fixture/expected" "$tmp_dir/compiler-receipt.txt"; then
-    echo "Idric orthogonal gate: compiler receipt differs" >&2
+    echo "Idriç orthogonal gate: compiler receipt differs" >&2
     exit 1
   fi
 fi
