@@ -27,6 +27,13 @@ every repository.
   historical evidence only. Bind acceptance to the exact revision and material
   pins under review.
 
+- **Name pull requests in human-facing references.** Whenever mentioning a pull
+  request to the human, include its current title alongside its PR number. Do not
+  use a PR number, exact-head SHA, branch name, or other machine identifier as the
+  only human-facing identifier. Keep exact heads and other hashes when they help
+  verification or reproducibility, but treat them as additional machine-facing
+  evidence, not as a substitute for words the human can recognize.
+
 - **Do not invent missing continuity.** If an earlier decision, branch state,
   artifact, or conversation fact cannot actually be recovered, report it as
   missing or uncertain rather than reconstructing a plausible history.
