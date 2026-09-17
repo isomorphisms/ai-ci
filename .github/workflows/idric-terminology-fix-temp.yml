@@ -1,0 +1,65 @@
+name: Temporary Idriç terminology repair
+
+on:
+  push:
+    branches:
+      - docs/idric-terminology-audit
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: docs/idric-terminology-audit
+          fetch-depth: 0
+
+      - name: Correct prose labels and remove this workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          replacements = {
+              '.github/workflows/idric-orthogonal.yml': [
+                  ('name: Idric bounded orthogonal core', 'name: Idriç bounded orthogonal core'),
+                  ('Check out exact Idric revision', 'Check out exact Idriç compiler revision'),
+                  ('Install Idric bootstrap prerequisite', 'Install Idriç bootstrap prerequisite'),
+              ],
+              'native-boundary/README.md': [
+                  ('Idric ABI lowering', 'Idriç ABI lowering'),
+                  ('- Idric/native/JNI:', '- Idriç/native/JNI:'),
+              ],
+              'native-boundary/probe.c': [
+                  ('not Idric/DEX/JNI acceptance', 'not Idriç/DEX/JNI acceptance'),
+              ],
+              'idric-orthogonal/run.sh': [
+                  ('Idric orthogonal gate:', 'Idriç orthogonal gate:'),
+                  ('not an Idric checkout', 'not an Idriç compiler checkout'),
+              ],
+          }
+          for name, pairs in replacements.items():
+              path = Path(name)
+              text = path.read_text()
+              original = text
+              for old, new in pairs:
+                  if old not in text:
+                      raise SystemExit(f'expected text not found in {name}: {old!r}')
+                  text = text.replace(old, new)
+              if text == original:
+                  raise SystemExit(f'no change in {name}')
+              path.write_text(text)
+          PY
+
+          # The expected receipt is a checked golden fixture; keep its literal text unchanged.
+          rm .github/workflows/idric-terminology-fix-temp.yml
+          git config user.name 'isomorphisms terminology audit'
+          git config user.email 'isomorphisms@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'Normalize Idriç human-facing labels'
+          git push origin HEAD:docs/idric-terminology-audit
