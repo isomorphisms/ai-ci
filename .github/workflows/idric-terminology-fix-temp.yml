@@ -17,19 +17,13 @@ jobs:
           ref: docs/idric-terminology-audit
           fetch-depth: 0
 
-      - name: Correct prose labels and remove this workflow
+      - name: Correct ordinary prose labels
         shell: bash
         run: |
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
-
           replacements = {
-              '.github/workflows/idric-orthogonal.yml': [
-                  ('name: Idric bounded orthogonal core', 'name: Idriç bounded orthogonal core'),
-                  ('Check out exact Idric revision', 'Check out exact Idriç compiler revision'),
-                  ('Install Idric bootstrap prerequisite', 'Install Idriç bootstrap prerequisite'),
-              ],
               'native-boundary/README.md': [
                   ('Idric ABI lowering', 'Idriç ABI lowering'),
                   ('- Idric/native/JNI:', '- Idriç/native/JNI:'),
@@ -45,21 +39,15 @@ jobs:
           for name, pairs in replacements.items():
               path = Path(name)
               text = path.read_text()
-              original = text
               for old, new in pairs:
                   if old not in text:
                       raise SystemExit(f'expected text not found in {name}: {old!r}')
                   text = text.replace(old, new)
-              if text == original:
-                  raise SystemExit(f'no change in {name}')
               path.write_text(text)
           PY
-
-          # The expected receipt is a checked golden fixture; keep its literal text unchanged.
-          rm .github/workflows/idric-terminology-fix-temp.yml
           git config user.name 'isomorphisms terminology audit'
           git config user.email 'isomorphisms@users.noreply.github.com'
-          git add -A
+          git add native-boundary/README.md native-boundary/probe.c idric-orthogonal/run.sh
           git diff --cached --check
           git commit -m 'Normalize Idriç human-facing labels'
           git push origin HEAD:docs/idric-terminology-audit
