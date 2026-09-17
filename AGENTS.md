@@ -93,6 +93,14 @@ every repository.
   inside the script. Never require the human to `cd` first or rely on relative
   paths against their current working directory.
 
+- **Make human paste-back output visually scannable.** When asking the human to
+  run a terminal block and paste its output back, use ANSI color when the target
+  terminal supports it: cyan for section headings, yellow for actions or
+  attention, green for PASS/success, and red for FAIL/errors. Keep literal
+  receipt fields and other machine-readable evidence uncolored, include textual
+  labels in addition to color, and provide a plain-text fallback when color is
+  unavailable. Do not rely on color alone to convey evidence or status.
+
 - **Deliver runnable repository work through GitHub, not chat attachments, by
   default.** When the human needs a script, executable, APK, package, or other
   artifact produced by repository work, put or publish it in the repository,
