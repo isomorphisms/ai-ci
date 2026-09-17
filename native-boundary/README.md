@@ -2,7 +2,7 @@
 
 This is a reusable **platform probe**, independent of curses. It exercises real
 libc calls through the selected C compiler/headers/linker. It is not a replacement
-for a consumer's own native wrapper, Idric ABI lowering, JNI, DEX, curses, or
+for a consumer's own native wrapper, Idriç ABI lowering, JNI, DEX, curses, or
 application acceptance. A passing standalone probe cannot grant any of those
 implementation-specific claims.
 
@@ -149,7 +149,7 @@ Follow-up obligations remain explicit:
 
 - Cat Food: publish and deliver both ARM ABI bundles with digests, without compiling
   on the device or changing intended inventory to conceal missing deliverables.
-- Idric/native/JNI: run corresponding operations through the **actual** bindings
+- Idriç/native/JNI: run corresponding operations through the **actual** bindings
   and retain a separate receipt. Do not gate independent direct-DEX generation on
   an unfinished ARM/Thumb compiler backend. The fork-based CLI probe must not be
   embedded unchanged into a multithreaded ART process.

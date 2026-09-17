@@ -1,4 +1,4 @@
-name: Idric bounded orthogonal core
+name: Idriç bounded orthogonal core
 
 on:
   push:
@@ -23,14 +23,14 @@ jobs:
       - name: Check out AICI
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
-      - name: Check out exact Idric revision
+      - name: Check out exact Idriç compiler revision
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: isomorphisms/Idric
           ref: ${{ env.IDRIC_HEAD }}
           path: _idric
 
-      - name: Install Idric bootstrap prerequisite
+      - name: Install Idriç bootstrap prerequisite
         run: |
           sudo apt-get update
           sudo apt-get install --yes --no-install-recommends libgmp-dev

@@ -1,4 +1,4 @@
-/* Native libc boundary observations, not Idric/DEX/JNI acceptance. */
+/* Native libc boundary observations, not Idriç/DEX/JNI acceptance. */
 #define _GNU_SOURCE 1
 #define _LARGEFILE64_SOURCE 1
 #include <dlfcn.h>
