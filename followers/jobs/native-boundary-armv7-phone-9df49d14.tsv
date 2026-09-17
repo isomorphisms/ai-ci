@@ -15,10 +15,10 @@ required	yes
 action	Use the trusted exact-source ARMv7 runtime archive already executed on the physical phone and retain its bundle/run.sh receipt directory. Do not rerun the native probes unless the retained evidence is missing or invalid.
 acceptance_kind	physical-device
 acceptance_action	Identify the actual phone and Android/Termux environment independently; attach both native logs, binary hashes and integrity result, Android identity, page size, pointer/off_t widths, exact source/NDK identity and successful runner result. Supply artifact and SHA-256 together in the matching follower receipt.
-state	blocked
+state	accepted
 last_attempt_commit	9df49d14f91a6596bd35f1183b85d4b1b0848a68
-blocker	Physical execution passed, but issue #107 still needs the retained on-device receipt directory and independent phone/Termux identity before an exact passing follower receipt can be recorded.
-evidence	-
+blocker	-
+evidence	native-boundary-armv7-phone-9df49d14.tsv
 depends_on	native-boundary-armv7-build-9df49d14
 reason	Cross-build, host execution and emulator execution are not physical ARMv7 phone acceptance.
 superseded_by	-
