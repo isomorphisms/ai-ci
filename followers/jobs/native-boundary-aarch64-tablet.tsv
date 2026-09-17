@@ -12,13 +12,13 @@ artifact_sha256	c2a896dae713659968f5910bae2fb993837de0cd1bb047caa6a21bcb7b02383c
 follower_platform	android-termux-physical-tablet
 follower_arch	aarch64
 required	yes
-action	Obtain the trusted exact-source AArch64 runtime archive, verify its published digest, install in an executable Termux private directory, and run sh bundle/run.sh with a new receipt directory. No device compiler bootstrap or source-build fallback.
+action	Use the trusted exact-source AArch64 runtime archive already executed on the physical tablet and retain its bundle/run.sh receipt directory. Do not rerun the native probes unless the retained evidence is missing or invalid.
 acceptance_kind	physical-device
-acceptance_action	Identify the actual tablet and Android/Termux environment independently; attach both native logs, binary hashes, observed page size, type widths, source/NDK identity and successful runner result. Supply artifact and SHA-256 together in the matching receipt.
-state	blocked
-last_attempt_commit	-
-blocker	No physical AArch64 tablet execution receipt has been recorded for the exact artifact.
-evidence	-
+acceptance_action	Identify the actual tablet and Android/Termux environment independently; attach both native logs, binary hashes and integrity result, Android identity, observed page size, type widths, exact source/NDK identity and successful runner result. Supply artifact and SHA-256 together in the matching follower receipt.
+state	accepted
+last_attempt_commit	e424d6d7dff0eca092351b9d601212645011782c
+blocker	-
+evidence	native-boundary-aarch64-tablet.tsv
 depends_on	native-boundary-aarch64-build
 reason	ARMv7 phone success or emulator success cannot establish AArch64 tablet acceptance.
 superseded_by	-
