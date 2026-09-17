@@ -1,0 +1,147 @@
+name: Native AArch64 16 KiB emulator boundary
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/native-boundary-aarch64-16k.yml'
+      - '.github/aici-runner-exceptions.tsv'
+      - 'followers/jobs/native-boundary-aarch64-16k.tsv'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: native-aarch64-16k-emulator-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SOURCE_RUN_ID: '35012458599'
+  SOURCE_ARTIFACT_NAME: native-boundary-aarch64-35012458599
+  SOURCE_SUITE_REVISION: e424d6d7dff0eca092351b9d601212645011782c
+  SOURCE_SUITE_TREE: 4d38d894e861b37ef7a41acb5d97edbebe92d88c
+  SOURCE_ARCHIVE_SHA256: c2a896dae713659968f5910bae2fb993837de0cd1bb047caa6a21bcb7b02383c
+  SOURCE_NDK: 27.3.13750724
+
+jobs:
+  aarch64-16k-emulator:
+    runs-on: macos-14
+    timeout-minutes: 40
+    steps:
+      - name: Download and verify exact AArch64 source artifact
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          download="$RUNNER_TEMP/aici-aarch64-source"
+          runtime="$RUNNER_TEMP/aici-aarch64-runtime"
+          receipts="$RUNNER_TEMP/aici-aarch64-16k-receipts"
+          mkdir -p "$download" "$runtime" "$receipts"
+
+          gh run download "$SOURCE_RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name "$SOURCE_ARTIFACT_NAME" \
+            --dir "$download"
+
+          archive="$download/native-boundary-aarch64.tar.gz"
+          test -f "$archive"
+          actual=$(shasum -a 256 "$archive" | awk '{print $1}')
+          test "$actual" = "$SOURCE_ARCHIVE_SHA256"
+          printf 'artifact_sha256\t%s\n' "$actual" > "$receipts/provenance.tsv"
+          printf 'source_run\t%s\n' "$SOURCE_RUN_ID" >> "$receipts/provenance.tsv"
+          printf 'source_artifact\t%s\n' "$SOURCE_ARTIFACT_NAME" >> "$receipts/provenance.tsv"
+
+          tar -xzf "$archive" -C "$runtime"
+          test -x "$runtime/bundle/probe-default"
+          test -x "$runtime/bundle/probe-largefile"
+          grep -F "$(printf 'suite_revision\t%s' "$SOURCE_SUITE_REVISION")" "$runtime/bundle/build.tsv"
+          grep -F "$(printf 'suite_tree\t%s' "$SOURCE_SUITE_TREE")" "$runtime/bundle/build.tsv"
+          grep -F "$(printf 'target\taarch64')" "$runtime/bundle/build.tsv"
+          grep -F "$(printf 'ndk\t%s' "$SOURCE_NDK")" "$runtime/bundle/build.tsv"
+          grep -F "$(printf 'compile_api\t24')" "$runtime/bundle/build.tsv"
+
+          mkdir -p "$receipts/source-elf"
+          cp "$download"/*.elf.txt "$receipts/source-elf/"
+          printf 'archive\t%s\n' "$archive" >> "$receipts/provenance.tsv"
+
+      - name: Execute exact AArch64 bundle on Android 16 KiB emulator
+        uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
+        with:
+          api-level: 35
+          target: google_apis_ps16k
+          arch: arm64-v8a
+          disable-animations: true
+          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none -gpu swiftshader_indirect
+          script: |
+            set -euo pipefail
+            runtime="$RUNNER_TEMP/aici-aarch64-runtime"
+            receipts="$RUNNER_TEMP/aici-aarch64-16k-receipts"
+            guest=/data/local/tmp/aici-native-boundary-aarch64-16k
+
+            serial=$(adb get-serialno | tr -d '\r')
+            case "$serial" in emulator-*) ;; *) echo "unexpected adb serial: $serial" >&2; exit 1 ;; esac
+
+            machine=$(adb shell uname -m | tr -d '\r')
+            abi=$(adb shell getprop ro.product.cpu.abi | tr -d '\r')
+            abilist=$(adb shell getprop ro.product.cpu.abilist | tr -d '\r')
+            page_size=$(adb shell getconf PAGE_SIZE | tr -d '\r')
+            api=$(adb shell getprop ro.build.version.sdk | tr -d '\r')
+            qemu=$(adb shell getprop ro.kernel.qemu | tr -d '\r')
+            fingerprint=$(adb shell getprop ro.build.fingerprint | tr -d '\r')
+
+            test "$machine" = aarch64
+            test "$abi" = arm64-v8a
+            test "$page_size" = 16384
+            test "$api" = 35
+            test "$qemu" = 1
+
+            adb shell "rm -rf '$guest' && mkdir -p '$guest'"
+            adb push "$runtime/bundle" "$guest/"
+            adb shell "chmod 755 '$guest/bundle/probe-default' '$guest/bundle/probe-largefile'"
+            adb shell "cd '$guest' && sh bundle/run.sh receipts"
+
+            mkdir -p "$receipts/native"
+            adb pull "$guest/receipts/." "$receipts/native/"
+
+            for file in default.tsv largefile.tsv; do
+              receipt="$receipts/native/$file"
+              grep -F "$(printf 'source\t%s' "$SOURCE_SUITE_REVISION")" "$receipt"
+              grep -F "$(printf 'libc\tbionic')" "$receipt"
+              grep -F "$(printf 'machine\taarch64')" "$receipt"
+              grep -F "$(printf 'page_size\t16384')" "$receipt"
+              grep -F "$(printf 'summary\tPASS\tfailures=0')" "$receipt"
+              awk -F '\t' '$1=="case" && $3=="native" && $4=="PASS" {n++} END {exit n != 17}' "$receipt"
+            done
+
+            grep -F "$(printf 'suite_revision\t%s' "$SOURCE_SUITE_REVISION")" "$receipts/native/runtime.tsv"
+            grep -F "$(printf 'target\taarch64')" "$receipts/native/runtime.tsv"
+            grep -F "$(printf 'result\tPASS')" "$receipts/native/runtime.tsv"
+
+            {
+              printf 'schema\taici-aarch64-16k-emulator-v1\n'
+              printf 'source_run\t%s\n' "$SOURCE_RUN_ID"
+              printf 'suite_revision\t%s\n' "$SOURCE_SUITE_REVISION"
+              printf 'suite_tree\t%s\n' "$SOURCE_SUITE_TREE"
+              printf 'artifact_sha256\t%s\n' "$SOURCE_ARCHIVE_SHA256"
+              printf 'system_image\tsystem-images;android-35;google_apis_ps16k;arm64-v8a\n'
+              printf 'adb_serial\t%s\n' "$serial"
+              printf 'runtime_machine\t%s\n' "$machine"
+              printf 'runtime_abi\t%s\n' "$abi"
+              printf 'runtime_abilist\t%s\n' "$abilist"
+              printf 'runtime_page_size\t%s\n' "$page_size"
+              printf 'android_api\t%s\n' "$api"
+              printf 'qemu_property\t%s\n' "$qemu"
+              printf 'build_fingerprint\t%s\n' "$fingerprint"
+              printf 'classification\tandroid-emulator\n'
+              printf 'result\tPASS\n'
+            } > "$receipts/emulator.tsv"
+
+      - name: Retain AArch64 16 KiB emulator evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: native-boundary-aarch64-16k-emulator-${{ github.run_id }}
+          path: ${{ runner.temp }}/aici-aarch64-16k-receipts/
+          if-no-files-found: error
