@@ -19,7 +19,7 @@ permissions:
 env:
   IDRIC_REF: Idriç
   IDRIC_NET_REF: sms-server-foundation
-  AZ_REF: sms-service-foundation
+  AZ_REF: main
 
 jobs:
   executable-sms-path:
