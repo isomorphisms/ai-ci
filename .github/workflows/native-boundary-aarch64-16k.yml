@@ -73,7 +73,7 @@ jobs:
           target: google_apis_ps16k
           arch: arm64-v8a
           disable-animations: true
-          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none -gpu swiftshader_indirect
+          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none -gpu swiftshader_indirect -accel off
           script: |
             set -euo pipefail
             runtime="$RUNNER_TEMP/aici-aarch64-runtime"
