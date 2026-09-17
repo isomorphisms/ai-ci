@@ -1,0 +1,17 @@
+schema	aici-follower-receipt-v1
+job_id	native-boundary-aarch64-tablet
+repository	isomorphisms/ai-ci
+trigger_commit	e424d6d7dff0eca092351b9d601212645011782c
+follower_platform	android-termux-physical-tablet
+follower_arch	aarch64
+acceptance_kind	physical-device
+result	pass
+attempt_commit	e424d6d7dff0eca092351b9d601212645011782c
+os_runtime	SVITOO TAB_P10 / TAB_P10_ROW; Android 15 API 35; Linux 6.6.66-android15-8-ge85affb03264-ab13194267-4k aarch64; Termux prefix /data/data/com.termux/files/usr
+build_command	No on-device build; exact hosted-Ubuntu Actions artifact was SHA-256 verified before execution
+test_command	sh <Termux-private-runtime>/bundle/run.sh <new-receipt-directory>/native
+artifact	native-boundary-aarch64.tar.gz
+artifact_sha256	c2a896dae713659968f5910bae2fb993837de0cd1bb047caa6a21bcb7b02383c
+evidence_url	https://github.com/isomorphisms/ai-ci/pull/86#issuecomment-5718998453
+recorded_at	2026-09-17T15:18:00Z
+note	Operator evidence identifies the physical SVITOO TAB_P10 AArch64 tablet (hardware sun65iw1p1, SoC A333); ro.kernel.qemu and ro.boot.qemu were empty. The exact archive digest matched the published value. Bundle source revision e424d6d7dff0eca092351b9d601212645011782c and tree 4d38d894e861b37ef7a41acb5d97edbebe92d88c used API 24 and NDK 27.3.13750724. probe-default and probe-largefile each reported Bionic, machine aarch64, runtime page_size 4096, pointer/long/off_t/off64_t/time_t widths all 8, all 17 native cases PASS, and summary PASS failures=0. Binary SHA-256 values were b282b344c2d87bb9c2aa45095d7e2f8b1c383c45ef2ebbc57b0f23950362b017 for both probes and e2b12acc4ad22b2ba2567913eb14f839e4e6c960df250299f2984db68209a72f for libnative-fixture.so. The bundle runtime field physical_device=NOT_ATTESTED remains unchanged because physical identity is established independently by the operator evidence. This does not satisfy the separate 16-KiB runtime follower; this tablet observed 4096-byte pages.
