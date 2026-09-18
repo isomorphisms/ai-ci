@@ -76,6 +76,82 @@ jobs:
           sudo udevadm trigger --name-match=kvm
           ls -l /dev/kvm
 
+      - name: Prepare translated-emulator probe
+        shell: bash
+        run: |
+          cat > "$RUNNER_TEMP/aici-aarch64-16k-probe.sh" <<'SCRIPT'
+          #!/usr/bin/env bash
+          set -euo pipefail
+
+          runtime="$RUNNER_TEMP/aici-aarch64-runtime"
+          receipts="$RUNNER_TEMP/aici-aarch64-16k-receipts"
+          guest=/data/local/tmp/aici-native-boundary-aarch64-16k
+
+          serial=$(adb get-serialno | tr -d '\r')
+          case "$serial" in emulator-*) ;; *) echo "unexpected adb serial: $serial" >&2; exit 1 ;; esac
+
+          machine=$(adb shell uname -m | tr -d '\r')
+          abi=$(adb shell getprop ro.product.cpu.abi | tr -d '\r')
+          abilist=$(adb shell getprop ro.product.cpu.abilist | tr -d '\r')
+          page_size=$(adb shell getconf PAGE_SIZE | tr -d '\r')
+          api=$(adb shell getprop ro.build.version.sdk | tr -d '\r')
+          qemu=$(adb shell getprop ro.kernel.qemu | tr -d '\r')
+          native_bridge=$(adb shell getprop ro.dalvik.vm.native.bridge | tr -d '\r')
+          fingerprint=$(adb shell getprop ro.build.fingerprint | tr -d '\r')
+
+          test "$machine" = x86_64
+          test "$abi" = x86_64
+          case ",$abilist," in *,arm64-v8a,*) ;; *) echo "guest does not advertise arm64-v8a translation: $abilist" >&2; exit 1 ;; esac
+          test "$page_size" = 16384
+          test "$api" = 35
+          test "$qemu" = 1
+
+          adb shell "rm -rf '$guest' && mkdir -p '$guest'"
+          adb push "$runtime/bundle" "$guest/"
+          adb shell "chmod 755 '$guest/bundle/probe-default' '$guest/bundle/probe-largefile'"
+          adb shell "cd '$guest' && sh bundle/run.sh receipts"
+
+          mkdir -p "$receipts/native"
+          adb pull "$guest/receipts/." "$receipts/native/"
+
+          for file in default.tsv largefile.tsv; do
+            receipt="$receipts/native/$file"
+            grep -F "$(printf 'source\t%s' "$SOURCE_SUITE_REVISION")" "$receipt"
+            grep -F "$(printf 'libc\tbionic')" "$receipt"
+            grep -F "$(printf 'page_size\t16384')" "$receipt"
+            grep -F "$(printf 'summary\tPASS\tfailures=0')" "$receipt"
+            awk -F '\t' '$1=="case" && $3=="native" && $4=="PASS" {n++} END {exit n != 17}' "$receipt"
+          done
+
+          grep -F "$(printf 'suite_revision\t%s' "$SOURCE_SUITE_REVISION")" "$receipts/native/runtime.tsv"
+          grep -F "$(printf 'target\taarch64')" "$receipts/native/runtime.tsv"
+          grep -F "$(printf 'result\tPASS')" "$receipts/native/runtime.tsv"
+
+          {
+            printf 'schema\taici-aarch64-16k-translated-emulator-v1\n'
+            printf 'source_run\t%s\n' "$SOURCE_RUN_ID"
+            printf 'suite_revision\t%s\n' "$SOURCE_SUITE_REVISION"
+            printf 'suite_tree\t%s\n' "$SOURCE_SUITE_TREE"
+            printf 'artifact_sha256\t%s\n' "$SOURCE_ARCHIVE_SHA256"
+            printf 'system_image\tsystem-images;android-35;google_apis_ps16k;x86_64\n'
+            printf 'adb_serial\t%s\n' "$serial"
+            printf 'guest_machine\t%s\n' "$machine"
+            printf 'guest_abi\t%s\n' "$abi"
+            printf 'guest_abilist\t%s\n' "$abilist"
+            printf 'guest_page_size\t%s\n' "$page_size"
+            printf 'android_api\t%s\n' "$api"
+            printf 'qemu_property\t%s\n' "$qemu"
+            printf 'native_bridge\t%s\n' "$native_bridge"
+            printf 'build_fingerprint\t%s\n' "$fingerprint"
+            printf 'artifact_arch\taarch64\n'
+            printf 'classification\tandroid-emulator-aarch64-translation\n'
+            printf 'native_aarch64_runtime\tNOT_VERIFIED\n'
+            printf 'follower_acceptance\tNOT_VERIFIED\n'
+            printf 'result\tPASS\n'
+          } > "$receipts/emulator.tsv"
+          SCRIPT
+          chmod 755 "$RUNNER_TEMP/aici-aarch64-16k-probe.sh"
+
       - name: Execute exact AArch64 bundle through Android translation on 16 KiB emulator
         uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
         with:
@@ -84,74 +160,7 @@ jobs:
           arch: x86_64
           disable-animations: true
           emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none -gpu swiftshader_indirect
-          script: |
-            set -eu
-            runtime="$RUNNER_TEMP/aici-aarch64-runtime"
-            receipts="$RUNNER_TEMP/aici-aarch64-16k-receipts"
-            guest=/data/local/tmp/aici-native-boundary-aarch64-16k
-
-            serial=$(adb get-serialno | tr -d '\r')
-            case "$serial" in emulator-*) ;; *) echo "unexpected adb serial: $serial" >&2; exit 1 ;; esac
-
-            machine=$(adb shell uname -m | tr -d '\r')
-            abi=$(adb shell getprop ro.product.cpu.abi | tr -d '\r')
-            abilist=$(adb shell getprop ro.product.cpu.abilist | tr -d '\r')
-            page_size=$(adb shell getconf PAGE_SIZE | tr -d '\r')
-            api=$(adb shell getprop ro.build.version.sdk | tr -d '\r')
-            qemu=$(adb shell getprop ro.kernel.qemu | tr -d '\r')
-            native_bridge=$(adb shell getprop ro.dalvik.vm.native.bridge | tr -d '\r')
-            fingerprint=$(adb shell getprop ro.build.fingerprint | tr -d '\r')
-
-            test "$machine" = x86_64
-            test "$abi" = x86_64
-            case ",$abilist," in *,arm64-v8a,*) ;; *) echo "guest does not advertise arm64-v8a translation: $abilist" >&2; exit 1 ;; esac
-            test "$page_size" = 16384
-            test "$api" = 35
-            test "$qemu" = 1
-
-            adb shell "rm -rf '$guest' && mkdir -p '$guest'"
-            adb push "$runtime/bundle" "$guest/"
-            adb shell "chmod 755 '$guest/bundle/probe-default' '$guest/bundle/probe-largefile'"
-            adb shell "cd '$guest' && sh bundle/run.sh receipts"
-
-            mkdir -p "$receipts/native"
-            adb pull "$guest/receipts/." "$receipts/native/"
-
-            for file in default.tsv largefile.tsv; do
-              receipt="$receipts/native/$file"
-              grep -F "$(printf 'source\t%s' "$SOURCE_SUITE_REVISION")" "$receipt"
-              grep -F "$(printf 'libc\tbionic')" "$receipt"
-              grep -F "$(printf 'page_size\t16384')" "$receipt"
-              grep -F "$(printf 'summary\tPASS\tfailures=0')" "$receipt"
-              awk -F '\t' '$1=="case" && $3=="native" && $4=="PASS" {n++} END {exit n != 17}' "$receipt"
-            done
-
-            grep -F "$(printf 'suite_revision\t%s' "$SOURCE_SUITE_REVISION")" "$receipts/native/runtime.tsv"
-            grep -F "$(printf 'target\taarch64')" "$receipts/native/runtime.tsv"
-            grep -F "$(printf 'result\tPASS')" "$receipts/native/runtime.tsv"
-
-            {
-              printf 'schema\taici-aarch64-16k-translated-emulator-v1\n'
-              printf 'source_run\t%s\n' "$SOURCE_RUN_ID"
-              printf 'suite_revision\t%s\n' "$SOURCE_SUITE_REVISION"
-              printf 'suite_tree\t%s\n' "$SOURCE_SUITE_TREE"
-              printf 'artifact_sha256\t%s\n' "$SOURCE_ARCHIVE_SHA256"
-              printf 'system_image\tsystem-images;android-35;google_apis_ps16k;x86_64\n'
-              printf 'adb_serial\t%s\n' "$serial"
-              printf 'guest_machine\t%s\n' "$machine"
-              printf 'guest_abi\t%s\n' "$abi"
-              printf 'guest_abilist\t%s\n' "$abilist"
-              printf 'guest_page_size\t%s\n' "$page_size"
-              printf 'android_api\t%s\n' "$api"
-              printf 'qemu_property\t%s\n' "$qemu"
-              printf 'native_bridge\t%s\n' "$native_bridge"
-              printf 'build_fingerprint\t%s\n' "$fingerprint"
-              printf 'artifact_arch\taarch64\n'
-              printf 'classification\tandroid-emulator-aarch64-translation\n'
-              printf 'native_aarch64_runtime\tNOT_VERIFIED\n'
-              printf 'follower_acceptance\tNOT_VERIFIED\n'
-              printf 'result\tPASS\n'
-            } > "$receipts/emulator.tsv"
+          script: bash "$RUNNER_TEMP/aici-aarch64-16k-probe.sh"
 
       - name: Retain AArch64 16 KiB translated-emulator evidence
         if: always()
