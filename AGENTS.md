@@ -193,6 +193,17 @@ every repository.
   inside the script. Never require the human to `cd` first or rely on relative
   paths against their current working directory.
 
+- **Preserve verified device storage topology in terminal instructions.** Once a
+  device path, mount, removable-storage location, or capacity constraint has
+  been established, reuse that verified topology instead of falling back to a
+  generic shell, Termux, Unix, or repository convention. Before prescribing a
+  checkout, download, extraction, build, cache, or other storage-heavy path,
+  inspect repository-local instructions and durable target notes. Do not move
+  work from an established removable or high-capacity workspace to internal
+  storage merely because a familiar path such as `~/opt` is conventional. If
+  the current target path is genuinely unknown, verify it with appropriate
+  filesystem commands rather than inventing one.
+
 - **Make human paste-back output visually scannable.** Every human-facing
   Termux acceptance, diagnostic, install, or device-test script must use ANSI
   color when the terminal supports it: cyan for section headings, yellow for
