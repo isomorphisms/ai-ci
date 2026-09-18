@@ -8,7 +8,7 @@ fi
 
 verifier=$1
 root=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-fixtures="$root/fixtures"
+fixtures="$root/tests/fixtures"
 identity='fixture:ikfile-v1'
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT HUP INT TERM
