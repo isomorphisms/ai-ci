@@ -264,6 +264,15 @@ every repository.
   durable jobs for the rest.
 - Every follower job must name the exact source commit or artifact it follows.
   Do not leave follower obligations only in chat, agent context, or CI logs.
+- **Do not invent follower targets from the test matrix.** A required follower must
+  correspond to an explicitly identified maintained deployment or compatibility
+  target. Architecture, page size, emulator type, translation mode, hardware
+  class, or another technically distinguishable combination does not by itself
+  create a required obligation. Extra CI coverage may remain useful without
+  becoming a deployment target. If a possible future target is worth retaining
+  before activation, record it as `required=conditional`, `state=n/a`, with the
+  activation condition in `reason`; physical-device evidence is required only
+  for an identified physical deployment target.
 - Close or mark a follower accepted only when its required acceptance kind has a
   matching receipt. Build, runtime, artifact validation, and physical-device
   execution are not interchangeable.
