@@ -8,9 +8,9 @@ The current matrix watches:
 - `isomorphisms/idric-arm-thumb` on `idric-ir-first-slice`, because the active
   backend implementation is still on PR #1 rather than `main`;
 - `isomorphisms/idris-arm-backend` on `main`;
-- `isomorphisms/idris-shader-backend` on `soap-f16-mode`, the stacked PR #11
-  branch with executable whole-shader F16/F32 selection;
-- `isomorphisms/algebraic-variety-explorer-mobile` on
+- `isomorphisms/idris-shader-backend` on `main`, where merged PR #11
+  provides executable whole-shader F16/F32 selection;
+- `isomorphismes/algebraic-variety-explorer-mobile` on
   `dogfood/idris-shader-f16`, as an independent downstream consumer of that
   shader mode.
 
@@ -26,7 +26,7 @@ still-open mixed-width IR, explicit conversion, source-level F16, and real
 PowerVR framebuffer milestones independently.
 
 `fp16_consumers.tsv` observes the Algebraic Variety Explorer dogfood gate. That
-consumer follows the declared shader-backend branch `soap-f16-mode`, records
+consumer follows the merged shader backend on `main`, records
 the exact SHA resolved for each run, and compiles the bounded Surfer root-search
 path as both F16 and F32, validates the generated GLSL, and rejects F64. Those
 rows prove that the downstream test surface exists; the consumer's own CI run
