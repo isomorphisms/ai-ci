@@ -33,6 +33,14 @@ A checked-in `runs-on` line proves source configuration only. It does not prove 
 runner was available, provisioned as expected, or that the workflow executed.
 GitHub-hosted Ubuntu execution is established by the workflow run itself.
 
+This runner verifier also does not prove that a path-filtered workflow is
+eligible when the implementation under test changes. That is the
+`workflow-integrity-v0` contract's `yaml_paths` boundary. Keep
+repository-specific critical paths in the consumer repository and use the
+shared contract to reject trigger gaps; if the dependency set cannot be kept
+complete, remove the path filter rather than treating a narrow green workflow
+as protection for unrelated source changes.
+
 Do not create a generic Debian follower or Debian host-acceptance boundary merely
 because a repository has GitHub Actions. Historical Debian receipts may remain as
 historical evidence, and a deliberately separate portability experiment may name
