@@ -90,6 +90,16 @@ its independent exact R128 oracle.  Its machine-readable output is explicitly
 arbitrary transforms, and numerical algorithm choice do not silently inherit
 `PASS` from the closed R128 sample.
 
+## Merge authorization
+
+The optional `merge/` action is the fail-closed authorization layer for routine
+PR merges. It consumes snapshots of the live base/stack graph, observed checks,
+dependency revisions, receipts, scope provenance, and exact-artifact consumer
+trace. It rejects stale or synthetic-head evidence, skipped or missing checks,
+check-name collisions, moving refs used as exact dependencies, evidence-class
+promotion, inherited scope, and rebuild fallback. See
+[`docs/merge-authorization.md`](docs/merge-authorization.md).
+
 ## Run locally
 
 ```text
