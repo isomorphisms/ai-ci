@@ -39,8 +39,10 @@ The AArch64 inspected ELF LOAD alignment is 0x4000. That is build evidence for 1
 
 The matching build follower jobs now have exact passing receipts. Subsequent commits that only reconcile these evidence records do not alter the `native-boundary/` source tree and must not be relabeled as new Android execution.
 
-## Outstanding evidence
+## Current acceptance scope — 2026-09-18
 
-Android emulator execution, ARMv7 physical-phone execution, AArch64 physical-tablet execution and AArch64 16-KiB runtime execution remain separate durable acceptance boundaries. Cross-build success does not satisfy those runtime obligations.
+The maintained Android emulator workflow now exercises Bionic on API-35 4-KiB and 16-KiB x86-64 images. The follower ledger separately retains exact physical-device receipts for the actual ARMv7 phone and AArch64 tablet targets; the AArch64 tablet reports a 4096-byte runtime page size.
+
+There is no maintained native AArch64 Android emulator target and no maintained native AArch64 16-KiB deployment target. Those two historical follower rows are therefore conditional `n/a`, not blockers. The exact AArch64 artifact has separate translated execution evidence on a 16-KiB Android emulator, which is useful compatibility coverage but is not native-AArch64 or physical-device evidence. Either conditional follower should be reactivated only if a corresponding deployment target is explicitly named.
 
 Consumer-specific calls through JNI, compiler bindings, IB mapped storage and Grease/Ish wrappers are also not tested by this standalone C suite. Consumers must retain their own actual-implementation receipts alongside the platform probe.

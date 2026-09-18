@@ -57,7 +57,9 @@ and their actual ELF LOAD/RELRO alignment is checked. The automated x86-64
 `google_apis_ps16k` lane then executes the same probe on an Android runtime that
 reports a 16384-byte page size. That establishes a generic Android/Bionic 16-KiB
 runtime boundary for this probe; it does **not** establish AArch64 16-KiB runtime
-execution or physical-device acceptance. The sparse-file test writes only a few
+execution or physical-device acceptance. It also does not create a requirement to
+invent a native AArch64 16-KiB deployment target: that follower remains conditional
+unless such a maintained target is explicitly identified. The sparse-file test writes only a few
 bytes, but the filesystem must support a logical file size above 4 GiB. Lack of
 support is a visible setup failure.
 
@@ -157,10 +159,12 @@ Follow-up obligations remain explicit:
   result alongside it, including real page size, large offsets and error handling.
 - Grease/Ish: exercise actual native file/mapping/wait wrappers and retain the
   distinction between fd, handle, queue and other event-source representations.
-- ARMv7 physical runtime and AArch64 physical runtime still need their own
-  exact-artifact evidence. AArch64-specific 16-KiB execution remains separate if
-  that architectural boundary is required; the x86-64 16-KiB emulator result does
-  not stand in for it.
+- ARMv7 phone and AArch64 tablet physical runtime are actual maintained device
+  targets and retain their own exact-artifact receipts. The current AArch64 tablet
+  is a 4-KiB runtime. Native AArch64 emulator execution and native AArch64 16-KiB
+  execution are conditional rather than required unless a maintained target is
+  explicitly identified; x86-64 or translated-emulator compatibility evidence does
+  not create a physical deployment obligation.
 
 More API-specific coverage should be driven by real consumer imports, not by an
 invented universal libc checklist. Cancellation, realtime signal ABI, raw syscalls,

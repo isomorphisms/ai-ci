@@ -20,6 +20,6 @@ last_attempt_commit	e424d6d7dff0eca092351b9d601212645011782c
 blocker	-
 evidence	native-boundary-aarch64-tablet.tsv
 depends_on	native-boundary-aarch64-build
-reason	ARMv7 phone success or emulator success cannot establish AArch64 tablet acceptance.
+reason	The physical AArch64 tablet is an identified maintained deployment target, so it needs its own receipt; the accepted tablet reports 4096-byte pages and does not create a separate native or physical 16-KiB target.
 superseded_by	-
 follow_policy	exact
