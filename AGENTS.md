@@ -82,6 +82,15 @@ every repository.
   bootstrapping compilers, or falling back to source builds. Keep host build and
   publication work separate from physical-device installation and acceptance.
 
+- **Preserve Android update identity for sideload/test APKs.** When an APK is
+  intended to replace an earlier build of the same package, keep a persistent
+  test signing certificate for that package and a nondecreasing `versionCode`.
+  Do not generate a fresh signer per developer machine, CI runner, workflow run,
+  branch, or release. Acceptance should exercise replacement installation
+  without uninstalling the prior build. Keep public/test signing separate from
+  production or store signing, and make any intentional signer/package migration
+  explicit because it may require a one-time uninstall or migration path.
+
 - **Keep target detection separate from target acceptance.** Detecting `phone`,
   `tablet`, `x86_64`, or another target selects the path to run; it is not proof
   that the selected implementation built, installed, launched, or behaved
