@@ -22,6 +22,9 @@ fail	contracts/workflow-integrity-v0.contract.tsv	tests/fixtures/workflow-action
 fail	contracts/workflow-integrity-v0.contract.tsv	tests/fixtures/workflow-path-only-under-with	WORKFLOW-PATH-COVERAGE
 fail	contracts/workflow-integrity-v0.contract.tsv	tests/fixtures/workflow-bad-negative-path	WORKFLOW-PATH-COVERAGE
 fail	contracts/workflow-integrity-v0.contract.tsv	tests/fixtures/workflow-bad-default-checkout	WORKFLOW-PR-HEAD-CHECKOUT
+fail	contracts/workflow-integrity-v0.contract.tsv	tests/fixtures/workflow-bad-checkout-env-ref	WORKFLOW-PR-HEAD-CHECKOUT
+fail	contracts/workflow-integrity-v0.contract.tsv	tests/fixtures/workflow-bad-checkout-env-repository	WORKFLOW-PR-HEAD-CHECKOUT
+fail	contracts/workflow-integrity-v0.contract.tsv	tests/fixtures/workflow-bad-swallow-block-header	WORKFLOW-SWALLOW-OR
 pass	contracts/language-boundary-v0.contract.tsv	tests/fixtures/language-good	-
 fail	contracts/language-boundary-v0.contract.tsv	tests/fixtures/language-bad-python	LANGUAGE-FORBIDDEN
 fail	contracts/language-boundary-v0.contract.tsv	tests/fixtures/language-bad-shebang	GREASE-SHEBANG

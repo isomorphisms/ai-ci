@@ -12,11 +12,5 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-        with:
-          repository: example/dependency
-          ref: 0123456789abcdef0123456789abcdef01234567
-      - run: |
-          printf '%s\n' ok
-        env:
-          SAFE_FALLBACK: ${{ github.event.pull_request.head.sha || github.sha }}
+      - run: |2- # explicit indentation and chomping
+          ci/check.ysh || :
