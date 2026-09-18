@@ -178,6 +178,12 @@ D=$(case_dir exact-artifact-not-executed)
 grep -v '	execute	' "$D/consumer.tsv" > "$D/x" && mv "$D/x" "$D/consumer.tsv"
 run_bad RUNTIME-EXACT-ARTIFACT-NOT-EXECUTED exact-artifact-not-executed "$D"
 
+D=$(case_dir exact-artifact-unpinned)
+awk -F '\t' -v OFS='\t' 'NR==2 {$13="-"} {print}' "$D/receipts.tsv" > "$D/x" && mv "$D/x" "$D/receipts.tsv"
+run_good exact-artifact-unpinned-but-bound-by-receipt "$D"
+awk 'NR==1 {print}' "$D/consumer.tsv" > "$D/x" && mv "$D/x" "$D/consumer.tsv"
+run_bad RUNTIME-EXACT-ARTIFACT-NOT-EXECUTED exact-artifact-unpinned-still-needs-consumer "$D"
+
 D=$(case_dir receipt-wrong-source)
 awk -F '	' -v OFS='	' -v wrong="$O" 'NR==2 {$12=wrong} {print}' "$D/receipts.tsv" > "$D/x" && mv "$D/x" "$D/receipts.tsv"
 run_bad RECEIPT-WRONG-SOURCE receipt-wrong-source "$D"

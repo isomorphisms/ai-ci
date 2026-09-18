@@ -94,7 +94,7 @@ FILENAME==receipts_file && noncomment() {
     required($9,$17,"RECEIPT-WRONG-HARDWARE",$1)
     required($10,$18,"RECEIPT-WRONG-NETWORK",$1)
     required($11,$19,"RECEIPT-WRONG-ARTIFACT-MODE",$1)
-    if ($19=="exact-prebuilt" && $13!="-") { exact_id[$13]=$1; exact_source[$13]=$4; exact_needed[$13]=1 }
+    if ($19=="exact-prebuilt") { exact_id[$5]=$1; exact_source[$5]=$4; exact_needed[$5]=1 }
     next
 }
 FILENAME==scope_file && noncomment() {
