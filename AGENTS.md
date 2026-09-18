@@ -74,6 +74,18 @@ every repository.
   nodes, ABI records, transport bytes, storage formats, and UI payloads are
   representations unless the semantics explicitly make them part of the object.
 
+- **Distinguish native, raw, and physical layers.** Use `native` for the
+  target platform's own lowest useful semantic/system interface for the facility
+  being used: for example libc or the kernel system-call boundary on Linux, or
+  DEX/ART, JNI/NDK/Bionic, Binder/platform services, and direct device/event
+  interfaces on Android. Do not use `native` as a synonym for C++ or another
+  implementation language. Use `raw` for assembly, machine instructions,
+  registers, encodings, low-level bus/protocol representation or signaling, and
+  similar machine-facing detail. Use `physical`, `circuit`, or `electrical`
+  for actual gates, voltages, current, capacitance, traces, and other physical
+  electronics. The useful native boundary is task-dependent; do not push a
+  high-level operation below it merely because deeper representation exists.
+
 - **Do not replace deliberate repository design with conventional practice merely
   because it is familiar.** Before introducing a framework, build system,
   runtime, language, directory structure, or abstraction, inspect the
