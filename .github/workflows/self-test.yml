@@ -26,7 +26,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: dilapidated-shed/ike
-          ref: e27172f9180c672959be8158a5ad410cba2fcbe6
+          ref: 3f513e58ed2b83946fca8e9be6a952a582bafb85
           path: _ike
       - name: Bootstrap pinned Ike and independent receipt verifier
         shell: sh
