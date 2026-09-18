@@ -13,7 +13,9 @@ every repository.
   backend execution, physical-device execution, and publication are different
   evidence levels. Claim only the strongest level actually demonstrated.
 
-- **Spell out low-level error names for people.** Human-facing diagnostics, receipts, docs, and terminal instructions must lead with the ordinary meaning of errno, signal, protocol, kernel, libc, or platform symbolic codes rather than assuming the human recognizes the token. Keep the exact symbolic identifier as secondary detail when it is useful for debugging or search, for example `Operation not supported (EOPNOTSUPP)`, `No space left on device (ENOSPC)`, `Interrupted system call (EINTR)`, or `Cross-device operation (EXDEV)`. Do not replace exact machine evidence with prose; present both, with the words first.\n\n- **Do not substitute the requested mechanism.** An oracle, mock, fallback,
+- **Spell out low-level error names for people.** Human-facing diagnostics, receipts, docs, and terminal instructions must lead with the ordinary meaning of errno, signal, protocol, kernel, libc, or platform symbolic codes rather than assuming the human recognizes the token. Keep the exact symbolic identifier as secondary detail when it is useful for debugging or search, for example `Operation not supported (EOPNOTSUPP)`, `No space left on device (ENOSPC)`, `Interrupted system call (EINTR)`, or `Cross-device operation (EXDEV)`. Do not replace exact machine evidence with prose; present both, with the words first.
+
+- **Do not substitute the requested mechanism.** An oracle, mock, fallback,
   handwritten equivalent, alternate backend, alternate executable, lookalike
   renderer, or convenient reimplementation does not count as acceptance of the
   named implementation.
@@ -26,6 +28,17 @@ every repository.
   branch, previous dependency pin, different artifact, or old PR head is
   historical evidence only. Bind acceptance to the exact revision and material
   pins under review.
+
+- **Retire resolved obligations where they were recorded.** When later work
+  satisfies, supersedes, or invalidates an issue, PR checklist, follower job,
+  design note, acceptance blocker, or other durable tracker, reconcile that
+  original record before treating the work as finished. Link the exact evidence,
+  update stale status/checklists, and close completed trackers or mark them
+  superseded or conditional as appropriate. Work completed in another
+  repository, branch, or conversation does not make an old `pending` or
+  `blocked` statement harmless; stale trackers are misinformation. Preserve
+  historical evidence instead of rewriting it, and create a successor when the
+  new evidence does not satisfy the old exact scope.
 
 - **Distinguish an exact PR head from GitHub's synthetic merge checkout.** A
   normal `pull_request` checkout may execute `refs/pull/<n>/merge`, which is
@@ -69,6 +82,14 @@ every repository.
   as `Edric` or `Edriç`, correct it to `Idriç`. Do not rewrite literal repository
   names, paths, file extensions, identifiers, or executable names such as
   `edric` solely to enforce the prose spelling.
+
+- **Use Grease as the consumer-facing shell name.** In consumer repositories,
+  shebangs, commands, examples, workflows, receipts, and human-facing prose must
+  invoke and name `grease`, not `ysh`. The inherited Oils/YSH executable is an
+  implementation detail of the current Grease implementation and may be named
+  only when discussing that implementation or provenance inside the Grease/Oils
+  boundary. Do not leak the implementation executable into application-facing
+  interfaces merely because it is the underlying binary.
 
 - **Do not let representation define semantics.** Matrices, tuples, compiler
   nodes, ABI records, transport bytes, storage formats, and UI payloads are
