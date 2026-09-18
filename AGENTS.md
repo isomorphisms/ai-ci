@@ -103,6 +103,13 @@ every repository.
   an earlier-stage failure. Build is not install; install is not launch; launch
   is not semantic behavior; local packaging is not publication.
 
+- **Classify failures at the stage that actually failed.** An unrelated runner,
+  secret, upload, publication, reporting, or CI-service failure does not turn a
+  separately demonstrated implementation test into a code failure. Conversely,
+  passing compile or semantic tests do not make a failed packaging, publication,
+  or delivery stage green. Preserve both results and repair the narrow failing
+  boundary.
+
 - **Structure build and delivery scripts as composable stages.** Keep dependency
   provisioning, source build, packaging/publication, target detection,
   installation/deployment, runtime acceptance, and receipt recording separately
