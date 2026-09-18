@@ -181,6 +181,17 @@ every repository.
   dated device-storage observations as mutable facts and recheck them when they
   materially affect a command, artifact location, or acceptance claim.
 
+- **Preserve explicitly deferred device setup boundaries.** Once the human has
+  said that a device facility such as ADB, removable storage, pairing, mounting,
+  or another setup path is not working and is deferred for another session,
+  treat that facility as unavailable for the current work. Do not reintroduce
+  it as a prerequisite, troubleshooting detour, or "one quick step" for an
+  acceptance task that has a direct on-device path. Reopen that setup only when
+  the human explicitly asks to work on it or when the task inherently cannot be
+  performed without it; in the latter case, state the block instead of silently
+  converting the task into setup work. Repository-local verified device notes
+  outrank generic Android or Termux conventions.
+
 - **Keep repository-specific conventions local.** Do not turn a convention such
   as `_` build layout, a particular backend hierarchy, or temporary subsystem
   leadership into a universal rule unless it is actually shared across
@@ -203,6 +214,14 @@ every repository.
   storage merely because a familiar path such as `~/opt` is conventional. If
   the current target path is genuinely unknown, verify it with appropriate
   filesystem commands rather than inventing one.
+
+- **Preflight human-facing device commands against durable target notes.**
+  Before giving a phone/tablet command block, inspect the applicable
+  repository-local `AGENTS.md`, current device/storage notes, and the active
+  acceptance boundary. Preserve explicit human corrections from the current
+  task. A generic Android/Termux recipe must not override a recorded device
+  fact. If a required fact is unknown, prefer a short read-only probe; if a
+  facility is explicitly deferred, do not probe or troubleshoot it again.
 
 - **Make human paste-back output visually scannable.** Every human-facing
   Termux acceptance, diagnostic, install, or device-test script must use ANSI
