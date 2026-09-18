@@ -62,7 +62,7 @@ CONSUMER
 
 run_good() {
     name=$1; d=$2
-    if ! "$bin" verify "$d/state.tsv" "$d/checks.tsv" "$d/dependencies.tsv" "$d/receipts.tsv" "$d/scope.tsv" "$d/consumer.tsv" >"$d/out" 2>"$d/err"; then
+    if ! sh "$bin" verify "$d/state.tsv" "$d/checks.tsv" "$d/dependencies.tsv" "$d/receipts.tsv" "$d/scope.tsv" "$d/consumer.tsv" >"$d/out" 2>"$d/err"; then
         printf 'good case failed: %s\n' "$name" >&2
         cat "$d/err" >&2
         exit 1
@@ -72,7 +72,7 @@ run_good() {
 
 run_bad() {
     expected=$1; name=$2; d=$3
-    if "$bin" verify "$d/state.tsv" "$d/checks.tsv" "$d/dependencies.tsv" "$d/receipts.tsv" "$d/scope.tsv" "$d/consumer.tsv" >"$d/out" 2>"$d/err"; then
+    if sh "$bin" verify "$d/state.tsv" "$d/checks.tsv" "$d/dependencies.tsv" "$d/receipts.tsv" "$d/scope.tsv" "$d/consumer.tsv" >"$d/out" 2>"$d/err"; then
         printf 'bad case was accepted: %s\n' "$name" >&2
         exit 1
     fi
