@@ -1,10 +1,9 @@
-name: Native AArch64 16 KiB emulator boundary
+name: AArch64 artifact on Android 16 KiB translated emulator boundary
 
 on:
   pull_request:
     paths:
       - '.github/workflows/native-boundary-aarch64-16k.yml'
-      - '.github/aici-runner-exceptions.tsv'
       - 'followers/jobs/native-boundary-aarch64-16k.tsv'
   workflow_dispatch:
 
@@ -25,8 +24,8 @@ env:
   SOURCE_NDK: 27.3.13750724
 
 jobs:
-  aarch64-16k-emulator:
-    runs-on: macos-14
+  aarch64-16k-translated-emulator:
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
       - name: Download and verify exact AArch64 source artifact
@@ -47,7 +46,7 @@ jobs:
 
           archive="$download/native-boundary-aarch64.tar.gz"
           test -f "$archive"
-          actual=$(shasum -a 256 "$archive" | awk '{print $1}')
+          actual=$(sha256sum "$archive" | awk '{print $1}')
           test "$actual" = "$SOURCE_ARCHIVE_SHA256"
           printf 'artifact_sha256\t%s\n' "$actual" > "$receipts/provenance.tsv"
           printf 'source_run\t%s\n' "$SOURCE_RUN_ID" >> "$receipts/provenance.tsv"
@@ -66,14 +65,25 @@ jobs:
           cp "$download"/*.elf.txt "$receipts/source-elf/"
           printf 'archive\t%s\n' "$archive" >> "$receipts/provenance.tsv"
 
-      - name: Execute exact AArch64 bundle on Android 16 KiB emulator
+      - name: Enable KVM access
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -e /dev/kvm
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -l /dev/kvm
+
+      - name: Execute exact AArch64 bundle through Android translation on 16 KiB emulator
         uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
         with:
           api-level: 35
           target: google_apis_ps16k
-          arch: arm64-v8a
+          arch: x86_64
           disable-animations: true
-          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none -gpu swiftshader_indirect -accel off
+          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none -gpu swiftshader_indirect
           script: |
             set -euo pipefail
             runtime="$RUNNER_TEMP/aici-aarch64-runtime"
@@ -89,10 +99,12 @@ jobs:
             page_size=$(adb shell getconf PAGE_SIZE | tr -d '\r')
             api=$(adb shell getprop ro.build.version.sdk | tr -d '\r')
             qemu=$(adb shell getprop ro.kernel.qemu | tr -d '\r')
+            native_bridge=$(adb shell getprop ro.dalvik.vm.native.bridge | tr -d '\r')
             fingerprint=$(adb shell getprop ro.build.fingerprint | tr -d '\r')
 
-            test "$machine" = aarch64
-            test "$abi" = arm64-v8a
+            test "$machine" = x86_64
+            test "$abi" = x86_64
+            case ",$abilist," in *,arm64-v8a,*) ;; *) echo "guest does not advertise arm64-v8a translation: $abilist" >&2; exit 1 ;; esac
             test "$page_size" = 16384
             test "$api" = 35
             test "$qemu" = 1
@@ -109,7 +121,6 @@ jobs:
               receipt="$receipts/native/$file"
               grep -F "$(printf 'source\t%s' "$SOURCE_SUITE_REVISION")" "$receipt"
               grep -F "$(printf 'libc\tbionic')" "$receipt"
-              grep -F "$(printf 'machine\taarch64')" "$receipt"
               grep -F "$(printf 'page_size\t16384')" "$receipt"
               grep -F "$(printf 'summary\tPASS\tfailures=0')" "$receipt"
               awk -F '\t' '$1=="case" && $3=="native" && $4=="PASS" {n++} END {exit n != 17}' "$receipt"
@@ -120,28 +131,32 @@ jobs:
             grep -F "$(printf 'result\tPASS')" "$receipts/native/runtime.tsv"
 
             {
-              printf 'schema\taici-aarch64-16k-emulator-v1\n'
+              printf 'schema\taici-aarch64-16k-translated-emulator-v1\n'
               printf 'source_run\t%s\n' "$SOURCE_RUN_ID"
               printf 'suite_revision\t%s\n' "$SOURCE_SUITE_REVISION"
               printf 'suite_tree\t%s\n' "$SOURCE_SUITE_TREE"
               printf 'artifact_sha256\t%s\n' "$SOURCE_ARCHIVE_SHA256"
-              printf 'system_image\tsystem-images;android-35;google_apis_ps16k;arm64-v8a\n'
+              printf 'system_image\tsystem-images;android-35;google_apis_ps16k;x86_64\n'
               printf 'adb_serial\t%s\n' "$serial"
-              printf 'runtime_machine\t%s\n' "$machine"
-              printf 'runtime_abi\t%s\n' "$abi"
-              printf 'runtime_abilist\t%s\n' "$abilist"
-              printf 'runtime_page_size\t%s\n' "$page_size"
+              printf 'guest_machine\t%s\n' "$machine"
+              printf 'guest_abi\t%s\n' "$abi"
+              printf 'guest_abilist\t%s\n' "$abilist"
+              printf 'guest_page_size\t%s\n' "$page_size"
               printf 'android_api\t%s\n' "$api"
               printf 'qemu_property\t%s\n' "$qemu"
+              printf 'native_bridge\t%s\n' "$native_bridge"
               printf 'build_fingerprint\t%s\n' "$fingerprint"
-              printf 'classification\tandroid-emulator\n'
+              printf 'artifact_arch\taarch64\n'
+              printf 'classification\tandroid-emulator-aarch64-translation\n'
+              printf 'native_aarch64_runtime\tNOT_VERIFIED\n'
+              printf 'follower_acceptance\tNOT_VERIFIED\n'
               printf 'result\tPASS\n'
             } > "$receipts/emulator.tsv"
 
-      - name: Retain AArch64 16 KiB emulator evidence
+      - name: Retain AArch64 16 KiB translated-emulator evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: native-boundary-aarch64-16k-emulator-${{ github.run_id }}
+          name: native-boundary-aarch64-16k-translated-emulator-${{ github.run_id }}
           path: ${{ runner.temp }}/aici-aarch64-16k-receipts/
           if-no-files-found: error
