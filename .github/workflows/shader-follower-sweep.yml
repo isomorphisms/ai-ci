@@ -1,0 +1,134 @@
+name: shader follower sweep
+
+on:
+  push:
+    paths:
+      - 'shader-followers/**'
+      - '.github/workflows/shader-follower-sweep.yml'
+  pull_request:
+    paths:
+      - 'shader-followers/**'
+      - '.github/workflows/shader-follower-sweep.yml'
+  schedule:
+    - cron: '41 10 * * *'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Optional tracked shader target to inspect
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  policy-self-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Validate shader follower policy
+        shell: sh
+        run: sh shader-followers/validate-policy.sh
+      - name: Prove duplicate target is rejected
+        shell: sh
+        run: |
+          if sh shader-followers/validate-policy.sh shader-followers/tests/bad-duplicate.tsv shader-followers/checkpoints.tsv; then
+            echo 'bad duplicate shader fixture was accepted' >&2
+            exit 1
+          fi
+
+  shader-deltas:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    needs: policy-self-test
+    runs-on: ubuntu-24.04
+    env:
+      REQUESTED_TARGET: ${{ inputs.target }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Build shader follower sweep packet
+        shell: sh
+        run: |
+          set -eu
+
+          requested=${REQUESTED_TARGET:-}
+          policy=shader-followers/policy.tsv
+          checkpoints=shader-followers/checkpoints.tsv
+
+          if [ -n "$requested" ] && ! awk -F '\t' -v target="$requested" 'NR > 1 && $1 == target { found = 1 } END { exit !found }' "$policy"; then
+            echo "unknown tracked shader target: $requested" >&2
+            exit 1
+          fi
+
+          {
+            echo '## Shader follower sweep'
+            echo
+            echo '- policy issue: isomorphisms/ai-ci#21'
+            if [ -n "$requested" ]; then
+              echo "- selected target: \`$requested\`"
+            else
+              echo '- selected target: all tracked shader targets'
+            fi
+            echo '- mode: read-only review packet'
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          tail -n +2 "$policy" | while IFS="$(printf '\t')" read -r target repository ref role math_ir language precision resources execution host_boundary evidence rule; do
+            if [ -n "$requested" ] && [ "$target" != "$requested" ]; then
+              continue
+            fi
+
+            checkpoint=$(awk -F '\t' -v target="$target" 'NR > 1 && $1 == target { print $2 }' "$checkpoints")
+            remote="https://github.com/$repository.git"
+            latest=$(git ls-remote --heads "$remote" "refs/heads/$ref" | awk 'NR == 1 { print $1 }')
+
+            if [ -z "$latest" ]; then
+              echo "tracked shader ref not found: $repository:$ref" >&2
+              exit 1
+            fi
+
+            {
+              echo "### $target"
+              echo
+              echo "- repository/ref: \`$repository:$ref\`"
+              echo "- role: \`$role\`"
+              echo "- checkpoint: \`$checkpoint\`"
+              echo "- current head: \`$latest\`"
+              echo "- ordinary evidence: \`$evidence\`"
+              echo
+            } >> "$GITHUB_STEP_SUMMARY"
+
+            if [ "$checkpoint" = "$latest" ]; then
+              echo 'No unreviewed commits on this shader target.' >> "$GITHUB_STEP_SUMMARY"
+              echo >> "$GITHUB_STEP_SUMMARY"
+              continue
+            fi
+
+            echo "::warning title=Shader follower review needed::$target checkpoint $checkpoint differs from $ref at $latest"
+            work="$RUNNER_TEMP/shader-$target"
+            git clone --quiet --filter=blob:none --no-checkout "$remote" "$work"
+            git -C "$work" fetch --quiet origin "$ref"
+            if ! git -C "$work" cat-file -e "$checkpoint^{commit}" 2>/dev/null; then
+              git -C "$work" fetch --quiet origin "$checkpoint"
+            fi
+
+            echo 'Unreviewed commit delta:' >> "$GITHUB_STEP_SUMMARY"
+            echo >> "$GITHUB_STEP_SUMMARY"
+            if git -C "$work" merge-base --is-ancestor "$checkpoint" "$latest"; then
+              git -C "$work" log --reverse --format='- `%h` %s' "$checkpoint..$latest" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo '- checkpoint is not an ancestor of the selected target ref; inspect the ref relationship manually before propagation.' >> "$GITHUB_STEP_SUMMARY"
+            fi
+            echo >> "$GITHUB_STEP_SUMMARY"
+          done
+
+          {
+            echo '### Shader-specific propagation policy'
+            echo
+            echo '| target | role | ref | math/IR | language | precision | resources | execution | host boundary | evidence |'
+            echo '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |'
+            awk -F '\t' 'NR > 1 { printf "| %s | `%s` | `%s` | `%s` | `%s` | `%s` | `%s` | `%s` | `%s` | `%s` |\n", $1, $4, $3, $5, $6, $7, $8, $9, $10, $11 }' "$policy"
+            echo
+            echo 'For each changed commit or hunk, classify the decision before propagation: shared math/typed IR; shader-language lowering; precision; resources/layout/address spaces; execution/derivatives/barriers/subgroups/uniformity; hardware/compiler optimization; or host/runtime boundary.'
+            echo
+            echo 'Review outcomes may be `apply`, `adapt`, `already-covered`, `not-applicable`, or `defer-measurement`. Do not advance a checkpoint automatically. The complete per-target rule text is checked in at `shader-followers/policy.tsv`.'
+          } >> "$GITHUB_STEP_SUMMARY"
