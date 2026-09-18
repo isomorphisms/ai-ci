@@ -27,6 +27,20 @@ every repository.
   historical evidence only. Bind acceptance to the exact revision and material
   pins under review.
 
+- **Distinguish an exact PR head from GitHub's synthetic merge checkout.** A
+  normal `pull_request` checkout may execute `refs/pull/<n>/merge`, which is
+  useful integration evidence but is not the PR head. When a claim or merge gate
+  requires exact-head evidence, bind the checkout, observed check, receipt, and
+  artifact to the explicit PR head SHA. Record synthetic-merge evidence as such
+  rather than relabeling it as head evidence.
+
+- **Make every required check eligible for the changes it claims to protect.**
+  If a workflow uses `paths:`, include every material implementation,
+  contract/oracle, fixture, action/script, workflow, and other dependency whose
+  change can invalidate the claim. If that dependency set cannot be maintained
+  confidently, run the check without a path filter. A green run does not protect
+  a later change that could not trigger the check.
+
 - **Name pull requests in human-facing references.** Whenever mentioning a pull
   request to the human, include its current title alongside its PR number. Do not
   use a PR number, exact-head SHA, branch name, or other machine identifier as the
@@ -65,6 +79,14 @@ every repository.
   Check the current branch, architecture documents, established interfaces,
   terminology, and nearby active changes before inventing another model for the
   same concept.
+
+- **Keep reusable enforcement in `ai-ci`.** When the same failure mode,
+  evidence rule, workflow-integrity rule, or acceptance boundary applies across
+  repositories, put the reusable verifier, contract, action, diagnostics, and
+  adversarial fixtures in `isomorphisms/ai-ci`. Consumer repositories should
+  keep only their project-specific inputs, expected results, and wiring. Do not
+  fork equivalent policy logic into several repositories unless the semantics
+  are genuinely different.
 
 - **Mirror substantive design work into the repository.** When a conversation
   establishes or materially develops an architecture idea, alternative,
