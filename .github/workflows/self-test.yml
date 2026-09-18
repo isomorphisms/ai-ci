@@ -9,6 +9,7 @@ permissions:
 
 jobs:
   self-test:
+    name: ${{ github.event_name == 'pull_request' && 'self-test' || format('self-test-{0}', github.event_name) }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -38,6 +39,7 @@ jobs:
           root: .
 
   biology-self-test:
+    name: ${{ github.event_name == 'pull_request' && 'biology-self-test' || format('biology-self-test-{0}', github.event_name) }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -76,6 +78,7 @@ jobs:
           corpus_root: _bioawk/sample data
 
   video-self-test:
+    name: ${{ github.event_name == 'pull_request' && 'video-self-test' || format('video-self-test-{0}', github.event_name) }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -105,6 +108,7 @@ jobs:
           root: ${{ runner.temp }}/aici-video-fixtures/good
 
   fdroid-self-test:
+    name: ${{ github.event_name == 'pull_request' && 'fdroid-self-test' || format('fdroid-self-test-{0}', github.event_name) }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -133,6 +137,7 @@ jobs:
           root: ${{ runner.temp }}/aici-fdroid-fixtures/good
 
   ingestion-self-test:
+    name: ${{ github.event_name == 'pull_request' && 'ingestion-self-test' || format('ingestion-self-test-{0}', github.event_name) }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
