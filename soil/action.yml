@@ -60,6 +60,7 @@ runs:
       run: |
         set -eu
         cd "$AICI_SOIL_ROOT"
+        export REPO_ROOT=$PWD
         soil/github-actions.sh run-job "$AICI_SOIL_JOB" "$AICI_SOIL_CONTAINER"
 
     - name: Verify local Soil evidence
