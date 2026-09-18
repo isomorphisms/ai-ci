@@ -18,6 +18,9 @@ function gitsha(s) { return hex(s,40) || hex(s,64) }
 function sha256(s) { return hex(s,64) }
 function posint(s) { return s ~ /^[1-9][0-9]*$/ }
 function yesno(s) { return s=="yes" || s=="no" }
+function token(s) { return s!="" && s !~ /[[:space:]]/ }
+function optgit(s) { return s=="-" || gitsha(s) }
+function optsha256(s) { return s=="-" || sha256(s) }
 function member(s,list,    a,n,i) { n=split(list,a,"|"); for(i=1;i<=n;i++) if(s==a[i]) return 1; return 0 }
 function required(actual, expected, code, id) { if(expected!="-" && actual!=expected) bad(code,id) }
 function noncomment() { return $0 !~ /^[[:space:]]*(#|$)/ }
@@ -36,7 +39,7 @@ FILENAME==checks_file && noncomment() {
         next
     }
     data_rows++
-    if (NF!=11 || !yesno($5) || !yesno($11) || !member($6,"head|synthetic-merge")) { bad("CHECKS-MALFORMED","invalid check row"); next }
+    if (NF!=11 || !token($1) || !token($2) || !token($3) || !yesno($5) || !yesno($11) || !member($6,"head|synthetic-merge") || !member($7,"queued|in_progress|completed|missing") || !member($8,"success|failure|cancelled|skipped|neutral|timed_out|action_required|stale|-") || !(posint($4) || $4=="-") || !optgit($9) || !optgit($10)) { bad("CHECKS-MALFORMED","invalid check row"); next }
     key=$1 SUBSEP $2 SUBSEP $3
     if (seen_check[key]++) bad("CHECKS-MALFORMED","duplicate check row")
     namekey=$2
@@ -78,7 +81,7 @@ FILENAME==receipts_file && noncomment() {
         next
     }
     data_rows++
-    if (NF!=19 || !member($2,"PASS|FAIL|UNKNOWN") || !gitsha($3) || !gitsha($4) || ($5!="-" && !sha256($5)) || !member($8,"none|compile|host|qemu-user|full-system|android-emulator|physical") || !member($9,"none|mock|virtual|physical") || !member($10,"none|loopback|fake-tls|external-tls") || !member($11,"none|exact-prebuilt|rebuilt")) { bad("RECEIPTS-MALFORMED",$1); next }
+    if (NF!=19 || !token($1) || !member($2,"PASS|FAIL|UNKNOWN") || !gitsha($3) || !gitsha($4) || !optsha256($5) || !token($6) || !token($7) || !member($8,"none|compile|host|qemu-user|full-system|android-emulator|physical") || !member($9,"none|mock|virtual|physical") || !member($10,"none|loopback|fake-tls|external-tls") || !member($11,"none|exact-prebuilt|rebuilt") || !optgit($12) || !optsha256($13) || !token($14) || !token($15) || !member($16,"-|none|compile|host|qemu-user|full-system|android-emulator|physical") || !member($17,"-|none|mock|virtual|physical") || !member($18,"-|none|loopback|fake-tls|external-tls") || !member($19,"-|none|exact-prebuilt|rebuilt")) { bad("RECEIPTS-MALFORMED",$1); next }
     if (($11=="exact-prebuilt" || $11=="rebuilt") && $5=="-") { bad("RECEIPTS-MALFORMED",$1); next }
     if ($2=="UNKNOWN") { bad("RECEIPT-UNKNOWN",$1); next }
     if ($2!="PASS") { bad("RECEIPT-NOT-PASS",$1); next }
@@ -101,7 +104,7 @@ FILENAME==scope_file && noncomment() {
         next
     }
     data_rows++
-    if (NF!=3 || !member($1,"commit|file|anchor|equivalent")) { bad("SCOPE-MALFORMED",$2); next }
+    if (NF!=3 || $2=="" || $3=="" || !member($1,"commit|file|anchor|equivalent")) { bad("SCOPE-MALFORMED",$2); next }
     if ($1=="commit" || $1=="file") {
         if ($3=="inherited") bad("SCOPE-INHERITED",$2)
         else if ($3=="unexplained") bad("SCOPE-UNEXPLAINED",$2)
