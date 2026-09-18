@@ -1,0 +1,41 @@
+name: ai-ci merge authorization
+
+description: Fail-closed merge authorization over exact revision, topology, checks, receipts, scope, and runtime-consumer snapshots.
+
+inputs:
+  state:
+    description: merge state snapshot
+    required: true
+  checks:
+    description: observed and required check snapshot
+    required: true
+  dependencies:
+    description: exact or resolved-moving dependency snapshot
+    required: true
+  receipts:
+    description: evidence receipts and exact requirements
+    required: true
+  scope:
+    description: provenance-classified scope snapshot
+    required: true
+  consumer:
+    description: exact-artifact consumer trace
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Verify merge authorization snapshot
+      shell: sh
+      env:
+        AICI_STATE: ${{ inputs.state }}
+        AICI_CHECKS: ${{ inputs.checks }}
+        AICI_DEPENDENCIES: ${{ inputs.dependencies }}
+        AICI_RECEIPTS: ${{ inputs.receipts }}
+        AICI_SCOPE: ${{ inputs.scope }}
+        AICI_CONSUMER: ${{ inputs.consumer }}
+      run: |
+        set -eu
+        sh "$GITHUB_ACTION_PATH/verify.sh" verify \
+          "$AICI_STATE" "$AICI_CHECKS" "$AICI_DEPENDENCIES" \
+          "$AICI_RECEIPTS" "$AICI_SCOPE" "$AICI_CONSUMER"
