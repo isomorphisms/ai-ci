@@ -4,6 +4,7 @@ set -eu
 test "${1:-}" = run-job
 job=${2:-}
 test -n "$job"
+test "${REPO_ROOT:-}" = "$PWD"
 
 mkdir -p _tmp/soil/logs _soil-jobs
 git rev-parse HEAD > _tmp/soil/commit-hash.txt
