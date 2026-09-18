@@ -68,6 +68,8 @@ The optional final argument to `pending` or `matrix` is an exact trigger commit.
 
 The consumer repository decides which changed files affect which targets. That inference belongs close to its real target metadata rather than in a universal AICI hard-coded architecture list. A consumer's reconciliation step should fail when an affected maintained follower has neither a valid accepted receipt nor durable unresolved work.
 
+Follower acceptance also has a bookkeeping boundary. When a matching receipt lands, reconcile every durable tracker that still names that exact follower as outstanding: update the follower job, cross-link the receipt, and update or close the issue, PR checklist, or status note whose blocker it resolves. These records do not update each other automatically. If the new evidence belongs to a successor trigger or different exact scope, mark the older tracker superseded rather than silently treating it as satisfied. Historical evidence stays historical, but stale `pending` or `blocked` statements must not remain authoritative after their obligation has actually been retired.
+
 When an identified maintained follower cannot be executed from the current machine, create the job anyway. A later agent must be able to execute it cold from the repository record without recovering intent from chat or CI logs. Do not create a required blocked job merely because a hypothetical target could exist.
 
 Receipts are evidence, not wishes. Credentials, unavailable hardware, an inaccessible cloud host, or an unsupported backend should leave a blocked or unsupported job rather than an invented pass.
