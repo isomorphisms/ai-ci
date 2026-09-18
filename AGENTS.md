@@ -193,13 +193,16 @@ every repository.
   inside the script. Never require the human to `cd` first or rely on relative
   paths against their current working directory.
 
-- **Make human paste-back output visually scannable.** When asking the human to
-  run a terminal block and paste its output back, use ANSI color when the target
-  terminal supports it: cyan for section headings, yellow for actions or
-  attention, green for PASS/success, and red for FAIL/errors. Keep literal
-  receipt fields and other machine-readable evidence uncolored, include textual
-  labels in addition to color, and provide a plain-text fallback when color is
-  unavailable. Do not rely on color alone to convey evidence or status.
+- **Make human paste-back output visually scannable.** Every human-facing
+  Termux acceptance, diagnostic, install, or device-test script must use ANSI
+  color when the terminal supports it: cyan for section headings, yellow for
+  actions or attention, green for PASS/success, and red for FAIL/errors. Apply
+  the same convention to other terminal blocks whose output the human is asked
+  to paste back. Keep literal receipt fields and other machine-readable evidence
+  uncolored, include textual labels in addition to color, and provide a
+  plain-text fallback when color is unavailable. Do not rely on color alone to
+  convey evidence or status. Do not regress a previously colored device script
+  to plain output in a later revision or follow-up.
 
 - **Deliver runnable repository work through GitHub, not chat attachments, by
   default.** When the human needs a script, executable, APK, package, or other
