@@ -24,6 +24,42 @@ jobs:
       - name: Prove bad fixtures are rejected
         shell: sh
         run: /tmp/aici self-test tests/cases.tsv
+      - name: Check out pinned Ike
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: dilapidated-shed/ike
+          ref: 3f513e58ed2b83946fca8e9be6a952a582bafb85
+          path: _ike
+          persist-credentials: false
+      - name: Bootstrap pinned Ike and independent receipt verifier
+        shell: sh
+        run: |
+          cc -std=c11 -Wall -Wextra -Wpedantic -O2 _ike/ike.c -o /tmp/ike
+          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 \
+            ike/verify_receipt.c -o /tmp/aici-ike-receipt
+      - name: Prove mutated Ike receipts are rejected
+        shell: sh
+        run: sh ike/tests.sh /tmp/aici-ike-receipt
+      - name: Shadow the AICI core build through Ike
+        shell: sh
+        run: |
+          ikefile_digest=$(sha256sum ike/Ikefile | cut -d ' ' -f 1)
+          ikefile_identity="sha256:$ikefile_digest"
+          receipt="$RUNNER_TEMP/ike-build-v1.tsv"
+          (
+            cd ike
+            IKE_RECEIPT="$receipt" \
+            IKE_IKEFILE_IDENTITY="$ikefile_identity" \
+              /tmp/ike aici-self-test
+          )
+          /tmp/aici-ike-receipt verify "$receipt" "$ikefile_identity"
+          cmp /tmp/aici /tmp/aici-ike
+      - name: Upload the exact Ike shadow receipt
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: aici-ike-shadow-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/ike-build-v1.tsv
+          if-no-files-found: error
       - name: Prove source preflight gates heavyweight mutation
         shell: sh
         run: |
