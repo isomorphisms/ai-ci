@@ -169,6 +169,18 @@ every repository.
   correctly. Acceptance must execute the named target-specific action and record
   that result independently.
 
+- **Keep device identity and storage facts scoped to the exact device.** Never
+  project a phone path, mount, removable-storage layout, executable location, or
+  capacity observation onto a tablet, or vice versa. Before calling a path
+  "internal", "external", "SD card", "shared storage", or executable, verify it
+  on the named device with direct evidence such as `readlink -f`, `df`,
+  mount information, existence checks, or an actual execution attempt as
+  appropriate. `~/storage/downloads` means the Android shared Downloads view;
+  it is not evidence that an external SD card exists. Likewise,
+  `~/storage/external-1` must be observed on that device before use. Treat
+  dated device-storage observations as mutable facts and recheck them when they
+  materially affect a command, artifact location, or acceptance claim.
+
 - **Keep repository-specific conventions local.** Do not turn a convention such
   as `_` build layout, a particular backend hierarchy, or temporary subsystem
   leadership into a universal rule unless it is actually shared across
