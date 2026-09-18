@@ -14,7 +14,7 @@
 
 ## Next deterministic contracts
 
-- `revision-stack`: bind results to the exact PR head and base graph;
+- `revision-stack`: first fail-closed slice implemented in `merge/`; next add a GitHub snapshot collector so live PR facts can be produced without manual assembly;
 - `artifact-freshness`: bind artifact hashes to source and toolchain hashes;
 - `idempotent-generation`: run harvest/generation twice and compare the full
   output inventory, then remove an input and prove stale output disappears;
