@@ -23,7 +23,8 @@ runs the verifier against the finished repository or artifact tree.
   caption text remain byte-identical;
 - asset provenance manifest schema and nonempty required attribution fields;
 - workflow integrity: rejection of `continue-on-error`, shell `||`, and
-  `set +e`; full-SHA action pins; and event-scoped coverage of critical paths;
+  `set +e`; full-SHA action pins; explicit PR-head checkout for primary source
+  when exact-head evidence is required; and event-scoped coverage of critical paths;
 - language boundaries, including detecting shell files mislabeled as Grease.
 - evaluation-case manifests with explicit objectives, oracles, evidence,
   provenance, variants, holdout splits, trial counts, and blocking status.
@@ -42,7 +43,9 @@ asserts can actually trigger the workflow. The shared
 `workflow-integrity-v0` contract already provides event-scoped
 `yaml_paths` checking: consumers keep a repository-specific list of critical
 paths and the contract rejects omitted, negative, commented, or misplaced path
-entries. If the material dependency set is broad or difficult to maintain,
+entries. `yaml_primary_checkout_ref` also rejects the default synthetic
+pull-request merge checkout when the contract requires the primary repository to
+use the explicit PR-head expression. If the material dependency set is broad or difficult to maintain,
 prefer an unfiltered `pull_request`/push trigger over a narrow filter that can
 leave production changes untested.
 
