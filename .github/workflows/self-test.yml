@@ -24,6 +24,18 @@ jobs:
       - name: Prove bad fixtures are rejected
         shell: sh
         run: /tmp/aici self-test tests/cases.tsv
+      - name: Refuse new first-party Python source
+        shell: sh
+        run: |
+          find . -type f -name '*.py' ! -path './.git/*' -print |
+            sed 's#^./##' |
+            sort > "$RUNNER_TEMP/python-source.actual"
+          printf '%s\n' \
+            'benchmarks/iridium-2014/make-hackage-2014-index.py' \
+            'complex-projective/verify_receipt.py' \
+            'tests/fixtures/language-bad-python/ci/hidden.py' \
+            > "$RUNNER_TEMP/python-source.expected"
+          diff -u "$RUNNER_TEMP/python-source.expected" "$RUNNER_TEMP/python-source.actual"
       - name: Check out pinned Ike
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
