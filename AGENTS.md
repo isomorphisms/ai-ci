@@ -13,7 +13,9 @@ every repository.
   backend execution, physical-device execution, and publication are different
   evidence levels. Claim only the strongest level actually demonstrated.
 
-- **Spell out low-level error names for people.** Human-facing diagnostics, receipts, docs, and terminal instructions must lead with the ordinary meaning of errno, signal, protocol, kernel, libc, or platform symbolic codes rather than assuming the human recognizes the token. Keep the exact symbolic identifier as secondary detail when it is useful for debugging or search, for example `Operation not supported (EOPNOTSUPP)`, `No space left on device (ENOSPC)`, `Interrupted system call (EINTR)`, or `Cross-device operation (EXDEV)`. Do not replace exact machine evidence with prose; present both, with the words first.\n\n- **Do not substitute the requested mechanism.** An oracle, mock, fallback,
+- **Spell out low-level error names for people.** Human-facing diagnostics, receipts, docs, and terminal instructions must lead with the ordinary meaning of errno, signal, protocol, kernel, libc, or platform symbolic codes rather than assuming the human recognizes the token. Keep the exact symbolic identifier as secondary detail when it is useful for debugging or search, for example `Operation not supported (EOPNOTSUPP)`, `No space left on device (ENOSPC)`, `Interrupted system call (EINTR)`, or `Cross-device operation (EXDEV)`. Do not replace exact machine evidence with prose; present both, with the words first.
+
+- **Do not substitute the requested mechanism.** An oracle, mock, fallback,
   handwritten equivalent, alternate backend, alternate executable, lookalike
   renderer, or convenient reimplementation does not count as acceptance of the
   named implementation.
