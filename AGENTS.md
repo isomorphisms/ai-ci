@@ -29,6 +29,17 @@ every repository.
   historical evidence only. Bind acceptance to the exact revision and material
   pins under review.
 
+- **Retire resolved obligations where they were recorded.** When later work
+  satisfies, supersedes, or invalidates an issue, PR checklist, follower job,
+  design note, acceptance blocker, or other durable tracker, reconcile that
+  original record before treating the work as finished. Link the exact evidence,
+  update stale status/checklists, and close completed trackers or mark them
+  superseded or conditional as appropriate. Work completed in another
+  repository, branch, or conversation does not make an old `pending` or
+  `blocked` statement harmless; stale trackers are misinformation. Preserve
+  historical evidence instead of rewriting it, and create a successor when the
+  new evidence does not satisfy the old exact scope.
+
 - **Distinguish an exact PR head from GitHub's synthetic merge checkout.** A
   normal `pull_request` checkout may execute `refs/pull/<n>/merge`, which is
   useful integration evidence but is not the PR head. When a claim or merge gate
