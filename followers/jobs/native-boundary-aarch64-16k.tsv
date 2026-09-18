@@ -11,15 +11,15 @@ artifact	native-boundary-aarch64.tar.gz
 artifact_sha256	c2a896dae713659968f5910bae2fb993837de0cd1bb047caa6a21bcb7b02383c
 follower_platform	android-16k-runtime
 follower_arch	aarch64
-required	yes
-action	Execute the exact-source AArch64 bundle on an independently identified Android emulator or device whose runtime page size is actually 16384 bytes. Verify archive digest and run sh bundle/run.sh in a fresh directory.
+required	conditional
+action	If a maintained native AArch64 Android target with a 16384-byte runtime page size is explicitly identified, execute the exact-source bundle there, verify the archive digest, and run sh bundle/run.sh in a fresh directory.
 acceptance_kind	runtime
 acceptance_action	Require page_size=16384 in both probe logs, both offset-mode results passing, ELF/load evidence, image or device identity and exact source/artifact digest. Classify emulator versus physical device explicitly.
-state	blocked
+state	n/a
 last_attempt_commit	-
-blocker	No independently identified 16-KiB Android emulator or device execution receipt has been recorded for the exact artifact.
+blocker	-
 evidence	-
 depends_on	native-boundary-aarch64-build
-reason	Successful linking with 16-KiB alignment or execution on a 4-KiB system does not establish 16-KiB runtime compatibility.
+reason	No maintained native AArch64 16-KiB Android deployment target is identified. The physical AArch64 tablet is a 4-KiB target; generic Android/Bionic 16-KiB coverage and translated exact-AArch64 compatibility evidence do not create a native or physical 16-KiB deployment obligation. Reactivate this follower only when such a target is actually named.
 superseded_by	-
 follow_policy	exact

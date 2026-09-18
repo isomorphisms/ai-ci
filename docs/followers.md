@@ -21,6 +21,8 @@ Examples include GitHub-hosted Ubuntu, a disposable Ubuntu container, a persiste
 
 Consumer repositories own this target catalog because only they know which distinctions are material to their delivered system. AICI verifies exact identities and receipts; it must not collapse distinct consumer targets into a generic architecture bucket.
 
+Do not turn every technically distinguishable architecture, page size, emulator, or hardware combination into a required follower. A required follower must correspond to a maintained deployment or compatibility target that the consumer has actually identified. A useful CI probe may cover an extra dimension without creating a deployment obligation. If a future target has a durable record before activation, use `required=conditional` and `state=n/a` with the activation condition in `reason`. Physical-device evidence is required only for an identified physical deployment target; an ABI, ISA, page-size, or emulator distinction alone does not create one.
+
 ## Acceptance kinds must describe what actually ran
 
 `build`, `runtime`, `artifact`, `physical-device`, and `publication` are evidence classes, not labels of convenience. The acceptance action and receipt must actually perform the operation named by the class.
@@ -66,6 +68,6 @@ The optional final argument to `pending` or `matrix` is an exact trigger commit.
 
 The consumer repository decides which changed files affect which targets. That inference belongs close to its real target metadata rather than in a universal AICI hard-coded architecture list. A consumer's reconciliation step should fail when an affected maintained follower has neither a valid accepted receipt nor durable unresolved work.
 
-When a follower cannot be executed from the current machine, create the job anyway. A later agent must be able to execute it cold from the repository record without recovering intent from chat or CI logs.
+When an identified maintained follower cannot be executed from the current machine, create the job anyway. A later agent must be able to execute it cold from the repository record without recovering intent from chat or CI logs. Do not create a required blocked job merely because a hypothetical target could exist.
 
 Receipts are evidence, not wishes. Credentials, unavailable hardware, an inaccessible cloud host, or an unsupported backend should leave a blocked or unsupported job rather than an invented pass.
