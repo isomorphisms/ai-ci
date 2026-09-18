@@ -82,14 +82,20 @@ every repository.
   bootstrapping compilers, or falling back to source builds. Keep host build and
   publication work separate from physical-device installation and acceptance.
 
-- **Preserve Android update identity for sideload/test APKs.** When an APK is
-  intended to replace an earlier build of the same package, keep a persistent
-  test signing certificate for that package and a nondecreasing `versionCode`.
-  Do not generate a fresh signer per developer machine, CI runner, workflow run,
-  branch, or release. Acceptance should exercise replacement installation
-  without uninstalling the prior build. Keep public/test signing separate from
-  production or store signing, and make any intentional signer/package migration
-  explicit because it may require a one-time uninstall or migration path.
+- **Preserve Android update identity for every first-party installable APK.**
+  Every maintained Android project that produces an APK for the human's devices
+  must keep a stable application/package ID, a persistent test signing
+  certificate for that package, and a monotonically nondecreasing
+  `versionCode`. This applies to all current and future phone/tablet utilities
+  and apps, not only one repository. Do not generate or substitute a fresh
+  signer per developer machine, CI runner, workflow run, branch, prerelease, or
+  rebuild. Install/deploy scripts must try replacement installation and must not
+  silently uninstall the existing package to get around a signer or downgrade
+  failure. Acceptance must exercise replacement installation without uninstalling
+  the prior build. Keep public/test signing separate from production or store
+  signing. Any intentional package-name or signer migration is a distinct
+  migration task and must be explicit because it can require a one-time
+  uninstall or supported key-rotation path.
 
 - **Keep target detection separate from target acceptance.** Detecting `phone`,
   `tablet`, `x86_64`, or another target selects the path to run; it is not proof
