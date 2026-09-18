@@ -978,6 +978,63 @@ static int primary_checkouts_use_ref(const char *path,
     fclose(file);
     return ok && primary_count > 0;
 }
+static int yaml_run_lacks(const char *path, const char *needle) {
+    FILE *file = fopen(path, "r");
+    char *line = NULL;
+    size_t capacity = 0;
+    ssize_t length;
+    int in_run_block = 0;
+    size_t run_indent = 0;
+    int ok = 1;
+
+    if (file == NULL || !regular_file(path) || needle[0] == '\0') {
+        if (file != NULL) fclose(file);
+        return 0;
+    }
+
+    while ((length = getline(&line, &capacity, file)) >= 0) {
+        char *content;
+        char *value;
+        size_t indent = 0;
+        if (length > AICI_LINE_MAX) {
+            ok = 0;
+            break;
+        }
+        while (line[indent] == ' ') ++indent;
+        content = trim(line);
+        if (*content == '\0') continue;
+
+        if (in_run_block && indent > run_indent) {
+            if (*content != '#' && strstr(content, needle) != NULL) {
+                ok = 0;
+                break;
+            }
+            continue;
+        }
+        in_run_block = 0;
+        if (*content == '#') continue;
+
+        value = yaml_value(content, "run");
+        if (value == NULL) continue;
+        if (strcmp(value, "|") == 0 || strcmp(value, "|-") == 0 ||
+            strcmp(value, "|+") == 0 || strcmp(value, ">") == 0 ||
+            strcmp(value, ">-") == 0 || strcmp(value, ">+") == 0) {
+            in_run_block = 1;
+            run_indent = indent;
+            continue;
+        }
+        value = unquote_scalar(value);
+        if (strstr(value, needle) != NULL) {
+            ok = 0;
+            break;
+        }
+    }
+
+    free(line);
+    fclose(file);
+    return ok;
+}
+
 
 static int script_uses_runner(const char *path, const char *script,
                               const char *runner) {
@@ -1122,6 +1179,13 @@ static int verify_contract(const char *contract_path, const char *root,
                         !join_path(left, sizeof(left), root, fields[2]);
             if (!malformed) ok = file_contains(left, fields[3], 0);
             snprintf(detail, sizeof(detail), "%s :: %s", fields[2], fields[3]);
+        } else if (strcmp(operation, "yaml_run_not_contains") == 0 &&
+                   count == 4) {
+            malformed = fields[3][0] == '\0' ||
+                        !join_path(left, sizeof(left), root, fields[2]);
+            if (!malformed) ok = yaml_run_lacks(left, fields[3]);
+            snprintf(detail, sizeof(detail), "%s run blocks exclude %s",
+                     fields[2], fields[3]);
         } else if (strcmp(operation, "scoped_contains") == 0 && count == 5) {
             malformed = fields[3][0] == '\0' || fields[4][0] == '\0' ||
                         !join_path(left, sizeof(left), root, fields[2]);
