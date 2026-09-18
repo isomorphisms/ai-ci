@@ -111,7 +111,7 @@ static void verify(const char *path, const char *ikefile_identity)
     require_line(file, expected, "self-test rule mismatch");
 
     recipe_line(expected, sizeof expected, 3, "aici-self-test",
-                "/tmp/aici-ike self-test ../tests/cases.tsv", 0);
+                "cd .. && /tmp/aici-ike self-test tests/cases.tsv", 0);
     require_line(file, expected, "self-test recipe mismatch");
 
     require_line(file, "final_result\tPASS", "final result mismatch");
