@@ -215,6 +215,14 @@ every repository.
   the current target path is genuinely unknown, verify it with appropriate
   filesystem commands rather than inventing one.
 
+- **Preflight human-facing device commands against durable target notes.**
+  Before giving a phone/tablet command block, inspect the applicable
+  repository-local `AGENTS.md`, current device/storage notes, and the active
+  acceptance boundary. Preserve explicit human corrections from the current
+  task. A generic Android/Termux recipe must not override a recorded device
+  fact. If a required fact is unknown, prefer a short read-only probe; if a
+  facility is explicitly deferred, do not probe or troubleshoot it again.
+
 - **Make human paste-back output visually scannable.** Every human-facing
   Termux acceptance, diagnostic, install, or device-test script must use ANSI
   color when the terminal supports it: cyan for section headings, yellow for
