@@ -83,6 +83,16 @@ every repository.
   names, paths, file extensions, identifiers, or executable names such as
   `edric` solely to enforce the prose spelling.
 
+- **Use Ithon, not Python, for first-party Python-family source.** New maintained
+  first-party `.py` programs, scripts, command layers, or verifiers are forbidden.
+  Ithon source uses `.pi` and must be checked through the Ithon frontend before
+  execution. Ordinary `.py` is foreign Python, not an alternate spelling of Ithon.
+  Existing live Python is migration debt and must be named explicitly until
+  converted; do not expand that debt. Deliberately bad Python fixtures may remain
+  only where they exist to prove the language-boundary rejection itself. The
+  inherited Python implementation/library substrate inside Ithon is a separate
+  implementation boundary and does not authorize Python source in consumers.
+
 - **Use Grease as the consumer-facing shell name.** In consumer repositories,
   shebangs, commands, examples, workflows, receipts, and human-facing prose must
   invoke and name `grease`, not `ysh`. The inherited Oils/YSH executable is an
