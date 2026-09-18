@@ -85,7 +85,7 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none -gpu swiftshader_indirect
           script: |
-            set -euo pipefail
+            set -eu
             runtime="$RUNNER_TEMP/aici-aarch64-runtime"
             receipts="$RUNNER_TEMP/aici-aarch64-16k-receipts"
             guest=/data/local/tmp/aici-native-boundary-aarch64-16k
