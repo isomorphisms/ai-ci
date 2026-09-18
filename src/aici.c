@@ -884,6 +884,101 @@ static char *unquote_scalar(char *value) {
     return value;
 }
 
+static int finish_primary_checkout(int repository_seen,
+                                   int repository_is_primary,
+                                   int ref_seen, int ref_matches,
+                                   int *primary_count) {
+    if (repository_seen && !repository_is_primary) return 1;
+    ++*primary_count;
+    return ref_seen && ref_matches;
+}
+
+static int primary_checkouts_use_ref(const char *path,
+                                     const char *expected_ref) {
+    FILE *file = fopen(path, "r");
+    char *line = NULL;
+    size_t capacity = 0;
+    ssize_t length;
+    int in_checkout = 0;
+    size_t checkout_indent = 0;
+    int repository_seen = 0;
+    int repository_is_primary = 0;
+    int ref_seen = 0;
+    int ref_matches = 0;
+    int primary_count = 0;
+    int ok = 1;
+
+    if (file == NULL || !regular_file(path) || expected_ref[0] == '\0') {
+        if (file != NULL) fclose(file);
+        return 0;
+    }
+
+    while ((length = getline(&line, &capacity, file)) >= 0) {
+        char *content;
+        char *value;
+        size_t indent = 0;
+        if (length > AICI_LINE_MAX) {
+            ok = 0;
+            break;
+        }
+        while (line[indent] == ' ') ++indent;
+        content = trim(line);
+        if (*content == '\0' || *content == '#') continue;
+
+        if (in_checkout && indent <= checkout_indent && *content == '-' &&
+            (content[1] == '\0' || isspace((unsigned char)content[1]))) {
+            if (!finish_primary_checkout(repository_seen, repository_is_primary,
+                                         ref_seen, ref_matches, &primary_count)) {
+                ok = 0;
+                break;
+            }
+            in_checkout = 0;
+        }
+
+        value = yaml_value(content, "uses");
+        if (value != NULL) {
+            value = unquote_scalar(value);
+            if (strncmp(value, "actions/checkout@", 17) == 0) {
+                in_checkout = 1;
+                checkout_indent = indent;
+                repository_seen = 0;
+                repository_is_primary = 0;
+                ref_seen = 0;
+                ref_matches = 0;
+                continue;
+            }
+        }
+
+        if (!in_checkout) continue;
+
+        value = yaml_value(content, "repository");
+        if (value != NULL) {
+            value = unquote_scalar(value);
+            repository_seen = 1;
+            repository_is_primary =
+                strcmp(value, "${{ github.repository }}") == 0;
+            continue;
+        }
+
+        value = yaml_value(content, "ref");
+        if (value != NULL) {
+            value = unquote_scalar(value);
+            ref_seen = 1;
+            ref_matches = strcmp(value, expected_ref) == 0;
+        }
+    }
+
+    if (ok && in_checkout &&
+        !finish_primary_checkout(repository_seen, repository_is_primary,
+                                 ref_seen, ref_matches, &primary_count)) {
+        ok = 0;
+    }
+
+    free(line);
+    fclose(file);
+    return ok && primary_count > 0;
+}
+
 static int script_uses_runner(const char *path, const char *script,
                               const char *runner) {
     FILE *file = fopen(path, "r");
@@ -1064,6 +1159,13 @@ static int verify_contract(const char *contract_path, const char *root,
             if (!malformed) ok = every_yaml_path_is_declared(left, right, fields[4]);
             snprintf(detail, sizeof(detail), "%s in %s.paths of %s",
                      fields[2], fields[4], fields[3]);
+        } else if (strcmp(operation, "yaml_primary_checkout_ref") == 0 &&
+                   count == 4) {
+            malformed = fields[3][0] == '\0' ||
+                        !join_path(left, sizeof(left), root, fields[2]);
+            if (!malformed) ok = primary_checkouts_use_ref(left, fields[3]);
+            snprintf(detail, sizeof(detail), "%s primary checkout ref=%s",
+                     fields[2], fields[3]);
         } else if (strcmp(operation, "no_suffix") == 0 && count == 4) {
             malformed = fields[3][0] == '\0' ||
                         !join_path(left, sizeof(left), root, fields[2]);
