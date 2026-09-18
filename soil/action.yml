@@ -16,6 +16,10 @@ inputs:
     description: Container runner passed to Soil
     required: false
     default: podman
+  allowed_task_failures:
+    description: Optional comma-separated exact task=status exceptions; every other nonzero Soil task still fails
+    required: false
+    default: ''
 
 outputs:
   receipt:
@@ -70,11 +74,12 @@ runs:
         AICI_SOIL_ROOT: ${{ inputs.root }}
         AICI_SOIL_JOB: ${{ inputs.job }}
         AICI_SOIL_EXPECTED_REVISION: ${{ inputs.expected_revision }}
+        AICI_SOIL_ALLOWED_TASK_FAILURES: ${{ inputs.allowed_task_failures }}
       run: |
         set -eu
         receipt="$RUNNER_TEMP/aici-soil-$AICI_SOIL_JOB.receipt.tsv"
         "$RUNNER_TEMP/aici-soil" verify \
           "$AICI_SOIL_ROOT" "$AICI_SOIL_JOB" "$AICI_SOIL_EXPECTED_REVISION" \
-          > "$receipt"
+          "$AICI_SOIL_ALLOWED_TASK_FAILURES" > "$receipt"
         cat "$receipt"
         printf 'receipt=%s\n' "$receipt" >> "$GITHUB_OUTPUT"
