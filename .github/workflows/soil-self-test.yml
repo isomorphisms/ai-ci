@@ -1,0 +1,43 @@
+name: ai-ci Soil self-test
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  soil-self-test:
+    name: ${{ github.event_name == 'pull_request' && 'soil-self-test' || format('soil-self-test-{0}', github.event_name) }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Compile Soil verifier
+        shell: sh
+        run: |
+          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 \
+            -o /tmp/aici-soil soil/src/aici_soil.c
+
+      - name: Prove targeted bad Soil receipts are rejected
+        shell: sh
+        run: /tmp/aici-soil self-test
+
+      - name: Exercise the reusable Soil action without a publisher
+        id: soil
+        uses: ./soil
+        with:
+          root: soil/tests/fake-source
+          job: fixture
+          expected_revision: ${{ github.event.pull_request.head.sha || github.sha }}
+          container: podman
+
+      - name: Check action receipt
+        shell: bash
+        env:
+          RECEIPT: ${{ steps.soil.outputs.receipt }}
+        run: |
+          test -s "$RECEIPT"
+          grep -F $'publisher\tnot_run' "$RECEIPT"
+          grep -F $'job\tfixture' "$RECEIPT"
