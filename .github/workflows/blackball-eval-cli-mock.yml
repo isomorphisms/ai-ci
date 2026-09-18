@@ -1,0 +1,28 @@
+name: Blackball eval CLI mock self-test
+
+on:
+  push:
+    paths:
+      - 'evals/blackball/mock_chat_cli.py'
+      - 'evals/blackball/mocks/**'
+      - 'evals/blackball/CLI.md'
+      - 'tests/check_blackball_eval_cli.py'
+      - '.github/workflows/blackball-eval-cli-mock.yml'
+  pull_request:
+    paths:
+      - 'evals/blackball/mock_chat_cli.py'
+      - 'evals/blackball/mocks/**'
+      - 'evals/blackball/CLI.md'
+      - 'tests/check_blackball_eval_cli.py'
+      - '.github/workflows/blackball-eval-cli-mock.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  cli-contract:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Prove replaceable fresh-chat command boundary
+        run: python3 tests/check_blackball_eval_cli.py
