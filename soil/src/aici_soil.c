@@ -109,6 +109,70 @@ static int parse_status(const char *text, int *value) {
     return 1;
 }
 
+static int parse_failure_token(const char *start, size_t length,
+                               char *task, size_t task_size, int *status) {
+    char token[192];
+    char *equals;
+
+    if (length == 0 || length >= sizeof(token)) return 0;
+    memcpy(token, start, length);
+    token[length] = '\0';
+    equals = strchr(token, '=');
+    if (equals == NULL || equals == token || equals[1] == '\0' ||
+        strchr(equals + 1, '=') != NULL) {
+        return 0;
+    }
+    *equals = '\0';
+    if (!safe_name(token) || strlen(token) >= task_size ||
+        !parse_status(equals + 1, status) || *status == 0) {
+        return 0;
+    }
+    strcpy(task, token);
+    return 1;
+}
+
+static int valid_failure_spec(const char *spec) {
+    const char *p = spec;
+    if (*p == '\0') return 1;
+
+    while (*p != '\0') {
+        const char *end = strchr(p, ',');
+        size_t length = end == NULL ? strlen(p) : (size_t)(end - p);
+        char task[129];
+        int status;
+
+        if (!parse_failure_token(p, length, task, sizeof(task), &status)) {
+            return 0;
+        }
+        if (end == NULL) return 1;
+        p = end + 1;
+        if (*p == '\0') return 0;
+    }
+    return 1;
+}
+
+static int failure_allowed(const char *spec, const char *task, int status) {
+    const char *p = spec;
+
+    while (*p != '\0') {
+        const char *end = strchr(p, ',');
+        size_t length = end == NULL ? strlen(p) : (size_t)(end - p);
+        char allowed_task[129];
+        int allowed_status;
+
+        if (!parse_failure_token(p, length, allowed_task,
+                                 sizeof(allowed_task), &allowed_status)) {
+            return 0;
+        }
+        if (strcmp(allowed_task, task) == 0 && allowed_status == status) {
+            return 1;
+        }
+        if (end == NULL) break;
+        p = end + 1;
+    }
+    return 0;
+}
+
 static int split_tabs(char *line, char **fields, int maximum) {
     int count = 0;
     char *p = line;
@@ -125,15 +189,17 @@ static int split_tabs(char *line, char **fields, int maximum) {
 }
 
 static int verify_index(const char *root, const char *path,
+                        const char *allowed_failures,
                         int quiet, VerifyResult *result,
-                        int *task_count_out, int *max_status_out) {
+                        int *task_count_out, int *max_status_out,
+                        int *allowed_failure_count_out) {
     FILE *file;
     char *line = NULL;
     size_t capacity = 0;
     ssize_t length;
     int task_count = 0;
     int max_status = 0;
-    int saw_failure = 0;
+    int allowed_failure_count = 0;
 
     if (!regular_file(path)) {
         return fail(result, quiet, "AICI-SOIL-INDEX", "INDEX.tsv missing");
@@ -183,7 +249,14 @@ static int verify_index(const char *root, const char *path,
 
         ++task_count;
         if (status > max_status) max_status = status;
-        if (status != 0) saw_failure = 1;
+        if (status != 0) {
+            if (!failure_allowed(allowed_failures, fields[2], status)) {
+                free(line);
+                fclose(file);
+                return fail(result, quiet, "AICI-SOIL-TASK", fields[2]);
+            }
+            ++allowed_failure_count;
+        }
     }
 
     free(line);
@@ -191,11 +264,9 @@ static int verify_index(const char *root, const char *path,
     if (task_count == 0) {
         return fail(result, quiet, "AICI-SOIL-INDEX", "INDEX.tsv has no tasks");
     }
-    if (saw_failure) {
-        return fail(result, quiet, "AICI-SOIL-TASK", "one or more Soil tasks failed");
-    }
     *task_count_out = task_count;
     *max_status_out = max_status;
+    *allowed_failure_count_out = allowed_failure_count;
     return 1;
 }
 
@@ -220,7 +291,8 @@ static int verify_summary(const char *path, int quiet,
 }
 
 static int verify(const char *root, const char *job,
-                  const char *expected_revision, int quiet,
+                  const char *expected_revision,
+                  const char *allowed_failures, int quiet,
                   VerifyResult *result, FILE *receipt) {
     char path[PATH_LIMIT];
     char suffix[PATH_LIMIT];
@@ -229,6 +301,7 @@ static int verify(const char *root, const char *job,
     int task_count = 0;
     int max_task_status = 0;
     int job_status = 0;
+    int allowed_failure_count = 0;
     int n;
 
     memset(result, 0, sizeof(*result));
@@ -237,6 +310,10 @@ static int verify(const char *root, const char *job,
     }
     if (!exact_revision(expected_revision)) {
         return fail(result, quiet, "AICI-SOIL-REVISION", "revision is not exact 40-hex");
+    }
+    if (!valid_failure_spec(allowed_failures)) {
+        return fail(result, quiet, "AICI-SOIL-ALLOW",
+                    "allowed task failure specification is malformed");
     }
 
     if (!join_path(path, sizeof(path), root, "_tmp/soil/commit-hash.txt") ||
@@ -252,8 +329,9 @@ static int verify(const char *root, const char *job,
     }
 
     if (!join_path(path, sizeof(path), root, "_tmp/soil/INDEX.tsv") ||
-        !verify_index(root, path, quiet, result,
-                      &task_count, &max_task_status)) {
+        !verify_index(root, path, allowed_failures, quiet, result,
+                      &task_count, &max_task_status,
+                      &allowed_failure_count)) {
         return 0;
     }
 
@@ -264,9 +342,9 @@ static int verify(const char *root, const char *job,
         return 0;
     }
 
-    if (job_status != max_task_status || job_status != 0) {
+    if (job_status != max_task_status) {
         return fail(result, quiet, "AICI-SOIL-STATUS",
-                    "job summary is nonzero or disagrees with tasks");
+                    "job summary disagrees with tasks");
     }
 
     if (receipt != NULL) {
@@ -275,6 +353,10 @@ static int verify(const char *root, const char *job,
         fprintf(receipt, "task_count\t%d\n", task_count);
         fprintf(receipt, "max_task_status\t%d\n", max_task_status);
         fprintf(receipt, "job_status\t%d\n", job_status);
+        fprintf(receipt, "allowed_task_failures\t%s\n",
+                *allowed_failures == '\0' ? "-" : allowed_failures);
+        fprintf(receipt, "observed_allowed_failures\t%d\n",
+                allowed_failure_count);
         fprintf(receipt, "publisher\tnot_run\n");
     }
     return 1;
@@ -325,8 +407,8 @@ static int make_fixture(const char *root, const char *revision,
 static int one_case(const char *base, const char *name,
                     const char *revision, const char *job,
                     const char *index_text, const char *summary_text,
-                    int include_log, int expected_pass,
-                    const char *expected_code) {
+                    int include_log, const char *allowed_failures,
+                    int expected_pass, const char *expected_code) {
     char root[PATH_LIMIT];
     VerifyResult result;
     int actual_pass;
@@ -340,7 +422,7 @@ static int one_case(const char *base, const char *name,
     }
     actual_pass = verify(root, "cpp-spec",
         "0123456789abcdef0123456789abcdef01234567",
-        1, &result, NULL);
+        allowed_failures, 1, &result, NULL);
     ok = expected_pass
         ? actual_pass
         : (!actual_pass && strcmp(result.first_code, expected_code) == 0);
@@ -369,45 +451,58 @@ static int self_test(void) {
     }
 
     if (!one_case(base, "good", good_rev, "cpp-spec\n",
-                  good_index, "0 fixture\n", 1, 1, "-")) ++failures;
+                  good_index, "0 fixture\n", 1, "", 1, "-")) ++failures;
     if (!one_case(base, "wrong-revision", bad_rev, "cpp-spec\n",
-                  good_index, "0 fixture\n", 1, 0,
+                  good_index, "0 fixture\n", 1, "", 0,
                   "AICI-SOIL-REVISION")) ++failures;
     if (!one_case(base, "wrong-job", good_rev, "cpp-small\n",
-                  good_index, "0 fixture\n", 1, 0,
+                  good_index, "0 fixture\n", 1, "", 0,
                   "AICI-SOIL-JOB")) ++failures;
     if (!one_case(base, "malformed-index", good_rev, "cpp-spec\n",
-                  "0\t0.010000\ttask-one\n", "0 fixture\n", 1, 0,
+                  "0\t0.010000\ttask-one\n", "0 fixture\n", 1, "", 0,
                   "AICI-SOIL-INDEX")) ++failures;
     if (!one_case(base, "missing-log", good_rev, "cpp-spec\n",
-                  good_index, "0 fixture\n", 0, 0,
+                  good_index, "0 fixture\n", 0, "", 0,
                   "AICI-SOIL-LOG")) ++failures;
     if (!one_case(base, "task-failure", good_rev, "cpp-spec\n",
-                  bad_index, "1 fixture\n", 1, 0,
+                  bad_index, "1 fixture\n", 1, "", 0,
                   "AICI-SOIL-TASK")) ++failures;
     if (!one_case(base, "false-green", good_rev, "cpp-spec\n",
-                  bad_index, "0 fixture\n", 1, 0,
+                  bad_index, "0 fixture\n", 1, "", 0,
                   "AICI-SOIL-TASK")) ++failures;
     if (!one_case(base, "bad-summary", good_rev, "cpp-spec\n",
-                  good_index, "7 fixture\n", 1, 0,
+                  good_index, "7 fixture\n", 1, "", 0,
                   "AICI-SOIL-STATUS")) ++failures;
+    if (!one_case(base, "allowed-task-failure", good_rev, "cpp-spec\n",
+                  bad_index, "1 fixture\n", 1, "task-one=1", 1,
+                  "-")) ++failures;
+    if (!one_case(base, "wrong-allowed-status", good_rev, "cpp-spec\n",
+                  bad_index, "1 fixture\n", 1, "task-one=2", 0,
+                  "AICI-SOIL-TASK")) ++failures;
+    if (!one_case(base, "allowed-false-summary", good_rev, "cpp-spec\n",
+                  bad_index, "0 fixture\n", 1, "task-one=1", 0,
+                  "AICI-SOIL-STATUS")) ++failures;
+    if (!one_case(base, "malformed-allowlist", good_rev, "cpp-spec\n",
+                  good_index, "0 fixture\n", 1, "task-one", 0,
+                  "AICI-SOIL-ALLOW")) ++failures;
 
-    printf("soil-self-test-summary\tcases=8\tfailures=%d\n", failures);
+    printf("soil-self-test-summary\tcases=12\tfailures=%d\n", failures);
     return failures == 0;
 }
 
 static void usage(const char *program) {
     fprintf(stderr,
             "usage:\n"
-            "  %s verify ROOT JOB EXPECTED_REVISION\n"
+            "  %s verify ROOT JOB EXPECTED_REVISION [ALLOWED_TASK_FAILURES]\n"
             "  %s self-test\n",
             program, program);
 }
 
 int main(int argc, char **argv) {
     VerifyResult result;
-    if (argc == 5 && strcmp(argv[1], "verify") == 0) {
+    if ((argc == 5 || argc == 6) && strcmp(argv[1], "verify") == 0) {
         return verify(argv[2], argv[3], argv[4],
+                      argc == 6 ? argv[5] : "",
                       0, &result, stdout) ? 0 : 1;
     }
     if (argc == 2 && strcmp(argv[1], "self-test") == 0) {
