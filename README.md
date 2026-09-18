@@ -35,6 +35,21 @@ fixture in `tests/cases.tsv`. The self-test audits that coverage mechanically;
 adding an assertion without a unique diagnostic and matching bad fixture makes
 CI fail.
 
+## Workflow trigger integrity
+
+A semantic check is only protective when changes to the implementation it
+asserts can actually trigger the workflow. The shared
+`workflow-integrity-v0` contract already provides event-scoped
+`yaml_paths` checking: consumers keep a repository-specific list of critical
+paths and the contract rejects omitted, negative, commented, or misplaced path
+entries. If the material dependency set is broad or difficult to maintain,
+prefer an unfiltered `pull_request`/push trigger over a narrow filter that can
+leave production changes untested.
+
+The reusable parsing and diagnostics belong here in `ai-ci`; consumer
+repositories should keep only their own critical-path lists, fixtures, expected
+results, and workflow wiring.
+
 ## Finished-video acceptance
 
 The optional `video/` action tests the encoded artifact, not a renderer's source

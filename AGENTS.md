@@ -27,12 +27,34 @@ every repository.
   historical evidence only. Bind acceptance to the exact revision and material
   pins under review.
 
+- **Distinguish an exact PR head from GitHub's synthetic merge checkout.** A
+  normal `pull_request` checkout may execute `refs/pull/<n>/merge`, which is
+  useful integration evidence but is not the PR head. When a claim or merge gate
+  requires exact-head evidence, bind the checkout, observed check, receipt, and
+  artifact to the explicit PR head SHA. Record synthetic-merge evidence as such
+  rather than relabeling it as head evidence.
+
+- **Make every required check eligible for the changes it claims to protect.**
+  If a workflow uses `paths:`, include every material implementation,
+  contract/oracle, fixture, action/script, workflow, and other dependency whose
+  change can invalidate the claim. If that dependency set cannot be maintained
+  confidently, run the check without a path filter. A green run does not protect
+  a later change that could not trigger the check.
+
 - **Name pull requests in human-facing references.** Whenever mentioning a pull
   request to the human, include its current title alongside its PR number. Do not
   use a PR number, exact-head SHA, branch name, or other machine identifier as the
   only human-facing identifier. Keep exact heads and other hashes when they help
   verification or reproducibility, but treat them as additional machine-facing
   evidence, not as a substitute for words the human can recognize.
+
+- **Merge conservatively rather than maximizing merge count.** A GitHub
+  `mergeable` flag or one green workflow is not merge authorization. Before
+  merging, verify the current PR head, live base/stack topology, intended scope,
+  required checks and receipts, unresolved review threads, and any explicitly
+  unfinished acceptance. Leave meaningfully ambiguous or under-evidenced work
+  open; use the shared `merge/` authorization contract when its evidence model
+  applies.
 
 - **Do not invent missing continuity.** If an earlier decision, branch state,
   artifact, or conversation fact cannot actually be recovered, report it as
@@ -66,6 +88,20 @@ every repository.
   terminology, and nearby active changes before inventing another model for the
   same concept.
 
+- **Avoid parallel branch and pull-request duplication.** Before creating a new
+  branch or PR, inspect active work for the same intended change. Reuse or
+  reconcile the existing branch when that preserves scope and evidence; create a
+  new branch only for genuinely distinct work or when isolation is required for
+  safety.
+
+- **Keep reusable enforcement in `ai-ci`.** When the same failure mode,
+  evidence rule, workflow-integrity rule, or acceptance boundary applies across
+  repositories, put the reusable verifier, contract, action, diagnostics, and
+  adversarial fixtures in `isomorphisms/ai-ci`. Consumer repositories should
+  keep only their project-specific inputs, expected results, and wiring. Do not
+  fork equivalent policy logic into several repositories unless the semantics
+  are genuinely different.
+
 - **Mirror substantive design work into the repository.** When a conversation
   establishes or materially develops an architecture idea, alternative,
   constraint, caveat, unresolved question, or evidence boundary, record it in
@@ -80,6 +116,13 @@ every repository.
 - **Preserve meaningful stage boundaries.** A later-stage success does not erase
   an earlier-stage failure. Build is not install; install is not launch; launch
   is not semantic behavior; local packaging is not publication.
+
+- **Classify failures at the stage that actually failed.** An unrelated runner,
+  secret, upload, publication, reporting, or CI-service failure does not turn a
+  separately demonstrated implementation test into a code failure. Conversely,
+  passing compile or semantic tests do not make a failed packaging, publication,
+  or delivery stage green. Preserve both results and repair the narrow failing
+  boundary.
 
 - **Structure build and delivery scripts as composable stages.** Keep dependency
   provisioning, source build, packaging/publication, target detection,
@@ -169,8 +212,13 @@ every repository.
 - See [`docs/followers.md`](docs/followers.md) and use `src/aici_followers.c` to
   verify, list pending followers, and render the exact-trigger matrix.
 
-## GitHub runner enforcement
+## GitHub workflow and runner enforcement
 
+- Required CI assertions fail closed. Do not hide them behind
+  `continue-on-error`, blanket shell `||`, or `set +e`; cleanup paths must
+  not convert a failed required assertion into success.
+- Pin remote GitHub Actions `uses:` references to a reviewed full commit SHA.
+  Do not substitute mutable tags or branches for required CI.
 - Maintained Linux GitHub Actions jobs use GitHub-hosted Ubuntu. `ubuntu-latest`
   and concrete `ubuntu-*` labels do not need a special exception.
 - Do not recreate the superseded self-hosted Debian rule, a workload-specific
