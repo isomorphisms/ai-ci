@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
       - name: Compile independent verifiers
         shell: sh
         run: |
@@ -52,7 +54,7 @@ jobs:
       - name: Upload the exact Ike shadow receipt
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: aici-ike-shadow-${{ github.sha }}
+          name: aici-ike-shadow-${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           path: ${{ runner.temp }}/ike-build-v1.tsv
           if-no-files-found: error
       - name: Prove source preflight gates heavyweight mutation
