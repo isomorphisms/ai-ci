@@ -18,6 +18,7 @@ permissions:
 
 jobs:
   self-test:
+    name: ${{ github.event_name == 'pull_request' && 'compatibility-receipt' || format('compatibility-receipt-{0}', github.event_name) }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
