@@ -1,0 +1,6 @@
+event	status	source	revision	command
+source-preflight	pass	refs/tags/verified	acb1fdc658b880477b4389f6299fc9f87d4dfb63	git fetch --depth=1 origin refs/tags/verified
+source-compatibility	pass	refs/tags/verified	acb1fdc658b880477b4389f6299fc9f87d4dfb63	git cat-file -e FETCH_HEAD:s/armv7.def
+heavyweight-mutation	pass	-	-	pkg install clang make
+source-acquire	pass	refs/tags/verified	acb1fdc658b880477b4389f6299fc9f87d4dfb63	git fetch --depth=1 origin refs/tags/verified
+build	pass	refs/tags/verified	acb1fdc658b880477b4389f6299fc9f87d4dfb63	make -C source

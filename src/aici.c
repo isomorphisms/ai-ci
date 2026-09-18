@@ -1018,6 +1018,10 @@ static int verify_contract(const char *contract_path, const char *root,
                         !join_path(right, sizeof(right), root, fields[3]);
             if (!malformed) ok = files_equal(left, right);
             snprintf(detail, sizeof(detail), "%s == %s", fields[2], fields[3]);
+        } else if (strcmp(operation, "contains") == 0 && count == 4) {
+            malformed = !join_path(left, sizeof(left), root, fields[2]);
+            if (!malformed) ok = file_contains(left, fields[3], 1);
+            snprintf(detail, sizeof(detail), "%s", fields[2]);
         } else if (strcmp(operation, "not_contains") == 0 && count == 4) {
             malformed = fields[3][0] == '\0' ||
                         !join_path(left, sizeof(left), root, fields[2]);

@@ -7,6 +7,11 @@ Its rule is stricter than ordinary green CI:
 > A check must demonstrate the promised result, and it must prove that it
 > rejects a deliberately broken example of the same result.
 
+The `sms/` receipt applies that rule across the moving Idric-Net and Grease SMS
+branches. It compiles the real `Network.SMS` parser, drives the filesystem
+service through that executable, and proves four hostile service mutations are
+rejected. See [`sms/README.md`](sms/README.md).
+
 The initial kernel is a small native C verifier. It has no package-manager
 bootstrap and does not treat file existence alone as acceptance. A consumer pins
 this repository by full commit SHA, supplies a tab-separated contract, and
@@ -61,6 +66,29 @@ local build, an open fdroiddata merge request, or a successful status query
 cannot be mislabeled as store acceptance. See [`fdroid/README.md`](fdroid/README.md)
 for the receipt schema, ABI-split rules, current official-check mapping, and the
 manual-review boundary.
+
+## Hostile-web ingestion acceptance
+
+The optional `ingestion/` action owns a ten-case hostile-input corpus and a
+machine-readable seven-stage receipt. It keeps input acquisition, network,
+decompression, decoding, HTML recovery, document construction, and downstream
+extraction separate; rejects a later success after the first real failure; and
+requires `SKIP` to say why the stage did not run.
+
+An implementation-under-test receipt must name its executable and exact source
+revision, state `fallback=none`, and include an `execve` trace. The verifier
+rejects traces that invoke the side-by-side curl/libxml2 oracle. See
+[`ingestion/README.md`](ingestion/README.md) for the schema and current
+`document_log_subset_v0` boundary.
+
+## Idriç bounded orthogonal-core acceptance
+
+The optional [`idric-orthogonal/`](idric-orthogonal/) gate pins one exact Idriç
+revision and reruns the compiler-owned unified higher-mathematics receipt plus
+its independent exact R128 oracle.  Its machine-readable output is explicitly
+`BOUNDED_GREEN`: backend handoff, target execution, certified sphere action,
+arbitrary transforms, and numerical algorithm choice do not silently inherit
+`PASS` from the closed R128 sample.
 
 ## Run locally
 
@@ -152,6 +180,8 @@ The v0 Action requires a POSIX runner with a C17 `cc`; CI currently exercises
 Ubuntu 24.04. Native Windows runners are not yet supported.
 
 See `docs/evaluation-protocol.md` for the normative evaluation method,
-`research/llm-failure-modes.md` for the empirical basis, and
+`research/llm-failure-modes.md` for the empirical basis,
+`research/repository-context-methodology.md` for the boundary among retrieval,
+in-context learning, training, and constrained decision state, and
 `docs/failure-ledger.md` for the reconstructed incident classes. The next
 contracts are in `docs/roadmap.md`.

@@ -1,0 +1,21 @@
+name: Idriç style self-test
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  idric-style-self-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+      - name: Prove hard stops and warnings
+        shell: sh
+        run: sh idric-style/tests/self_test.sh
+      - name: Exercise the reusable action
+        uses: ./idric-style

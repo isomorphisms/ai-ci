@@ -1,0 +1,67 @@
+name: Current SMS cross-repository receipt
+
+on:
+  push:
+    paths:
+      - '.github/workflows/sms-cross-repository.yml'
+      - 'sms/**'
+  pull_request:
+    paths:
+      - '.github/workflows/sms-cross-repository.yml'
+      - 'sms/**'
+  schedule:
+    - cron: '17 0 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  IDRIC_REF: Idriç
+  IDRIC_NET_REF: sms-server-foundation
+  AZ_REF: main
+
+jobs:
+  executable-sms-path:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout ai-ci
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Checkout current Idric-Net SMS work
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphisms/Idric-Net
+          ref: ${{ env.IDRIC_NET_REF }}
+          path: _Idric-Net
+      - name: Checkout current az SMS service work
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphisms/az
+          ref: ${{ env.AZ_REF }}
+          path: _az
+      - name: Checkout current Idriç compiler
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphisms/Idric
+          ref: ${{ env.IDRIC_REF }}
+          path: _Idric
+      - name: Install current Idriç bootstrap dependencies
+        shell: sh
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends build-essential curl
+      - name: Run executable SMS receipt and hostile self-tests
+        shell: bash
+        env:
+          AICI_REF: ${{ github.head_ref || github.ref_name }}
+          AICI_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: sms/run-cross-repository.sh _Idric-Net _az _Idric
+      - name: Retain exact current-head SMS evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sms-current-head-receipt
+          path: |
+            sms/build/current-head-receipt.tsv
+            sms/build/current-head.log
+          if-no-files-found: warn

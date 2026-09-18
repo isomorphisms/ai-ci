@@ -1,0 +1,20 @@
+meta	schema	aici-ingestion-receipt-v1
+meta	corpus_revision	hostile-web-v1-2026-08-30
+meta	corpus_repository_revision	0000000000000000000000000000000000000000
+meta	fixture_id	valid_utf8
+meta	implementation_role	oracle
+meta	implementation_name	curl+libxml2
+meta	implementation_revision	2222222222222222222222222222222222222222
+meta	executable_sha256	cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+meta	fallback	none
+meta	scope	network-through-document
+meta	producer	external-oracle-driver
+stage	valid_utf8	input_acquisition	PASS	curl_invoked	curl	attempted
+stage	valid_utf8	network	PASS	complete_response	curl	status=200;body_sha256=0123456789abcdef
+stage	valid_utf8	decompression	PASS	identity	curl	identity
+stage	valid_utf8	decoding	PASS	utf8_valid	oracle-driver	text_sha256=fedcba9876543210
+stage	valid_utf8	html_recovery	PASS	libxml2_recovery	libxml2	recovery=libxml2
+stage	valid_utf8	document_construction	PASS	libxml2_document	libxml2	title=Hostile_fixture
+stage	valid_utf8	downstream_extraction	SKIP	not_applicable_scope	oracle-driver	not-run
+summary	first_failure	none
+summary	first_incomplete	none

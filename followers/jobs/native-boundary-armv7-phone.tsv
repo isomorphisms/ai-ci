@@ -1,0 +1,25 @@
+schema	aici-follower-job-v1
+job_id	native-boundary-armv7-phone
+repository	isomorphisms/ai-ci
+branch	native-bionic-boundary
+pr	86
+trigger_commit	e424d6d7dff0eca092351b9d601212645011782c
+leader_platform	github-hosted-ubuntu
+leader_arch	x86_64
+leader_evidence	https://github.com/isomorphisms/ai-ci/actions/runs/35012458599/job/104527531400
+artifact	native-boundary-armv7a.tar.gz
+artifact_sha256	c13136a004bf6f7a7e786ef0dbba4707b03155892af925674480e5024782b1f7
+follower_platform	android-termux-physical-phone
+follower_arch	armv7a
+required	yes
+action	Obtain the trusted exact-source ARMv7 runtime archive, verify its published digest, install in an executable Termux private directory, and run sh bundle/run.sh with a new receipt directory. Do not install a compiler or substitute a locally rebuilt binary.
+acceptance_kind	physical-device
+acceptance_action	Identify the actual phone and Android/Termux environment independently; attach both native logs, binary hashes, page size, pointer/off_t widths, source/NDK identity and successful runner result. Supply artifact and SHA-256 together in the matching follower receipt.
+state	superseded
+last_attempt_commit	-
+blocker	-
+evidence	-
+depends_on	native-boundary-armv7-build
+reason	Cross-build, host execution and emulator execution are not physical ARMv7 phone acceptance.
+superseded_by	native-boundary-armv7-phone-9df49d14
+follow_policy	exact

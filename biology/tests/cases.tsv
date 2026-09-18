@@ -1,0 +1,4 @@
+# case	operation	path	argument	expected
+raw-ana	bytes-count	raw.txt	ana	4
+fa-acgt	fasta-motif-count	fixture.fa	ACGT	3
+fa-hist	fasta-base-histogram	fixture.fa	-	A=6,C=3,G=3,T=4,N=2,other=0
