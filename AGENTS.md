@@ -181,6 +181,17 @@ every repository.
   dated device-storage observations as mutable facts and recheck them when they
   materially affect a command, artifact location, or acceptance claim.
 
+- **Preserve explicitly deferred device setup boundaries.** Once the human has
+  said that a device facility such as ADB, removable storage, pairing, mounting,
+  or another setup path is not working and is deferred for another session,
+  treat that facility as unavailable for the current work. Do not reintroduce
+  it as a prerequisite, troubleshooting detour, or "one quick step" for an
+  acceptance task that has a direct on-device path. Reopen that setup only when
+  the human explicitly asks to work on it or when the task inherently cannot be
+  performed without it; in the latter case, state the block instead of silently
+  converting the task into setup work. Repository-local verified device notes
+  outrank generic Android or Termux conventions.
+
 - **Keep repository-specific conventions local.** Do not turn a convention such
   as `_` build layout, a particular backend hierarchy, or temporary subsystem
   leadership into a universal rule unless it is actually shared across
