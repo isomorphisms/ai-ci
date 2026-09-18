@@ -66,6 +66,17 @@ every repository.
   terminology, and nearby active changes before inventing another model for the
   same concept.
 
+- **Mirror substantive design work into the repository.** When a conversation
+  establishes or materially develops an architecture idea, alternative,
+  constraint, caveat, unresolved question, or evidence boundary, record it in
+  the appropriate repository note, issue, design document, or active branch
+  rather than leaving it only in chat. Preserve uncertainty: a design note is
+  not an implementation claim, and a proposed alternative is not a decision.
+  Cross-link neighboring repositories when an idea spans language semantics,
+  architecture selection, implementation, and target evidence. Avoid dumping
+  transient chatter; capture the durable technical content needed to recover
+  the reasoning later.
+
 - **Preserve meaningful stage boundaries.** A later-stage success does not erase
   an earlier-stage failure. Build is not install; install is not launch; launch
   is not semantic behavior; local packaging is not publication.
