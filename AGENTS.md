@@ -83,6 +83,14 @@ every repository.
   names, paths, file extensions, identifiers, or executable names such as
   `edric` solely to enforce the prose spelling.
 
+- **Use Grease as the consumer-facing shell name.** In consumer repositories,
+  shebangs, commands, examples, workflows, receipts, and human-facing prose must
+  invoke and name `grease`, not `ysh`. The inherited Oils/YSH executable is an
+  implementation detail of the current Grease implementation and may be named
+  only when discussing that implementation or provenance inside the Grease/Oils
+  boundary. Do not leak the implementation executable into application-facing
+  interfaces merely because it is the underlying binary.
+
 - **Do not let representation define semantics.** Matrices, tuples, compiler
   nodes, ABI records, transport bytes, storage formats, and UI payloads are
   representations unless the semantics explicitly make them part of the object.
