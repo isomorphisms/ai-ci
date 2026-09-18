@@ -3,7 +3,7 @@
 This gate treats Cat Food's README as an executable clean-machine contract.
 The job starts in the pinned official Ubuntu 24.04 container and its first
 `run` step is the README's first command block, beginning with
-`apt-get update` and ending with `./provision.sh`.
+`apt-get update` and ending with `./catfood`.
 
 The provisioner must return success and leave runnable artifacts for:
 
