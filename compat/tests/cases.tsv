@@ -1,0 +1,15 @@
+# expected	contract	receipt	root	expected-first-diagnostic
+pass	compat/contracts/idric-stack-v1.example.tsv	compat/tests/fixtures/good.receipt.tsv	compat/tests/fixtures	-
+fail	compat/tests/fixtures/bad.contract.tsv	compat/tests/fixtures/good.receipt.tsv	compat/tests/fixtures	COMPAT-CONTRACT
+fail	compat/contracts/idric-stack-v1.example.tsv	compat/tests/fixtures/bad-header.receipt.tsv	compat/tests/fixtures	COMPAT-RECEIPT
+fail	compat/contracts/idric-stack-v1.example.tsv	compat/tests/fixtures/not-verified-consumer.receipt.tsv	compat/tests/fixtures	COMPAT-CONSUMER
+fail	compat/contracts/idric-stack-v1.example.tsv	compat/tests/fixtures/missing-idric.receipt.tsv	compat/tests/fixtures	COMPAT-IDRIC
+fail	compat/contracts/idric-stack-v1.example.tsv	compat/tests/fixtures/drift.receipt.tsv	compat/tests/fixtures	COMPAT-IDRIC
+fail	compat/contracts/idric-stack-v1.example.tsv	compat/tests/fixtures/not-verified.receipt.tsv	compat/tests/fixtures	COMPAT-IDRIC
+fail	compat/contracts/idric-stack-v1.example.tsv	compat/tests/fixtures/failed.receipt.tsv	compat/tests/fixtures	COMPAT-IDRIC
+fail	compat/contracts/idric-stack-v1.example.tsv	compat/tests/fixtures/bad-digest.receipt.tsv	compat/tests/fixtures	COMPAT-IDRIC
+fail	compat/contracts/idric-stack-v1.example.tsv	compat/tests/fixtures/not-verified-grease.receipt.tsv	compat/tests/fixtures	COMPAT-GREASE
+fail	compat/contracts/idric-stack-v1.example.tsv	compat/tests/fixtures/not-verified-backend.receipt.tsv	compat/tests/fixtures	COMPAT-BACKEND
+fail	compat/contracts/idric-stack-v1.example.tsv	compat/tests/fixtures/not-verified-probe.receipt.tsv	compat/tests/fixtures	COMPAT-END-TO-END
+fail	compat/contracts/idric-stack-v1.example.tsv	compat/tests/fixtures/extra.receipt.tsv	compat/tests/fixtures	COMPAT-RECEIPT-EXTRA
+fail	compat/contracts/idric-stack-v1.example.tsv	compat/tests/fixtures/traversal.receipt.tsv	compat/tests/fixtures	COMPAT-RECEIPT

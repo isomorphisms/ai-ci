@@ -1,0 +1,17 @@
+schema	aici-follower-receipt-v1
+job_id	native-boundary-aarch64-build
+repository	isomorphisms/ai-ci
+trigger_commit	e424d6d7dff0eca092351b9d601212645011782c
+follower_platform	github-hosted-ubuntu-ndk-bionic-api24
+follower_arch	aarch64
+acceptance_kind	build
+result	pass
+attempt_commit	e424d6d7dff0eca092351b9d601212645011782c
+os_runtime	Ubuntu 24.04.5 LTS x86_64; GitHub-hosted
+build_command	bash native-boundary/build.sh aarch64 $OUTPUT
+test_command	Compile/link/ELF/package and 16-KiB LOAD/RELRO alignment checks in native-boundary/build.sh; Android execution NOT_RUN
+artifact	native-boundary-aarch64.tar.gz
+artifact_sha256	c2a896dae713659968f5910bae2fb993837de0cd1bb047caa6a21bcb7b02383c
+evidence_url	https://github.com/isomorphisms/ai-ci/actions/runs/35012458599/job/104527531439
+recorded_at	2026-09-15T19:15:24Z
+note	Exact-head AArch64 cross-build evidence only; 16-KiB runtime, Android runtime and physical-device acceptance remain unclaimed.

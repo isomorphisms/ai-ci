@@ -1,0 +1,2 @@
+event	status	source	revision	command
+source-preflight	fail	45b39d5	-	git fetch --depth=1 origin 45b39d5

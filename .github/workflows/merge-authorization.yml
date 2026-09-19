@@ -1,0 +1,35 @@
+name: merge authorization contract
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  exact-head-contract:
+    name: merge-authorization-${{ github.event_name }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout the exact revision being claimed
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Prove this job is on the exact claimed revision
+        shell: sh
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -eu
+          actual=$(git rev-parse HEAD)
+          test "$actual" = "$EXPECTED_HEAD" || {
+            printf 'MERGE-CHECKOUT-NOT-EXACT\texpected=%s\tactual=%s\n' \
+              "$EXPECTED_HEAD" "$actual" >&2
+            exit 1
+          }
+
+      - name: Prove hostile merge evidence fails closed
+        shell: sh
+        run: sh tests/merge-gate.sh merge/verify.sh

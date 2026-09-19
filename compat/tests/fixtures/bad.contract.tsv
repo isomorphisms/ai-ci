@@ -1,0 +1,2 @@
+kind	name	role	repository	revision	target	code
+component	only-consumer	consumer	https://github.com/example/consumer.git	1111111111111111111111111111111111111111	android-armv7	COMPAT-CONSUMER

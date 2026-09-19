@@ -1,0 +1,25 @@
+schema	aici-follower-job-v1
+job_id	native-boundary-aarch64-emulator
+repository	isomorphisms/ai-ci
+branch	native-bionic-boundary
+pr	86
+trigger_commit	e424d6d7dff0eca092351b9d601212645011782c
+leader_platform	github-hosted-ubuntu
+leader_arch	x86_64
+leader_evidence	https://github.com/isomorphisms/ai-ci/actions/runs/35012458599/job/104527531439
+artifact	native-boundary-aarch64.tar.gz
+artifact_sha256	c2a896dae713659968f5910bae2fb993837de0cd1bb047caa6a21bcb7b02383c
+follower_platform	android-emulator
+follower_arch	aarch64
+required	conditional
+action	If a maintained native AArch64 Android emulator target is explicitly identified, run the exact-source AArch64 bundle there with matching ABI and API at least 24, verify the trusted archive digest, and preserve all outputs.
+acceptance_kind	runtime
+acceptance_action	Bind emulator implementation/system-image identity, API, actual page size, exact source, archive/binary digests and both offset-mode results. Keep emulator identity explicit and do not mark any physical-device job accepted.
+state	n/a
+last_attempt_commit	-
+blocker	-
+evidence	-
+depends_on	native-boundary-aarch64-build
+reason	No maintained native AArch64 Android emulator is an intended deployment target. Android/Bionic runtime and 4-KiB/16-KiB page-size coverage are maintained in the x86-64 emulator lanes, while real AArch64 runtime is exercised on the physical tablet. Reactivate only if a native AArch64 emulator becomes a named target.
+superseded_by	-
+follow_policy	exact

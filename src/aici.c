@@ -334,6 +334,16 @@ static char *yaml_value(char *content, const char *key) {
     return trim(p + key_length + 1);
 }
 
+static size_t yaml_key_column(const char *line) {
+    size_t column = 0;
+    while (line[column] == ' ') ++column;
+    if (line[column] == '-') {
+        ++column;
+        while (line[column] == ' ') ++column;
+    }
+    return column;
+}
+
 static int has_noncanonical_yaml_key(const char *content, const char *key) {
     const char *segment = content;
     size_t key_length = strlen(key);
@@ -884,6 +894,219 @@ static char *unquote_scalar(char *value) {
     return value;
 }
 
+static int yaml_block_scalar_header(const char *value) {
+    const unsigned char *p = (const unsigned char *)value;
+    int chomping_seen = 0;
+    int indentation_seen = 0;
+
+    if (*p != '|' && *p != '>') return 0;
+    ++p;
+    while (*p != '\0' && !isspace(*p)) {
+        if ((*p == '+' || *p == '-') && !chomping_seen) {
+            chomping_seen = 1;
+            ++p;
+            continue;
+        }
+        if (*p >= '1' && *p <= '9' && !indentation_seen) {
+            indentation_seen = 1;
+            ++p;
+            continue;
+        }
+        return 0;
+    }
+    if (*p == '\0') return 1;
+    while (isspace(*p)) ++p;
+    return *p == '\0' || *p == '#';
+}
+
+static int finish_primary_checkout(int repository_seen,
+                                   int repository_is_primary,
+                                   int ref_seen, int ref_matches,
+                                   int *primary_count) {
+    if (repository_seen && !repository_is_primary) return 1;
+    ++*primary_count;
+    return ref_seen && ref_matches;
+}
+
+static int primary_checkouts_use_ref(const char *path,
+                                     const char *expected_ref) {
+    FILE *file = fopen(path, "r");
+    char *line = NULL;
+    size_t capacity = 0;
+    ssize_t length;
+    int in_checkout = 0;
+    size_t checkout_key_column = 0;
+    int in_with = 0;
+    size_t with_key_column = 0;
+    int with_child_column_seen = 0;
+    size_t with_child_column = 0;
+    int repository_seen = 0;
+    int repository_is_primary = 0;
+    int ref_seen = 0;
+    int ref_matches = 0;
+    int primary_count = 0;
+    int ok = 1;
+
+    if (file == NULL || !regular_file(path) || expected_ref[0] == '\0') {
+        if (file != NULL) fclose(file);
+        return 0;
+    }
+
+    while ((length = getline(&line, &capacity, file)) >= 0) {
+        char *content;
+        char *value;
+        size_t indent = 0;
+        size_t key_column;
+
+        if (length > AICI_LINE_MAX) {
+            ok = 0;
+            break;
+        }
+        while (line[indent] == ' ') ++indent;
+        key_column = yaml_key_column(line);
+        content = trim(line);
+        if (*content == '\0' || *content == '#') continue;
+
+        if (in_checkout && indent < checkout_key_column) {
+            if (!finish_primary_checkout(repository_seen, repository_is_primary,
+                                         ref_seen, ref_matches, &primary_count)) {
+                ok = 0;
+                break;
+            }
+            in_checkout = 0;
+            in_with = 0;
+        }
+
+        value = yaml_value(content, "uses");
+        if (value != NULL) {
+            value = unquote_scalar(value);
+            if (strncmp(value, "actions/checkout@", 17) == 0) {
+                if (in_checkout &&
+                    !finish_primary_checkout(repository_seen,
+                                             repository_is_primary,
+                                             ref_seen, ref_matches,
+                                             &primary_count)) {
+                    ok = 0;
+                    break;
+                }
+                in_checkout = 1;
+                checkout_key_column = key_column;
+                in_with = 0;
+                with_child_column_seen = 0;
+                repository_seen = 0;
+                repository_is_primary = 0;
+                ref_seen = 0;
+                ref_matches = 0;
+                continue;
+            }
+        }
+
+        if (!in_checkout) continue;
+
+        if (key_column == checkout_key_column) {
+            in_with = 0;
+            with_child_column_seen = 0;
+            value = yaml_value(content, "with");
+            if (value != NULL && (*value == '\0' || *value == '#')) {
+                in_with = 1;
+                with_key_column = key_column;
+            }
+            continue;
+        }
+
+        if (!in_with || key_column <= with_key_column) continue;
+        if (!with_child_column_seen) {
+            with_child_column = key_column;
+            with_child_column_seen = 1;
+        }
+        if (key_column != with_child_column) continue;
+
+        value = yaml_value(content, "repository");
+        if (value != NULL) {
+            value = unquote_scalar(value);
+            repository_seen = 1;
+            repository_is_primary =
+                strcmp(value, "${{ github.repository }}") == 0;
+            continue;
+        }
+
+        value = yaml_value(content, "ref");
+        if (value != NULL) {
+            value = unquote_scalar(value);
+            ref_seen = 1;
+            ref_matches = strcmp(value, expected_ref) == 0;
+        }
+    }
+
+    if (ok && in_checkout &&
+        !finish_primary_checkout(repository_seen, repository_is_primary,
+                                 ref_seen, ref_matches, &primary_count)) {
+        ok = 0;
+    }
+
+    free(line);
+    fclose(file);
+    return ok && primary_count > 0;
+}
+
+static int yaml_run_lacks(const char *path, const char *needle) {
+    FILE *file = fopen(path, "r");
+    char *line = NULL;
+    size_t capacity = 0;
+    ssize_t length;
+    int in_run_block = 0;
+    size_t run_key_column = 0;
+    int ok = 1;
+
+    if (file == NULL || !regular_file(path) || needle[0] == '\0') {
+        if (file != NULL) fclose(file);
+        return 0;
+    }
+
+    while ((length = getline(&line, &capacity, file)) >= 0) {
+        char *content;
+        char *value;
+        size_t indent = 0;
+        size_t key_column;
+
+        if (length > AICI_LINE_MAX) {
+            ok = 0;
+            break;
+        }
+        while (line[indent] == ' ') ++indent;
+        key_column = yaml_key_column(line);
+        content = trim(line);
+        if (*content == '\0') continue;
+
+        if (in_run_block && indent > run_key_column) {
+            if (*content != '#' && strstr(content, needle) != NULL) {
+                ok = 0;
+                break;
+            }
+            continue;
+        }
+        in_run_block = 0;
+        if (*content == '#') continue;
+
+        value = yaml_value(content, "run");
+        if (value == NULL) continue;
+        if (yaml_block_scalar_header(value)) {
+            in_run_block = 1;
+            run_key_column = key_column;
+            continue;
+        }
+        value = unquote_scalar(value);
+        if (strstr(value, needle) != NULL) {
+            ok = 0;
+            break;
+        }
+    }
+
+    free(line);
+    fclose(file);
+    return ok;
+}
+
 static int script_uses_runner(const char *path, const char *script,
                               const char *runner) {
     FILE *file = fopen(path, "r");
@@ -894,8 +1117,9 @@ static int script_uses_runner(const char *path, const char *script,
     int matches = 0;
     int ok = 1;
     int in_run_block = 0;
-    size_t run_indent = 0;
+    size_t run_key_column = 0;
     int written;
+
     if (file == NULL || !regular_file(path)) {
         if (file != NULL) fclose(file);
         return 0;
@@ -909,14 +1133,17 @@ static int script_uses_runner(const char *path, const char *script,
         char *content;
         char *value;
         size_t indent = 0;
+        size_t key_column;
+
         if (length > AICI_LINE_MAX) {
             ok = 0;
             break;
         }
         while (line[indent] == ' ') ++indent;
+        key_column = yaml_key_column(line);
         content = trim(line);
         if (*content == '\0') continue;
-        if (in_run_block && indent > run_indent) {
+        if (in_run_block && indent > run_key_column) {
             if (*content != '#' && strstr(content, script) != NULL) {
                 ok = 0;
                 break;
@@ -934,11 +1161,9 @@ static int script_uses_runner(const char *path, const char *script,
             }
             continue;
         }
-        if (strcmp(value, "|") == 0 || strcmp(value, "|-") == 0 ||
-            strcmp(value, "|+") == 0 || strcmp(value, ">") == 0 ||
-            strcmp(value, ">-") == 0 || strcmp(value, ">+") == 0) {
+        if (yaml_block_scalar_header(value)) {
             in_run_block = 1;
-            run_indent = indent;
+            run_key_column = key_column;
             continue;
         }
         value = unquote_scalar(value);
@@ -1018,11 +1243,22 @@ static int verify_contract(const char *contract_path, const char *root,
                         !join_path(right, sizeof(right), root, fields[3]);
             if (!malformed) ok = files_equal(left, right);
             snprintf(detail, sizeof(detail), "%s == %s", fields[2], fields[3]);
+        } else if (strcmp(operation, "contains") == 0 && count == 4) {
+            malformed = !join_path(left, sizeof(left), root, fields[2]);
+            if (!malformed) ok = file_contains(left, fields[3], 1);
+            snprintf(detail, sizeof(detail), "%s", fields[2]);
         } else if (strcmp(operation, "not_contains") == 0 && count == 4) {
             malformed = fields[3][0] == '\0' ||
                         !join_path(left, sizeof(left), root, fields[2]);
             if (!malformed) ok = file_contains(left, fields[3], 0);
             snprintf(detail, sizeof(detail), "%s :: %s", fields[2], fields[3]);
+        } else if (strcmp(operation, "yaml_run_not_contains") == 0 &&
+                   count == 4) {
+            malformed = fields[3][0] == '\0' ||
+                        !join_path(left, sizeof(left), root, fields[2]);
+            if (!malformed) ok = yaml_run_lacks(left, fields[3]);
+            snprintf(detail, sizeof(detail), "%s run blocks exclude %s",
+                     fields[2], fields[3]);
         } else if (strcmp(operation, "scoped_contains") == 0 && count == 5) {
             malformed = fields[3][0] == '\0' || fields[4][0] == '\0' ||
                         !join_path(left, sizeof(left), root, fields[2]);
@@ -1060,6 +1296,13 @@ static int verify_contract(const char *contract_path, const char *root,
             if (!malformed) ok = every_yaml_path_is_declared(left, right, fields[4]);
             snprintf(detail, sizeof(detail), "%s in %s.paths of %s",
                      fields[2], fields[4], fields[3]);
+        } else if (strcmp(operation, "yaml_primary_checkout_ref") == 0 &&
+                   count == 4) {
+            malformed = fields[3][0] == '\0' ||
+                        !join_path(left, sizeof(left), root, fields[2]);
+            if (!malformed) ok = primary_checkouts_use_ref(left, fields[3]);
+            snprintf(detail, sizeof(detail), "%s primary checkout ref=%s",
+                     fields[2], fields[3]);
         } else if (strcmp(operation, "no_suffix") == 0 && count == 4) {
             malformed = fields[3][0] == '\0' ||
                         !join_path(left, sizeof(left), root, fields[2]);
