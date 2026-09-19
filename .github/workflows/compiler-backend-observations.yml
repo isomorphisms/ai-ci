@@ -9,6 +9,8 @@ on:
     paths:
       - compiler_backends/**
       - .github/workflows/compiler-backend-observations.yml
+  schedule:
+    - cron: '7 13 * * *'
   workflow_dispatch:
 
 permissions:
