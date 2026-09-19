@@ -308,7 +308,11 @@ static int parse_software_text(const char *text, struct concept_set *pages, size
             size_t n = match_token(text, p, "text_key") ? 8 : match_token(text, p, "pair_key") ? 8 : 3;
             const char *q = p + n;
             char label[MAX_CONCEPT * 2], concept[MAX_CONCEPT];
-            if (parse_quoted(&q, label, sizeof label) != 0 || normalize_concept(label, concept, sizeof concept) != 0 ||
+            if (parse_quoted(&q, label, sizeof label) != 0) {
+                ++p;
+                continue;
+            }
+            if (normalize_concept(label, concept, sizeof concept) != 0 ||
                 add_concept(current, concept) != 0) return -1;
             p = q; continue;
         }
@@ -459,7 +463,8 @@ static int self_test(void) {
         "      ]\n"
         "  , Page \"Unicode\"\n"
         "      [ Row [ text_key \"∞\" \"∞\" ] ]\n"
-        "  ]\n";
+        "  ]\n"
+        "key_label (Key label _) = label\n";
     struct concept_set *boards = calloc(MAX_GROUPS, sizeof *boards);
     struct concept_set *pages = calloc(MAX_GROUPS, sizeof *pages);
     struct map_row *map = calloc(MAX_ROWS, sizeof *map);
