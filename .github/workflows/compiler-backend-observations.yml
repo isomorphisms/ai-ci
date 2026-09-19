@@ -51,12 +51,21 @@ jobs:
           ref: dogfood/idris-shader-f16
           path: _consumers/algebraic-variety-explorer-mobile
 
+      - name: Compile deterministic observers
+        run: |
+          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 \
+            -o "$RUNNER_TEMP/compiler-backend-probe" compiler_backends/probe.c
+          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 \
+            -o "$RUNNER_TEMP/fp16-baseline" compiler_backends/fp16_baseline.c
+
       - name: Self-test deterministic observer
-        run: python3 -m unittest discover -s compiler_backends/tests -p 'test_*.py'
+        run: |
+          "$RUNNER_TEMP/compiler-backend-probe" --self-test
+          "$RUNNER_TEMP/fp16-baseline" --self-test
 
       - name: Measure the same feature surface across backends
         run: |
-          python3 compiler_backends/probe.py \
+          "$RUNNER_TEMP/compiler-backend-probe" \
             --matrix compiler_backends/probes.tsv \
             --root idric-arm-thumb=_backends/idric-arm-thumb \
             --root idris-arm-backend=_backends/idris-arm-backend \
@@ -65,21 +74,21 @@ jobs:
 
       - name: Measure FP16 and PowerVR implementation surface
         run: |
-          python3 compiler_backends/probe.py \
+          "$RUNNER_TEMP/compiler-backend-probe" \
             --matrix compiler_backends/fp16_probes.tsv \
             --root idris-shader-backend=_backends/idris-shader-backend \
             --output fp16-powervr-observations.tsv
 
       - name: Measure downstream FP16 consumer surface
         run: |
-          python3 compiler_backends/probe.py \
+          "$RUNNER_TEMP/compiler-backend-probe" \
             --matrix compiler_backends/fp16_consumers.tsv \
             --root algebraic-variety-explorer-mobile=_consumers/algebraic-variety-explorer-mobile \
             --output fp16-consumer-observations.tsv
 
       - name: Verify established FP16 and PowerVR baseline
         run: |
-          python3 compiler_backends/fp16_baseline.py \
+          "$RUNNER_TEMP/fp16-baseline" \
             --expected compiler_backends/fp16_expected.tsv \
             --observations fp16-powervr-observations.tsv
 

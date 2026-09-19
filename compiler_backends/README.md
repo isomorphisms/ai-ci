@@ -32,8 +32,9 @@ path as both F16 and F32, validates the generated GLSL, and rejects F64. Those
 rows prove that the downstream test surface exists; the consumer's own CI run
 is the stronger compile evidence.
 
-`probe.py` reads exact UTF-8 source files and exact literal needles and emits a
-stable TSV. It performs no language-model inference and no fuzzy matching.
+`probe.c` is a small C17 observer that reads source bytes and exact literal
+UTF-8 needles and emits a stable TSV. It performs no language-model inference
+and no fuzzy matching.
 
 ## Non-gating contract
 
@@ -43,8 +44,12 @@ removed, the row becomes `readable=0,present=0`; that is also data rather than a
 claim that the backend is broken.
 
 The observer fails only when its own matrix or checkout mapping is malformed,
-or when an explicitly promoted FP16 baseline fact regresses. Its unit tests
-verify present, absent, missing-file, sorting, and duplicate-row behavior.
+or when an explicitly promoted FP16 baseline fact regresses. Its built-in self-test verifies present, absent, missing-file, sorting,
+duplicate-row behavior, and the required FP16/consumer metric sets.
+
+The workflow also has a daily schedule. GitHub activates scheduled workflows
+only from the default branch, so that surveillance begins only after this work
+lands there.
 
 Source probes remain weaker than compiling or executing the backend. A source
 surface can advertise an operation and still be wrong, while a refactor can

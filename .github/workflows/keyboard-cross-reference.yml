@@ -37,12 +37,17 @@ jobs:
           ref: main
           path: _keyboards/utilities-android-phone-user
 
+      - name: Compile deterministic cross-reference
+        run: |
+          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 \
+            -o "$RUNNER_TEMP/keyboard-cross-reference" keyboard_cross_reference/observe.c
+
       - name: Self-test deterministic cross-reference
-        run: python3 -m unittest discover -s keyboard_cross_reference/tests -p 'test_*.py'
+        run: "$RUNNER_TEMP/keyboard-cross-reference" --self-test
 
       - name: Compare keyboard concepts
         run: |
-          python3 keyboard_cross_reference/observe.py \
+          "$RUNNER_TEMP/keyboard-cross-reference" \
             --hardware _keyboards/programmers-keyboard/render-keypads/src/Renderer.idr \
             --software _keyboards/utilities-android-phone-user/math-characters/idric/UnicodePicker.idric \
             --map keyboard_cross_reference/cross_reference.tsv \

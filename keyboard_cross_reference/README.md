@@ -24,7 +24,7 @@ the two layouts should converge.
 signals are explicitly hardware-only because the standalone phone Unicode
 picker cannot represent those actions.
 
-`observe.py` extracts key labels from:
+`observe.c` extracts key labels from:
 
 - `programmers-keyboard/render-keypads/src/Renderer.idr`
 - `utilities-android-phone-user/math-characters/idric/UnicodePicker.idric`
@@ -39,6 +39,10 @@ small set of mechanical label variations, and emits deterministic rows:
 - `unmapped_hardware_board`: a new hardware board that needs an explicit
   cross-reference decision;
 - `unmapped_software_page`: a software page with no PCB mapping.
+
+The C17 observer includes a built-in deterministic self-test for parsing,
+normalization, directionality, unmapped surfaces, duplicate mappings, and TSV
+stability.
 
 This is a lexical observation, not semantic equivalence. A `shared` row means
 the normalized labels match; it does not prove the actions behave the same.
