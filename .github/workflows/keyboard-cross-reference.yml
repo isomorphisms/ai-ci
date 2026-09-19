@@ -43,7 +43,8 @@ jobs:
             -o "$RUNNER_TEMP/keyboard-cross-reference" keyboard_cross_reference/observe.c
 
       - name: Self-test deterministic cross-reference
-        run: "$RUNNER_TEMP/keyboard-cross-reference" --self-test
+        run: |
+          "$RUNNER_TEMP/keyboard-cross-reference" --self-test
 
       - name: Compare keyboard concepts
         run: |
