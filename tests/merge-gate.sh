@@ -128,9 +128,13 @@ case_dir() { d=$tmp/$1; write_good "$d"; printf '%s\n' "$d"; }
 
 D=$(case_dir good); run_good exact-current-head "$D"
 
+D=$(case_dir contextual-task)
+awk -F '\t' -v OFS='\t' '$1=="authorization_kind" {$2="task-context"} {print}' "$D/approval.tsv" > "$D/x" && mv "$D/x" "$D/approval.tsv"
+run_good contextual-task-authority-survives-ambiguous-okay "$D"
+
 D=$(case_dir acknowledgement)
-awk -F '\t' -v OFS='\t' '$1=="decision" {$2="ACKNOWLEDGED"} $1=="authorization_kind" {$2="acknowledgement"} {print}' "$D/approval.tsv" > "$D/x" && mv "$D/x" "$D/approval.tsv"
-run_bad APPROVAL-NOT-EXPLICIT acknowledgement-is-not-merge-authority "$D"
+awk -F '\t' -v OFS='\t' '$1=="authorization_kind" {$2="acknowledgement"} {print}' "$D/approval.tsv" > "$D/x" && mv "$D/x" "$D/approval.tsv"
+run_bad APPROVAL-NOT-AUTHORIZED isolated-acknowledgement-does-not-create-authority "$D"
 
 D=$(case_dir approval-wrong-head)
 awk -F '\t' -v OFS='\t' -v old="$O" '$1=="head_sha" {$2=old} {print}' "$D/approval.tsv" > "$D/x" && mv "$D/x" "$D/approval.tsv"

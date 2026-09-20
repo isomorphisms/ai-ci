@@ -40,11 +40,13 @@ CI fail.
 
 The `merge/` contract produces a fail-closed verdict from ten plain TSV files:
 exact PR/topology state, checks, dependencies, evidence receipts, scope,
-exact-artifact consumption, explicit approval, blockers, scheduled-workflow
-reality, and job completion. The approval is bound to the
-repository, PR number/title, exact head and base, prospective patch, changed
-paths, intent record, and authorization text digest. Ambiguous acknowledgements
-and unresolved objections fail instead of being interpreted as permission.
+exact-artifact consumption, merge authority, blockers, scheduled-workflow
+reality, and job completion. The authority receipt is bound to the repository,
+PR number/title, exact head and base, prospective patch, changed paths, intent
+record, and the human text or task context that established authority. An
+ambiguous acknowledgement may continue a task that already authorizes merging;
+it cannot create merge authority when the surrounding task did not provide it.
+Unresolved objections still fail closed.
 
 The verdict prints exact-head checks as
 `PASS|FAIL|CANCELLED|SKIPPED|ABSENT|STALE|UNKNOWN`. Receipts bind source and

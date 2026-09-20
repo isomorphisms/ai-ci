@@ -85,14 +85,17 @@ every repository.
   Record required steps as `PENDING`, `BLOCKED`, `FAILED`, or `COMPLETE`
   and require an implementation step before an execution job can be complete.
 
-- **Do not turn acknowledgement into merge authority.** “Okay,” “go,” silence,
-  a question about whether anything blocks a merge, or permission to implement,
-  inspect, repair, or open a pull request is not permission to merge. Merge only
-  from an explicit immediate instruction naming or unambiguously identifying the
-  repository and pull request, a current-head GitHub approval, or a previously
-  explicit `merge if clean` instruction whose exact clean conditions and current
-  head/diff are recorded by the shared `merge/` contract. A changed head, base,
-  title, scope, dependency, or unresolved objection invalidates that authority.
+- **Preserve contextual merge authority; do not manufacture it.** Merge authority
+  may be established by the surrounding task, not only by the latest message. If
+  the human has already asked for work whose authorized completion includes
+  merging when the stated conditions are satisfied, ordinary continuation such
+  as “okay,” “go,” or “so...” may let that task proceed through the merge without
+  ceremonial re-approval. An acknowledgement does not create authority when the
+  prior task did not include merge authority. Refresh exact-head/diff evidence
+  after state changes, but do not confuse refreshing the receipt with requiring
+  a new human instruction. A material scope or intent change, explicit objection
+  or revocation, or unresolved blocker invalidates contextual authorization until
+  resolved.
 
 - **Do not invent missing continuity.** If an earlier decision, branch state,
   artifact, or conversation fact cannot actually be recovered, report it as
