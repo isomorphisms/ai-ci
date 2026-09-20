@@ -68,6 +68,10 @@ from CI, distinguishes target-branch/upstream/transient failures, and keeps
 informational followers from becoming merge gates. See
 [`merge/state/README.md`](merge/state/README.md).
 
+`merge/collect-github.sh` builds that snapshot with four bounded API reads.
+`merge/collect-set.sh` evaluates a TSV population in one command and shares
+live-base/baseline responses across PRs in the same sweep.
+
 ## Workflow trigger integrity
 
 A semantic check is only protective when changes to the implementation it

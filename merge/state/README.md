@@ -70,3 +70,9 @@ every primary checkout in that pull-request workflow explicitly selects
 `${{ github.event.pull_request.head.sha || github.sha }}`. A GitHub run label is
 never treated as checkout proof; a workflow that regresses to the synthetic
 merge ref produces `CI_STALE`.
+
+For a workload sweep, `merge/collect-set.sh MANIFEST.tsv OUTPUT_DIRECTORY`
+accepts `repository`, `pr`, and `policy` columns. It retains one snapshot and
+result per PR while caching identical live-base and baseline-check reads across
+the set. A blocked PR is a successful collection result; only collection errors
+abort the sweep.

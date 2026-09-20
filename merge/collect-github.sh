@@ -49,7 +49,7 @@ setting() {
     exit 1
 }
 
-github_get() {
+github_fetch() {
     path=$1
     if [ -n "${AICI_GITHUB_GET:-}" ]; then
         "$AICI_GITHUB_GET" "$path"
@@ -69,6 +69,22 @@ github_get() {
         -H "Authorization: Bearer $token" \
         -H 'X-GitHub-Api-Version: 2022-11-28' \
         "https://api.github.com$path"
+}
+
+github_get() {
+    path=$1
+    if [ -z "${AICI_GITHUB_CACHE:-}" ]; then
+        github_fetch "$path"
+        return
+    fi
+    mkdir -p "$AICI_GITHUB_CACHE"
+    key=$(printf '%s' "$path" | cksum | awk '{print $1 "-" $2}')
+    cached=$AICI_GITHUB_CACHE/$key.response
+    if [ -f "$cached" ]; then
+        sed -n '1,$p' "$cached"
+        return
+    fi
+    github_fetch "$path" | tee "$cached"
 }
 
 work=$(mktemp -d)

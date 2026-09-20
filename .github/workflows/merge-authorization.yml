@@ -38,3 +38,4 @@ jobs:
           sh tests/merge-state.sh merge/state.sh
           sh tests/merge-workflow-head.sh merge/check-workflow-head.sh
           sh tests/merge-collector.sh merge/collect-github.sh
+          sh tests/merge-dogfood.sh docs/dogfood/2026-09-20.tsv

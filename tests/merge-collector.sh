@@ -77,4 +77,15 @@ if AICI_GITHUB_GET=$getter AICI_REPOSITORY_ROOT=$work/repository \
 fi
 grep -F 'CI_STALE' "$work/not-exact-result" >/dev/null
 
-printf '%s\n' 'GitHub collector fixture passes with one command and four API reads'
+sed -i 's#\.github/workflows/not-exact.yml#.github/workflows/verify.yml#' "$policy/checks.tsv"
+printf '%b\n' \
+    'repository\tpr\tpolicy' \
+    "isomorphisms/example\t17\t$policy" \
+    "isomorphisms/example\t17\t$policy" > "$work/set.tsv"
+AICI_GITHUB_GET=$getter AICI_GITHUB_GET_LOG=$work/api.log \
+    AICI_REPOSITORY_ROOT=$work/repository \
+    "$root/merge/collect-set.sh" "$work/set.tsv" "$work/set-output" > "$work/set-result"
+test "$(wc -l < "$work/api.log")" -eq 4
+test "$(grep -c 'READY' "$work/set-result")" -eq 2
+
+printf '%s\n' 'GitHub collector fixtures pass; set collection caches repeated API reads'
