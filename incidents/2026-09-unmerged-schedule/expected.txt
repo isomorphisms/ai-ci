@@ -1,0 +1,1 @@
+A schedule is planned until its definition and schedule trigger exist on the default branch; operating surveillance also needs an observed run.

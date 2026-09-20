@@ -20,7 +20,7 @@ write_good() {
     d=$1
     mkdir -p "$d"
     cat > "$d/state.tsv" <<STATE
-schema	aici-merge-state-v2
+schema	aici-merge-state-v3
 repository	isomorphisms/example
 pr	17
 title	Example narrow change
@@ -38,6 +38,8 @@ intent_sha256	$F
 diff_files	1
 diff_additions	1
 diff_deletions	0
+job_kind	execution
+job_state	COMPLETE
 stack_parent_pr	-
 stack_parent_state	none
 stack_parent_expected_sha	-
@@ -52,8 +54,8 @@ name	repository	policy	declared_ref	resolved_sha	expected_sha
 compiler	isomorphisms/Idric	exact	$S	$S	$S
 DEPS
     cat > "$d/receipts.tsv" <<RECEIPTS
-id	result	head_sha	source_sha	artifact_sha256	platform	abi	execution	hardware	network	artifact_mode	required_source_sha	required_artifact_sha256	required_platform	required_abi	required_execution	required_hardware	required_network	required_artifact_mode
-runtime	PASS	$H	$S	$A	android-bionic	aarch64	android-emulator	virtual	none	exact-prebuilt	$S	$A	android-bionic	aarch64	android-emulator	virtual	none	exact-prebuilt
+id	result	head_sha	source_sha	artifact_sha256	platform	abi	execution	hardware	network	artifact_mode	evidence_class	provenance	build_sha	execution_result	required_source_sha	required_artifact_sha256	required_platform	required_abi	required_execution	required_hardware	required_network	required_artifact_mode	required_evidence_class	required_provenance	required_build_sha	required_execution_result
+runtime	PASS	$H	$S	$A	android-bionic	aarch64	android-emulator	virtual	none	exact-prebuilt	android-emulator	compiler-generated	$S	semantic-pass	$S	$A	android-bionic	aarch64	android-emulator	virtual	none	exact-prebuilt	android-emulator	compiler-generated	$S	semantic-pass
 RECEIPTS
     cat > "$d/scope.tsv" <<SCOPE
 kind	subject	provenance
@@ -83,11 +85,24 @@ authorization_text_sha256	$F
 authorized_by	human
 unresolved_objections	none
 APPROVAL
+    cat > "$d/blockers.tsv" <<BLOCKERS
+id	state	evidence
+historical-obligation	RESOLVED	receipt-17
+BLOCKERS
+    cat > "$d/schedules.tsv" <<SCHEDULES
+workflow	claim	required	default_branch	schedule_trigger	last_run_state	last_run_id
+.github/workflows/watch.yml	operating	yes	yes	yes	PASS	200
+SCHEDULES
+    cat > "$d/completion.tsv" <<COMPLETION
+step	phase	required	state	evidence
+implement-control	implementation	yes	COMPLETE	commit-$H
+verify-control	verification	yes	COMPLETE	run-100
+COMPLETION
 }
 
 run_good() {
     name=$1; d=$2
-    if ! sh "$bin" verify "$d/state.tsv" "$d/checks.tsv" "$d/dependencies.tsv" "$d/receipts.tsv" "$d/scope.tsv" "$d/consumer.tsv" "$d/approval.tsv" >"$d/out" 2>"$d/err"; then
+    if ! sh "$bin" verify "$d/state.tsv" "$d/checks.tsv" "$d/dependencies.tsv" "$d/receipts.tsv" "$d/scope.tsv" "$d/consumer.tsv" "$d/approval.tsv" "$d/blockers.tsv" "$d/schedules.tsv" "$d/completion.tsv" >"$d/out" 2>"$d/err"; then
         printf 'good case failed: %s\n' "$name" >&2
         cat "$d/err" >&2
         exit 1
@@ -97,7 +112,7 @@ run_good() {
 
 run_bad() {
     expected=$1; name=$2; d=$3
-    if sh "$bin" verify "$d/state.tsv" "$d/checks.tsv" "$d/dependencies.tsv" "$d/receipts.tsv" "$d/scope.tsv" "$d/consumer.tsv" "$d/approval.tsv" >"$d/out" 2>"$d/err"; then
+    if sh "$bin" verify "$d/state.tsv" "$d/checks.tsv" "$d/dependencies.tsv" "$d/receipts.tsv" "$d/scope.tsv" "$d/consumer.tsv" "$d/approval.tsv" "$d/blockers.tsv" "$d/schedules.tsv" "$d/completion.tsv" >"$d/out" 2>"$d/err"; then
         printf 'bad case was accepted: %s\n' "$name" >&2
         exit 1
     fi
@@ -150,7 +165,7 @@ awk -F '	' -v OFS='	' -v old="$O" 'NR==2 {$3=old} {print}' "$D/receipts.tsv" > "
 run_bad RECEIPT-WRONG-HEAD receipt-wrong-head "$D"
 
 D=$(case_dir receipt-wrong-artifact)
-awk -F '	' -v OFS='	' -v wrong="$C" 'NR==2 {$13=wrong} {print}' "$D/receipts.tsv" > "$D/x" && mv "$D/x" "$D/receipts.tsv"
+awk -F '	' -v OFS='	' -v wrong="$C" 'NR==2 {$17=wrong} {print}' "$D/receipts.tsv" > "$D/x" && mv "$D/x" "$D/receipts.tsv"
 run_bad RECEIPT-WRONG-ARTIFACT receipt-wrong-artifact "$D"
 
 D=$(case_dir stale-scope-base)
@@ -169,30 +184,74 @@ run_bad STACK-PARENT-MOVED stacked-parent-moved "$D"
 
 D=$(case_dir historical-green)
 awk -F '	' -v OFS='	' -v old="$O" 'NR==2 {$9=old} {print}' "$D/checks.tsv" > "$D/x" && mv "$D/x" "$D/checks.tsv"
-run_bad CHECK-WRONG-HEAD historical-green-after-rebase "$D"
+run_bad CHECK-STALE historical-green-after-rebase "$D"
 
 D=$(case_dir skipped)
 awk -F '	' -v OFS='	' 'NR==2 {$8="skipped"} {print}' "$D/checks.tsv" > "$D/x" && mv "$D/x" "$D/checks.tsv"
 run_bad CHECK-SKIPPED skipped-required-check "$D"
+
+D=$(case_dir cancelled)
+awk -F '	' -v OFS='	' 'NR==2 {$8="cancelled"} {print}' "$D/checks.tsv" > "$D/x" && mv "$D/x" "$D/checks.tsv"
+run_bad CHECK-CANCELLED cancelled-required-check "$D"
+
+D=$(case_dir failed)
+awk -F '	' -v OFS='	' 'NR==2 {$8="failure"} {print}' "$D/checks.tsv" > "$D/x" && mv "$D/x" "$D/checks.tsv"
+run_bad CHECK-FAILED failed-required-check "$D"
+
+D=$(case_dir unknown-check)
+awk -F '	' -v OFS='	' 'NR==2 {$8="neutral"} {print}' "$D/checks.tsv" > "$D/x" && mv "$D/x" "$D/checks.tsv"
+run_bad CHECK-UNKNOWN neutral-required-check "$D"
 
 D=$(case_dir absent)
 awk -F '	' -v OFS='	' 'NR==2 {$4="-";$7="missing";$8="-";$9="-";$10="-"} {print}' "$D/checks.tsv" > "$D/x" && mv "$D/x" "$D/checks.tsv"
 run_bad CHECK-MISSING absent-required-workflow "$D"
 
 D=$(case_dir malformed-pass)
-awk -F '	' -v OFS='	' 'NR==2 {NF=18} {print}' "$D/receipts.tsv" > "$D/x" && mv "$D/x" "$D/receipts.tsv"
+awk -F '	' -v OFS='	' 'NR==2 {NF=26} {print}' "$D/receipts.tsv" > "$D/x" && mv "$D/x" "$D/receipts.tsv"
 run_bad RECEIPTS-MALFORMED malformed-pass-receipt "$D"
 
 D=$(case_dir wrong-abi)
-awk -F '	' -v OFS='	' 'NR==2 {$15="armeabi-v7a"} {print}' "$D/receipts.tsv" > "$D/x" && mv "$D/x" "$D/receipts.tsv"
+awk -F '	' -v OFS='	' 'NR==2 {$19="armeabi-v7a"} {print}' "$D/receipts.tsv" > "$D/x" && mv "$D/x" "$D/receipts.tsv"
 run_bad RECEIPT-WRONG-ABI wrong-abi "$D"
 
 D=$(case_dir emulator-as-physical)
-awk -F '	' -v OFS='	' 'NR==2 {$16="physical";$17="physical"} {print}' "$D/receipts.tsv" > "$D/x" && mv "$D/x" "$D/receipts.tsv"
-run_bad RECEIPT-WRONG-EXECUTION emulator-as-physical "$D"
+awk -F '	' -v OFS='	' 'NR==2 {$24="physical-phone"} {print}' "$D/receipts.tsv" > "$D/x" && mv "$D/x" "$D/receipts.tsv"
+run_bad RECEIPT-WRONG-EVIDENCE-CLASS emulator-as-physical-phone "$D"
+
+D=$(case_dir qemu-system-as-phone)
+awk -F '	' -v OFS='	' 'NR==2 {$8="full-system";$9="virtual";$12="qemu-system";$20="full-system";$21="virtual";$24="physical-phone"} {print}' "$D/receipts.tsv" > "$D/x" && mv "$D/x" "$D/receipts.tsv"
+run_bad RECEIPT-WRONG-EVIDENCE-CLASS qemu-system-as-physical-phone "$D"
+
+D=$(case_dir malformed-physical-class)
+awk -F '	' -v OFS='	' 'NR==2 {$12="physical-phone";$24="physical-phone"} {print}' "$D/receipts.tsv" > "$D/x" && mv "$D/x" "$D/receipts.tsv"
+run_bad RECEIPT-PHYSICAL-CLASS-MISMATCH physical-class-with-emulator-execution "$D"
+
+D=$(case_dir malformed-qemu-class)
+awk -F '	' -v OFS='	' 'NR==2 {$12="qemu-system";$24="qemu-system"} {print}' "$D/receipts.tsv" > "$D/x" && mv "$D/x" "$D/receipts.tsv"
+run_bad RECEIPT-QEMU-CLASS-MISMATCH qemu-class-with-emulator-execution "$D"
+
+D=$(case_dir malformed-emulator-class)
+awk -F '	' -v OFS='	' 'NR==2 {$8="host";$9="none";$20="host";$21="none"} {print}' "$D/receipts.tsv" > "$D/x" && mv "$D/x" "$D/receipts.tsv"
+run_bad RECEIPT-EMULATOR-CLASS-MISMATCH emulator-class-with-host-execution "$D"
+
+D=$(case_dir handwritten-as-generated)
+awk -F '	' -v OFS='	' 'NR==2 {$13="handwritten-oracle"} {print}' "$D/receipts.tsv" > "$D/x" && mv "$D/x" "$D/receipts.tsv"
+run_bad RECEIPT-WRONG-PROVENANCE handwritten-oracle-as-compiler-generated "$D"
+
+D=$(case_dir packaged-as-executed)
+awk -F '	' -v OFS='	' 'NR==2 {$13="packaged-only";$15="semantic-pass"} {print}' "$D/receipts.tsv" > "$D/x" && mv "$D/x" "$D/receipts.tsv"
+run_bad RECEIPT-PACKAGE-AS-EXECUTION packaged-artifact-as-executed "$D"
+
+D=$(case_dir wrong-build)
+awk -F '	' -v OFS='	' -v wrong="$O" 'NR==2 {$26=wrong} {print}' "$D/receipts.tsv" > "$D/x" && mv "$D/x" "$D/receipts.tsv"
+run_bad RECEIPT-WRONG-BUILD receipt-wrong-build "$D"
+
+D=$(case_dir wrong-execution-result)
+awk -F '	' -v OFS='	' 'NR==2 {$27="launched"} {print}' "$D/receipts.tsv" > "$D/x" && mv "$D/x" "$D/receipts.tsv"
+run_bad RECEIPT-WRONG-EXECUTION-RESULT launched-is-not-semantic-pass "$D"
 
 D=$(case_dir mock-as-runtime)
-awk -F '	' -v OFS='	' 'NR==2 {$8="host";$9="mock";$16="host";$17="physical"} {print}' "$D/receipts.tsv" > "$D/x" && mv "$D/x" "$D/receipts.tsv"
+awk -F '	' -v OFS='	' 'NR==2 {$8="host";$9="mock";$12="host";$20="host";$21="physical";$24="host"} {print}' "$D/receipts.tsv" > "$D/x" && mv "$D/x" "$D/receipts.tsv"
 run_bad RECEIPT-WRONG-HARDWARE mock-as-runtime "$D"
 
 D=$(case_dir rebuild-fallback)
@@ -236,17 +295,17 @@ grep -v '	execute	' "$D/consumer.tsv" > "$D/x" && mv "$D/x" "$D/consumer.tsv"
 run_bad RUNTIME-EXACT-ARTIFACT-NOT-EXECUTED exact-artifact-not-executed "$D"
 
 D=$(case_dir exact-artifact-unpinned)
-awk -F '\t' -v OFS='\t' 'NR==2 {$13="-"} {print}' "$D/receipts.tsv" > "$D/x" && mv "$D/x" "$D/receipts.tsv"
+awk -F '\t' -v OFS='\t' 'NR==2 {$17="-"} {print}' "$D/receipts.tsv" > "$D/x" && mv "$D/x" "$D/receipts.tsv"
 run_good exact-artifact-unpinned-but-bound-by-receipt "$D"
 awk 'NR==1 {print}' "$D/consumer.tsv" > "$D/x" && mv "$D/x" "$D/consumer.tsv"
 run_bad RUNTIME-EXACT-ARTIFACT-NOT-EXECUTED exact-artifact-unpinned-still-needs-consumer "$D"
 
 D=$(case_dir receipt-wrong-source)
-awk -F '	' -v OFS='	' -v wrong="$O" 'NR==2 {$12=wrong} {print}' "$D/receipts.tsv" > "$D/x" && mv "$D/x" "$D/receipts.tsv"
+awk -F '	' -v OFS='	' -v wrong="$O" 'NR==2 {$16=wrong} {print}' "$D/receipts.tsv" > "$D/x" && mv "$D/x" "$D/receipts.tsv"
 run_bad RECEIPT-WRONG-SOURCE receipt-wrong-source "$D"
 
 D=$(case_dir wrong-platform)
-awk -F '	' -v OFS='	' 'NR==2 {$14="linux-glibc"} {print}' "$D/receipts.tsv" > "$D/x" && mv "$D/x" "$D/receipts.tsv"
+awk -F '	' -v OFS='	' 'NR==2 {$18="linux-glibc"} {print}' "$D/receipts.tsv" > "$D/x" && mv "$D/x" "$D/receipts.tsv"
 run_bad RECEIPT-WRONG-PLATFORM wrong-platform "$D"
 
 D=$(case_dir synthetic-only-check)
@@ -257,6 +316,70 @@ run_bad CHECK-EXACT-HEAD-MISSING synthetic-only-cannot-authorize-head "$D"
 D=$(case_dir moving-resolved-good)
 awk -F '	' -v OFS='	' 'NR==2 {$3="moving-resolved";$4="Idriç";$6="-"} {print}' "$D/dependencies.tsv" > "$D/x" && mv "$D/x" "$D/dependencies.tsv"
 run_good active-integration-moving-ref-resolved "$D"
+
+D=$(case_dir blocker-open)
+printf '%s\n' "provision-workbench	OPEN	human-device-setup" >> "$D/blockers.tsv"
+run_bad BLOCKER-OPEN mergeable-with-unresolved-blocker "$D"
+
+D=$(case_dir schedule-pr-branch-only)
+awk -F '	' -v OFS='	' 'NR==2 {$2="configured";$3="no";$4="no";$6="NEVER_RUN";$7="-"} {print}' "$D/schedules.tsv" > "$D/x" && mv "$D/x" "$D/schedules.tsv"
+run_bad SCHEDULE-NOT-ON-DEFAULT scheduled-workflow-only-on-pr-branch "$D"
+
+D=$(case_dir schedule-never-ran)
+awk -F '	' -v OFS='	' 'NR==2 {$3="no";$6="NEVER_RUN";$7="-"} {print}' "$D/schedules.tsv" > "$D/x" && mv "$D/x" "$D/schedules.tsv"
+run_bad SCHEDULE-NEVER-RAN operating-surveillance-never-ran "$D"
+
+D=$(case_dir schedule-trigger-absent)
+awk -F '	' -v OFS='	' 'NR==2 {$3="no";$5="no"} {print}' "$D/schedules.tsv" > "$D/x" && mv "$D/x" "$D/schedules.tsv"
+run_bad SCHEDULE-TRIGGER-ABSENT schedule-claim-without-trigger "$D"
+
+D=$(case_dir required-schedule-cancelled)
+awk -F '	' -v OFS='	' 'NR==2 {$6="CANCELLED"} {print}' "$D/schedules.tsv" > "$D/x" && mv "$D/x" "$D/schedules.tsv"
+run_bad SCHEDULE-NOT-PASS required-schedule-cancelled "$D"
+
+D=$(case_dir completion-pending)
+awk -F '	' -v OFS='	' '$1=="verify-control" {$4="PENDING";$5="not-run"} {print}' "$D/completion.tsv" > "$D/x" && mv "$D/x" "$D/completion.tsv"
+run_bad COMPLETION-PENDING unfinished-required-step "$D"
+
+D=$(case_dir completion-blocked)
+awk -F '	' -v OFS='	' '$1=="verify-control" {$4="BLOCKED";$5="physical-device"} {print}' "$D/completion.tsv" > "$D/x" && mv "$D/x" "$D/completion.tsv"
+run_bad COMPLETION-BLOCKED blocked-required-step "$D"
+
+D=$(case_dir completion-failed)
+awk -F '	' -v OFS='	' '$1=="verify-control" {$4="FAILED";$5="run-100"} {print}' "$D/completion.tsv" > "$D/x" && mv "$D/x" "$D/completion.tsv"
+run_bad COMPLETION-FAILED failed-required-step "$D"
+
+D=$(case_dir execution-plan-only)
+awk -F '	' -v OFS='	' 'NR==1 || $2!="implementation"' "$D/completion.tsv" > "$D/x" && mv "$D/x" "$D/completion.tsv"
+awk -F '	' -v OFS='	' 'NR==2 {$2="plan";$1="write-plan"} {print}' "$D/completion.tsv" > "$D/x" && mv "$D/x" "$D/completion.tsv"
+run_bad EXECUTION-NOT-IMPLEMENTED execution-job-ended-with-plan "$D"
+
+D=$(case_dir job-not-complete)
+awk -F '	' -v OFS='	' '$1=="job_state" {$2="PENDING"} {print}' "$D/state.tsv" > "$D/x" && mv "$D/x" "$D/state.tsv"
+run_bad JOB-INCOMPLETE successful-receipt-for-incomplete-job "$D"
+
+D=$(case_dir check-state-table)
+{
+    printf '%s\n' 'workflow	job	event	run_id	required	binding	status	conclusion	reported_head_sha	checkout_sha	trigger_coverage'
+    printf '%s\n' ".github/workflows/pass.yml	pass	pull_request	201	yes	head	completed	success	$H	$H	yes"
+    printf '%s\n' ".github/workflows/fail.yml	fail	pull_request	202	yes	head	completed	failure	$H	$H	yes"
+    printf '%s\n' ".github/workflows/cancel.yml	cancel	pull_request	203	yes	head	completed	cancelled	$H	$H	yes"
+    printf '%s\n' ".github/workflows/skip.yml	skip	pull_request	204	yes	head	completed	skipped	$H	$H	yes"
+    printf '%s\n' ".github/workflows/absent.yml	absent	pull_request	-	yes	head	missing	-	-	-	yes"
+    printf '%s\n' ".github/workflows/stale.yml	stale	pull_request	205	yes	head	completed	success	$O	$O	yes"
+    printf '%s\n' ".github/workflows/unknown.yml	unknown	pull_request	206	yes	head	in_progress	-	$H	$H	yes"
+} > "$D/checks.tsv"
+sh merge/check-table.sh "$D/state.tsv" "$D/checks.tsv" > "$D/check-table.out"
+grep -F "HEAD        $H" "$D/check-table.out" >/dev/null
+for row in 'pass PASS' 'fail FAIL' 'cancel CANCELLED' 'skip SKIPPED' 'absent ABSENT' 'stale STALE' 'unknown UNKNOWN'; do
+    set -- $row
+    awk -v check="$1" -v state="$2" '$1==check && $2==state {found=1} END {exit !found}' "$D/check-table.out" || {
+        printf 'check table omitted normalized row: %s\n' "$row" >&2
+        cat "$D/check-table.out" >&2
+        exit 1
+    }
+done
+printf 'PASS	check-state-table\n'
 
 D=$(case_dir snapshot-directory)
 sh merge/pr-verdict.sh "$D" >"$D/directory-out"

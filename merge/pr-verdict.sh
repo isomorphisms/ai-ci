@@ -10,13 +10,17 @@ snapshot=$1
 script_directory=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 
 for required_file in \
-    state.tsv checks.tsv dependencies.tsv receipts.tsv scope.tsv consumer.tsv approval.tsv
+    state.tsv checks.tsv dependencies.tsv receipts.tsv scope.tsv consumer.tsv \
+    approval.tsv blockers.tsv schedules.tsv completion.tsv
 do
     test -f "$snapshot/$required_file" || {
         printf 'FAIL\tMERGE-AUTHORIZATION\tmissing=%s\n' "$required_file" >&2
         exit 1
     }
 done
+
+sh "$script_directory/check-table.sh" "$snapshot/state.tsv" "$snapshot/checks.tsv"
+printf '\n'
 
 exec sh "$script_directory/verify.sh" verify \
     "$snapshot/state.tsv" \
@@ -25,4 +29,7 @@ exec sh "$script_directory/verify.sh" verify \
     "$snapshot/receipts.tsv" \
     "$snapshot/scope.tsv" \
     "$snapshot/consumer.tsv" \
-    "$snapshot/approval.tsv"
+    "$snapshot/approval.tsv" \
+    "$snapshot/blockers.tsv" \
+    "$snapshot/schedules.tsv" \
+    "$snapshot/completion.tsv"

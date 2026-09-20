@@ -1,0 +1,1 @@
+Extend receipts with evidence_class, provenance, build_sha, and execution_result and add hostile substitution cases.

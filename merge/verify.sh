@@ -1,13 +1,14 @@
 #!/bin/sh
 set -eu
-[ "$#" -eq 8 ] && [ "$1" = verify ] || {
-    echo 'usage: merge/verify.sh verify STATE CHECKS DEPENDENCIES RECEIPTS SCOPE CONSUMER APPROVAL' >&2
+[ "$#" -eq 11 ] && [ "$1" = verify ] || {
+    echo 'usage: merge/verify.sh verify STATE CHECKS DEPENDENCIES RECEIPTS SCOPE CONSUMER APPROVAL BLOCKERS SCHEDULES COMPLETION' >&2
     exit 2
 }
 shift
 awk -v state_file="$1" -v checks_file="$2" -v deps_file="$3" \
     -v receipts_file="$4" -v scope_file="$5" -v consumer_file="$6" \
-    -v approval_file="$7" '
+    -v approval_file="$7" -v blockers_file="$8" -v schedules_file="$9" \
+    -v completion_file="${10}" '
 BEGIN { FS="\t"; OFS="\t" }
 function bad(code, detail) {
     failures++
@@ -57,10 +58,12 @@ FILENAME==checks_file && noncomment() {
         required_checks++
         if ($7=="missing" || $4=="-") { bad("CHECK-MISSING",$2); next }
         if ($8=="skipped") { bad("CHECK-SKIPPED",$2); next }
+        if ($8=="cancelled") { bad("CHECK-CANCELLED",$2); next }
         if ($7!="completed") { bad("CHECK-INCOMPLETE",$2); next }
-        if ($8!="success") { bad("CHECK-NOT-PASS",$2); next }
+        if ($8=="failure" || $8=="timed_out") { bad("CHECK-FAILED",$2); next }
+        if ($8!="success") { bad("CHECK-UNKNOWN",$2); next }
         if (!member($3,"pull_request|merge_group")) bad("CHECK-WRONG-EVENT",$2)
-        if ($9!=st["head_sha"]) bad("CHECK-WRONG-HEAD",$2)
+        if ($9!=st["head_sha"]) bad("CHECK-STALE",$2)
         wanted=($6=="head" ? st["head_sha"] : st["event_sha"])
         if ($10!=wanted) bad("CHECK-WRONG-CHECKOUT",$2)
         if ($11!="yes") bad("CHECK-TRIGGER-GAP",$2)
@@ -85,24 +88,33 @@ FILENAME==deps_file && noncomment() {
 FILENAME==receipts_file && noncomment() {
     if (!header_seen) {
         header_seen=1
-        if ($0!="id\tresult\thead_sha\tsource_sha\tartifact_sha256\tplatform\tabi\texecution\thardware\tnetwork\tartifact_mode\trequired_source_sha\trequired_artifact_sha256\trequired_platform\trequired_abi\trequired_execution\trequired_hardware\trequired_network\trequired_artifact_mode") bad("RECEIPTS-MALFORMED","wrong header")
+        if ($0!="id\tresult\thead_sha\tsource_sha\tartifact_sha256\tplatform\tabi\texecution\thardware\tnetwork\tartifact_mode\tevidence_class\tprovenance\tbuild_sha\texecution_result\trequired_source_sha\trequired_artifact_sha256\trequired_platform\trequired_abi\trequired_execution\trequired_hardware\trequired_network\trequired_artifact_mode\trequired_evidence_class\trequired_provenance\trequired_build_sha\trequired_execution_result") bad("RECEIPTS-MALFORMED","wrong header")
         next
     }
     data_rows++
-    if (NF!=19 || !token($1) || !member($2,"PASS|FAIL|UNKNOWN") || !gitsha($3) || !gitsha($4) || !optsha256($5) || !token($6) || !token($7) || !member($8,"none|compile|host|qemu-user|full-system|android-emulator|physical") || !member($9,"none|mock|virtual|physical") || !member($10,"none|loopback|fake-tls|external-tls") || !member($11,"none|exact-prebuilt|rebuilt") || !optgit($12) || !optsha256($13) || !token($14) || !token($15) || !member($16,"-|none|compile|host|qemu-user|full-system|android-emulator|physical") || !member($17,"-|none|mock|virtual|physical") || !member($18,"-|none|loopback|fake-tls|external-tls") || !member($19,"-|none|exact-prebuilt|rebuilt")) { bad("RECEIPTS-MALFORMED",$1); next }
+    if (NF!=27 || !token($1) || !member($2,"PASS|FAIL|UNKNOWN") || !gitsha($3) || !gitsha($4) || !optsha256($5) || !token($6) || !token($7) || !member($8,"none|compile|host|qemu-user|full-system|android-emulator|physical") || !member($9,"none|mock|virtual|physical") || !member($10,"none|loopback|fake-tls|external-tls") || !member($11,"none|exact-prebuilt|rebuilt") || !member($12,"host|github-runner|qemu-user|qemu-system|android-emulator|physical-phone|physical-tablet") || !member($13,"none|handwritten-oracle|compiler-generated|packaged-only|installed-artifact") || !optgit($14) || !member($15,"none|compiled|packaged|installed|launched|semantic-pass") || !optgit($16) || !optsha256($17) || !token($18) || !token($19) || !member($20,"-|none|compile|host|qemu-user|full-system|android-emulator|physical") || !member($21,"-|none|mock|virtual|physical") || !member($22,"-|none|loopback|fake-tls|external-tls") || !member($23,"-|none|exact-prebuilt|rebuilt") || !member($24,"-|host|github-runner|qemu-user|qemu-system|android-emulator|physical-phone|physical-tablet") || !member($25,"-|none|handwritten-oracle|compiler-generated|packaged-only|installed-artifact") || !optgit($26) || !member($27,"-|none|compiled|packaged|installed|launched|semantic-pass")) { bad("RECEIPTS-MALFORMED",$1); next }
     if (($11=="exact-prebuilt" || $11=="rebuilt") && $5=="-") { bad("RECEIPTS-MALFORMED",$1); next }
+    if ($13=="packaged-only" && !member($15,"none|compiled|packaged")) { bad("RECEIPT-PACKAGE-AS-EXECUTION",$1); next }
+    if (member($12,"physical-phone|physical-tablet") && ($8!="physical" || $9!="physical")) { bad("RECEIPT-PHYSICAL-CLASS-MISMATCH",$1); next }
+    if ($12=="qemu-user" && ($8!="qemu-user" || $9!="virtual")) { bad("RECEIPT-QEMU-CLASS-MISMATCH",$1); next }
+    if ($12=="qemu-system" && ($8!="full-system" || $9!="virtual")) { bad("RECEIPT-QEMU-CLASS-MISMATCH",$1); next }
+    if ($12=="android-emulator" && ($8!="android-emulator" || $9!="virtual")) { bad("RECEIPT-EMULATOR-CLASS-MISMATCH",$1); next }
     if ($2=="UNKNOWN") { bad("RECEIPT-UNKNOWN",$1); next }
     if ($2!="PASS") { bad("RECEIPT-NOT-PASS",$1); next }
     if ($3!=st["head_sha"]) bad("RECEIPT-WRONG-HEAD",$1)
-    required($4,$12,"RECEIPT-WRONG-SOURCE",$1)
-    required($5,$13,"RECEIPT-WRONG-ARTIFACT",$1)
-    required($6,$14,"RECEIPT-WRONG-PLATFORM",$1)
-    required($7,$15,"RECEIPT-WRONG-ABI",$1)
-    required($8,$16,"RECEIPT-WRONG-EXECUTION",$1)
-    required($9,$17,"RECEIPT-WRONG-HARDWARE",$1)
-    required($10,$18,"RECEIPT-WRONG-NETWORK",$1)
-    required($11,$19,"RECEIPT-WRONG-ARTIFACT-MODE",$1)
-    if ($19=="exact-prebuilt") { exact_id[$5]=$1; exact_source[$5]=$4; exact_needed[$5]=1 }
+    required($4,$16,"RECEIPT-WRONG-SOURCE",$1)
+    required($5,$17,"RECEIPT-WRONG-ARTIFACT",$1)
+    required($6,$18,"RECEIPT-WRONG-PLATFORM",$1)
+    required($7,$19,"RECEIPT-WRONG-ABI",$1)
+    required($8,$20,"RECEIPT-WRONG-EXECUTION",$1)
+    required($9,$21,"RECEIPT-WRONG-HARDWARE",$1)
+    required($10,$22,"RECEIPT-WRONG-NETWORK",$1)
+    required($11,$23,"RECEIPT-WRONG-ARTIFACT-MODE",$1)
+    required($12,$24,"RECEIPT-WRONG-EVIDENCE-CLASS",$1)
+    required($13,$25,"RECEIPT-WRONG-PROVENANCE",$1)
+    required($14,$26,"RECEIPT-WRONG-BUILD",$1)
+    required($15,$27,"RECEIPT-WRONG-EXECUTION-RESULT",$1)
+    if ($23=="exact-prebuilt") { exact_id[$5]=$1; exact_source[$5]=$4; exact_needed[$5]=1 }
     next
 }
 FILENAME==scope_file && noncomment() {
@@ -142,8 +154,53 @@ FILENAME==consumer_file && noncomment() {
     else if ($3=="execute" && $4=="pass") executed[$1]=1
     next
 }
+FILENAME==blockers_file && noncomment() {
+    if (!header_seen) {
+        header_seen=1
+        if ($0!="id\tstate\tevidence") bad("BLOCKERS-MALFORMED","wrong header")
+        next
+    }
+    data_rows++
+    if (NF!=3 || !token($1) || !member($2,"OPEN|RESOLVED|WITHDRAWN") || $3=="") { bad("BLOCKERS-MALFORMED",$1); next }
+    if (seen_blocker[$1]++) { bad("BLOCKERS-MALFORMED","duplicate blocker " $1); next }
+    if ($2=="OPEN") bad("BLOCKER-OPEN",$1)
+    next
+}
+FILENAME==schedules_file && noncomment() {
+    if (!header_seen) {
+        header_seen=1
+        if ($0!="workflow\tclaim\trequired\tdefault_branch\tschedule_trigger\tlast_run_state\tlast_run_id") bad("SCHEDULES-MALFORMED","wrong header")
+        next
+    }
+    data_rows++
+    if (NF!=7 || !token($1) || !member($2,"planned|configured|operating") || !yesno($3) || !yesno($4) || !yesno($5) || !member($6,"PASS|FAIL|CANCELLED|SKIPPED|ABSENT|STALE|UNKNOWN|NEVER_RUN") || !(posint($7) || $7=="-")) { bad("SCHEDULES-MALFORMED",$1); next }
+    if (seen_schedule[$1]++) { bad("SCHEDULES-MALFORMED","duplicate workflow " $1); next }
+    if ($2!="planned" && $4!="yes") bad("SCHEDULE-NOT-ON-DEFAULT",$1)
+    if ($2!="planned" && $5!="yes") bad("SCHEDULE-TRIGGER-ABSENT",$1)
+    if ($2=="operating" && ($6=="NEVER_RUN" || $7=="-")) bad("SCHEDULE-NEVER-RAN",$1)
+    if ($3=="yes" && ($2!="operating" || $6!="PASS" || $7=="-")) bad("SCHEDULE-NOT-PASS",$1)
+    next
+}
+FILENAME==completion_file && noncomment() {
+    if (!header_seen) {
+        header_seen=1
+        if ($0!="step\tphase\trequired\tstate\tevidence") bad("COMPLETION-MALFORMED","wrong header")
+        next
+    }
+    data_rows++
+    if (NF!=5 || !token($1) || !member($2,"plan|audit|implementation|verification|merge|cleanup") || !yesno($3) || !member($4,"PENDING|BLOCKED|FAILED|COMPLETE") || $5=="") { bad("COMPLETION-MALFORMED",$1); next }
+    if (seen_completion[$1]++) { bad("COMPLETION-MALFORMED","duplicate step " $1); next }
+    if ($3=="yes") {
+        required_steps++
+        if ($2=="implementation") required_implementation++
+        if ($4=="PENDING") bad("COMPLETION-PENDING",$1)
+        else if ($4=="BLOCKED") bad("COMPLETION-BLOCKED",$1)
+        else if ($4=="FAILED") bad("COMPLETION-FAILED",$1)
+    }
+    next
+}
 END {
-    if (st["schema"]!="aici-merge-state-v2" || st["repository"]=="" || !posint(st["pr"]) || st["title"]=="" || !gitsha(st["head_sha"]) || !gitsha(st["event_sha"]) || !member(st["event_kind"],"head|synthetic-merge") || st["live_base_ref"]=="" || !gitsha(st["live_base_sha"]) || !gitsha(st["reported_base_sha"]) || !gitsha(st["merge_base_sha"]) || !gitsha(st["scope_base_sha"]) || !sha256(st["prospective_diff_sha256"]) || !sha256(st["changed_paths_sha256"]) || !sha256(st["intent_sha256"]) || !posint(st["diff_files"]) || !nonnegative(st["diff_additions"]) || !nonnegative(st["diff_deletions"]) || st["stack_parent_pr"]=="" || !member(st["stack_parent_state"],"none|open|landed") || st["stack_parent_expected_sha"]=="" || st["stack_parent_current_sha"]=="") bad("MERGE-STATE-MALFORMED","missing or invalid required field")
+    if (st["schema"]!="aici-merge-state-v3" || st["repository"]=="" || !posint(st["pr"]) || st["title"]=="" || !gitsha(st["head_sha"]) || !gitsha(st["event_sha"]) || !member(st["event_kind"],"head|synthetic-merge") || st["live_base_ref"]=="" || !gitsha(st["live_base_sha"]) || !gitsha(st["reported_base_sha"]) || !gitsha(st["merge_base_sha"]) || !gitsha(st["scope_base_sha"]) || !sha256(st["prospective_diff_sha256"]) || !sha256(st["changed_paths_sha256"]) || !sha256(st["intent_sha256"]) || !posint(st["diff_files"]) || !nonnegative(st["diff_additions"]) || !nonnegative(st["diff_deletions"]) || !member(st["job_kind"],"execution|advisory") || !member(st["job_state"],"PENDING|BLOCKED|FAILED|COMPLETE") || st["stack_parent_pr"]=="" || !member(st["stack_parent_state"],"none|open|landed") || st["stack_parent_expected_sha"]=="" || st["stack_parent_current_sha"]=="") bad("MERGE-STATE-MALFORMED","missing or invalid required field")
     if (approval["schema"]!="aici-merge-approval-v1" || approval["repository"]=="" || !posint(approval["pr"]) || approval["title"]=="" || !gitsha(approval["head_sha"]) || approval["base_ref"]=="" || !gitsha(approval["base_sha"]) || !sha256(approval["prospective_diff_sha256"]) || !sha256(approval["changed_paths_sha256"]) || !sha256(approval["intent_sha256"]) || approval["decision"]=="" || approval["authorization_kind"]=="" || !sha256(approval["authorization_text_sha256"]) || !token(approval["authorized_by"]) || approval["unresolved_objections"]=="") bad("APPROVAL-MALFORMED","missing or invalid required field")
     if (approval["decision"]!="MERGE" || !member(approval["authorization_kind"],"explicit-merge|conditional-clean|github-approval")) bad("APPROVAL-NOT-EXPLICIT",approval["authorization_kind"])
     if (approval["unresolved_objections"]!="none") bad("APPROVAL-OBJECTION-OPEN",approval["unresolved_objections"])
@@ -167,6 +224,9 @@ END {
         } else bad("STACK-RETARGET-REQUIRED","landed parent requires reconciliation")
     }
     if (st["merge_base_sha"]!=st["scope_base_sha"]) bad("TOPOLOGY-BASE-DRIFT","merge-base differs from intended scope base")
+    if (st["job_state"]!="COMPLETE") bad("JOB-INCOMPLETE",st["job_state"])
+    if (required_steps==0) bad("COMPLETION-MALFORMED","no required steps declared")
+    if (st["job_kind"]=="execution" && required_implementation==0) bad("EXECUTION-NOT-IMPLEMENTED","no required implementation step")
     if (required_checks==0) bad("CHECK-MISSING","no required checks declared")
     if (exact_head_checks==0) bad("CHECK-EXACT-HEAD-MISSING","no required exact-head check")
     for (a in exact_needed) if (!verified[a] || !executed[a]) bad("RUNTIME-EXACT-ARTIFACT-NOT-EXECUTED",exact_id[a])
