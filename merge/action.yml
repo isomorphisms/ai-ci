@@ -22,7 +22,7 @@ inputs:
     description: exact-artifact consumer trace
     required: true
   approval:
-    description: explicit human approval bound to exact PR, head, base, intent, and diff
+    description: human merge authority receipt bound to exact PR, head, base, intent, and diff
     required: true
   blockers:
     description: explicit blocker ledger
