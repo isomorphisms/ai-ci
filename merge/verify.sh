@@ -1,12 +1,13 @@
 #!/bin/sh
 set -eu
-[ "$#" -eq 7 ] && [ "$1" = verify ] || {
-    echo 'usage: merge/verify.sh verify STATE CHECKS DEPENDENCIES RECEIPTS SCOPE CONSUMER' >&2
+[ "$#" -eq 8 ] && [ "$1" = verify ] || {
+    echo 'usage: merge/verify.sh verify STATE CHECKS DEPENDENCIES RECEIPTS SCOPE CONSUMER APPROVAL' >&2
     exit 2
 }
 shift
 awk -v state_file="$1" -v checks_file="$2" -v deps_file="$3" \
-    -v receipts_file="$4" -v scope_file="$5" -v consumer_file="$6" '
+    -v receipts_file="$4" -v scope_file="$5" -v consumer_file="$6" \
+    -v approval_file="$7" '
 BEGIN { FS="\t"; OFS="\t" }
 function bad(code, detail) {
     failures++
@@ -17,6 +18,7 @@ function hex(s,n) { return length(s)==n && s ~ /^[0-9A-Fa-f]+$/ }
 function gitsha(s) { return hex(s,40) || hex(s,64) }
 function sha256(s) { return hex(s,64) }
 function posint(s) { return s ~ /^[1-9][0-9]*$/ }
+function nonnegative(s) { return s ~ /^(0|[1-9][0-9]*)$/ }
 function yesno(s) { return s=="yes" || s=="no" }
 function token(s) { return s!="" && s !~ /[[:space:]]/ }
 function optgit(s) { return s=="-" || gitsha(s) }
@@ -30,6 +32,12 @@ FILENAME==state_file && noncomment() {
     if (NF!=2) { bad("MERGE-STATE-MALFORMED","expected key<TAB>value"); next }
     if (seen_state[$1]++) { bad("MERGE-STATE-MALFORMED","duplicate field " $1); next }
     st[$1]=$2
+    next
+}
+FILENAME==approval_file && noncomment() {
+    if (NF!=2) { bad("APPROVAL-MALFORMED","expected key<TAB>value"); next }
+    if (seen_approval[$1]++) { bad("APPROVAL-MALFORMED","duplicate field " $1); next }
+    approval[$1]=$2
     next
 }
 FILENAME==checks_file && noncomment() {
@@ -135,7 +143,16 @@ FILENAME==consumer_file && noncomment() {
     next
 }
 END {
-    if (st["schema"]!="aici-merge-state-v1" || st["repository"]=="" || !posint(st["pr"]) || st["title"]=="" || !gitsha(st["head_sha"]) || !gitsha(st["event_sha"]) || !member(st["event_kind"],"head|synthetic-merge") || st["live_base_ref"]=="" || !gitsha(st["live_base_sha"]) || !gitsha(st["reported_base_sha"]) || !gitsha(st["merge_base_sha"]) || !gitsha(st["scope_base_sha"]) || st["stack_parent_pr"]=="" || !member(st["stack_parent_state"],"none|open|landed") || st["stack_parent_expected_sha"]=="" || st["stack_parent_current_sha"]=="") bad("MERGE-STATE-MALFORMED","missing or invalid required field")
+    if (st["schema"]!="aici-merge-state-v2" || st["repository"]=="" || !posint(st["pr"]) || st["title"]=="" || !gitsha(st["head_sha"]) || !gitsha(st["event_sha"]) || !member(st["event_kind"],"head|synthetic-merge") || st["live_base_ref"]=="" || !gitsha(st["live_base_sha"]) || !gitsha(st["reported_base_sha"]) || !gitsha(st["merge_base_sha"]) || !gitsha(st["scope_base_sha"]) || !sha256(st["prospective_diff_sha256"]) || !sha256(st["changed_paths_sha256"]) || !sha256(st["intent_sha256"]) || !posint(st["diff_files"]) || !nonnegative(st["diff_additions"]) || !nonnegative(st["diff_deletions"]) || st["stack_parent_pr"]=="" || !member(st["stack_parent_state"],"none|open|landed") || st["stack_parent_expected_sha"]=="" || st["stack_parent_current_sha"]=="") bad("MERGE-STATE-MALFORMED","missing or invalid required field")
+    if (approval["schema"]!="aici-merge-approval-v1" || approval["repository"]=="" || !posint(approval["pr"]) || approval["title"]=="" || !gitsha(approval["head_sha"]) || approval["base_ref"]=="" || !gitsha(approval["base_sha"]) || !sha256(approval["prospective_diff_sha256"]) || !sha256(approval["changed_paths_sha256"]) || !sha256(approval["intent_sha256"]) || approval["decision"]=="" || approval["authorization_kind"]=="" || !sha256(approval["authorization_text_sha256"]) || !token(approval["authorized_by"]) || approval["unresolved_objections"]=="") bad("APPROVAL-MALFORMED","missing or invalid required field")
+    if (approval["decision"]!="MERGE" || !member(approval["authorization_kind"],"explicit-merge|conditional-clean|github-approval")) bad("APPROVAL-NOT-EXPLICIT",approval["authorization_kind"])
+    if (approval["unresolved_objections"]!="none") bad("APPROVAL-OBJECTION-OPEN",approval["unresolved_objections"])
+    if (approval["repository"]!=st["repository"] || approval["pr"]!=st["pr"] || approval["title"]!=st["title"]) bad("APPROVAL-WRONG-PR","approval identity differs from merge state")
+    if (approval["head_sha"]!=st["head_sha"]) bad("APPROVAL-WRONG-HEAD",approval["head_sha"])
+    if (approval["base_ref"]!=st["live_base_ref"] || approval["base_sha"]!=st["live_base_sha"]) bad("APPROVAL-WRONG-BASE",approval["base_ref"])
+    if (approval["prospective_diff_sha256"]!=st["prospective_diff_sha256"]) bad("APPROVAL-WRONG-DIFF",approval["prospective_diff_sha256"])
+    if (approval["changed_paths_sha256"]!=st["changed_paths_sha256"]) bad("APPROVAL-WRONG-PATHS",approval["changed_paths_sha256"])
+    if (approval["intent_sha256"]!=st["intent_sha256"]) bad("APPROVAL-WRONG-INTENT",approval["intent_sha256"])
     if (st["event_kind"]=="head" && st["event_sha"]!=st["head_sha"]) bad("MERGE-SYNTHETIC-AS-HEAD","event labeled head differs from PR head")
     if (st["event_kind"]=="synthetic-merge" && st["event_sha"]==st["head_sha"]) bad("MERGE-STATE-MALFORMED","synthetic merge equals head")
     if (st["stack_parent_state"]=="none") {
@@ -157,6 +174,6 @@ END {
         print "FAIL\tMERGE-AUTHORIZATION\tfirst=" first "\tfailures=" failures > "/dev/stderr"
         exit 1
     }
-    print "PASS\tMERGE-AUTHORIZATION\thead=" st["head_sha"] "\tbase=" st["live_base_sha"] "\tchecks=exact\treceipts=bound"
+    print "PASS\tMERGE-AUTHORIZATION\trepository=" st["repository"] "\tpr=" st["pr"] "\thead=" st["head_sha"] "\tbase=" st["live_base_sha"] "\tdiff=" st["prospective_diff_sha256"] "\tchecks=exact\treceipts=bound\tauthorization=" approval["authorization_kind"]
 }
 ' "$@"

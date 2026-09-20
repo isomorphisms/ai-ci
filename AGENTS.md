@@ -69,6 +69,15 @@ every repository.
   open; use the shared `merge/` authorization contract when its evidence model
   applies.
 
+- **Do not turn acknowledgement into merge authority.** “Okay,” “go,” silence,
+  a question about whether anything blocks a merge, or permission to implement,
+  inspect, repair, or open a pull request is not permission to merge. Merge only
+  from an explicit immediate instruction naming or unambiguously identifying the
+  repository and pull request, a current-head GitHub approval, or a previously
+  explicit `merge if clean` instruction whose exact clean conditions and current
+  head/diff are recorded by the shared `merge/` contract. A changed head, base,
+  title, scope, dependency, or unresolved objection invalidates that authority.
+
 - **Do not invent missing continuity.** If an earlier decision, branch state,
   artifact, or conversation fact cannot actually be recovered, report it as
   missing or uncertain rather than reconstructing a plausible history.
