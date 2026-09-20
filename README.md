@@ -43,7 +43,10 @@ exact PR/topology state, checks, dependencies, evidence receipts, scope,
 exact-artifact consumption, merge authority, blockers, scheduled-workflow
 reality, and job completion. The authority receipt is bound to the repository,
 PR number/title, exact head and base, prospective patch, changed paths, intent
-record, and the human text or task context that established authority. An
+record, and the human text or task context that established authority. The
+receipt separately records the human actor, authority-source kind, stable source
+identifier, and source role, so an acknowledgement cannot be relabeled as an
+explicit merge instruction merely by changing `authorization_kind`. An
 ambiguous acknowledgement may continue a task that already authorizes merging;
 it cannot create merge authority when the surrounding task did not provide it.
 Unresolved objections still fail closed.
@@ -60,6 +63,15 @@ Run `merge/pr-verdict.sh SNAPSHOT_DIRECTORY`; see
 [`docs/merge-authorization.md`](docs/merge-authorization.md) for the schemas and
 collection rules.
 
+`merge/collect-verdict.sh OWNER/REPOSITORY PR POLICY_DIRECTORY OUTPUT_DIRECTORY`
+is the repository-owned live path. It resolves the PR head, live base, merge
+tree, prospective first-parent patch, changed paths, active ruleset contexts,
+Actions runs/jobs, checkout witnesses, dependencies, scheduled runs, and
+contextual-authority provenance before invoking the same deterministic
+verifier. Repository policy supplies semantic scope, evidence requirements,
+durable blockers, completion state, and Cockswain's authority receipt; the
+collector does not infer them from GitHub or conversation text.
+
 For the ordinary operational question before final authorization, run
 `merge/state.sh SNAPSHOT_DIRECTORY`. Its six-file observation contract emits
 either one `READY` row or a small table of typed blockers with concrete objects
@@ -68,7 +80,8 @@ from CI, distinguishes target-branch/upstream/transient failures, and keeps
 informational followers from becoming merge gates. See
 [`merge/state/README.md`](merge/state/README.md).
 
-`merge/collect-github.sh` builds that snapshot with four bounded API reads.
+`merge/collect-github.sh` builds that smaller operational snapshot with four
+bounded API reads.
 `merge/collect-set.sh` evaluates a TSV population in one command and shares
 live-base/baseline responses across PRs in the same sweep.
 

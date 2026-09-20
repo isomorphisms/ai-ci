@@ -14,7 +14,9 @@
 
 ## Next deterministic contracts
 
-- `revision-stack`: first fail-closed slice implemented in `merge/`; next add a GitHub snapshot collector so live PR facts can be produced without manual assembly;
+- `revision-stack`: live collection and fail-closed verification are implemented
+  in `merge/`; the collector resolves current GitHub/Git facts, active ruleset
+  gates, Cockswain authority provenance, and the ten-file verifier snapshot;
 - `artifact-freshness`: bind artifact hashes to source and toolchain hashes;
 - `idempotent-generation`: run harvest/generation twice and compare the full
   output inventory, then remove an input and prove stale output disappears;
