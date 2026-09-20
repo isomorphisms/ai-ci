@@ -69,7 +69,7 @@ $A	$S	verify	pass
 $A	$S	execute	pass
 CONSUMER
     cat > "$d/approval.tsv" <<APPROVAL
-schema	aici-merge-approval-v1
+schema	aici-merge-approval-v2
 repository	isomorphisms/example
 pr	17
 title	Example narrow change
@@ -83,6 +83,10 @@ decision	MERGE
 authorization_kind	explicit-merge
 authorization_text_sha256	$F
 authorized_by	human
+authority_actor_kind	human
+authority_source_kind	human-message
+authority_source_id	conversation-message-17
+authority_source_role	merge-instruction
 unresolved_objections	none
 APPROVAL
     cat > "$d/blockers.tsv" <<BLOCKERS
@@ -129,12 +133,25 @@ case_dir() { d=$tmp/$1; write_good "$d"; printf '%s\n' "$d"; }
 D=$(case_dir good); run_good exact-current-head "$D"
 
 D=$(case_dir contextual-task)
-awk -F '\t' -v OFS='\t' '$1=="authorization_kind" {$2="task-context"} {print}' "$D/approval.tsv" > "$D/x" && mv "$D/x" "$D/approval.tsv"
+awk -F '\t' -v OFS='\t' '
+$1=="authorization_kind" {$2="task-context"}
+$1=="authority_source_kind" {$2="human-task"}
+$1=="authority_source_id" {$2="task-17"}
+$1=="authority_source_role" {$2="merge-authorizing-task"}
+{print}' "$D/approval.tsv" > "$D/x" && mv "$D/x" "$D/approval.tsv"
 run_good contextual-task-authority-survives-ambiguous-okay "$D"
 
-D=$(case_dir acknowledgement)
-awk -F '\t' -v OFS='\t' '$1=="authorization_kind" {$2="acknowledgement"} {print}' "$D/approval.tsv" > "$D/x" && mv "$D/x" "$D/approval.tsv"
-run_bad APPROVAL-NOT-AUTHORIZED isolated-acknowledgement-does-not-create-authority "$D"
+D=$(case_dir acknowledgement-mislabeled)
+awk -F '\t' -v OFS='\t' '
+$1=="authorization_text_sha256" {$2="6a581ee901185606598bbd5369794c46dcf21ebf95955a46fb4a6244bb89e79f"}
+$1=="authorization_kind" {$2="explicit-merge"}
+$1=="authority_source_role" {$2="acknowledgement"}
+{print}' "$D/approval.tsv" > "$D/x" && mv "$D/x" "$D/approval.tsv"
+run_bad APPROVAL-SOURCE-NOT-AUTHORITY acknowledgement-hash-cannot-be-labeled-explicit-merge "$D"
+
+D=$(case_dir assistant-recommendation)
+awk -F '\t' -v OFS='\t' '$1=="authority_actor_kind" {$2="assistant"} {print}' "$D/approval.tsv" > "$D/x" && mv "$D/x" "$D/approval.tsv"
+run_bad APPROVAL-SOURCE-NOT-HUMAN assistant-recommendation-is-not-human-authority "$D"
 
 D=$(case_dir approval-wrong-head)
 awk -F '\t' -v OFS='\t' -v old="$O" '$1=="head_sha" {$2=old} {print}' "$D/approval.tsv" > "$D/x" && mv "$D/x" "$D/approval.tsv"
