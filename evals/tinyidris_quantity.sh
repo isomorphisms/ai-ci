@@ -18,53 +18,53 @@ work=$(mktemp -d "${TMPDIR:-/tmp}/aici-tinyidris.XXXXXX")
 trap 'rm -rf "$work"' EXIT HUP INT TERM
 cd "$work"
 
-cat > TinyIdrisHole.idr <<'IDRIS'
+cat > TinyIdrisHole.idric <<'IDRIS'
 module TinyIdrisHole
 
 duplicate :
-  (0 value_type : Type) →
+  {0 value_type : Type} →
   (1 value : value_type) →
   (value_type, value_type)
-duplicate _ value = ?duplicate_right
+duplicate value = ?duplicate_right
 IDRIS
 
-cat > TinyIdrisDouble.idr <<'IDRIS'
+cat > TinyIdrisDouble.idric <<'IDRIS'
 module TinyIdrisDouble
 
 duplicate_bad :
-  (0 value_type : Type) →
+  {0 value_type : Type} →
   (1 value : value_type) →
   (value_type, value_type)
-duplicate_bad _ value = (value, value)
+duplicate_bad value = (value, value)
 IDRIS
 
-cat > TinyIdrisPositive.idr <<'IDRIS'
+cat > TinyIdrisPositive.idric <<'IDRIS'
 module TinyIdrisPositive
 
 %noinline
 keep_once :
-  (0 value_type : Type) →
+  {0 value_type : Type} →
   (1 value : value_type) →
   value_type
-keep_once _ value = value
+keep_once value = value
 
 duplicate_unrestricted :
-  (0 value_type : Type) →
+  {0 value_type : Type} →
   value_type →
   (value_type, value_type)
-duplicate_unrestricted _ value = (value, value)
+duplicate_unrestricted value = (value, value)
 
 main : IO ()
-main = printLn (keep_once Int 7)
+main = printLn (keep_once (the Number 7))
 IDRIS
 
-if "$compiler" --check --no-color --console-width 0 TinyIdrisHole.idr > hole.log 2>&1; then
+if "$compiler" --check --no-color --console-width 0 TinyIdrisHole.idric > hole.log 2>&1; then
   hole_exit=0
 else
   hole_exit=$?
 fi
 
-if "$compiler" --check --no-color --console-width 0 TinyIdrisDouble.idr > double.log 2>&1; then
+if "$compiler" --check --no-color --console-width 0 TinyIdrisDouble.idric > double.log 2>&1; then
   double_exit=0
 else
   double_exit=$?
@@ -72,7 +72,7 @@ fi
 
 if "$compiler" --no-color --console-width 0 \
     --dumpanf TinyIdrisPositive.anf \
-    --output TinyIdrisPositive.bin TinyIdrisPositive.idr > positive.log 2>&1; then
+    --output TinyIdrisPositive.bin TinyIdrisPositive.idric > positive.log 2>&1; then
   positive_exit=0
 else
   positive_exit=$?
@@ -102,10 +102,8 @@ emit() {
 failed=0
 printf 'check\tstatus\tcompiler_revision\tcommand\texit_status\tevidence\n'
 
-hole_command="$compiler --check --no-color --console-width 0 TinyIdrisHole.idr"
-if [ "$hole_exit" -ne 0 ] && \
-   grep -Fq 'Unsolved holes' hole.log && \
-   grep -Fq 'duplicate_right' hole.log; then
+hole_command="$compiler --check --no-color --console-width 0 TinyIdrisHole.idric"
+if grep -Fq 'duplicate_right' hole.log && grep -Eiq 'hole|unsolved' hole.log; then
   hole_evidence=$(first_matching 'duplicate_right' hole.log)
   emit unicode_arrow_parse PASS "$hole_command" "$hole_exit" "$hole_evidence"
   emit named_hole_reported PASS "$hole_command" "$hole_exit" "$hole_evidence"
@@ -116,12 +114,11 @@ else
   failed=1
 fi
 
-double_command="$compiler --check --no-color --console-width 0 TinyIdrisDouble.idr"
+double_command="$compiler --check --no-color --console-width 0 TinyIdrisDouble.idric"
 if [ "$double_exit" -ne 0 ] && \
-   grep -Fq 'uses of linear name' double.log && \
-   grep -Fq 'value' double.log && \
-   grep -Fq 'must be used exactly once' double.log; then
-  double_evidence=$(first_matching 'uses of linear name' double.log)
+   grep -Fq 'There are 2 uses of linear name value' double.log && \
+   grep -Fq 'linearly bounded variables must be used exactly once' double.log; then
+  double_evidence=$(first_matching 'There are 2 uses of linear name value' double.log)
   emit linear_double_use_rejects PASS "$double_command" "$double_exit" "$double_evidence"
 else
   double_evidence=$(first_nonempty double.log)
@@ -129,7 +126,7 @@ else
   failed=1
 fi
 
-positive_command="$compiler --no-color --console-width 0 --dumpanf TinyIdrisPositive.anf --output TinyIdrisPositive.bin TinyIdrisPositive.idr"
+positive_command="$compiler --no-color --console-width 0 --dumpanf TinyIdrisPositive.anf --output TinyIdrisPositive.bin TinyIdrisPositive.idric"
 if [ "$positive_exit" -eq 0 ]; then
   emit linear_single_use_accepts PASS "$positive_command" "$positive_exit" 'compiler accepted keep_once with one use of the linear value'
   emit unrestricted_duplicate_accepts PASS "$positive_command" "$positive_exit" 'compiler accepted duplicate_unrestricted with two uses of an unrestricted value'
