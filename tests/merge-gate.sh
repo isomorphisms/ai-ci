@@ -141,6 +141,24 @@ $1=="authority_source_role" {$2="merge-authorizing-task"}
 {print}' "$D/approval.tsv" > "$D/x" && mv "$D/x" "$D/approval.tsv"
 run_good contextual-task-authority-survives-ambiguous-okay "$D"
 
+D=$(case_dir conditional-clean)
+awk -F '\t' -v OFS='\t' '
+$1=="authorization_kind" {$2="conditional-clean"}
+$1=="authority_source_kind" {$2="human-task"}
+$1=="authority_source_id" {$2="task-conditional-17"}
+$1=="authority_source_role" {$2="conditional-merge-task"}
+{print}' "$D/approval.tsv" > "$D/x" && mv "$D/x" "$D/approval.tsv"
+run_good conditional-clean-human-task-authority "$D"
+
+D=$(case_dir github-approval)
+awk -F '\t' -v OFS='\t' '
+$1=="authorization_kind" {$2="github-approval"}
+$1=="authority_source_kind" {$2="github-review"}
+$1=="authority_source_id" {$2="review-1234"}
+$1=="authority_source_role" {$2="github-approval"}
+{print}' "$D/approval.tsv" > "$D/x" && mv "$D/x" "$D/approval.tsv"
+run_good github-review-human-authority "$D"
+
 D=$(case_dir acknowledgement-mislabeled)
 awk -F '\t' -v OFS='\t' '
 $1=="authorization_text_sha256" {$2="6a581ee901185606598bbd5369794c46dcf21ebf95955a46fb4a6244bb89e79f"}
