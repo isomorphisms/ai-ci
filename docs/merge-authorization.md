@@ -108,27 +108,41 @@ execute that exact checksum and source revision. Any rebuild or substitution
 attempt fails even if the replacement later executes successfully. Rebuilding
 is separate evidence, not a fallback for an exact-artifact runtime gate.
 
-### Explicit approval
+### Merge authority
 
-`aici-merge-approval-v1` is an immutable approval record bound to the repository,
-PR number and title, exact head, live base, prospective patch, changed paths, and
-an intent-record digest. It also records a digest of the actual authorization
-text without requiring private conversation text in a public repository.
+`aici-merge-approval-v1` is an immutable, exact-state authority receipt bound to
+the repository, PR number and title, exact head, live base, prospective patch,
+changed paths, and an intent-record digest. `authorization_text_sha256` identifies
+the human text or surrounding task context that established merge authority; it
+does not have to identify the latest utterance.
 
 The decision must be `MERGE`. Accepted authorization kinds are
-`explicit-merge`, `conditional-clean`, and `github-approval`. An acknowledgement,
-a question such as “any reason not to merge?”, an implementation instruction
-such as “go”, silence, or an assistant-authored recommendation is not merge
-authorization. A conditional authorization is valid only for the exact recorded
-head and diff after its stated clean conditions have all passed.
+`explicit-merge`, `conditional-clean`, `github-approval`, and `task-context`.
+`task-context` means an earlier human task already authorized merge as a possible
+completion once its stated conditions are satisfied. Later continuation such as
+“okay,” “go,” or “so...” may therefore precede the merge without becoming a new
+authorization event. Those acknowledgements do not create authority on their
+own: a task that authorized only implementation, inspection, discussion, or
+opening a pull request does not become merge authority merely because the human
+later says “okay.”
 
-Any head, base, title, patch, or changed-path change invalidates the record.
+The receipt is exact-state bound. A head, base, title, prospective patch,
+changed-path, or intent-record change invalidates that receipt and requires a
+fresh one. That does not automatically revoke the underlying contextual task
+authority. If the refreshed state remains within the same authorized task scope,
+the collector may issue a new exact-state receipt from the same authority
+context. A material scope or intent change, explicit objection or revocation, or
+uncertainty about whether the original task covered merging must not be
+auto-refreshed.
+
 Open objections must be recorded and block authorization rather than being
-collapsed into a generic clean verdict.
+collapsed into a generic clean verdict. The verifier does not infer conversational
+semantics; the collector must preserve and classify the human authority source
+rather than hashing an acknowledgement and pretending it created permission.
 
-The approval file does not replace the other nine inputs. Explicit human intent
-cannot make failed or unknown evidence pass, and mechanically clean evidence
-cannot manufacture human permission.
+The approval file does not replace the other nine inputs. Human authority cannot
+make failed or unknown evidence pass, and mechanically clean evidence cannot
+manufacture human permission.
 
 ### Explicit blockers
 
