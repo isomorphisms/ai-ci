@@ -41,6 +41,7 @@ jobs:
           sh tests/merge-workflow-head.sh merge/check-workflow-head.sh
           sh tests/merge-collector.sh merge/collect-github.sh
           sh tests/merge-dogfood.sh docs/dogfood/2026-09-20.tsv
+          sh tests/merge-real-state.sh merge/state.sh
 
       - name: Dogfood the live exact-head blocker path
         if: github.event_name == 'pull_request'
@@ -65,7 +66,7 @@ jobs:
             'name	workflow	required	base_independent	binding	trigger_coverage	action' \
             'merge-authorization-pull_request	.github/workflows/merge-authorization.yml	yes	yes	head	yes	wait' > "$policy/checks.tsv"
           printf '%b\n' \
-            'claim	required	result	head_sha	required_head_sha	evidence_class	required_evidence_class	execution	required_execution	hardware	required_hardware	network	required_network	provenance	required_provenance	execution_result	required_execution_result	source_sha	required_source_sha	artifact_sha256	required_artifact_sha256	receipt_ref	action' > "$policy/evidence.tsv"
+            'claim	required	result	head_sha	required_head_sha	evidence_class	required_evidence_class	execution	required_execution	hardware	required_hardware	network	required_network	provenance	required_provenance	execution_result	required_execution_result	source_sha	required_source_sha	artifact_sha256	required_artifact_sha256	receipt_ref	action	reuse_rule	relevant_digest	required_relevant_digest' > "$policy/evidence.tsv"
           printf '%b\n' \
             'dependency	required	state	expected	observed	object_ref	action' > "$policy/dependencies.tsv"
           printf '%b\n' \

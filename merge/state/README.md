@@ -30,6 +30,13 @@ required values. A QEMU, fake-transport, package, or handwritten-oracle row
 therefore cannot satisfy a physical, external-network, semantic-execution, or
 compiler-generated requirement.
 
+Evidence defaults to `reuse_rule=exact-head`. A repository may explicitly use
+`exact-artifact` when the observed and currently required source and nonempty
+artifact hashes are identical, or `relevant-tree` when those bindings plus a
+declared relevant-tree digest are identical. These are the only ways a device
+receipt may survive an unrelated head change or rebase; changed input remains
+`EVIDENCE_STALE`.
+
 `dependencies.tsv` records exact dependency state. `followers.tsv` records
 current and old triggers, whether a follower blocks merging, its acceptance
 kind, successor, concrete object, and next action. Informational follower debt

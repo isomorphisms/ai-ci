@@ -37,8 +37,8 @@ printf '%s\n' \
     '          ref: ${{ github.event.pull_request.head.sha || github.sha }}' \
     '          persist-credentials: false' > "$work/repository/.github/workflows/verify.yml"
 printf '%b\n' \
-    'claim\trequired\tresult\thead_sha\trequired_head_sha\tevidence_class\trequired_evidence_class\texecution\trequired_execution\thardware\trequired_hardware\tnetwork\trequired_network\tprovenance\trequired_provenance\texecution_result\trequired_execution_result\tsource_sha\trequired_source_sha\tartifact_sha256\trequired_artifact_sha256\treceipt_ref\taction' \
-    "runtime\tno\tNOT_VERIFIED\t$H\t$H\thost\thost\thost\thost\tnone\tnone\tnone\tnone\tnone\tnone\tsemantic-pass\tsemantic-pass\t$S\t$S\t$A\t$A\t-\trun-runtime" > "$policy/evidence.tsv"
+    'claim\trequired\tresult\thead_sha\trequired_head_sha\tevidence_class\trequired_evidence_class\texecution\trequired_execution\thardware\trequired_hardware\tnetwork\trequired_network\tprovenance\trequired_provenance\texecution_result\trequired_execution_result\tsource_sha\trequired_source_sha\tartifact_sha256\trequired_artifact_sha256\treceipt_ref\taction\treuse_rule\trelevant_digest\trequired_relevant_digest' \
+    "runtime\tno\tNOT_VERIFIED\t$H\t$H\thost\thost\thost\thost\tnone\tnone\tnone\tnone\tnone\tnone\tsemantic-pass\tsemantic-pass\t$S\t$S\t$A\t$A\t-\trun-runtime\texact-head\t-\t-" > "$policy/evidence.tsv"
 printf '%b\n' 'dependency\trequired\tstate\texpected\tobserved\tobject_ref\taction' > "$policy/dependencies.tsv"
 printf '%b\n' 'follower\tblocking\ttrigger\tcurrent_trigger\tacceptance_kind\tstate\tsuccessor\tobject_ref\taction' > "$policy/followers.tsv"
 printf '%b\n' \

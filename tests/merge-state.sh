@@ -37,8 +37,8 @@ write_good() {
         'name\trequired\trun_ref\tobserved_head\tcheckout_sha\ttested_base_sha\tbase_independent\tbinding\tstatus\tconclusion\ttrigger_coverage\tfailure_class\tbaseline_ref\taction' \
         "verify\tyes\trun-100\t$H\t$H\t$B\tno\thead\tcompleted\tsuccess\tyes\t-\tbase-run-90\trerun-exact-head" > "$destination/checks.tsv"
     printf '%b\n' \
-        'claim\trequired\tresult\thead_sha\trequired_head_sha\tevidence_class\trequired_evidence_class\texecution\trequired_execution\thardware\trequired_hardware\tnetwork\trequired_network\tprovenance\trequired_provenance\texecution_result\trequired_execution_result\tsource_sha\trequired_source_sha\tartifact_sha256\trequired_artifact_sha256\treceipt_ref\taction' \
-        "runtime\tyes\tPASS\t$H\t$H\tphysical-phone\tphysical-phone\tphysical\tphysical\tphysical\tphysical\texternal-tls\texternal-tls\tinstalled-artifact\tinstalled-artifact\tsemantic-pass\tsemantic-pass\t$S\t$S\t$A\t$A\treceipt-phone.tsv\trun-phone-acceptance" > "$destination/evidence.tsv"
+        'claim\trequired\tresult\thead_sha\trequired_head_sha\tevidence_class\trequired_evidence_class\texecution\trequired_execution\thardware\trequired_hardware\tnetwork\trequired_network\tprovenance\trequired_provenance\texecution_result\trequired_execution_result\tsource_sha\trequired_source_sha\tartifact_sha256\trequired_artifact_sha256\treceipt_ref\taction\treuse_rule\trelevant_digest\trequired_relevant_digest' \
+        "runtime\tyes\tPASS\t$H\t$H\tphysical-phone\tphysical-phone\tphysical\tphysical\tphysical\tphysical\texternal-tls\texternal-tls\tinstalled-artifact\tinstalled-artifact\tsemantic-pass\tsemantic-pass\t$S\t$S\t$A\t$A\treceipt-phone.tsv\trun-phone-acceptance\texact-head\t-\t-" > "$destination/evidence.tsv"
     printf '%b\n' \
         'dependency\trequired\tstate\texpected\tobserved\tobject_ref\taction' \
         "compiler\tyes\tREADY\t$S\t$S\tisomorphisms/Idric@$S\treconcile-dependency" > "$destination/dependencies.tsv"
@@ -129,6 +129,25 @@ D=$(case_dir conflict-repaired-old-check); rewrite_row "$D/checks.tsv" 6 "$O"; e
 D=$(case_dir not-verified); rewrite_row "$D/evidence.tsv" 3 NOT_VERIFIED; rewrite_row "$D/evidence.tsv" 7 host; expect_blocker absence-of-proof-is-not-failure NOT_VERIFIED "$D"
 
 D=$(case_dir wrong-commit); rewrite_row "$D/evidence.tsv" 4 "$O"; expect_blocker receipt-tied-to-wrong-commit EVIDENCE_STALE "$D"
+
+D=$(case_dir reusable-artifact)
+rewrite_row "$D/evidence.tsv" 4 "$O"
+rewrite_row "$D/evidence.tsv" 24 exact-artifact
+expect_ready exact-artifact-device-receipt-survives-unrelated-head-change "$D"
+
+D=$(case_dir reusable-tree)
+rewrite_row "$D/evidence.tsv" 4 "$O"
+rewrite_row "$D/evidence.tsv" 24 relevant-tree
+rewrite_row "$D/evidence.tsv" 25 "$A"
+rewrite_row "$D/evidence.tsv" 26 "$A"
+expect_ready relevant-tree-device-receipt-survives-rebase "$D"
+
+D=$(case_dir changed-relevant-tree)
+rewrite_row "$D/evidence.tsv" 4 "$O"
+rewrite_row "$D/evidence.tsv" 24 relevant-tree
+rewrite_row "$D/evidence.tsv" 25 "$A"
+rewrite_row "$D/evidence.tsv" 26 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+expect_blocker changed-relevant-tree-invalidates-receipt EVIDENCE_STALE "$D"
 
 D=$(case_dir obsolete-dependent); rewrite_row "$D/followers.tsv" 3 "$O"; rewrite_row "$D/followers.tsv" 6 accepted; expect_blocker completed-obsolete-dependent-stays-stale FOLLOWER_STALE "$D"
 

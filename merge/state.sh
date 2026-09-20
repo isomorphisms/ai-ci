@@ -111,15 +111,17 @@ FILENAME==checks_file && noncomment() {
 FILENAME==evidence_file && noncomment() {
     if (!header_seen) {
         header_seen=1
-        if ($0!="claim\trequired\tresult\thead_sha\trequired_head_sha\tevidence_class\trequired_evidence_class\texecution\trequired_execution\thardware\trequired_hardware\tnetwork\trequired_network\tprovenance\trequired_provenance\texecution_result\trequired_execution_result\tsource_sha\trequired_source_sha\tartifact_sha256\trequired_artifact_sha256\treceipt_ref\taction") malformed("evidence","wrong-header")
+        if ($0!="claim\trequired\tresult\thead_sha\trequired_head_sha\tevidence_class\trequired_evidence_class\texecution\trequired_execution\thardware\trequired_hardware\tnetwork\trequired_network\tprovenance\trequired_provenance\texecution_result\trequired_execution_result\tsource_sha\trequired_source_sha\tartifact_sha256\trequired_artifact_sha256\treceipt_ref\taction\treuse_rule\trelevant_digest\trequired_relevant_digest") malformed("evidence","wrong-header")
         next
     }
-    if (NF!=23 || !token($1) || !yes_no($2) || !one_of($3,"PASS|FAIL|NOT_VERIFIED") ||
+    if (NF!=26 || !token($1) || !yes_no($2) || !one_of($3,"PASS|FAIL|NOT_VERIFIED") ||
         !optional_git_sha($4) || !optional_git_sha($5) || !token($6) || !token($7) ||
         !token($8) || !token($9) || !token($10) || !token($11) || !token($12) ||
         !token($13) || !token($14) || !token($15) || !token($16) || !token($17) ||
         !optional_git_sha($18) || !optional_git_sha($19) || !sha256_or_dash($20) ||
-        !sha256_or_dash($21) || !present($22) || !token($23)) {
+        !sha256_or_dash($21) || !present($22) || !token($23) ||
+        !one_of($24,"exact-head|exact-artifact|relevant-tree") ||
+        !sha256_or_dash($25) || !sha256_or_dash($26)) {
         malformed("evidence",$1)
         next
     }
@@ -135,7 +137,10 @@ FILENAME==evidence_file && noncomment() {
         blocker("EVIDENCE_FAILED","claim",$1,$23,"receipt=" $22)
         next
     }
-    if ($4!=$5 || $4!=pr["head_sha"] || $18!=$19 || $20!=$21) {
+    head_fresh=($4==$5 && $4==pr["head_sha"])
+    artifact_reusable=($24=="exact-artifact" && $20!="-" && $20==$21 && $18==$19)
+    tree_reusable=($24=="relevant-tree" && $25!="-" && $25==$26 && $18==$19 && $20==$21)
+    if ((!head_fresh && !artifact_reusable && !tree_reusable) || $18!=$19 || $20!=$21) {
         blocker("EVIDENCE_STALE","claim",$1,$23,"receipt=" $22)
         next
     }
