@@ -1,0 +1,1 @@
+GitHub's synthetic pull-request merge checkout was described as exact PR-head evidence.

@@ -1,0 +1,1 @@
+Earlier receipts lacked direct phone/tablet and handwritten/compiler-generated dimensions, leaving interpretation to prose.

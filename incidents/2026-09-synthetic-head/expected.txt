@@ -1,0 +1,1 @@
+Exact-head readiness must bind the reported head and actual checkout to the current PR head SHA.

@@ -24,6 +24,15 @@ inputs:
   approval:
     description: explicit human approval bound to exact PR, head, base, intent, and diff
     required: true
+  blockers:
+    description: explicit blocker ledger
+    required: true
+  schedules:
+    description: scheduled-workflow reality snapshot
+    required: true
+  completion:
+    description: required job-step completion ledger
+    required: true
 
 runs:
   using: composite
@@ -38,9 +47,13 @@ runs:
         AICI_SCOPE: ${{ inputs.scope }}
         AICI_CONSUMER: ${{ inputs.consumer }}
         AICI_APPROVAL: ${{ inputs.approval }}
+        AICI_BLOCKERS: ${{ inputs.blockers }}
+        AICI_SCHEDULES: ${{ inputs.schedules }}
+        AICI_COMPLETION: ${{ inputs.completion }}
       run: |
         set -eu
         sh "$GITHUB_ACTION_PATH/verify.sh" verify \
           "$AICI_STATE" "$AICI_CHECKS" "$AICI_DEPENDENCIES" \
           "$AICI_RECEIPTS" "$AICI_SCOPE" "$AICI_CONSUMER" \
-          "$AICI_APPROVAL"
+          "$AICI_APPROVAL" "$AICI_BLOCKERS" "$AICI_SCHEDULES" \
+          "$AICI_COMPLETION"

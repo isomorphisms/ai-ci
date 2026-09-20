@@ -1,0 +1,1 @@
+Keep the failed check as FAIL and any unresolved causal claim as UNKNOWN or an OPEN blocker.

@@ -1,0 +1,1 @@
+Agent guidance mentioned the distinction, but the merge contract did not consume scheduled-workflow state.

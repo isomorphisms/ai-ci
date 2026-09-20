@@ -26,6 +26,12 @@ filled with a plausible story.
 | Explanatory mechanism omitted | Rendered Byrne-style motion without the perpendiculars or other construction that explains the invariant. | A paired semantic/artifact fixture is planned; visual presence alone is insufficient without the explanatory relation. |
 | Revision stack damage | Risked mixing unrelated edits, testing the wrong revision, or reporting a branch/base state different from the reviewed PR head. | The reusable `merge/` authorization gate now checks exact head/base topology, synthetic-merge distinction, check identity, dependency revisions, evidence receipts, scope provenance, and exact-artifact consumption. |
 | Non-idempotent generation | Allowed stale or duplicate generated outputs, or failed to remove outputs when an input disappeared. | Run-twice inventory equality and delete-an-input stale-output fixtures are planned. |
+| Ambiguous acknowledgement used as merge authority | Cat Food #38 treated “Okay” as permission for an irreversible merge. | Merged PR #139 adds exact PR/head/base/diff/intent-bound approval receipts and rejects acknowledgements. |
+| Cancelled matrix treated as acceptance | The Debian policy change landed although every exact-head PR workflow was cancelled. | The merge verifier and normalized check table preserve `CANCELLED` separately and reject it. |
+| Red required check dismissed without causal evidence | Cat Food #48 merged with exact-head `stage-zero-smoke` red while the failure was called unrelated without a recorded causal exclusion. | Required `FAIL` cannot authorize; unresolved causal claims remain `UNKNOWN` or explicit blockers. |
+| Unmerged cron described as surveillance | A workflow declared a six-hour schedule on a branch that had not landed on the default branch. | Scheduled-workflow snapshot rejects configured/operating claims when the definition is not on the default branch. |
+| Evidence-class promotion | QEMU, runner, package, handwritten-oracle, and physical/compiler-generated evidence were repeatedly at risk of being described as stronger evidence. | Receipt schema now binds evidence class, provenance, build commit, artifact hash, and execution result with exact matching. |
+| Execution task stopped at another plan | Explicit implementation work was answered with a plan or audit instead of repository changes. | Completion snapshot rejects execution jobs with no required implementation step or any unfinished required step. |
 
 ## Recovered dated incidents
 

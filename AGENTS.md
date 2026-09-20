@@ -69,6 +69,22 @@ every repository.
   open; use the shared `merge/` authorization contract when its evidence model
   applies.
 
+- **Keep blockers explicit and fail closed.** An unresolved durable blocker
+  outranks GitHub's mergeable flag and unrelated green checks. Record blockers
+  in the shared merge snapshot; do not infer that a blocker disappeared because
+  it was omitted from a later conversation.
+
+- **A scheduled workflow is active only from the default branch.** A cron or
+  `schedule:` trigger on an unmerged branch is planned, not configured
+  surveillance. Distinguish configured from operating, and record never-run,
+  failed, cancelled, skipped, absent, stale, and unknown scheduled results
+  without relabeling them as passes.
+
+- **Execution jobs require implemented work.** A plan, audit, issue, status
+  note, or catalogue is not completion when the task asked for implementation.
+  Record required steps as `PENDING`, `BLOCKED`, `FAILED`, or `COMPLETE`
+  and require an implementation step before an execution job can be complete.
+
 - **Do not turn acknowledgement into merge authority.** “Okay,” “go,” silence,
   a question about whether anything blocks a merge, or permission to implement,
   inspect, repair, or open a pull request is not permission to merge. Merge only

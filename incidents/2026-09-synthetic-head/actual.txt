@@ -1,0 +1,1 @@
+A synthetic merge SHA was accepted and reported as if it were the PR head.

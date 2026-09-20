@@ -38,12 +38,20 @@ CI fail.
 
 ## Pull-request merge verdicts
 
-The `merge/` contract produces a fail-closed verdict from seven plain TSV files:
+The `merge/` contract produces a fail-closed verdict from ten plain TSV files:
 exact PR/topology state, checks, dependencies, evidence receipts, scope,
-exact-artifact consumption, and explicit approval. The approval is bound to the
+exact-artifact consumption, explicit approval, blockers, scheduled-workflow
+reality, and job completion. The approval is bound to the
 repository, PR number/title, exact head and base, prospective patch, changed
 paths, intent record, and authorization text digest. Ambiguous acknowledgements
 and unresolved objections fail instead of being interpreted as permission.
+
+The verdict prints exact-head checks as
+`PASS|FAIL|CANCELLED|SKIPPED|ABSENT|STALE|UNKNOWN`. Receipts bind source and
+build commits, artifact hashes, target/evidence class, provenance, and execution
+result, so QEMU cannot satisfy a physical-phone requirement, a handwritten
+oracle cannot satisfy compiler generation, and packaging cannot satisfy
+execution.
 
 Run `merge/pr-verdict.sh SNAPSHOT_DIRECTORY`; see
 [`docs/merge-authorization.md`](docs/merge-authorization.md) for the schemas and
