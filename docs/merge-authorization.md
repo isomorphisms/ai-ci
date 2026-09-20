@@ -8,8 +8,9 @@ the named base branch has moved.
 
 `merge/verify.sh` is the deterministic authorization verifier. It consumes plain
 TSV snapshots so collection can be GitHub-hosted, local, or performed by an
-agent without changing the proof rules. Missing information is represented
-explicitly and fails closed.
+agent without changing the proof rules. `merge/pr-verdict.sh SNAPSHOT_DIRECTORY`
+is the ordinary entry point over the seven named snapshot files. Missing
+information is represented explicitly and fails closed.
 
 ## Collection rule
 
@@ -20,14 +21,18 @@ Recompute the merge-base and meaningful diff against the intended current
 base. Re-resolve stack parents and cross-repository dependencies. Historical
 runs and receipts remain provenance but do not authorize a new head.
 
-The snapshot has six inputs.
+The snapshot has seven inputs.
 
 ### Merge state
 
-`aici-merge-state-v1` records repository, PR number and title, exact PR head,
+`aici-merge-state-v2` records repository, PR number and title, exact PR head,
 event SHA and whether it is the head or a synthetic merge, live base ref and
 SHA, the PR-reported base SHA for provenance, merge-base, scope base, and stack
-parent identity.
+parent identity. It also binds the prospective first-parent patch, sorted
+changed-path inventory, current intent record, file count, additions, and
+deletions. The patch, path inventory, and intent record are hashed separately so
+a narrow-looking title or stale conversation summary cannot silently authorize
+a different diff or requirement.
 
 Authorization requires the merge-base to equal the intended current scope
 base. An open parent blocks a child. A moved parent invalidates the child. A
@@ -87,6 +92,28 @@ For a receipt requiring `exact-prebuilt`, the consumer trace must verify and
 execute that exact checksum and source revision. Any rebuild or substitution
 attempt fails even if the replacement later executes successfully. Rebuilding
 is separate evidence, not a fallback for an exact-artifact runtime gate.
+
+### Explicit approval
+
+`aici-merge-approval-v1` is an immutable approval record bound to the repository,
+PR number and title, exact head, live base, prospective patch, changed paths, and
+an intent-record digest. It also records a digest of the actual authorization
+text without requiring private conversation text in a public repository.
+
+The decision must be `MERGE`. Accepted authorization kinds are
+`explicit-merge`, `conditional-clean`, and `github-approval`. An acknowledgement,
+a question such as “any reason not to merge?”, an implementation instruction
+such as “go”, silence, or an assistant-authored recommendation is not merge
+authorization. A conditional authorization is valid only for the exact recorded
+head and diff after its stated clean conditions have all passed.
+
+Any head, base, title, patch, or changed-path change invalidates the record.
+Open objections must be recorded and block authorization rather than being
+collapsed into a generic clean verdict.
+
+The approval file does not replace the other six inputs. Explicit human intent
+cannot make failed or unknown evidence pass, and mechanically clean evidence
+cannot manufacture human permission.
 
 ## Ordinary ordering
 

@@ -13,12 +13,14 @@ P2=7777777777777777777777777777777777777777
 M=8888888888888888888888888888888888888888
 A=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 C=cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+E=eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+F=ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
 
 write_good() {
     d=$1
     mkdir -p "$d"
     cat > "$d/state.tsv" <<STATE
-schema	aici-merge-state-v1
+schema	aici-merge-state-v2
 repository	isomorphisms/example
 pr	17
 title	Example narrow change
@@ -30,6 +32,12 @@ live_base_sha	$B
 reported_base_sha	$B
 merge_base_sha	$B
 scope_base_sha	$B
+prospective_diff_sha256	$C
+changed_paths_sha256	$E
+intent_sha256	$F
+diff_files	1
+diff_additions	1
+diff_deletions	0
 stack_parent_pr	-
 stack_parent_state	none
 stack_parent_expected_sha	-
@@ -58,11 +66,28 @@ artifact_sha256	source_sha	action	outcome
 $A	$S	verify	pass
 $A	$S	execute	pass
 CONSUMER
+    cat > "$d/approval.tsv" <<APPROVAL
+schema	aici-merge-approval-v1
+repository	isomorphisms/example
+pr	17
+title	Example narrow change
+head_sha	$H
+base_ref	main
+base_sha	$B
+prospective_diff_sha256	$C
+changed_paths_sha256	$E
+intent_sha256	$F
+decision	MERGE
+authorization_kind	explicit-merge
+authorization_text_sha256	$F
+authorized_by	human
+unresolved_objections	none
+APPROVAL
 }
 
 run_good() {
     name=$1; d=$2
-    if ! sh "$bin" verify "$d/state.tsv" "$d/checks.tsv" "$d/dependencies.tsv" "$d/receipts.tsv" "$d/scope.tsv" "$d/consumer.tsv" >"$d/out" 2>"$d/err"; then
+    if ! sh "$bin" verify "$d/state.tsv" "$d/checks.tsv" "$d/dependencies.tsv" "$d/receipts.tsv" "$d/scope.tsv" "$d/consumer.tsv" "$d/approval.tsv" >"$d/out" 2>"$d/err"; then
         printf 'good case failed: %s\n' "$name" >&2
         cat "$d/err" >&2
         exit 1
@@ -72,7 +97,7 @@ run_good() {
 
 run_bad() {
     expected=$1; name=$2; d=$3
-    if sh "$bin" verify "$d/state.tsv" "$d/checks.tsv" "$d/dependencies.tsv" "$d/receipts.tsv" "$d/scope.tsv" "$d/consumer.tsv" >"$d/out" 2>"$d/err"; then
+    if sh "$bin" verify "$d/state.tsv" "$d/checks.tsv" "$d/dependencies.tsv" "$d/receipts.tsv" "$d/scope.tsv" "$d/consumer.tsv" "$d/approval.tsv" >"$d/out" 2>"$d/err"; then
         printf 'bad case was accepted: %s\n' "$name" >&2
         exit 1
     fi
@@ -87,6 +112,38 @@ run_bad() {
 case_dir() { d=$tmp/$1; write_good "$d"; printf '%s\n' "$d"; }
 
 D=$(case_dir good); run_good exact-current-head "$D"
+
+D=$(case_dir acknowledgement)
+awk -F '\t' -v OFS='\t' '$1=="decision" {$2="ACKNOWLEDGED"} $1=="authorization_kind" {$2="acknowledgement"} {print}' "$D/approval.tsv" > "$D/x" && mv "$D/x" "$D/approval.tsv"
+run_bad APPROVAL-NOT-EXPLICIT acknowledgement-is-not-merge-authority "$D"
+
+D=$(case_dir approval-wrong-head)
+awk -F '\t' -v OFS='\t' -v old="$O" '$1=="head_sha" {$2=old} {print}' "$D/approval.tsv" > "$D/x" && mv "$D/x" "$D/approval.tsv"
+run_bad APPROVAL-WRONG-HEAD approval-bound-to-old-head "$D"
+
+D=$(case_dir approval-wrong-diff)
+awk -F '\t' -v OFS='\t' -v wrong="$F" '$1=="prospective_diff_sha256" {$2=wrong} {print}' "$D/approval.tsv" > "$D/x" && mv "$D/x" "$D/approval.tsv"
+run_bad APPROVAL-WRONG-DIFF approval-bound-to-other-diff "$D"
+
+D=$(case_dir approval-wrong-paths)
+awk -F '\t' -v OFS='\t' -v wrong="$F" '$1=="changed_paths_sha256" {$2=wrong} {print}' "$D/approval.tsv" > "$D/x" && mv "$D/x" "$D/approval.tsv"
+run_bad APPROVAL-WRONG-PATHS approval-bound-to-other-paths "$D"
+
+D=$(case_dir approval-wrong-intent)
+awk -F '\t' -v OFS='\t' -v wrong="$E" '$1=="intent_sha256" {$2=wrong} {print}' "$D/approval.tsv" > "$D/x" && mv "$D/x" "$D/approval.tsv"
+run_bad APPROVAL-WRONG-INTENT approval-bound-to-other-intent "$D"
+
+D=$(case_dir approval-wrong-base)
+awk -F '\t' -v OFS='\t' -v old="$OLD" '$1=="base_sha" {$2=old} {print}' "$D/approval.tsv" > "$D/x" && mv "$D/x" "$D/approval.tsv"
+run_bad APPROVAL-WRONG-BASE approval-bound-to-other-base "$D"
+
+D=$(case_dir approval-objection)
+awk -F '\t' -v OFS='\t' '$1=="unresolved_objections" {$2="review-thread-3"} {print}' "$D/approval.tsv" > "$D/x" && mv "$D/x" "$D/approval.tsv"
+run_bad APPROVAL-OBJECTION-OPEN unresolved-objection "$D"
+
+D=$(case_dir approval-wrong-pr)
+awk -F '\t' -v OFS='\t' '$1=="title" {$2="Another change"} {print}' "$D/approval.tsv" > "$D/x" && mv "$D/x" "$D/approval.tsv"
+run_bad APPROVAL-WRONG-PR approval-bound-to-other-title "$D"
 
 D=$(case_dir receipt-wrong-head)
 awk -F '	' -v OFS='	' -v old="$O" 'NR==2 {$3=old} {print}' "$D/receipts.tsv" > "$D/x" && mv "$D/x" "$D/receipts.tsv"
@@ -200,3 +257,8 @@ run_bad CHECK-EXACT-HEAD-MISSING synthetic-only-cannot-authorize-head "$D"
 D=$(case_dir moving-resolved-good)
 awk -F '	' -v OFS='	' 'NR==2 {$3="moving-resolved";$4="Idriç";$6="-"} {print}' "$D/dependencies.tsv" > "$D/x" && mv "$D/x" "$D/dependencies.tsv"
 run_good active-integration-moving-ref-resolved "$D"
+
+D=$(case_dir snapshot-directory)
+sh merge/pr-verdict.sh "$D" >"$D/directory-out"
+grep -F 'PASS	MERGE-AUTHORIZATION' "$D/directory-out" >/dev/null
+printf 'PASS	snapshot-directory-entrypoint\n'

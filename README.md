@@ -36,6 +36,19 @@ fixture in `tests/cases.tsv`. The self-test audits that coverage mechanically;
 adding an assertion without a unique diagnostic and matching bad fixture makes
 CI fail.
 
+## Pull-request merge verdicts
+
+The `merge/` contract produces a fail-closed verdict from seven plain TSV files:
+exact PR/topology state, checks, dependencies, evidence receipts, scope,
+exact-artifact consumption, and explicit approval. The approval is bound to the
+repository, PR number/title, exact head and base, prospective patch, changed
+paths, intent record, and authorization text digest. Ambiguous acknowledgements
+and unresolved objections fail instead of being interpreted as permission.
+
+Run `merge/pr-verdict.sh SNAPSHOT_DIRECTORY`; see
+[`docs/merge-authorization.md`](docs/merge-authorization.md) for the schemas and
+collection rules.
+
 ## Workflow trigger integrity
 
 A semantic check is only protective when changes to the implementation it
