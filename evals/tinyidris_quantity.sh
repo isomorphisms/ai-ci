@@ -31,11 +31,18 @@ IDRIS
 cat > TinyIdrisDouble.idric <<'IDRIS'
 module TinyIdrisDouble
 
+data LinearPair : Type → Type where
+  MkLinearPair :
+    {0 value_type : Type} →
+    (1 left : value_type) →
+    (1 right : value_type) →
+    LinearPair value_type
+
 duplicate_bad :
   {0 value_type : Type} →
   (1 value : value_type) →
-  (value_type, value_type)
-duplicate_bad value = (value, value)
+  LinearPair value_type
+duplicate_bad value = MkLinearPair value value
 IDRIS
 
 cat > TinyIdrisPositive.idric <<'IDRIS'
@@ -58,7 +65,8 @@ main : IO ()
 main = printLn (keep_once (the Number 7))
 IDRIS
 
-if "$compiler" --check --no-color --console-width 0 TinyIdrisHole.idric > hole.log 2>&1; then
+if printf ':m\n:t duplicate_right\n:q\n' |
+    "$compiler" --no-banner --no-color --console-width 0 TinyIdrisHole.idric > hole.log 2>&1; then
   hole_exit=0
 else
   hole_exit=$?
@@ -102,8 +110,10 @@ emit() {
 failed=0
 printf 'check\tstatus\tcompiler_revision\tcommand\texit_status\tevidence\n'
 
-hole_command="$compiler --check --no-color --console-width 0 TinyIdrisHole.idric"
-if grep -Fq 'duplicate_right' hole.log && grep -Eiq 'hole|unsolved' hole.log; then
+hole_command="printf ':m\\n:t duplicate_right\\n:q\\n' | $compiler --no-banner --no-color --console-width 0 TinyIdrisHole.idric"
+if [ "$hole_exit" -eq 0 ] &&
+   ! grep -Fq 'Error:' hole.log &&
+   grep -Fq 'duplicate_right' hole.log; then
   hole_evidence=$(first_matching 'duplicate_right' hole.log)
   emit unicode_arrow_parse PASS "$hole_command" "$hole_exit" "$hole_evidence"
   emit named_hole_reported PASS "$hole_command" "$hole_exit" "$hole_evidence"
@@ -115,8 +125,8 @@ else
 fi
 
 double_command="$compiler --check --no-color --console-width 0 TinyIdrisDouble.idric"
-if [ "$double_exit" -ne 0 ] && \
-   grep -Fq 'There are 2 uses of linear name value' double.log && \
+if [ "$double_exit" -ne 0 ] &&
+   grep -Fq 'There are 2 uses of linear name value' double.log &&
    grep -Fq 'linearly bounded variables must be used exactly once' double.log; then
   double_evidence=$(first_matching 'There are 2 uses of linear name value' double.log)
   emit linear_double_use_rejects PASS "$double_command" "$double_exit" "$double_evidence"
