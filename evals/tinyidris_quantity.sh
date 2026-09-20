@@ -31,6 +31,17 @@ IDRIS
 cat > TinyIdrisDouble.idric <<'IDRIS'
 module TinyIdrisDouble
 
+-- Preserve the literal teaching attempt.  On current Idriç it fails earlier
+-- than the two-use count because ordinary pair fields are unrestricted.
+failing "Trying to use linear name value in unrestricted context."
+  duplicate_teaching :
+    {0 value_type : Type} →
+    (1 value : value_type) →
+    (value_type, value_type)
+  duplicate_teaching value = (value, value)
+
+-- Isolate the exactly-once rule with linear result fields so both occurrences
+-- reach the linear-use counter instead of failing at the pair-field boundary.
 data LinearPair : Type → Type where
   MkLinearPair :
     {0 value_type : Type} →
