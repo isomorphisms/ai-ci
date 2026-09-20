@@ -43,7 +43,10 @@ exact PR/topology state, checks, dependencies, evidence receipts, scope,
 exact-artifact consumption, merge authority, blockers, scheduled-workflow
 reality, and job completion. The authority receipt is bound to the repository,
 PR number/title, exact head and base, prospective patch, changed paths, intent
-record, and the human text or task context that established authority. An
+record, and the human text or task context that established authority. The
+receipt separately records the human actor, authority-source kind, stable source
+identifier, and source role, so an acknowledgement cannot be relabeled as an
+explicit merge instruction merely by changing `authorization_kind`. An
 ambiguous acknowledgement may continue a task that already authorizes merging;
 it cannot create merge authority when the surrounding task did not provide it.
 Unresolved objections still fail closed.
