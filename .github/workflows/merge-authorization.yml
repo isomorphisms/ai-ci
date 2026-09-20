@@ -5,7 +5,9 @@ on:
   pull_request:
 
 permissions:
+  checks: read
   contents: read
+  pull-requests: read
 
 jobs:
   exact-head-contract:
@@ -39,3 +41,47 @@ jobs:
           sh tests/merge-workflow-head.sh merge/check-workflow-head.sh
           sh tests/merge-collector.sh merge/collect-github.sh
           sh tests/merge-dogfood.sh docs/dogfood/2026-09-20.tsv
+
+      - name: Dogfood the live exact-head blocker path
+        if: github.event_name == 'pull_request'
+        shell: sh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          policy=$RUNNER_TEMP/live-merge-policy
+          output=$RUNNER_TEMP/live-merge-state
+          mkdir -p "$policy" "$output"
+          printf '%s\t%s\n' \
+            schema aici-merge-collection-policy-v2 \
+            repository "$GITHUB_REPOSITORY" \
+            auto_reconcile no \
+            promotion_state NONE \
+            promotion_condition - \
+            promotion_action mark-ready \
+            promotion_evidence_class - > "$policy/settings.tsv"
+          printf '%b\n' \
+            'name	workflow	required	base_independent	binding	trigger_coverage	action' \
+            'merge-authorization-pull_request	.github/workflows/merge-authorization.yml	yes	yes	head	yes	wait' > "$policy/checks.tsv"
+          printf '%b\n' \
+            'claim	required	result	head_sha	required_head_sha	evidence_class	required_evidence_class	execution	required_execution	hardware	required_hardware	network	required_network	provenance	required_provenance	execution_result	required_execution_result	source_sha	required_source_sha	artifact_sha256	required_artifact_sha256	receipt_ref	action' > "$policy/evidence.tsv"
+          printf '%b\n' \
+            'dependency	required	state	expected	observed	object_ref	action' > "$policy/dependencies.tsv"
+          printf '%b\n' \
+            'follower	blocking	trigger	current_trigger	acceptance_kind	state	successor	object_ref	action' > "$policy/followers.tsv"
+          printf '%s\t%s\n' \
+            schema aici-merge-authorization-observation-v1 \
+            state missing \
+            head_sha "$PR_HEAD" \
+            authority_kind none \
+            scope_state different \
+            receipt_ref - \
+            action record-explicit-authority > "$policy/authorization.tsv"
+
+          status=0
+          merge/collect-github.sh "$GITHUB_REPOSITORY" "$PR_NUMBER" "$policy" "$output" > "$output/result.tsv" || status=$?
+          test "$status" -eq 1
+          grep -Eq 'CI_PENDING|NOT_VERIFIED' "$output/result.tsv"
+          grep -F 'HUMAN_AUTHORIZATION_REQUIRED' "$output/result.tsv"
+          sed -n '1,$p' "$output/result.tsv"
