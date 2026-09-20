@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+case $1 in
+    /repos/isomorphisms/example/pulls/17) exec sed -n '1,$p' @ROOT@/pr.json ;;
+    /repos/isomorphisms/example/branches/main) exec sed -n '1,$p' @ROOT@/base.json ;;
+    /repos/isomorphisms/example/commits/1111111111111111111111111111111111111111/check-runs?per_page=100) exec sed -n '1,$p' @ROOT@/head.json ;;
+    /repos/isomorphisms/example/commits/2222222222222222222222222222222222222222/check-runs?per_page=100) exec sed -n '1,$p' @ROOT@/base-checks.json ;;
+    *) printf 'unexpected fixture API path: %s\n' "$1" >&2; exit 1 ;;
+esac

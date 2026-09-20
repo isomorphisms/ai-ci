@@ -282,9 +282,9 @@ D=$(case_dir trigger-gap)
 awk -F '	' -v OFS='	' 'NR==2 {$11="no"} {print}' "$D/checks.tsv" > "$D/x" && mv "$D/x" "$D/checks.tsv"
 run_bad CHECK-TRIGGER-GAP workflow-trigger-gap "$D"
 
-D=$(case_dir unknown-receipt)
-awk -F '	' -v OFS='	' 'NR==2 {$2="UNKNOWN"} {print}' "$D/receipts.tsv" > "$D/x" && mv "$D/x" "$D/receipts.tsv"
-run_bad RECEIPT-UNKNOWN missing-evidence-is-unknown "$D"
+D=$(case_dir not-verified-receipt)
+awk -F '	' -v OFS='	' 'NR==2 {$2="NOT_VERIFIED"} {print}' "$D/receipts.tsv" > "$D/x" && mv "$D/x" "$D/receipts.tsv"
+run_bad RECEIPT-NOT-VERIFIED missing-evidence-is-not-verified "$D"
 
 D=$(case_dir inherited-scope)
 awk -F '	' -v OFS='	' '$1=="file" {$3="inherited"} {print}' "$D/scope.tsv" > "$D/x" && mv "$D/x" "$D/scope.tsv"

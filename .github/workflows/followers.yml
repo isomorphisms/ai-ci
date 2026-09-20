@@ -13,6 +13,21 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Prove exact follower-ledger checkout
+        shell: sh
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -eu
+          actual=$(git rev-parse HEAD)
+          test "$actual" = "$EXPECTED_HEAD" || {
+            printf 'FOLLOWER-CHECKOUT-NOT-EXACT\texpected=%s\tactual=%s\n' \
+              "$EXPECTED_HEAD" "$actual" >&2
+            exit 1
+          }
       - name: Prove follower state cannot overclaim acceptance
         shell: sh
         run: sh tests/followers.sh

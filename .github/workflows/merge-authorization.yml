@@ -16,6 +16,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
 
       - name: Prove this job is on the exact claimed revision
         shell: sh
@@ -32,4 +33,8 @@ jobs:
 
       - name: Prove hostile merge evidence fails closed
         shell: sh
-        run: sh tests/merge-gate.sh merge/verify.sh
+        run: |
+          sh tests/merge-gate.sh merge/verify.sh
+          sh tests/merge-state.sh merge/state.sh
+          sh tests/merge-workflow-head.sh merge/check-workflow-head.sh
+          sh tests/merge-collector.sh merge/collect-github.sh

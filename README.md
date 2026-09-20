@@ -53,11 +53,20 @@ The verdict prints exact-head checks as
 build commits, artifact hashes, target/evidence class, provenance, and execution
 result, so QEMU cannot satisfy a physical-phone requirement, a handwritten
 oracle cannot satisfy compiler generation, and packaging cannot satisfy
-execution.
+execution. Receipt claims themselves use `PASS|FAIL|NOT_VERIFIED`; absence of
+evidence is not a product failure.
 
 Run `merge/pr-verdict.sh SNAPSHOT_DIRECTORY`; see
 [`docs/merge-authorization.md`](docs/merge-authorization.md) for the schemas and
 collection rules.
+
+For the ordinary operational question before final authorization, run
+`merge/state.sh SNAPSHOT_DIRECTORY`. Its six-file observation contract emits
+either one `READY` row or a small table of typed blockers with concrete objects
+and next actions. It preserves `NOT_VERIFIED`, classifies conflicts separately
+from CI, distinguishes target-branch/upstream/transient failures, and keeps
+informational followers from becoming merge gates. See
+[`merge/state/README.md`](merge/state/README.md).
 
 ## Workflow trigger integrity
 

@@ -13,5 +13,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - name: Prove hierarchy receipts fail closed
         run: python3 complex-projective/verify_receipt.py self-test

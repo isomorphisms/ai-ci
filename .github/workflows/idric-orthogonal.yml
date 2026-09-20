@@ -22,6 +22,9 @@ jobs:
     steps:
       - name: Check out AICI
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
 
       - name: Check out exact Idriç compiler revision
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -42,4 +45,3 @@ jobs:
             "$RUNNER_TEMP/idric-orthogonal-receipt.tsv"
           diff -u idric-orthogonal/expected-receipt-v1.tsv \
             "$RUNNER_TEMP/idric-orthogonal-receipt.tsv"
-

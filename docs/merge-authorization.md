@@ -69,7 +69,7 @@ must not silently replace an exact dependency with a moving branch.
 
 ### Receipts and evidence boundaries
 
-Receipts distinguish `PASS`, `FAIL`, and `UNKNOWN`. A PASS is bound to the PR
+Receipts distinguish `PASS`, `FAIL`, and `NOT_VERIFIED`. A PASS is bound to the PR
 head, source SHA, build SHA, artifact SHA-256 when applicable, platform, ABI,
 and orthogonal evidence dimensions:
 
@@ -90,6 +90,11 @@ implicit promotion from emulator to physical, mock to hardware, compile to
 execution, handwritten oracle to compiler generation, packaged artifact to
 semantic execution, loopback to external TLS, or rebuilt to exact-prebuilt.
 Physical phone and tablet remain distinct targets.
+
+`NOT_VERIFIED` means the claim lacks the required observation. It is not a
+product failure and cannot satisfy authorization. Infrastructure and collection
+errors remain separate check/blocker states rather than being rewritten as
+`FAIL`.
 
 ### Scope
 
