@@ -75,6 +75,7 @@ rewrite() {
 job accepted accepted yes accepted.tsv - github-x86_64 x86_64 runtime
 receipt accepted pass github-x86_64 x86_64 runtime
 job pending pending yes - - hetzner-x86_64 x86_64 runtime
+receipt pending not-verified hetzner-x86_64 x86_64 runtime
 job void-pending pending yes - - void-x86_64 x86_64 runtime
 job conditional n/a conditional - 'phone-only path was unchanged' phone armv7 physical-device
 job unsupported unsupported yes - 'runtime is explicitly not supported yet' legacy-x86 x86 runtime
@@ -86,6 +87,13 @@ printf '%s\n' "$pending" | grep -F 'void-pending' >/dev/null
 printf '%s\n' "$pending" | grep -F 'unsupported' >/dev/null
 if printf '%s\n' "$pending" | grep '^accepted[[:space:]]' >/dev/null; then
     echo 'accepted follower remained pending' >&2
+    exit 1
+fi
+
+# An attempted follower that could not exercise the claim remains unresolved.
+# NOT_VERIFIED is a valid receipt result, not a product failure and not PASS.
+if ! printf '%s\n' "$pending" | grep '^pending[[:space:]]' >/dev/null; then
+    echo 'not-verified follower disappeared from unresolved work' >&2
     exit 1
 fi
 

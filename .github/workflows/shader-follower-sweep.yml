@@ -26,6 +26,9 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - name: Validate shader follower policy
         shell: sh
         run: sh shader-followers/validate-policy.sh
@@ -45,6 +48,9 @@ jobs:
       REQUESTED_TARGET: ${{ inputs.target }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - name: Build shader follower sweep packet
         shell: sh
         run: |

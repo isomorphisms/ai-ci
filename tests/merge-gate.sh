@@ -20,7 +20,7 @@ write_good() {
     d=$1
     mkdir -p "$d"
     cat > "$d/state.tsv" <<STATE
-schema	aici-merge-state-v3
+schema	aici-merge-state-v4
 repository	isomorphisms/example
 pr	17
 title	Example narrow change
@@ -35,9 +35,12 @@ scope_base_sha	$B
 prospective_diff_sha256	$C
 changed_paths_sha256	$E
 intent_sha256	$F
+current_scope_sha256	$A
 diff_files	1
 diff_additions	1
 diff_deletions	0
+draft	no
+mergeable	yes
 job_kind	execution
 job_state	COMPLETE
 stack_parent_pr	-
@@ -46,8 +49,8 @@ stack_parent_expected_sha	-
 stack_parent_current_sha	-
 STATE
     cat > "$d/checks.tsv" <<CHECKS
-workflow	job	event	run_id	required	binding	status	conclusion	reported_head_sha	checkout_sha	trigger_coverage
-.github/workflows/verify.yml	verify-pr	pull_request	100	yes	head	completed	success	$H	$H	yes
+workflow	job	event	run_id	required	binding	status	conclusion	reported_head_sha	checkout_sha	tested_base_sha	base_independent	trigger_coverage
+.github/workflows/verify.yml	verify-pr	pull_request	100	yes	head	completed	success	$H	$H	-	yes	yes
 CHECKS
     cat > "$d/dependencies.tsv" <<DEPS
 name	repository	policy	declared_ref	resolved_sha	expected_sha
@@ -69,7 +72,7 @@ $A	$S	verify	pass
 $A	$S	execute	pass
 CONSUMER
     cat > "$d/approval.tsv" <<APPROVAL
-schema	aici-merge-approval-v2
+schema	aici-merge-approval-v3
 repository	isomorphisms/example
 pr	17
 title	Example narrow change
@@ -87,6 +90,15 @@ authority_actor_kind	human
 authority_source_kind	human-message
 authority_source_id	conversation-message-17
 authority_source_role	merge-instruction
+authority_context_ref	conversation-17
+authority_context_sha256	$A
+authority_context_state	recovered
+authority_classifier_repository	isomorphisms/cockswain
+authority_classifier_revision	$S
+authority_classifier_contract_sha256	$C
+authority_scope_sha256	$A
+authority_scope_state	same
+revocation_state	none
 unresolved_objections	none
 APPROVAL
     cat > "$d/blockers.tsv" <<BLOCKERS
@@ -170,6 +182,18 @@ run_bad APPROVAL-SOURCE-NOT-AUTHORITY acknowledgement-hash-cannot-be-labeled-exp
 D=$(case_dir assistant-recommendation)
 awk -F '\t' -v OFS='\t' '$1=="authority_actor_kind" {$2="assistant"} {print}' "$D/approval.tsv" > "$D/x" && mv "$D/x" "$D/approval.tsv"
 run_bad APPROVAL-SOURCE-NOT-HUMAN assistant-recommendation-is-not-human-authority "$D"
+
+D=$(case_dir context-missing)
+awk -F '\t' -v OFS='\t' '$1=="authority_context_state" {$2="missing"} {print}' "$D/approval.tsv" > "$D/x" && mv "$D/x" "$D/approval.tsv"
+run_bad APPROVAL-CONTEXT-MISSING unrecoverable-context-fails-closed "$D"
+
+D=$(case_dir scope-changed)
+awk -F '\t' -v OFS='\t' '$1=="authority_scope_state" {$2="changed"} {print}' "$D/approval.tsv" > "$D/x" && mv "$D/x" "$D/approval.tsv"
+run_bad APPROVAL-SCOPE-CHANGED material-scope-change-needs-reconciliation "$D"
+
+D=$(case_dir authority-revoked)
+awk -F '\t' -v OFS='\t' '$1=="revocation_state" {$2="revoked"} {print}' "$D/approval.tsv" > "$D/x" && mv "$D/x" "$D/approval.tsv"
+run_bad APPROVAL-REVOKED explicit-revocation-blocks "$D"
 
 D=$(case_dir approval-wrong-head)
 awk -F '\t' -v OFS='\t' -v old="$O" '$1=="head_sha" {$2=old} {print}' "$D/approval.tsv" > "$D/x" && mv "$D/x" "$D/approval.tsv"
@@ -310,16 +334,20 @@ awk -F '	' -v OFS='	' '$1=="anchor" {$3="missing"} {print}' "$D/scope.tsv" > "$D
 run_bad SCOPE-IMPLEMENTATION-MISSING ancestry-lost-implementation "$D"
 
 D=$(case_dir check-collision)
-printf '%s\n' ".github/workflows/verify.yml	verify-pr	push	101	no	head	completed	success	$H	$H	yes" >> "$D/checks.tsv"
+printf '%s\n' ".github/workflows/verify.yml	verify-pr	push	101	no	head	completed	success	$H	$H	-	yes	yes" >> "$D/checks.tsv"
 run_bad CHECK-NAME-COLLISION push-pr-check-name-collision "$D"
 
 D=$(case_dir trigger-gap)
-awk -F '	' -v OFS='	' 'NR==2 {$11="no"} {print}' "$D/checks.tsv" > "$D/x" && mv "$D/x" "$D/checks.tsv"
+awk -F '	' -v OFS='	' 'NR==2 {$13="no"} {print}' "$D/checks.tsv" > "$D/x" && mv "$D/x" "$D/checks.tsv"
 run_bad CHECK-TRIGGER-GAP workflow-trigger-gap "$D"
 
-D=$(case_dir unknown-receipt)
-awk -F '	' -v OFS='	' 'NR==2 {$2="UNKNOWN"} {print}' "$D/receipts.tsv" > "$D/x" && mv "$D/x" "$D/receipts.tsv"
-run_bad RECEIPT-UNKNOWN missing-evidence-is-unknown "$D"
+D=$(case_dir stale-base-check)
+awk -F '	' -v OFS='	' -v old="$OLD" 'NR==2 {$11=old;$12="no"} {print}' "$D/checks.tsv" > "$D/x" && mv "$D/x" "$D/checks.tsv"
+run_bad CHECK-STALE-BASE base-moved-after-check "$D"
+
+D=$(case_dir not-verified-receipt)
+awk -F '	' -v OFS='	' 'NR==2 {$2="NOT_VERIFIED"} {print}' "$D/receipts.tsv" > "$D/x" && mv "$D/x" "$D/receipts.tsv"
+run_bad RECEIPT-NOT-VERIFIED missing-evidence-is-not-verified "$D"
 
 D=$(case_dir inherited-scope)
 awk -F '	' -v OFS='	' '$1=="file" {$3="inherited"} {print}' "$D/scope.tsv" > "$D/x" && mv "$D/x" "$D/scope.tsv"
@@ -360,6 +388,14 @@ D=$(case_dir blocker-open)
 printf '%s\n' "provision-workbench	OPEN	human-device-setup" >> "$D/blockers.tsv"
 run_bad BLOCKER-OPEN mergeable-with-unresolved-blocker "$D"
 
+D=$(case_dir draft)
+awk -F '\t' -v OFS='\t' '$1=="draft" {$2="yes"} {print}' "$D/state.tsv" > "$D/x" && mv "$D/x" "$D/state.tsv"
+run_bad PR-DRAFT draft-pr-cannot-merge "$D"
+
+D=$(case_dir not-mergeable)
+awk -F '\t' -v OFS='\t' '$1=="mergeable" {$2="no"} {print}' "$D/state.tsv" > "$D/x" && mv "$D/x" "$D/state.tsv"
+run_bad PR-NOT-MERGEABLE github-nonmergeable-pr "$D"
+
 D=$(case_dir schedule-pr-branch-only)
 awk -F '	' -v OFS='	' 'NR==2 {$2="configured";$3="no";$4="no";$6="NEVER_RUN";$7="-"} {print}' "$D/schedules.tsv" > "$D/x" && mv "$D/x" "$D/schedules.tsv"
 run_bad SCHEDULE-NOT-ON-DEFAULT scheduled-workflow-only-on-pr-branch "$D"
@@ -399,14 +435,14 @@ run_bad JOB-INCOMPLETE successful-receipt-for-incomplete-job "$D"
 
 D=$(case_dir check-state-table)
 {
-    printf '%s\n' 'workflow	job	event	run_id	required	binding	status	conclusion	reported_head_sha	checkout_sha	trigger_coverage'
-    printf '%s\n' ".github/workflows/pass.yml	pass	pull_request	201	yes	head	completed	success	$H	$H	yes"
-    printf '%s\n' ".github/workflows/fail.yml	fail	pull_request	202	yes	head	completed	failure	$H	$H	yes"
-    printf '%s\n' ".github/workflows/cancel.yml	cancel	pull_request	203	yes	head	completed	cancelled	$H	$H	yes"
-    printf '%s\n' ".github/workflows/skip.yml	skip	pull_request	204	yes	head	completed	skipped	$H	$H	yes"
-    printf '%s\n' ".github/workflows/absent.yml	absent	pull_request	-	yes	head	missing	-	-	-	yes"
-    printf '%s\n' ".github/workflows/stale.yml	stale	pull_request	205	yes	head	completed	success	$O	$O	yes"
-    printf '%s\n' ".github/workflows/unknown.yml	unknown	pull_request	206	yes	head	in_progress	-	$H	$H	yes"
+    printf '%s\n' 'workflow	job	event	run_id	required	binding	status	conclusion	reported_head_sha	checkout_sha	tested_base_sha	base_independent	trigger_coverage'
+    printf '%s\n' ".github/workflows/pass.yml	pass	pull_request	201	yes	head	completed	success	$H	$H	-	yes	yes"
+    printf '%s\n' ".github/workflows/fail.yml	fail	pull_request	202	yes	head	completed	failure	$H	$H	-	yes	yes"
+    printf '%s\n' ".github/workflows/cancel.yml	cancel	pull_request	203	yes	head	completed	cancelled	$H	$H	-	yes	yes"
+    printf '%s\n' ".github/workflows/skip.yml	skip	pull_request	204	yes	head	completed	skipped	$H	$H	-	yes	yes"
+    printf '%s\n' ".github/workflows/absent.yml	absent	pull_request	-	yes	head	missing	-	-	-	-	yes	yes"
+    printf '%s\n' ".github/workflows/stale.yml	stale	pull_request	205	yes	head	completed	success	$O	$O	-	yes	yes"
+    printf '%s\n' ".github/workflows/unknown.yml	unknown	pull_request	206	yes	head	in_progress	-	$H	$H	-	yes	yes"
 } > "$D/checks.tsv"
 sh merge/check-table.sh "$D/state.tsv" "$D/checks.tsv" > "$D/check-table.out"
 grep -F "HEAD        $H" "$D/check-table.out" >/dev/null

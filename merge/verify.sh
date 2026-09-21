@@ -44,11 +44,16 @@ FILENAME==approval_file && noncomment() {
 FILENAME==checks_file && noncomment() {
     if (!header_seen) {
         header_seen=1
-        if ($0!="workflow\tjob\tevent\trun_id\trequired\tbinding\tstatus\tconclusion\treported_head_sha\tcheckout_sha\ttrigger_coverage") bad("CHECKS-MALFORMED","wrong header")
+        if ($0!="workflow\tjob\tevent\trun_id\trequired\tbinding\tstatus\tconclusion\treported_head_sha\tcheckout_sha\ttested_base_sha\tbase_independent\ttrigger_coverage") bad("CHECKS-MALFORMED","wrong header")
         next
     }
     data_rows++
-    if (NF!=11 || !token($1) || !token($2) || !token($3) || !yesno($5) || !yesno($11) || !member($6,"head|synthetic-merge") || !member($7,"queued|in_progress|completed|missing") || !member($8,"success|failure|cancelled|skipped|neutral|timed_out|action_required|stale|-") || !(posint($4) || $4=="-") || !optgit($9) || !optgit($10)) { bad("CHECKS-MALFORMED","invalid check row"); next }
+    if (NF!=13 || !token($1) || !token($2) || !token($3) || !yesno($5) ||
+        !yesno($12) || !yesno($13) || !member($6,"head|synthetic-merge") ||
+        !member($7,"queued|in_progress|completed|missing") ||
+        !member($8,"success|failure|cancelled|skipped|neutral|timed_out|action_required|stale|-") ||
+        !(posint($4) || $4=="-") || !optgit($9) || !optgit($10) ||
+        !optgit($11)) { bad("CHECKS-MALFORMED","invalid check row"); next }
     key=$1 SUBSEP $2 SUBSEP $3
     if (seen_check[key]++) bad("CHECKS-MALFORMED","duplicate check row")
     namekey=$2
@@ -66,8 +71,11 @@ FILENAME==checks_file && noncomment() {
         if ($9!=st["head_sha"]) bad("CHECK-STALE",$2)
         wanted=($6=="head" ? st["head_sha"] : st["event_sha"])
         if ($10!=wanted) bad("CHECK-WRONG-CHECKOUT",$2)
-        if ($11!="yes") bad("CHECK-TRIGGER-GAP",$2)
-        if ($6=="head" && $10==st["head_sha"] && $9==st["head_sha"] && $7=="completed" && $8=="success" && $11=="yes") exact_head_checks++
+        if ($12=="no" && $11!=st["live_base_sha"]) bad("CHECK-STALE-BASE",$2)
+        if ($13!="yes") bad("CHECK-TRIGGER-GAP",$2)
+        if ($6=="head" && $10==st["head_sha"] && $9==st["head_sha"] &&
+            ($12=="yes" || $11==st["live_base_sha"]) && $7=="completed" &&
+            $8=="success" && $13=="yes") exact_head_checks++
     }
     next
 }
@@ -92,14 +100,14 @@ FILENAME==receipts_file && noncomment() {
         next
     }
     data_rows++
-    if (NF!=27 || !token($1) || !member($2,"PASS|FAIL|UNKNOWN") || !gitsha($3) || !gitsha($4) || !optsha256($5) || !token($6) || !token($7) || !member($8,"none|compile|host|qemu-user|full-system|android-emulator|physical") || !member($9,"none|mock|virtual|physical") || !member($10,"none|loopback|fake-tls|external-tls") || !member($11,"none|exact-prebuilt|rebuilt") || !member($12,"host|github-runner|qemu-user|qemu-system|android-emulator|physical-phone|physical-tablet") || !member($13,"none|handwritten-oracle|compiler-generated|packaged-only|installed-artifact") || !optgit($14) || !member($15,"none|compiled|packaged|installed|launched|semantic-pass") || !optgit($16) || !optsha256($17) || !token($18) || !token($19) || !member($20,"-|none|compile|host|qemu-user|full-system|android-emulator|physical") || !member($21,"-|none|mock|virtual|physical") || !member($22,"-|none|loopback|fake-tls|external-tls") || !member($23,"-|none|exact-prebuilt|rebuilt") || !member($24,"-|host|github-runner|qemu-user|qemu-system|android-emulator|physical-phone|physical-tablet") || !member($25,"-|none|handwritten-oracle|compiler-generated|packaged-only|installed-artifact") || !optgit($26) || !member($27,"-|none|compiled|packaged|installed|launched|semantic-pass")) { bad("RECEIPTS-MALFORMED",$1); next }
+    if (NF!=27 || !token($1) || !member($2,"PASS|FAIL|NOT_VERIFIED") || !gitsha($3) || !gitsha($4) || !optsha256($5) || !token($6) || !token($7) || !member($8,"none|compile|host|qemu-user|full-system|android-emulator|physical") || !member($9,"none|mock|virtual|physical") || !member($10,"none|loopback|fake-tls|external-tls") || !member($11,"none|exact-prebuilt|rebuilt") || !member($12,"host|github-runner|qemu-user|qemu-system|android-emulator|physical-phone|physical-tablet") || !member($13,"none|handwritten-oracle|compiler-generated|packaged-only|installed-artifact") || !optgit($14) || !member($15,"none|compiled|packaged|installed|launched|semantic-pass") || !optgit($16) || !optsha256($17) || !token($18) || !token($19) || !member($20,"-|none|compile|host|qemu-user|full-system|android-emulator|physical") || !member($21,"-|none|mock|virtual|physical") || !member($22,"-|none|loopback|fake-tls|external-tls") || !member($23,"-|none|exact-prebuilt|rebuilt") || !member($24,"-|host|github-runner|qemu-user|qemu-system|android-emulator|physical-phone|physical-tablet") || !member($25,"-|none|handwritten-oracle|compiler-generated|packaged-only|installed-artifact") || !optgit($26) || !member($27,"-|none|compiled|packaged|installed|launched|semantic-pass")) { bad("RECEIPTS-MALFORMED",$1); next }
     if (($11=="exact-prebuilt" || $11=="rebuilt") && $5=="-") { bad("RECEIPTS-MALFORMED",$1); next }
     if ($13=="packaged-only" && !member($15,"none|compiled|packaged")) { bad("RECEIPT-PACKAGE-AS-EXECUTION",$1); next }
     if (member($12,"physical-phone|physical-tablet") && ($8!="physical" || $9!="physical")) { bad("RECEIPT-PHYSICAL-CLASS-MISMATCH",$1); next }
     if ($12=="qemu-user" && ($8!="qemu-user" || $9!="virtual")) { bad("RECEIPT-QEMU-CLASS-MISMATCH",$1); next }
     if ($12=="qemu-system" && ($8!="full-system" || $9!="virtual")) { bad("RECEIPT-QEMU-CLASS-MISMATCH",$1); next }
     if ($12=="android-emulator" && ($8!="android-emulator" || $9!="virtual")) { bad("RECEIPT-EMULATOR-CLASS-MISMATCH",$1); next }
-    if ($2=="UNKNOWN") { bad("RECEIPT-UNKNOWN",$1); next }
+    if ($2=="NOT_VERIFIED") { bad("RECEIPT-NOT-VERIFIED",$1); next }
     if ($2!="PASS") { bad("RECEIPT-NOT-PASS",$1); next }
     if ($3!=st["head_sha"]) bad("RECEIPT-WRONG-HEAD",$1)
     required($4,$16,"RECEIPT-WRONG-SOURCE",$1)
@@ -200,8 +208,42 @@ FILENAME==completion_file && noncomment() {
     next
 }
 END {
-    if (st["schema"]!="aici-merge-state-v3" || st["repository"]=="" || !posint(st["pr"]) || st["title"]=="" || !gitsha(st["head_sha"]) || !gitsha(st["event_sha"]) || !member(st["event_kind"],"head|synthetic-merge") || st["live_base_ref"]=="" || !gitsha(st["live_base_sha"]) || !gitsha(st["reported_base_sha"]) || !gitsha(st["merge_base_sha"]) || !gitsha(st["scope_base_sha"]) || !sha256(st["prospective_diff_sha256"]) || !sha256(st["changed_paths_sha256"]) || !sha256(st["intent_sha256"]) || !posint(st["diff_files"]) || !nonnegative(st["diff_additions"]) || !nonnegative(st["diff_deletions"]) || !member(st["job_kind"],"execution|advisory") || !member(st["job_state"],"PENDING|BLOCKED|FAILED|COMPLETE") || st["stack_parent_pr"]=="" || !member(st["stack_parent_state"],"none|open|landed") || st["stack_parent_expected_sha"]=="" || st["stack_parent_current_sha"]=="") bad("MERGE-STATE-MALFORMED","missing or invalid required field")
-    if (approval["schema"]!="aici-merge-approval-v2" || approval["repository"]=="" || !posint(approval["pr"]) || approval["title"]=="" || !gitsha(approval["head_sha"]) || approval["base_ref"]=="" || !gitsha(approval["base_sha"]) || !sha256(approval["prospective_diff_sha256"]) || !sha256(approval["changed_paths_sha256"]) || !sha256(approval["intent_sha256"]) || approval["decision"]=="" || approval["authorization_kind"]=="" || !sha256(approval["authorization_text_sha256"]) || !token(approval["authorized_by"]) || !member(approval["authority_actor_kind"],"human|assistant|automation") || !member(approval["authority_source_kind"],"human-message|human-task|github-review") || !token(approval["authority_source_id"]) || !member(approval["authority_source_role"],"merge-instruction|conditional-merge-task|merge-authorizing-task|github-approval|acknowledgement|implementation-instruction") || approval["unresolved_objections"]=="") bad("APPROVAL-MALFORMED","missing or invalid required field")
+    if (st["schema"]!="aici-merge-state-v4" || st["repository"]=="" ||
+        !posint(st["pr"]) || st["title"]=="" || !gitsha(st["head_sha"]) ||
+        !gitsha(st["event_sha"]) || !member(st["event_kind"],"head|synthetic-merge") ||
+        st["live_base_ref"]=="" || !gitsha(st["live_base_sha"]) ||
+        !gitsha(st["reported_base_sha"]) || !gitsha(st["merge_base_sha"]) ||
+        !gitsha(st["scope_base_sha"]) || !sha256(st["prospective_diff_sha256"]) ||
+        !sha256(st["changed_paths_sha256"]) || !sha256(st["intent_sha256"]) ||
+        !sha256(st["current_scope_sha256"]) || !posint(st["diff_files"]) ||
+        !nonnegative(st["diff_additions"]) || !nonnegative(st["diff_deletions"]) ||
+        !yesno(st["draft"]) || !member(st["mergeable"],"yes|no|unknown") ||
+        !member(st["job_kind"],"execution|advisory") ||
+        !member(st["job_state"],"PENDING|BLOCKED|FAILED|COMPLETE") ||
+        st["stack_parent_pr"]=="" || !member(st["stack_parent_state"],"none|open|landed") ||
+        st["stack_parent_expected_sha"]=="" || st["stack_parent_current_sha"]=="")
+        bad("MERGE-STATE-MALFORMED","missing or invalid required field")
+    if (approval["schema"]!="aici-merge-approval-v3" || approval["repository"]=="" ||
+        !posint(approval["pr"]) || approval["title"]=="" || !gitsha(approval["head_sha"]) ||
+        approval["base_ref"]=="" || !gitsha(approval["base_sha"]) ||
+        !sha256(approval["prospective_diff_sha256"]) || !sha256(approval["changed_paths_sha256"]) ||
+        !sha256(approval["intent_sha256"]) || approval["decision"]=="" ||
+        approval["authorization_kind"]=="" || !sha256(approval["authorization_text_sha256"]) ||
+        !token(approval["authorized_by"]) ||
+        !member(approval["authority_actor_kind"],"human|assistant|automation") ||
+        !member(approval["authority_source_kind"],"human-message|human-task|github-review") ||
+        !token(approval["authority_source_id"]) ||
+        !member(approval["authority_source_role"],"merge-instruction|conditional-merge-task|merge-authorizing-task|github-approval|acknowledgement|implementation-instruction") ||
+        !token(approval["authority_context_ref"]) || !sha256(approval["authority_context_sha256"]) ||
+        !member(approval["authority_context_state"],"recovered|missing|unknown") ||
+        approval["authority_classifier_repository"]!="isomorphisms/cockswain" ||
+        !gitsha(approval["authority_classifier_revision"]) ||
+        !sha256(approval["authority_classifier_contract_sha256"]) ||
+        !sha256(approval["authority_scope_sha256"]) ||
+        !member(approval["authority_scope_state"],"same|changed|unknown") ||
+        !member(approval["revocation_state"],"none|revoked|unknown") ||
+        approval["unresolved_objections"]=="")
+        bad("APPROVAL-MALFORMED","missing or invalid required field")
     if (approval["decision"]!="MERGE" || !member(approval["authorization_kind"],"explicit-merge|conditional-clean|github-approval|task-context")) bad("APPROVAL-NOT-AUTHORIZED",approval["authorization_kind"])
     if (approval["authority_actor_kind"]!="human") bad("APPROVAL-SOURCE-NOT-HUMAN",approval["authority_actor_kind"])
     if (member(approval["authority_source_role"],"acknowledgement|implementation-instruction")) bad("APPROVAL-SOURCE-NOT-AUTHORITY",approval["authority_source_role"])
@@ -209,6 +251,9 @@ END {
     if (approval["authorization_kind"]=="conditional-clean" && !(member(approval["authority_source_kind"],"human-message|human-task") && approval["authority_source_role"]=="conditional-merge-task")) bad("APPROVAL-SOURCE-MISMATCH",approval["authorization_kind"])
     if (approval["authorization_kind"]=="task-context" && !(approval["authority_source_kind"]=="human-task" && approval["authority_source_role"]=="merge-authorizing-task")) bad("APPROVAL-SOURCE-MISMATCH",approval["authorization_kind"])
     if (approval["authorization_kind"]=="github-approval" && !(approval["authority_source_kind"]=="github-review" && approval["authority_source_role"]=="github-approval")) bad("APPROVAL-SOURCE-MISMATCH",approval["authorization_kind"])
+    if (approval["authority_context_state"]!="recovered") bad("APPROVAL-CONTEXT-MISSING",approval["authority_context_state"])
+    if (approval["authority_scope_state"]!="same" || approval["authority_scope_sha256"]!=st["current_scope_sha256"]) bad("APPROVAL-SCOPE-CHANGED",approval["authority_scope_state"])
+    if (approval["revocation_state"]!="none") bad("APPROVAL-REVOKED",approval["revocation_state"])
     if (approval["unresolved_objections"]!="none") bad("APPROVAL-OBJECTION-OPEN",approval["unresolved_objections"])
     if (approval["repository"]!=st["repository"] || approval["pr"]!=st["pr"] || approval["title"]!=st["title"]) bad("APPROVAL-WRONG-PR","approval identity differs from merge state")
     if (approval["head_sha"]!=st["head_sha"]) bad("APPROVAL-WRONG-HEAD",approval["head_sha"])
@@ -216,6 +261,9 @@ END {
     if (approval["prospective_diff_sha256"]!=st["prospective_diff_sha256"]) bad("APPROVAL-WRONG-DIFF",approval["prospective_diff_sha256"])
     if (approval["changed_paths_sha256"]!=st["changed_paths_sha256"]) bad("APPROVAL-WRONG-PATHS",approval["changed_paths_sha256"])
     if (approval["intent_sha256"]!=st["intent_sha256"]) bad("APPROVAL-WRONG-INTENT",approval["intent_sha256"])
+    if (st["draft"]=="yes") bad("PR-DRAFT","mark ready before merge")
+    if (st["mergeable"]=="no") bad("PR-NOT-MERGEABLE","GitHub reports the PR cannot merge")
+    if (st["mergeable"]=="unknown") bad("PR-MERGEABILITY-UNKNOWN","refresh live mergeability")
     if (st["event_kind"]=="head" && st["event_sha"]!=st["head_sha"]) bad("MERGE-SYNTHETIC-AS-HEAD","event labeled head differs from PR head")
     if (st["event_kind"]=="synthetic-merge" && st["event_sha"]==st["head_sha"]) bad("MERGE-STATE-MALFORMED","synthetic merge equals head")
     if (st["stack_parent_state"]=="none") {

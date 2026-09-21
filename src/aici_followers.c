@@ -355,7 +355,7 @@ static int required_receipt_fields(const Receipt *receipt) {
 }
 
 static int validate_receipt_shape(const Receipt *receipt, const char *path) {
-    static const char *const results[] = {"pass", "fail"};
+    static const char *const results[] = {"pass", "fail", "not-verified"};
     static const char *const kinds[] = {
         "build", "runtime", "artifact", "physical-device", "publication"
     };

@@ -56,11 +56,34 @@ The verdict prints exact-head checks as
 build commits, artifact hashes, target/evidence class, provenance, and execution
 result, so QEMU cannot satisfy a physical-phone requirement, a handwritten
 oracle cannot satisfy compiler generation, and packaging cannot satisfy
-execution.
+execution. Receipt claims themselves use `PASS|FAIL|NOT_VERIFIED`; absence of
+evidence is not a product failure.
 
 Run `merge/pr-verdict.sh SNAPSHOT_DIRECTORY`; see
 [`docs/merge-authorization.md`](docs/merge-authorization.md) for the schemas and
 collection rules.
+
+`merge/collect-verdict.sh OWNER/REPOSITORY PR POLICY_DIRECTORY OUTPUT_DIRECTORY`
+is the repository-owned live path. It resolves the PR head, live base, merge
+tree, prospective first-parent patch, changed paths, active ruleset contexts,
+Actions runs/jobs, checkout witnesses, dependencies, scheduled runs, and
+contextual-authority provenance before invoking the same deterministic
+verifier. Repository policy supplies semantic scope, evidence requirements,
+durable blockers, completion state, and Cockswain's authority receipt; the
+collector does not infer them from GitHub or conversation text.
+
+For the ordinary operational question before final authorization, run
+`merge/state.sh SNAPSHOT_DIRECTORY`. Its six-file observation contract emits
+either one `READY` row or a small table of typed blockers with concrete objects
+and next actions. It preserves `NOT_VERIFIED`, classifies conflicts separately
+from CI, distinguishes target-branch/upstream/transient failures, and keeps
+informational followers from becoming merge gates. See
+[`merge/state/README.md`](merge/state/README.md).
+
+`merge/collect-github.sh` builds that smaller operational snapshot with four
+bounded API reads.
+`merge/collect-set.sh` evaluates a TSV population in one command and shares
+live-base/baseline responses across PRs in the same sweep.
 
 ## Workflow trigger integrity
 

@@ -9,7 +9,7 @@ A repository using this policy keeps one `aici-follower-job-v1` TSV record per f
 
 A job records the repository, branch/PR, exact trigger commit, leading platform and architecture, leader evidence, artifact identity and SHA-256 when applicable, follower platform and architecture, required action, acceptance kind and action, state, last attempted commit, blocker, evidence, dependencies, reason, supersession, and follow policy.
 
-A receipt records the same source and follower identity plus the exact attempted commit, OS/runtime, build and test commands, artifact identity/hash, external evidence URL when one exists, time, and result.
+A receipt records the same source and follower identity plus the exact attempted commit, OS/runtime, build and test commands, artifact identity/hash, external evidence URL when one exists, time, and result. Results are `pass`, `fail`, or `not-verified`. A failed executed claim and an attempt that never established the claim remain distinct; neither closes the follower.
 
 Version 1 uses `follow_policy=exact`. Rolling a job to a descendant is therefore an explicit new job or supersession, never a silent rewrite of history.
 
