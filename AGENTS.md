@@ -193,49 +193,92 @@ Keep the semantic object, carrier, quotient/equivalence, normalization,
 orientation/sign convention, precision, and information loss explicit before
 copying a representation or test between repositories.
 
-The current known project map is:
+This is deliberately broader than a dependency graph. Include a public
+repository when these concepts appear in implemented code, executable fixtures,
+an active pull request, research/design, a named planned consumer, or public
+project documentation. Listing a repository is not evidence that every
+described relationship is implemented or accepted. Each entry must state its
+current evidence status:
 
-- `isomorphisms/Idric`: canonical language-level types, maps, laws, and
-  distinctions among `R^n`, `S^n`, `RP^n`, `CP^n`, quaternions,
-  `O(n)`, `SO(n)`, and affine hyperplanes.
-- `isomorphisms/rhs`: empirical validation that human-facing transformation
-  and classifier names agree with independently observed behavior; it consumes
-  declared semantics and does not define them.
-- `walnut-burgundy/computer-science`: mathematical/algorithm-selection layer
-  for Householder, Givens, reflection-product, and other orthogonal-transform
-  realizations before target lowering.
-- `isomorphisms/ai-ci`: reusable cross-target conformance fields, executable
-  oracles, evidence boundaries, and receipt policy.
-- `Ashtray-Archer/utilities-android-phone-user`: physical sensor vectors,
-  compact `S^2` directions, gyroscope/angular-velocity vectors, magnetometer
-  vectors, and device-orientation boundaries.
-- `isomorphisms/idric-embedded`: constrained-target compact-direction fixtures
-  and representation followers.
-- `isomorphismes/coxeter`: reflections, Householder maps, reflection words,
-  Givens/proper rotations, and exact-versus-floating group behavior.
-- `walnut-burgundy/fulton`: symmetric-group representation spaces and their
-  real/complex matrix, orthogonal/unitary, normalized, and projective carriers.
-- `isomorphismes/hopf_fibration`: the Hopf map and the distinct
-  `S^3`, `S^2`, `S^1`, and `CP^1` quotient/action relationships.
-- `isomorphismes/ortho`: orthants, coordinate faces, and interactive spatial
-  rotation.
-- `isomorphismes/Conway`: planar symmetry groups and affine isometries,
-  including rotations and reflections.
-- `isomorphisms/idris-shader-backend`: executable sphere, Givens, Householder,
-  and orthogonal-transform shader oracles and target lowering.
+- `implemented`: relevant executable code or fixtures exist;
+- `active PR`: the relevant change is under review and not yet merged;
+- `research`: an issue or design record exists, without an implementation
+  claim;
+- `planned`: the repository is a named future consumer or follower;
+- `documentation`: the repository explains or routes people to the work.
+
+The current public project map is:
+
+- `isomorphisms/Idric` — **active PR, research**: language-level types, maps,
+  laws, and distinctions among `R^n`, `S^n`, `RP^n`, `CP^n`,
+  quaternions, `O(n)`, `SO(n)`, and affine hyperplanes.
+- `isomorphisms/rhs` — **implemented, active PR**: exact coordinate
+  reflection/quarter-turn utilities plus empirical validation that
+  human-facing transformation and classifier names agree with independently
+  observed behavior; it consumes declared semantics and does not define them.
+- `walnut-burgundy/computer-science` — **research**:
+  mathematical/algorithm-selection work for Householder, Givens,
+  reflection-product, and other orthogonal-transform realizations before target
+  lowering.
+- `isomorphisms/ai-ci` — **implemented, active PR**: reusable cross-target
+  conformance fields, executable oracles, evidence boundaries, and receipt
+  policy; the geometry map itself remains proposed until its PR merges.
+- `Ashtray-Archer/utilities-android-phone-user` — **implemented, active PR**:
+  physical sensor vectors, compact `S^2` directions,
+  gyroscope/angular-velocity vectors, magnetometer vectors, and
+  device-orientation boundaries.
+- `isomorphisms/idric-embedded` — **active PR**: constrained-target
+  compact-direction fixtures and representation followers.
+- `isomorphismes/coxeter` — **implemented, research**: reflections,
+  Householder maps, reflection words, Givens/proper rotations, and
+  exact-versus-floating group behavior.
+- `walnut-burgundy/fulton` — **research, planned**: symmetric-group
+  representation spaces and their real/complex matrix, orthogonal/unitary,
+  normalized, and projective carriers.
+- `isomorphismes/hopf_fibration` — **implemented**: the Hopf map and the
+  distinct `S^3`, `S^2`, `S^1`, and `CP^1` quotient/action
+  relationships.
+- `isomorphismes/ortho` — **implemented**: orthants, coordinate faces, and
+  interactive spatial rotation.
+- `isomorphismes/Conway` — **implemented**: planar symmetry groups and affine
+  isometries, including rotations and reflections.
+- `isomorphisms/idris-shader-backend` — **research, planned**: executable
+  sphere, Givens, Householder, and orthogonal-transform shader oracles and
+  target lowering.
 - `isomorphisms/idric-arm-thumb`,
   `isomorphisms/idric-x86-aggressive-backend`,
-  `isomorphisms/idric-risc-5`, and `isomorphisms/idric-big-iron`:
-  architecture-specific followers for transform planning, lowering, and
-  receipts.
-- `isomorphisms/ib`: embedding vectors, explicit optional normalization onto
-  `S^(d-1)`, similarity/index geometry, and affine hyperplane classifiers.
-- `isomorphisms/cockswain`: model-activation carriers and hyperplane
-  separability experiments, kept separate from supervisor-quality claims.
+  `isomorphisms/idric-risc-5`, and `isomorphisms/idric-big-iron` —
+  **planned**: architecture-specific followers for transform planning,
+  lowering, and receipts.
+- `isomorphisms/ib` — **implemented, research**: embedding vectors, explicit
+  optional normalization onto `S^(d-1)`, similarity/index geometry, and
+  affine hyperplane classifiers.
+- `isomorphisms/cockswain` — **research**: model-activation carriers and
+  hyperplane-separability experiments, kept separate from supervisor-quality
+  claims.
+- `isomorphisms/software` — **documentation**: the public front door includes
+  a dedicated “Rotations and hyperplanes” explanation connecting sensors,
+  compact `S^2` storage, `SO(3)`/quaternions, Householder reflections,
+  projective normals, embeddings, Coxeter, Fulton, Idriç, and RHS.
+- `isomorphismes/algebraic-variety-explorer-mobile` — **implemented,
+  research**: an algebraic-surface renderer using a viewing sphere, gradients
+  and surface normals, with active singular-surface and F16/F32 geometry
+  experiments.
+- `isomorphisms/manimi` — **implemented, research**: a Manim renderer and
+  GPU/vector-contract reference for buffer, shader, and synchronization
+  behavior shared with transform-bearing consumers.
+- `isomorphisms/grease` — **planned**: a named future consumer of Android
+  sensor vectors and later runtime vector operations; its current issue is
+  design/consumer tracking, not an implementation claim.
 
-Extend this map when another repository begins to depend on these mathematical
-semantics. Do not add a repository merely because a renderer performs an
-incidental display rotation or a dependency contains generic matrix code.
+Add a newly discovered public repository even when its relationship is only
+research, planned consumption, or documentation; it need not depend on a shared
+geometry library. Update the status rather than silently promoting plans to
+implementation. Do not publish private repository names in this public file;
+keep their geometry records inside the private repositories. A generic
+third-party matrix dependency alone does not create a project-level
+relationship, but “incidental” must not be used to hide the project's own
+concept-level use of rotation, spheres, reflections, normals, or hyperplanes.
 
 - **Preserve meaningful stage boundaries.** A later-stage success does not erase
   an earlier-stage failure. Build is not install; install is not launch; launch
