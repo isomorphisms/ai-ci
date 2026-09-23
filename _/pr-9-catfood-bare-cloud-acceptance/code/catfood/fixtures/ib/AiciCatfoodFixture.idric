@@ -1,0 +1,11 @@
+module AiciCatfoodFixture
+
+import IB.History
+
+%default total
+
+main : IO ()
+main = do
+  let entries = ingest_raw_lines
+        ["# ignored", " https://example.test/a ", "https://example.test/b"]
+  putStrLn ("ib=" ++ show (length entries))
