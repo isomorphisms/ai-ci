@@ -85,6 +85,19 @@ bounded API reads.
 `merge/collect-set.sh` evaluates a TSV population in one command and shares
 live-base/baseline responses across PRs in the same sweep.
 
+`merge/collect-account.sh OWNER REGISTRY.tsv OUTPUT_DIRECTORY` discovers every open
+PR authored by that owner in that owner's repositories, maps registered repositories
+to their merge policies, and feeds the managed set through the same exact-state
+collector. Unregistered PRs remain visible as `UNMANAGED`; age is not treated as a
+blocker or a reason to close work.
+
+`merge/retire-ready.sh OUTPUT_DIRECTORY` lists the PRs whose collected state is
+`READY`. With `--apply`, it re-runs the exact-state classifier immediately before
+each merge and merges only heads that are still `READY`. Because `READY` already
+requires valid merge authority as well as current checks, evidence, dependencies,
+followers, and draft state, this is the mechanical retirement path rather than a
+second heuristic merge decision.
+
 ## Workflow trigger integrity
 
 A semantic check is only protective when changes to the implementation it
