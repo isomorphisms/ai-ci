@@ -174,12 +174,17 @@ jobs:
           persist-credentials: false
       - name: Require APK receipt probes
         shell: sh
-        run: command -v sha256sum >/dev/null && command -v zip >/dev/null && command -v unzip >/dev/null
+        run: command -v git >/dev/null && command -v jq >/dev/null && command -v sha256sum >/dev/null && command -v zip >/dev/null && command -v unzip >/dev/null
       - name: Compile F-Droid verifier and fixture generator
         shell: sh
         run: |
           cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-fdroid src/aici_fdroid.c
           cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-fdroid-fixtures fdroid/tests/make_receipt_fixtures.c
+      - name: Prove candidate receipt producer derives evidence
+        shell: sh
+        run: |
+          chmod +x fdroid/produce-candidate-v1.sh fdroid/tests/producer-self-test.sh
+          fdroid/tests/producer-self-test.sh fdroid/produce-candidate-v1.sh /tmp/aici-fdroid
       - name: Generate real APK ZIP and receipt fixtures
         shell: sh
         run: /tmp/aici-fdroid-fixtures fdroid/contracts/native-upstream-v1.example.tsv "$RUNNER_TEMP/aici-fdroid-fixtures"
