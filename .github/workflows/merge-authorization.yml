@@ -43,6 +43,7 @@ jobs:
           sh tests/merge-verdict-collector.sh merge/collect-verdict.sh
           sh tests/merge-dogfood.sh docs/dogfood/2026-09-20.tsv
           sh tests/merge-real-state.sh merge/state.sh
+          sh tests/merge-retirement.sh merge/retire-ready.sh
 
       - name: Dogfood the live exact-head blocker path
         if: github.event_name == 'pull_request'
