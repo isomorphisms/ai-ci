@@ -31,6 +31,7 @@ jobs:
             sed 's#^./##' |
             sort > "$RUNNER_TEMP/python-source.actual"
           printf '%s\n' \
+            '_/pr-45-wegert-edric-host-diagnostics/check_wegert_host_receipt.py' \
             'benchmarks/iridium-2014/make-hackage-2014-index.py' \
             'complex-projective/verify_receipt.py' \
             'tests/fixtures/language-bad-python/ci/hidden.py' \
