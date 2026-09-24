@@ -35,7 +35,8 @@ chmod +x "$work/put"
 
 RETIRE_TEST_LOG=$work/put.log AICI_STATE_CMD=$work/state-ready AICI_GITHUB_PUT=$work/put \
   "$consumer" "$account" > "$work/plan.tsv"
-grep -F $'isomorphisms/example\t7\t1111111111111111111111111111111111111111\tPLAN\tready-to-merge' "$work/plan.tsv" >/dev/null
+expected_plan=$(printf 'isomorphisms/example\t7\t1111111111111111111111111111111111111111\tPLAN\tready-to-merge')
+grep -F "$expected_plan" "$work/plan.tsv" >/dev/null
 [ ! -e "$work/put.log" ] || {
     echo 'FAIL: planning mode performed a merge' >&2
     exit 1
@@ -43,7 +44,8 @@ grep -F $'isomorphisms/example\t7\t1111111111111111111111111111111111111111\tPLA
 
 RETIRE_TEST_LOG=$work/put.log AICI_STATE_CMD=$work/state-ready AICI_GITHUB_PUT=$work/put \
   "$consumer" --apply "$account" > "$work/apply.tsv"
-grep -F $'isomorphisms/example\t7\t1111111111111111111111111111111111111111\tMERGED\t2222222222222222222222222222222222222222' "$work/apply.tsv" >/dev/null
+expected_merge=$(printf 'isomorphisms/example\t7\t1111111111111111111111111111111111111111\tMERGED\t2222222222222222222222222222222222222222')
+grep -F "$expected_merge" "$work/apply.tsv" >/dev/null
 [ "$(wc -l < "$work/put.log")" -eq 1 ] || {
     echo 'FAIL: retire-ready merged anything other than the single READY PR' >&2
     exit 1
