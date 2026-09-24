@@ -89,7 +89,7 @@ while IFS="$tab" read -r repository pr result; do
         continue
     fi
 
-    payload=$(jq -n --arg sha "$head" '{sha:$sha, merge_method:"squash"}')
+    payload=$(jq -cn --arg sha "$head" '{sha:$sha, merge_method:"squash"}')
     response=$(github_put "/repos/$repository/pulls/$pr/merge" "$payload")
     merged=$(printf '%s\n' "$response" | jq -r '.merged // false')
     [ "$merged" = true ] || {
