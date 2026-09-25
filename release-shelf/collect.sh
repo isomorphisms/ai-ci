@@ -206,7 +206,9 @@ append_dex_file() {
     cp "$source_file" "$dex_stage/$shelf_file"
     sha256=$(sha256sum "$source_file" | awk '{print $1}')
     bytes=$(wc -c < "$source_file" | tr -d ' ')
-    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n'         "$repository" "$release_tag" "$asset" "$member" "$shelf_file" "$sha256" "$bytes" "$source_url"         >> "$dex_manifest"
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+        "$repository" release "$release_tag" "$asset" "$member" "$shelf_file" \
+        "$sha256" "$bytes" "$source_url" >> "$dex_manifest"
     dex_count=$((dex_count + 1))
 }
 
@@ -286,12 +288,16 @@ while IFS= read -r repository; do
 
         if [ "$phone" = yes ]; then
             cp "$downloaded" "$phone_stage/$shelf_file"
-            printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n'                 "$repository" "$release_tag" "$asset" "$shelf_file" "$sha256" "$bytes" "$native_abis" "$asset_url"                 >> "$phone_manifest"
+            printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+                "$repository" release "$release_tag" "$asset" "$shelf_file" \
+                "$sha256" "$bytes" "$native_abis" "$asset_url" >> "$phone_manifest"
             phone_count=$((phone_count + 1))
         fi
         if [ "$tablet" = yes ]; then
             cp "$downloaded" "$tablet_stage/$shelf_file"
-            printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n'                 "$repository" "$release_tag" "$asset" "$shelf_file" "$sha256" "$bytes" "$native_abis" "$asset_url"                 >> "$tablet_manifest"
+            printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+                "$repository" release "$release_tag" "$asset" "$shelf_file" \
+                "$sha256" "$bytes" "$native_abis" "$asset_url" >> "$tablet_manifest"
             tablet_count=$((tablet_count + 1))
         fi
     done < "$apk_assets"
@@ -449,6 +455,25 @@ if [ -n "$supplemental_apks" ]; then
             tablet_count=$((tablet_count + 1))
         fi
     done < "$supplemental_apks"
+fi
+
+validate_manifest_fields() {
+    manifest=$1
+    expected=$2
+    awk -F '\t' -v expected="$expected" '
+        NF != expected {
+            printf "%s:%d: expected %d TSV fields, found %d\n", FILENAME, NR, expected, NF > "/dev/stderr"
+            failed = 1
+        }
+        END { exit failed }
+    ' "$manifest"
+}
+
+if ! validate_manifest_fields "$phone_manifest" 9 ||
+   ! validate_manifest_fields "$tablet_manifest" 9 ||
+   ! validate_manifest_fields "$dex_manifest" 9
+then
+    failed=1
 fi
 
 if [ "$failed" -ne 0 ]; then
