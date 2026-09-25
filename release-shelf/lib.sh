@@ -64,3 +64,15 @@ release_shelf_extract_dex_member() {
     esac
     release_shelf_is_dex "$output"
 }
+
+release_shelf_validate_manifest_fields() {
+    manifest=$1
+    expected=$2
+    awk -F '\t' -v expected="$expected" '
+        NF != expected {
+            printf "%s:%d: expected %d TSV fields, found %d\n", FILENAME, NR, expected, NF > "/dev/stderr"
+            failed = 1
+        }
+        END { exit failed }
+    ' "$manifest"
+}
