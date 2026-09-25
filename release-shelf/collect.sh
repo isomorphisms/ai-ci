@@ -6,12 +6,14 @@ self_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 
 repositories=${RELEASE_SHELF_REPOSITORIES:?RELEASE_SHELF_REPOSITORIES is required}
 dex_archive_repositories=${RELEASE_SHELF_DEX_ARCHIVE_REPOSITORIES:-}
+supplemental_apks=${RELEASE_SHELF_SUPPLEMENTAL_APKS:-}
+supplemental_apk_root=${RELEASE_SHELF_SUPPLEMENTAL_APK_ROOT:-}
 output_root=${RELEASE_SHELF_OUTPUT_ROOT:?RELEASE_SHELF_OUTPUT_ROOT is required}
 phone_dir=${RELEASE_SHELF_PHONE_DIR:-miro-a1}
 tablet_dir=${RELEASE_SHELF_TABLET_DIR:-tab-p10-row}
 dex_dir=${RELEASE_SHELF_DEX_DIR:-dex}
 
-for command_name in curl jq unzip tar sha256sum od awk sort sed grep tr wc cp rm mkdir mktemp; do
+for command_name in curl jq unzip tar sha256sum od awk sort sed grep tr wc cp rm mkdir mktemp basename dirname; do
     command -v "$command_name" >/dev/null 2>&1 || {
         printf '%s\n' "missing required command: $command_name" >&2
         exit 1
@@ -25,6 +27,16 @@ done
 if [ -n "$dex_archive_repositories" ] && [ ! -f "$dex_archive_repositories" ]; then
     printf '%s\n' "DEX archive repository list not found: $dex_archive_repositories" >&2
     exit 1
+fi
+if [ -n "$supplemental_apks" ]; then
+    [ -f "$supplemental_apks" ] || {
+        printf '%s\n' "supplemental APK manifest not found: $supplemental_apks" >&2
+        exit 1
+    }
+    [ -n "$supplemental_apk_root" ] && [ -d "$supplemental_apk_root" ] || {
+        printf '%s\n' "supplemental APK root is missing: $supplemental_apk_root" >&2
+        exit 1
+    }
 fi
 
 tmp_root=$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/aici-release-shelf.XXXXXX")
@@ -136,20 +148,9 @@ remove_old_dex_release_files() {
 
 prepare_stage() {
     relative_dir=$1
-    kind=$2
     stage="$tmp_root/stage/$relative_dir"
-    existing="$output_root/$relative_dir"
-
+    rm -rf "$stage"
     mkdir -p "$stage"
-    if [ -d "$existing" ]; then
-        cp -R "$existing/." "$stage/"
-    fi
-
-    case "$kind" in
-        apk) remove_old_apk_release_files "$existing" "$stage" ;;
-        dex) remove_old_dex_release_files "$existing" "$stage" ;;
-    esac
-    rm -f "$stage/manifest.tsv"
 }
 
 prepare_stage "$phone_dir" apk
@@ -164,9 +165,9 @@ phone_manifest="$phone_stage/manifest.tsv"
 tablet_manifest="$tablet_stage/manifest.tsv"
 dex_manifest="$dex_stage/manifest.tsv"
 
-printf 'repository\trelease_tag\tasset\tshelf_file\tsha256\tbytes\tnative_abis\turl\n' > "$phone_manifest"
-printf 'repository\trelease_tag\tasset\tshelf_file\tsha256\tbytes\tnative_abis\turl\n' > "$tablet_manifest"
-printf 'repository\trelease_tag\tasset\tmember\tshelf_file\tsha256\tbytes\turl\n' > "$dex_manifest"
+printf 'repository\tsource_kind\tsource_ref\tasset\tfile\tsha256\tbytes\tnative_abis\turl\n' > "$phone_manifest"
+printf 'repository\tsource_kind\tsource_ref\tasset\tfile\tsha256\tbytes\tnative_abis\turl\n' > "$tablet_manifest"
+printf 'repository\tsource_kind\tsource_ref\tasset\tmember\tfile\tsha256\tbytes\turl\n' > "$dex_manifest"
 
 phone_count=0
 tablet_count=0
@@ -389,6 +390,66 @@ while IFS= read -r repository; do
         done < "$archives"
     fi
 done < "$normalized_repositories"
+
+if [ -n "$supplemental_apks" ]; then
+    expected_header='repository	source_kind	source_ref	asset	file	sha256	bytes	native_abis	url'
+    actual_header=$(sed -n '1p' "$supplemental_apks")
+    [ "$actual_header" = "$(printf '%b' "$expected_header")" ] || {
+        printf '%s\n' "unexpected supplemental APK manifest header: $supplemental_apks" >&2
+        failed=1
+    }
+
+    tab=$(printf '\t')
+    while IFS="$tab" read -r repository source_kind source_ref asset file sha256 bytes native_abis url; do
+        case "$repository" in
+            ''|repository|'#'*) continue ;;
+        esac
+
+        source_file="$supplemental_apk_root/$file"
+        if [ ! -f "$source_file" ]; then
+            printf '%s\n' "supplemental APK is missing: $source_file" >&2
+            failed=1
+            continue
+        fi
+        if ! observed_abis=$(release_shelf_apk_abis "$source_file"); then
+            printf '%s\n' "supplemental APK is not a readable APK ZIP: $source_file" >&2
+            failed=1
+            continue
+        fi
+        got_sha=$(sha256sum "$source_file" | awk '{print $1}')
+        got_bytes=$(wc -c < "$source_file" | tr -d ' ')
+        if [ "$got_sha" != "$sha256" ] || [ "$got_bytes" != "$bytes" ] || [ "$observed_abis" != "$native_abis" ]; then
+            printf '%s\n' "supplemental APK identity mismatch: $file" >&2
+            failed=1
+            continue
+        fi
+
+        phone=no
+        tablet=no
+        if [ "$native_abis" = "-" ]; then
+            phone=yes
+            tablet=yes
+        else
+            case ",$native_abis," in
+                *,armeabi-v7a,*) phone=yes ;;
+            esac
+            case ",$native_abis," in
+                *,arm64-v8a,*) tablet=yes ;;
+            esac
+        fi
+
+        if [ "$phone" = yes ]; then
+            cp "$source_file" "$phone_stage/$file"
+            printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n'                 "$repository" "$source_kind" "$source_ref" "$asset" "$file" "$sha256" "$bytes" "$native_abis" "$url"                 >> "$phone_manifest"
+            phone_count=$((phone_count + 1))
+        fi
+        if [ "$tablet" = yes ]; then
+            cp "$source_file" "$tablet_stage/$file"
+            printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n'                 "$repository" "$source_kind" "$source_ref" "$asset" "$file" "$sha256" "$bytes" "$native_abis" "$url"                 >> "$tablet_manifest"
+            tablet_count=$((tablet_count + 1))
+        fi
+    done < "$supplemental_apks"
+fi
 
 if [ "$failed" -ne 0 ]; then
     printf '%s\n' 'release shelf collection failed; consumer shelves were left unchanged' >&2
