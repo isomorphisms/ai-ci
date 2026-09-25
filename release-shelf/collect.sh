@@ -457,21 +457,9 @@ if [ -n "$supplemental_apks" ]; then
     done < "$supplemental_apks"
 fi
 
-validate_manifest_fields() {
-    manifest=$1
-    expected=$2
-    awk -F '\t' -v expected="$expected" '
-        NF != expected {
-            printf "%s:%d: expected %d TSV fields, found %d\n", FILENAME, NR, expected, NF > "/dev/stderr"
-            failed = 1
-        }
-        END { exit failed }
-    ' "$manifest"
-}
-
-if ! validate_manifest_fields "$phone_manifest" 9 ||
-   ! validate_manifest_fields "$tablet_manifest" 9 ||
-   ! validate_manifest_fields "$dex_manifest" 9
+if ! release_shelf_validate_manifest_fields "$phone_manifest" 9 ||
+   ! release_shelf_validate_manifest_fields "$tablet_manifest" 9 ||
+   ! release_shelf_validate_manifest_fields "$dex_manifest" 9
 then
     failed=1
 fi
