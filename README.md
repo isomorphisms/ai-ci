@@ -147,6 +147,12 @@ cannot be mislabeled as store acceptance. See [`fdroid/README.md`](fdroid/README
 for the receipt schema, ABI-split rules, current official-check mapping, and the
 manual-review boundary.
 
+## Current Android release shelves
+
+The optional `release-shelf/` action keeps a consumer-owned current-artifact shelf synchronized with GitHub releases. It scans a declared repository population, verifies APK ZIP structure, classifies APKs from their actual native-library ABIs, validates DEX magic, and can inspect explicitly named DEX-producing release archives. The resulting manifests preserve repository, release, asset/member, SHA-256, byte count, ABI, and source URL.
+
+The action changes only the consumer working tree; the consumer decides when to commit it. Collection is artifact/provenance evidence only and is not installation, launch, runtime, emulator, or physical-device acceptance. See [`release-shelf/README.md`](release-shelf/README.md).
+
 ## Hostile-web ingestion acceptance
 
 The optional `ingestion/` action owns a ten-case hostile-input corpus and a

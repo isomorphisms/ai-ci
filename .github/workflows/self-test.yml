@@ -37,6 +37,9 @@ jobs:
             'tests/fixtures/language-bad-python/ci/hidden.py' \
             > "$RUNNER_TEMP/python-source.expected"
           diff -u "$RUNNER_TEMP/python-source.expected" "$RUNNER_TEMP/python-source.actual"
+      - name: Prove APK and DEX release shelf classification
+        shell: sh
+        run: sh release-shelf/tests/self-test.sh
       - name: Check out pinned Ike
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
