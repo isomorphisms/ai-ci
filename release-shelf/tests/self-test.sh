@@ -88,4 +88,13 @@ printf 'none\n' > "$tmp/no-dex/readme.txt"
 
 [ "$(release_shelf_safe_name 'owner/repo release:1')" = "owner-repo-release-1" ]
 
+printf 'a\tb\tc\n1\t2\t3\n' > "$tmp/good.tsv"
+release_shelf_validate_manifest_fields "$tmp/good.tsv" 3
+
+printf 'a\tb\tc\n1\t2\n' > "$tmp/bad-width.tsv"
+if release_shelf_validate_manifest_fields "$tmp/bad-width.tsv" 3 >/dev/null 2>&1; then
+    printf '%s\n' 'bad manifest width was accepted' >&2
+    exit 1
+fi
+
 printf '%s\n' 'release shelf self-test: PASS'
