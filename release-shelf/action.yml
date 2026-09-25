@@ -8,6 +8,14 @@ inputs:
     description: Optional file listing repositories whose ZIP/TAR release assets should be inspected for embedded DEX files
     required: false
     default: ''
+  supplemental_apks:
+    description: Optional TSV of pinned non-release APKs using the shared APK manifest schema
+    required: false
+    default: ''
+  supplemental_apk_root:
+    description: Directory containing files named by supplemental_apks
+    required: false
+    default: ''
   output_root:
     description: Consumer-owned output directory
     required: true
@@ -45,6 +53,8 @@ runs:
       env:
         RELEASE_SHELF_REPOSITORIES: ${{ inputs.repositories }}
         RELEASE_SHELF_DEX_ARCHIVE_REPOSITORIES: ${{ inputs.dex_archive_repositories }}
+        RELEASE_SHELF_SUPPLEMENTAL_APKS: ${{ inputs.supplemental_apks }}
+        RELEASE_SHELF_SUPPLEMENTAL_APK_ROOT: ${{ inputs.supplemental_apk_root }}
         RELEASE_SHELF_OUTPUT_ROOT: ${{ inputs.output_root }}
         RELEASE_SHELF_PHONE_DIR: ${{ inputs.phone_dir }}
         RELEASE_SHELF_TABLET_DIR: ${{ inputs.tablet_dir }}
