@@ -1,0 +1,24 @@
+SHADER_CODEGEN_RECEIPT	1
+producer_repository	isomorphismes/analytic-continuation
+source_head_sha	c7e0a2d8e05daec101f785a61cad9aeefe7230d7
+backend_repository	isomorphisms/idris-shader-backend
+backend_sha	e4dd4ef1a51a81d2b0ab03655f81e2ae7037bc9c
+workload	analytic-continuation-factor-fold-v1
+precision	lowp
+inactive_factor_policy	GUARDED_EXPANDED
+logical_factor_capacity	64
+expensive_ops_per_factor	2
+eager_expensive_ops	0
+static_atan_calls	64
+static_log_calls	64
+real_if_count	68
+ternary_select_count	0
+stage	typed_ir_generation	PASS
+stage	shader_generation	PASS
+stage	shader_validation	PASS
+stage	program_link	PASS
+stage	driver_load	SKIP	physical-device evidence not imported into this example
+stage	gpu_execution	SKIP	physical-device evidence not imported into this example
+stage	framebuffer_capture	SKIP	physical-device evidence not imported into this example
+stage	vendor_device_receipt	SKIP	physical-device evidence not imported into this example
+stage	interaction_response	SKIP	physical-device evidence not imported into this example
