@@ -24,6 +24,9 @@ jobs:
       - name: Prove bad fixtures are rejected
         shell: sh
         run: /tmp/aici self-test tests/cases.tsv
+      - name: Keep historical backend probes off the recurring queue
+        shell: sh
+        run: /tmp/aici verify compiler_backends/historical.contract.tsv .
       - name: Refuse new first-party Python source
         shell: sh
         run: |
