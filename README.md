@@ -86,7 +86,7 @@ bounded API reads.
 live-base/baseline responses across PRs in the same sweep.
 
 `merge/collect-account.sh OWNER REGISTRY.tsv OUTPUT_DIRECTORY` discovers every open
-PR authored by that owner in that owner's repositories, maps registered repositories
+PR authored by that account across repositories visible to the credential, maps registered repositories
 to their merge policies, and feeds the managed set through the same exact-state
 collector. Unregistered PRs remain visible as `UNMANAGED`; age is not treated as a
 blocker or a reason to close work.
@@ -99,13 +99,17 @@ reported/discovered counts and SHA-256 hashes of `managed/results.tsv` and
 `unmanaged.tsv`. Starting a refresh invalidates the previous completion record.
 Run `sh tests/merge-account.sh` for the adversarial discovery checks.
 
-The declared scope is owner-authored PRs in that owner's repositories. It does
-not cover repositories transferred to another user or organization, PRs by
-other authors, or resources hidden from the API credential. GitHub search is
+The version 2 scope follows the author across repository owners, including
+organization transfers and upstream contributions. It does not infer ownership
+or permission to merge from authorship. Repositories without a matching policy
+remain `UNMANAGED`; transferred repositories must use their current name in the
+policy registry. PRs by other authors and resources hidden from the API credential
+remain outside this scope. GitHub search is
 not an atomic snapshot; matching counts cannot prove that no work changed
 during collection. The record establishes a validated collection in that scope,
 not current merge authority. Cockswain requires this record before reporting
-that the collected scope has no open PRs; older account output must be recollected.
+that the collected scope has no open PRs. Version 1 owner-only output must be
+recollected: its narrower scope can omit outstanding work after a transfer.
 
 `merge/retire-ready.sh OUTPUT_DIRECTORY` lists the PRs whose collected state is
 `READY`. With `--apply`, it re-runs the exact-state classifier immediately before

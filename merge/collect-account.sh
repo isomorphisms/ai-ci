@@ -13,7 +13,7 @@ script_directory=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 
 mkdir -p "$output" "$output/managed"
 # Invalidate a previous run before any fallible collection or validation.
-printf 'schema\taici-account-collection-v1\nstatus\tINCOMPLETE\n' > "$output/collection.tsv"
+printf 'schema\taici-account-collection-v2\nstatus\tINCOMPLETE\n' > "$output/collection.tsv"
 command -v sha256sum >/dev/null 2>&1 || {
     echo 'collect-account: sha256sum is required' >&2
     exit 69
@@ -74,7 +74,7 @@ github_get() {
         "https://api.github.com$path"
 }
 
-query=$(printf 'user:%s author:%s is:pr is:open' "$owner" "$owner" | jq -sRr @uri)
+query=$(printf 'author:%s is:pr is:open' "$owner" | jq -sRr @uri)
 page=1
 discovered=0
 expected=
@@ -166,9 +166,9 @@ managed_digest=${managed_digest%% *}
 unmanaged_digest=$(sha256sum "$unmanaged")
 unmanaged_digest=${unmanaged_digest%% *}
 printf '%s\t%s\n' \
-    schema aici-account-collection-v1 \
+    schema aici-account-collection-v2 \
     status COMPLETE \
-    scope owner-authored-owner-repositories \
+    scope owner-authored-visible-repositories \
     owner "$owner" \
     expected_prs "$expected" \
     discovered_prs "$discovered" \
