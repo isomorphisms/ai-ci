@@ -457,7 +457,9 @@ static int validate_links(const Ledger *ledger) {
             if (strcmp(job->repository, successor->repository) != 0 ||
                 strcmp(job->follower_platform, successor->follower_platform) != 0 ||
                 strcmp(job->follower_arch, successor->follower_arch) != 0 ||
-                strcmp(job->acceptance_kind, successor->acceptance_kind) != 0) {
+                strcmp(job->acceptance_kind, successor->acceptance_kind) != 0 ||
+                (strcmp(job->required, "yes") == 0 &&
+                 strcmp(successor->required, "yes") != 0)) {
                 fprintf(stderr, "%s: supersession changes follower obligation\n", job->path);
                 return 0;
             }

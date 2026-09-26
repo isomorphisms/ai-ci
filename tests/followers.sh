@@ -178,6 +178,13 @@ reject_supersession 's/^acceptance_kind\tphysical-device$/acceptance_kind\trunti
 reject_supersession 's|^repository\tisomorphisms/catfood$|repository\tunrelated/project|' 'supersession changes follower obligation'
 reject_supersession 's/^state\tsuperseded$/state\tpending/' 'only superseded jobs may name a successor'
 
+job successor n/a conditional - 'hypothetical target' phone armv7 physical-device
+if "$binary" verify "$tmp/jobs" "$tmp/receipts" > "$tmp/bad.out" 2> "$tmp/bad.err"; then
+    echo 'required follower was retired into a conditional target' >&2
+    exit 1
+fi
+grep -F 'supersession changes follower obligation' "$tmp/bad.err" >/dev/null
+
 job successor superseded yes - - phone armv7 physical-device
 rewrite "$tmp/jobs/successor.tsv" 's/^superseded_by\t-$/superseded_by\tpredecessor/'
 if "$binary" verify "$tmp/jobs" "$tmp/receipts" > "$tmp/bad.out" 2> "$tmp/bad.err"; then

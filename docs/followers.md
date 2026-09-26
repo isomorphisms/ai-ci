@@ -44,8 +44,8 @@ Architecture-neutral source does not require inventing architecture-specific bin
 `accepted` means an exact passing receipt exists. `pending` and `blocked` remain unresolved. `unsupported` is also unresolved and is never green. `n/a` is permitted only for a conditional target and requires a reason.
 
 Only `superseded` jobs may name a successor. The successor must exist, preserve
-the repository, follower platform, architecture, and acceptance kind, and lead
-to a terminating chain. Self-supersession and cycles are invalid: retirement
+the repository, follower platform, architecture, and acceptance kind, keep a
+required obligation required, and lead to a terminating chain. Self-supersession and cycles are invalid: retirement
 must not make an obligation disappear from the pending view. A successor may
 name a new exact source revision or artifact; its acceptance still requires
 its own matching receipt. Historical jobs remain useful provenance, not a
