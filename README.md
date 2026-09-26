@@ -91,6 +91,22 @@ to their merge policies, and feeds the managed set through the same exact-state
 collector. Unregistered PRs remain visible as `UNMANAGED`; age is not treated as a
 blocker or a reason to close work.
 
+The collector writes `collection.tsv` as `COMPLETE` only after every search page
+and managed result has been collected. It rejects incomplete API results,
+more than 1,000 reported results, missing or malformed fields, changing totals,
+short pages, duplicate PRs, and failed managed collection. The record binds the
+reported/discovered counts and SHA-256 hashes of `managed/results.tsv` and
+`unmanaged.tsv`. Starting a refresh invalidates the previous completion record.
+Run `sh tests/merge-account.sh` for the adversarial discovery checks.
+
+The declared scope is owner-authored PRs in that owner's repositories. It does
+not cover repositories transferred to another user or organization, PRs by
+other authors, or resources hidden from the API credential. GitHub search is
+not an atomic snapshot; matching counts cannot prove that no work changed
+during collection. The record establishes a validated collection in that scope,
+not current merge authority. Cockswain requires this record before reporting
+that the collected scope has no open PRs; older account output must be recollected.
+
 `merge/retire-ready.sh OUTPUT_DIRECTORY` lists the PRs whose collected state is
 `READY`. With `--apply`, it re-runs the exact-state classifier immediately before
 each merge and merges only heads that are still `READY`. Because `READY` already
