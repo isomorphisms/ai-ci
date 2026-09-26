@@ -26,12 +26,14 @@ expected_discovered_header=$(printf 'repository\tref\tpath')
 tmp_dir=$(mktemp -d)
 trap 'rm -rf "$tmp_dir"' EXIT HUP INT TERM
 
+inventory_raw="$tmp_dir/inventory.raw"
 inventory_keys="$tmp_dir/inventory.keys"
+discovered_raw="$tmp_dir/discovered.raw"
 discovered_keys="$tmp_dir/discovered.keys"
 untracked="$tmp_dir/untracked.keys"
 stale="$tmp_dir/stale.keys"
 
-awk -F '\t' '
+if ! awk -F '\t' '
   NR == 1 { next }
   NF != 6 {
     printf "inventory row %d has %d fields, expected 6\n", NR, NF > "/dev/stderr"
@@ -47,19 +49,23 @@ awk -F '\t' '
     bad = 1
   }
   {
-    print $1 "\t" $3
+    print $1 "\t" $2 "\t" $3
   }
   END { exit bad ? 1 : 0 }
-' "$inventory" |
-LC_ALL=C sort > "$inventory_keys"
-
-if [ "$(uniq -d "$inventory_keys" | wc -l)" -ne 0 ]; then
-  printf 'duplicate repository/path entries in Idriç source inventory:\n' >&2
-  uniq -d "$inventory_keys" >&2
+' "$inventory" > "$inventory_raw"; then
   exit 1
 fi
 
-awk -F '\t' '
+LC_ALL=C sort "$inventory_raw" > "$inventory_keys"
+
+duplicates=$(uniq -d "$inventory_keys" || true)
+if [ -n "$duplicates" ]; then
+  printf 'duplicate repository/ref/path entries in Idriç source inventory:\n' >&2
+  printf '%s\n' "$duplicates" | sed 's/^/  /' >&2
+  exit 1
+fi
+
+if ! awk -F '\t' '
   NR == 1 { next }
   NF != 3 {
     printf "discovered row %d has %d fields, expected 3\n", NR, NF > "/dev/stderr"
@@ -71,11 +77,14 @@ awk -F '\t' '
     bad = 1
   }
   {
-    print $1 "\t" $3
+    print $1 "\t" $2 "\t" $3
   }
   END { exit bad ? 1 : 0 }
-' "$discovered" |
-LC_ALL=C sort -u > "$discovered_keys"
+' "$discovered" > "$discovered_raw"; then
+  exit 1
+fi
+
+LC_ALL=C sort -u "$discovered_raw" > "$discovered_keys"
 
 comm -23 "$discovered_keys" "$inventory_keys" > "$untracked"
 comm -13 "$discovered_keys" "$inventory_keys" > "$stale"
