@@ -41,7 +41,16 @@ Architecture-neutral source does not require inventing architecture-specific bin
 
 ## States
 
-`accepted` means an exact passing receipt exists. `pending` and `blocked` remain unresolved. `unsupported` is also unresolved and is never green. `n/a` is permitted only for a conditional target and requires a reason. `superseded` requires the successor job to exist.
+`accepted` means an exact passing receipt exists. `pending` and `blocked` remain unresolved. `unsupported` is also unresolved and is never green. `n/a` is permitted only for a conditional target and requires a reason.
+
+Only `superseded` jobs may name a successor. The successor must exist, preserve
+the repository, follower platform, architecture, and acceptance kind, and lead
+to a terminating chain. Self-supersession and cycles are invalid: retirement
+must not make an obligation disappear from the pending view. A successor may
+name a new exact source revision or artifact; its acceptance still requires
+its own matching receipt. Historical jobs remain useful provenance, not a
+second active queue. `tests/followers.sh` checks both valid retirement and
+deliberately broken links.
 
 Build, runtime, artifact, physical-device, and publication acceptance are different kinds. A build receipt cannot satisfy a runtime job, and simulated Android execution cannot satisfy a physical-device job.
 
