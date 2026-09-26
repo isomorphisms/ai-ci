@@ -11,10 +11,24 @@ registry=$2
 output=$3
 script_directory=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 
+mkdir -p "$output" "$output/managed"
+# Invalidate a previous run before any fallible collection or validation.
+printf 'schema\taici-account-collection-v1\nstatus\tINCOMPLETE\n' > "$output/collection.tsv"
+command -v sha256sum >/dev/null 2>&1 || {
+    echo 'collect-account: sha256sum is required' >&2
+    exit 69
+}
 command -v jq >/dev/null 2>&1 || {
     echo 'collect-account: jq is required' >&2
     exit 69
 }
+
+case $owner in
+    ''|*[!A-Za-z0-9-]*)
+        echo 'collect-account: OWNER must be a GitHub account name' >&2
+        exit 1
+        ;;
+esac
 
 expected_header=$(printf 'repository\tpolicy')
 header=$(sed -n '1p' "$registry")
@@ -23,7 +37,15 @@ header=$(sed -n '1p' "$registry")
     exit 1
 }
 
-mkdir -p "$output" "$output/managed"
+awk -F '\t' '
+    NR == 1 { next }
+    NF != 2 || $1 !~ /^[A-Za-z0-9_-]+\/[A-Za-z0-9_.-]+$/ ||
+    $2 == "" || seen[$1]++ { bad=1 }
+    END { exit bad }
+' "$registry" || {
+    echo 'collect-account: malformed or duplicate registry entry' >&2
+    exit 1
+}
 manifest=$output/manifest.tsv
 unmanaged=$output/unmanaged.tsv
 summary=$output/summary.tsv
@@ -54,12 +76,41 @@ github_get() {
 
 query=$(printf 'user:%s author:%s is:pr is:open' "$owner" "$owner" | jq -sRr @uri)
 page=1
+discovered=0
+expected=
 while [ "$page" -le 10 ]; do
     response=$output/search-$page.json
     github_get "/search/issues?q=$query&per_page=100&page=$page&sort=updated&order=desc" > "$response"
-    count=$(jq '.items | length' "$response")
+    jq -e '
+        type == "object" and .incomplete_results == false and
+        (.total_count | type == "number" and . >= 0 and . == floor and . <= 1000) and
+        (.items | type == "array" and length <= 100) and
+        all(.items[];
+            (.pull_request | type == "object") and
+            (.number | type == "number" and . > 0 and . == floor) and
+            (.title | type == "string") and
+            (.repository_url | type == "string" and
+                test("^https://api[.]github[.]com/repos/[A-Za-z0-9_-]+/[A-Za-z0-9_.-]+$")))
+    ' "$response" >/dev/null || {
+        echo 'collect-account: incomplete, malformed, or search-limited response; recollect before retirement' >&2
+        exit 1
+    }
+    total=$(jq -r '.total_count' "$response")
+    count=$(jq -r '.items | length' "$response")
+    [ -n "$expected" ] || expected=$total
+    [ "$total" -eq "$expected" ] || {
+        echo 'collect-account: search total changed during pagination; recollect' >&2
+        exit 1
+    }
+    remaining=$((expected - discovered))
+    wanted=$remaining
+    [ "$wanted" -le 100 ] || wanted=100
+    [ "$count" -eq "$wanted" ] || {
+        echo 'collect-account: search page does not match the reported total' >&2
+        exit 1
+    }
 
-    jq -c '.items[] | select(.pull_request != null)' "$response" |
+    jq -c '.items[]' "$response" > "$output/items.jsonl"
     while IFS= read -r item; do
         repository=$(printf '%s\n' "$item" | jq -r '.repository_url | sub("^https://api.github.com/repos/"; "")')
         pr=$(printf '%s\n' "$item" | jq -r '.number')
@@ -74,11 +125,21 @@ while [ "$page" -le 10 ]; do
         else
             printf '%s\t%s\t%s\t%s\n' "$repository" "$pr" "$title" 'no-retirement-policy' >> "$unmanaged"
         fi
-    done
+    done < "$output/items.jsonl"
 
-    [ "$count" -lt 100 ] && break
+    discovered=$((discovered + count))
+    [ "$discovered" -eq "$expected" ] && break
     page=$((page + 1))
 done
+
+awk -F '\t' '
+    FNR == 1 { next }
+    seen[$1 SUBSEP $2]++ { bad=1 }
+    END { exit bad }
+' "$manifest" "$unmanaged" || {
+    echo 'collect-account: duplicate PR in paginated search; recollect' >&2
+    exit 1
+}
 
 if [ "$(wc -l < "$manifest")" -gt 1 ]; then
     "$script_directory/collect-set.sh" "$manifest" "$output/managed" >/dev/null
@@ -97,5 +158,22 @@ while IFS="$(printf '\t')" read -r repository pr title reason; do
     [ -n "$repository" ] || continue
     printf '%s\t%s\tUNMANAGED\t%s\n' "$repository" "$pr" "$reason" >> "$summary"
 done
+
+# The consumer checks these exact tables before making a completion decision.
+# This records completeness in the declared search scope, not live merge authority.
+managed_digest=$(sha256sum "$output/managed/results.tsv")
+managed_digest=${managed_digest%% *}
+unmanaged_digest=$(sha256sum "$unmanaged")
+unmanaged_digest=${unmanaged_digest%% *}
+printf '%s\t%s\n' \
+    schema aici-account-collection-v1 \
+    status COMPLETE \
+    scope owner-authored-owner-repositories \
+    owner "$owner" \
+    expected_prs "$expected" \
+    discovered_prs "$discovered" \
+    managed_sha256 "$managed_digest" \
+    unmanaged_sha256 "$unmanaged_digest" > "$output/collection.tmp"
+mv "$output/collection.tmp" "$output/collection.tsv"
 
 sed -n '1,$p' "$summary"

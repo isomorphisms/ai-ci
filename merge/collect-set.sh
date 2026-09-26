@@ -36,6 +36,19 @@ tail -n +2 "$manifest" | while IFS="$tab" read -r repository pr policy; do
         1) verdict=BLOCKED ;;
         *) printf 'collect-set: collection failed for %s#%s with status %s\n' "$repository" "$pr" "$status" >&2; exit "$status" ;;
     esac
+    # Exit 1 can also mean API/policy failure before the classifier ran.
+    # Only an actual classifier table establishes READY or BLOCKED.
+    awk -F '\t' -v verdict="$verdict" '
+        NR == 1 {
+            if ($0 != "status\tcode\tobject_kind\tobject_ref\thead\taction\tdetail") bad=1
+            next
+        }
+        { rows++; if (NF != 7 || $1 != verdict) bad=1 }
+        END { exit bad || rows == 0 || (verdict == "READY" && rows != 1) }
+    ' "$result" || {
+        printf 'collect-set: no valid classifier result for %s#%s; collection failed\n' "$repository" "$pr" >&2
+        exit 65
+    }
     printf '%s\t%s\t%s\n' "$repository" "$pr" "$verdict" >> "$output/results.tsv"
 done
 
