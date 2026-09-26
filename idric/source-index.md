@@ -76,9 +76,13 @@ This snapshot was built by walking repository trees rather than relying only on
 GitHub code search, because several recent Idriç repositories are not present in
 the code-search/repository-search index.
 
-It covers the visible default heads of the repositories enumerated during the
-2026-09-26 scan, plus known current Idriç compiler/backend/application
-repositories that repository search omitted. It is a snapshot, not yet a proof
-that a newly-created repository cannot escape the list. The next enforcement
-step is to make ai-ci rediscover `*.idric` files and fail when the discovered
-set differs from this inventory.
+Mechanical discovery is now part of ai-ci. The `Idriç source inventory`
+workflow enumerates the repositories owned by the namespaces in
+`source-owners-v1.tsv`, walks their current default-branch trees, and compares
+every discovered `*.idric` repository/ref/path with the canonical inventory.
+
+The workflow runs for relevant ai-ci changes and once per day. It fails on a new
+source file, a deleted or moved source file, a default-branch/ref change, a
+truncated repository tree, or malformed inventory data. A newly discovered file
+therefore has to be classified deliberately as `follow` or `review-only`
+rather than disappearing from the migration surface.
