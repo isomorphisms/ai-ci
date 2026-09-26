@@ -23,3 +23,19 @@ backend execution or physical-phone acceptance has already occurred.
 The superseded August fleet/backend survey remains in Git history. It is not
 part of the active tree and no scheduled job compares that frozen survey with
 current repository heads.
+
+## Source migration inventory
+
+`source-inventory-v1.tsv` is the canonical snapshot of Idriç source files that
+must be considered when the language surface or semantics changes.
+`source-index.md` is the same inventory in human-readable form with direct
+GitHub links.
+
+Entries marked `follow` are migration/revalidation obligations. Entries marked
+`review-only` are historical specimens that must be inspected but should not
+be mechanically rewritten.
+
+The inventory is intentionally distinct from `current-heads-v1.tsv`: dependency
+head selection and source migration are different questions. A future follower
+check should rediscover `*.idric` source and fail closed when the discovered set
+differs from the inventory.
