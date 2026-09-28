@@ -33,4 +33,4 @@ corpus-check: all
 
 test: corpus-check
 	$(BUILD)/audit $(ROOT)/mail/corpus
-	$(BUILD)/accept self-test $(ROOT)/mail/corpus $(BUILD)/replay $(BUILD)/mutation-receipts
+	$(BUILD)/accept self-test $(ROOT)/mail/corpus $(BUILD)/make-corpus $(BUILD)/replay $(BUILD)/mutation-receipts

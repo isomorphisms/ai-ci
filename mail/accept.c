@@ -136,7 +136,50 @@ static int run(const char *root,const char *adapter,const char *output,int exhau
     printf("runs\t%d\nfailures\t%d\nunresolved-cases\t%d\n",runs,failed,blocked);
     return failed?1:blocked?2:0;
 }
-static int self_test(const char *root,const char *adapter,const char *output) {
+static void generate_holdout(const char *generator,const char *output,uint32_t seed,unsigned count) {
+    char before[65],after[65],seed_text[16],count_text[16];uint64_t before_size,after_size;
+    if(generator[0]!='/')die("generator-not-absolute");
+    hash_file(generator,before,&before_size);
+    snprintf(seed_text,sizeof seed_text,"%"PRIu32,seed);
+    snprintf(count_text,sizeof count_text,"%u",count);
+    pid_t child=fork();if(child<0)die("generator-fork");
+    if(child==0) {
+        setpgid(0,0);
+        execl(generator,generator,"--generated-only",output,seed_text,count_text,(char *)NULL);
+        _exit(126);
+    }
+    setpgid(child,child);active_child=child;alarm(45);
+    int status=0;if(waitpid(child,&status,0)<0)die("wait-generator");
+    alarm(0);active_child=0;
+    hash_file(generator,after,&after_size);
+    if(strcmp(before,after)||before_size!=after_size)die("generator-changed");
+    if(!WIFEXITED(status)||WEXITSTATUS(status)!=0)die("generator-failed");
+}
+static uint32_t fresh_seed(void) {
+    uint32_t seed;unsigned char *p=(unsigned char *)&seed;size_t at=0;
+    int fd=open("/dev/urandom",O_RDONLY);if(fd<0)die("open-random");
+    while(at<sizeof seed) {
+        ssize_t n=read(fd,p+at,sizeof seed-at);
+        if(n<0&&errno==EINTR)continue;
+        if(n<=0)die("read-random");
+        at+=(size_t)n;
+    }
+    if(close(fd))die("close-random");
+    return seed;
+}
+static int challenge(const char *generator,const char *adapter,const char *output,uint32_t seed,unsigned count) {
+    if(!count||count>64)die("challenge-count");
+    char corpus[4096],receipts[4096],record[4096],generator_hash[65],adapter_hash[65];
+    uint64_t generator_size,adapter_size;
+    directory(output);path_join(corpus,sizeof corpus,output,"corpus");
+    hash_file(generator,generator_hash,&generator_size);hash_file(adapter,adapter_hash,&adapter_size);
+    generate_holdout(generator,corpus,seed,count);
+    path_join(receipts,sizeof receipts,output,"receipts");int result=run(corpus,adapter,receipts,1);
+    path_join(record,sizeof record,output,"challenge.tsv");FILE *f=open_file(record,"wb");
+    fprintf(f,"evidence\tgenerated-rfc-holdout\nseed\t%"PRIu32"\ncase-count\t%u\ngenerator\t%s\ngenerator-sha256\t%s\nadapter\t%s\nadapter-sha256\t%s\nresult\t%d\n",seed,count,generator,generator_hash,adapter,adapter_hash,result);
+    fclose(f);return result;
+}
+static int self_test(const char *root,const char *generator,const char *adapter,const char *output) {
     struct mutation {const char *name,*fixture,*schedule;int want;uint64_t base;} tests[]={
         {"none","rfc-folded-repeated","one",0,0},
         {"none","mime-base64","random",0,0},
@@ -178,6 +221,17 @@ static int self_test(const char *root,const char *adapter,const char *output) {
         int good=code==tests[i].want;failed+=!good;
         fprintf(f,"%s\t%s\t%s\t%d\t%d\t%s\t%s\n",tests[i].name,tests[i].fixture,tests[i].schedule,tests[i].want,code,diagnostic(code),good?"PASS":"FAIL");
     }
+    char holdout[4096],holdout_root[4096];
+    path_join(holdout,sizeof holdout,output,"holdout-good");path_join(holdout_root,sizeof holdout_root,holdout,"corpus");
+    setenv("AICI_REPLAY_CORPUS",holdout_root,1);setenv("AICI_MUTATION","none",1);
+    int code=challenge(generator,adapter,holdout,UINT32_C(305419896),4);
+    int good=code==0;failed+=!good;
+    fprintf(f,"generated-holdout\tgenerated-rfc\texhaustive\t0\t%d\t%s\t%s\n",code,"generated-spec-holdout",good?"PASS":"FAIL");
+    path_join(holdout,sizeof holdout,output,"holdout-unrecognized");path_join(holdout_root,sizeof holdout_root,holdout,"corpus");
+    setenv("AICI_REPLAY_CORPUS",holdout_root,1);setenv("AICI_MUTATION","public-fixture-only",1);
+    code=challenge(generator,adapter,holdout,UINT32_C(305419896),4);
+    good=code==1;failed+=!good;
+    fprintf(f,"public-fixture-only\tgenerated-rfc\texhaustive\t1\t%d\t%s\t%s\n",code,"holdout-case-unrecognized",good?"PASS":"FAIL");
     fclose(f);unsetenv("AICI_MUTATION");unsetenv("AICI_REPLAY_CORPUS");
     printf("harness-mutation-selftest\t%s\n",failed?"FAIL":"PASS");return failed?1:0;
 }
@@ -211,8 +265,14 @@ int main(int argc,char **argv) {
     if(argc==5&&!strcmp(argv[1],"check")) {
         int code=check(argv[2],argv[3],strcmp(argv[4],"bytes")!=0,0,"eof");printf("%s\n",diagnostic(code));return code;
     }
-    if(argc==5&&!strcmp(argv[1],"self-test"))return self_test(argv[2],argv[3],argv[4]);
+    if(argc==6&&!strcmp(argv[1],"self-test"))return self_test(argv[2],argv[3],argv[4],argv[5]);
     if(argc==5&&!strcmp(argv[1],"differential"))return differential(argv[2],argv[3],argv[4]);
     if((argc==5||argc==6)&&!strcmp(argv[1],"run"))return run(argv[2],argv[3],argv[4],argc==6&&!strcmp(argv[5],"exhaustive"));
-    die("usage: accept run CORPUS ABSOLUTE-ADAPTER NEW-OUTPUT [exhaustive] | check FIXTURE OUTPUT semantic|bytes");
+    if((argc==5||argc==7)&&!strcmp(argv[1],"challenge")) {
+        uint64_t chosen_seed=argc==7?number(argv[5]):fresh_seed();
+        uint64_t chosen_count=argc==7?number(argv[6]):16;
+        if(chosen_seed>UINT32_MAX||!chosen_count||chosen_count>64)die("challenge-bounds");
+        return challenge(argv[2],argv[3],argv[4],(uint32_t)chosen_seed,(unsigned)chosen_count);
+    }
+    die("usage: accept run CORPUS ABSOLUTE-ADAPTER NEW-OUTPUT [exhaustive] | accept challenge ABSOLUTE-GENERATOR ABSOLUTE-ADAPTER NEW-OUTPUT [SEED COUNT] | check FIXTURE OUTPUT semantic|bytes");
 }

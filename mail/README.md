@@ -36,6 +36,15 @@ produces a differential table. Semantic records never substitute for raw bytes.
 Its exhaustive mode tests every two-chunk cut for inputs below 4096 bytes, plus
 whole input, one-byte reads, small and prime lengths, and a specified PRNG.
 
+`accept challenge ABSOLUTE_GENERATOR ABSOLUTE_ADAPTER NEW_OUTPUT` creates a
+fresh, valid RFC 5322 folded-header holdout after the candidate artifact has
+been identified. It records the random seed, generator and adapter hashes, then
+runs every partition. An optional `SEED COUNT` makes a failing holdout exactly
+reproducible. Release/candidate CI should use the no-seed form and keep the
+generated corpus and expected files controller-owned. The fixed-seed self-test
+proves that a deliberately public-case-only adapter is rejected; it does not
+claim a security boundary against a malicious same-account process.
+
 `replay_mutant.c` is **only a test of the harness**. Its good mode copies expected
 semantic observations, while preserving input via the actual stream protocol.
 Its bad modes damage bytes, source positions, output payloads, or observations.
@@ -49,8 +58,11 @@ This is a direct make invocation, not a shell application. Use a fresh build
 directory for each run because child output files intentionally reject reuse.
 
 The generator optionally accepts a 32-bit seed and at most 1024 extra grammar
-cases. The runner accepts `run CORPUS ABSOLUTE_ADAPTER NEW_OUTPUT [exhaustive]`,
-`self-test CORPUS REPLAY_ADAPTER NEW_OUTPUT`, and
+cases. `--generated-only OUTPUT SEED COUNT` produces a compact valid RFC
+holdout without public or unresolved cases. The runner accepts
+`run CORPUS ABSOLUTE_ADAPTER NEW_OUTPUT [exhaustive]`,
+`challenge ABSOLUTE_GENERATOR ABSOLUTE_ADAPTER NEW_OUTPUT [SEED COUNT]`,
+`self-test CORPUS ABSOLUTE_GENERATOR REPLAY_ADAPTER NEW_OUTPUT`, and
 `differential CORPUS REGISTRY NEW_OUTPUT`. Exit 0 means all selected assertions
 passed; 1 means a mismatch; **2 means unresolved or unavailable evidence**.
 Timeout exits 124 and must never be converted to PASS. Full release acceptance

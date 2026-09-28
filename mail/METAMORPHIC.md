@@ -9,6 +9,7 @@ chunkings cannot pass merely by agreeing with one another.
 | Relation | Justification | Execution |
 | --- | --- | --- |
 | Repartition one byte stream | U-RAW, byte-stream abstraction | Every case; all cuts below 4096 bytes |
+| Fresh legal folded header instance | R5322 §§2.2.3, 3.6 | `accept challenge`; controller generates seed-indexed RFC cases and checks all partitions |
 | base64 vs wrapped base64 | R2045 §6.8 | Equal literal decoded files; unequal raw files |
 | QP vs 7bit literal | R2045 §6.7 | Equal literal decoded files |
 | Preserve header folding in raw, unfold only structure | R5322 §2.2.3 | rfc-folded-repeated under all partitions |
@@ -34,6 +35,14 @@ No parser output supplies their answers. Exhaustive partitioning composes with
 these generated messages. Additional structure-aware generators for MIME nesting,
 mbox dialects, truncation and concrete ledger records are pending the relevant
 source/format decisions. Random garbage is not treated as a replacement.
+
+`accept challenge` obtains a seed from `/dev/urandom` unless the controller
+supplies one, writes it into `challenge.tsv`, and makes the run reproducible
+after failure. The generator represents a deliberately narrow RFC profile. It
+detects finite public-case recognition but does not prevent a malicious adapter
+from reading its case ID, reconstructing the documented grammar, or forging its
+own receipt. Controller isolation and independently audited implementation
+execution remain required for that stronger threat model.
 
 Reduction procedure: first preserve input, source/spec IDs, exact executable,
 seed, schedule and failure diagnostic. Reduce schedules by merging adjacent

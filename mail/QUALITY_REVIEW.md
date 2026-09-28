@@ -5,6 +5,7 @@
 | Could semantic success conceal raw corruption? | archive.bin is compared independently; newline/unfold/decode mutations fail | Candidate must feed its actual archival path |
 | Could 32-bit offsets pass? | A run crosses 2³² with a source receipt; a real >4 GiB byte stream is also consumed | Per-message spans require Q1; a large parser adapter is absent |
 | Could arbitrary chunking reveal assumptions? | One-byte, prime, deterministic random and every two-chunk cut run | All possible multi-cut partitions are exponential; bounded random coverage is not a proof |
+| Could a candidate only recognize public fixture IDs? | `accept challenge` creates valid RFC holdouts after the adapter hash is recorded; public-fixture-only mutation fails | Same-account adapters can inspect IDs or forge receipts; holdout is a test-quality guard, not a hostile-code sandbox |
 | Could a crash duplicate mail without a test failing? | Unsafe retry and false certainty model observations are rejected | Yes, a real implementation could lie in its receipt or reorder filesystem operations; Q6 remains a release blocker |
 | Could skipped host verification pass? | A claimed accepted mismatch fails the model checker | Yes, a lying adapter can manufacture a rejection; live server auth/exec witnesses are required by Q5 |
 | Do expected answers come from a translation? | No. Literals, protocol rules and user-established safety requirements construct them | Generator/expected-data review is still needed; self-review is not independent human review |
@@ -37,6 +38,12 @@ Current executable mutations cover a subset, explicitly listed in the receipt.
 verification mutations are **not killed yet**. The suite therefore remains
 unfinished for end-to-end acceptance. It must not be weakened or relabeled to
 hide these gaps.
+
+The generated holdout mutation only proves a finite public-ID whitelist cannot
+pass the controller. It does not establish that the candidate parsed any RFC
+field, and it does not stop a hostile process from manufacturing output. Treat
+the recorded random seed as reproducibility evidence, then bind the candidate
+binary to a reviewed source revision before interpreting a holdout pass.
 
 ## What the mutation proof actually establishes
 

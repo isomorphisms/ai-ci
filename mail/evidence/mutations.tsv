@@ -25,3 +25,5 @@ drop-duplicate-id	identity-collisions	whole	11	11	semantic-or-state-mismatch	PAS
 drop-identical-copy	identity-collisions	whole	11	11	semantic-or-state-mismatch	PASS
 corrupt-ledger-is-success	restart-corrupt-tail	whole	11	11	semantic-or-state-mismatch	PASS
 semantic-change	rfc-ordinary	whole	11	11	semantic-or-state-mismatch	PASS
+generated-holdout	generated-rfc	exhaustive	0	0	generated-spec-holdout	PASS
+public-fixture-only	generated-rfc	exhaustive	1	1	holdout-case-unrecognized	PASS

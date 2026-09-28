@@ -212,12 +212,21 @@ static void generated(uint32_t seed,unsigned count) {
     }
 }
 int main(int argc,char **argv) {
-    if(argc!=2&&argc!=4) die("usage: make-corpus OUTPUT-DIRECTORY [SEED COUNT]");
-    if(strlen(argv[1])>=sizeof root) die("root-too-long");
-    strcpy(root,argv[1]);directory(root);char p[4096];path_join(p,sizeof p,root,"cases.tsv");catalog=open_file(p,"wb");
+    int generated_only=argc==5&&!strcmp(argv[1],"--generated-only");
+    if((argc!=2&&argc!=4)&&!generated_only)
+        die("usage: make-corpus OUTPUT-DIRECTORY [SEED COUNT] | make-corpus --generated-only OUTPUT-DIRECTORY SEED COUNT");
+    const char *output=generated_only?argv[2]:argv[1];
+    if(strlen(output)>=sizeof root) die("root-too-long");
+    strcpy(root,output);directory(root);char p[4096];path_join(p,sizeof p,root,"cases.tsv");catalog=open_file(p,"wb");
     fprintf(catalog,"case\toperation\tstatus\tevidence\tpurpose\n");
-    rfc_cases();mime_cases();mbox_cases();migration_cases();ssh_cases();identities();
-    if(argc==4){uint64_t count=number(argv[3]),seed=number(argv[2]);if(count>1024||seed>UINT32_MAX)die("generator-bounds");generated((uint32_t)seed,(unsigned)count);}
+    if(generated_only) {
+        uint64_t count=number(argv[4]),seed=number(argv[3]);
+        if(!count||count>1024||seed>UINT32_MAX)die("generator-bounds");
+        generated((uint32_t)seed,(unsigned)count);
+    } else {
+        rfc_cases();mime_cases();mbox_cases();migration_cases();ssh_cases();identities();
+        if(argc==4){uint64_t count=number(argv[3]),seed=number(argv[2]);if(count>1024||seed>UINT32_MAX)die("generator-bounds");generated((uint32_t)seed,(unsigned)count);}
+    }
     if(fclose(catalog)) die("catalog-close");
     return 0;
 }

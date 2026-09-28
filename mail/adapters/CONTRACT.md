@@ -84,6 +84,22 @@ All separators above mean literal tabs; each record ends with LF. The v1 runner
 compares canonical facts exactly. Native names/errors must be mapped explicitly
 by the thin adapter. Unknown extra semantic rows are not silently accepted.
 
+## Generated holdouts
+
+`accept challenge ABSOLUTE_GENERATOR ABSOLUTE_ADAPTER NEW_OUTPUT` asks the
+controller's generator for 16 valid RFC 5322 folded-header cases after hashing
+the adapter. The no-seed form chooses a 32-bit seed from `/dev/urandom`; the
+controller records it, both executable hashes, case count and result in
+`challenge.tsv`. `SEED COUNT` replays a failure exactly; COUNT ranges from 1 to
+64. The generated-only corpus contains no unresolved cases, so a successful
+challenge exits zero.
+
+The adapter receives the normal case ID and input stream only. Production
+controllers keep the temporary corpus and expected observations outside any
+candidate-visible fixture mount. This protects against accidental public-case
+tables. It cannot make a cooperative process protocol safe against hostile code
+running under the same account; an adapter can still fabricate receipts.
+
 ## Chunk schedules
 
 `whole` has one DATA frame. `one`, `2`, `3`, `7`, `17`, `31` divide by that many

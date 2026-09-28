@@ -6,6 +6,7 @@ int main(int argc,char **argv) {
     const char *root=getenv("AICI_REPLAY_CORPUS"),*mutation=getenv("AICI_MUTATION");
     if(argc!=4||!root)die("selftest-only: requires AICI_REPLAY_CORPUS");
     if(!mutation)mutation="none";
+    if(!strcmp(mutation,"public-fixture-only")&&!strncmp(argv[2],"generated-",10)) return 10;
     char fixture[4096],p[4096],q[4096],line[1024];path_join(fixture,sizeof fixture,root,argv[2]);
     path_join(p,sizeof p,argv[3],"archive.bin");FILE *archive=open_file(p,"wb");
     if(!fgets(line,sizeof line,stdin)||strcmp(line,"MAIL-ACCEPT/1\n"))die("protocol-magic");
