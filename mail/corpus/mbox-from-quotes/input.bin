@@ -1,0 +1,11 @@
+From sender@example.invalid Mon Sep 28 12:00:00 2026
+Subject: quotes
+
+From fake
+>From escaped
+>>From twice
+>>>From thrice
+ From indented
+From:
+XFrom misleading
+

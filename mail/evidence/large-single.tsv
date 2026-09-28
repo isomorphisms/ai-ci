@@ -1,0 +1,10 @@
+result	PASS
+evidence	bounded-byte-stream-probe
+requested-bytes	67108864
+producer-completed	yes
+shape	single
+produced-prefix-sha256	0ccf545f1f2ef111e48bb42bd9a4f7002dd5ddf89ed483ae0a7e5734716ddb12
+adapter-sha256	ed38b095080bd4e64e1996633125fe2337e0deeaca2151d52ec48b8b5472d834
+address-space-limit-mib	32
+peak-rss-linux-kib	2304
+wait-status	0

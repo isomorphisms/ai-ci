@@ -1,0 +1,4 @@
+durable	intent-A
+submit	started
+durable	rejected-permanent
+cut	after-record

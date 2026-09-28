@@ -1,0 +1,4 @@
+tcp	connected
+kex	fixture-common
+trust	match
+auth	rejected

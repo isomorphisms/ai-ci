@@ -1,0 +1,5 @@
+protocol	sftp
+file	synthetic.bin
+read	short
+read	again
+read	eof

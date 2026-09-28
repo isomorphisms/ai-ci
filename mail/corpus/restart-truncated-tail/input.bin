@@ -1,0 +1,4 @@
+durable	intent-A
+submit	started
+truncated-tail	accepted:g-
+cut	recovery

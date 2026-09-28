@@ -1,0 +1,218 @@
+/* Acceptance orchestration and comparisons only. No mail parser lives here. */
+#define _GNU_SOURCE
+#include "support.h"
+#include <fcntl.h>
+#include <sys/resource.h>
+#include <sys/wait.h>
+#include <time.h>
+
+static volatile sig_atomic_t active_child;
+static void expired(int signal_number) {
+    (void)signal_number;
+    if(active_child>0) kill(-(pid_t)active_child,SIGKILL);
+    _exit(124);
+}
+static int safe_name(const char *s) {
+    if(!*s || strstr(s,"..")) return 0;
+    for(;*s;s++) if(!((*s>='a'&&*s<='z')||(*s>='0'&&*s<='9')||*s=='-'||*s=='.'||*s=='_')) return 0;
+    return 1;
+}
+static int check(const char *fixture,const char *out,int semantic,uint64_t base,const char *terminal) {
+    char a[4096],b[4096],line[1024];
+    path_join(a,sizeof a,fixture,"input.bin");path_join(b,sizeof b,out,"archive.bin");
+    if(!same_file(a,b)) return 10;
+    char digest[65],expected[256];uint64_t length;hash_file(a,digest,&length);
+    if(UINT64_MAX-base<length)die("span-overflow");
+    snprintf(expected,sizeof expected,"%"PRIu64"\t%"PRIu64"\t%"PRIu64"\t%s\n",base,base+length,length,digest);
+    path_join(b,sizeof b,out,"source.tsv");FILE *source=fopen(b,"rb");
+    if(!source)return 14;
+    int ok=fgets(line,sizeof line,source)!=NULL&&!strcmp(line,expected)&&fgetc(source)==EOF;fclose(source);
+    if(!ok)return 14;
+    path_join(b,sizeof b,out,"terminal.tsv");source=fopen(b,"rb");if(!source)return 15;
+    snprintf(expected,sizeof expected,"%s\n",terminal);
+    ok=fgets(line,sizeof line,source)!=NULL&&!strcmp(line,expected)&&fgetc(source)==EOF;fclose(source);
+    if(!ok)return 15;
+    if(!semantic) return 0;
+    path_join(a,sizeof a,fixture,"facts.tsv");path_join(b,sizeof b,out,"facts.tsv");
+    if(!same_file(a,b)) return 11;
+    path_join(a,sizeof a,fixture,"objects.tsv");FILE *f=open_file(a,"rb");
+    while(fgets(line,sizeof line,f)) {
+        char *tab=strchr(line,'\t');if(!tab) die("object-manifest");*tab=0;
+        if(!safe_name(line)) die("object-path");
+        path_join(a,sizeof a,fixture,line);path_join(b,sizeof b,out,line);
+        if(!same_file(a,b)){fclose(f);return 12;}
+    }
+    if(ferror(f)) die("object-manifest-read");
+    fclose(f);return 0;
+}
+static const char *diagnostic(int n) {
+    switch(n){case 0:return "accepted-observations";case 10:return "raw-byte-corruption";
+    case 11:return "semantic-or-state-mismatch";case 12:return "decoded-content-corruption";
+    case 13:return "adapter-failed";case 14:return "source-span-mismatch";
+    case 15:return "terminal-event-mismatch";default:return "harness-failure";}
+}
+/* Schedules are portable integer algorithms. A DATA frame, not a pipe write,
+ * defines one feed call. The same bytes and schedule reach every language. */
+static size_t chunk_size(const char *schedule,uint64_t position,uint64_t length,uint32_t *rng) {
+    uint64_t n=0;
+    if(!strcmp(schedule,"whole")) n=length-position;
+    else if(!strcmp(schedule,"one")||!strcmp(schedule,"read-error")||!strcmp(schedule,"pauses")) n=1;
+    else if(!strcmp(schedule,"random")) {*rng=*rng*UINT32_C(1664525)+UINT32_C(1013904223);n=1+*rng%31;}
+    else if(!strncmp(schedule,"cut-",4)) {uint64_t cut=number(schedule+4);n=position<cut?cut-position:length-position;}
+    else n=number(schedule);
+    if(n>length-position)n=length-position;
+    if(n>65536)n=65536; /* whole is one frame, streamed through a bounded producer below */
+    return (size_t)n;
+}
+static int invoke(const char *fixture,const char *adapter,const char *op,const char *id,const char *schedule,const char *out,uint64_t base,uint64_t *rss) {
+    int pipes[2];char inpath[4096],p[4096],executable_hash[65];uint64_t size,executable_size;
+    path_join(inpath,sizeof inpath,fixture,"input.bin");char h[65];hash_file(inpath,h,&size);
+    hash_file(adapter,executable_hash,&executable_size);
+    directory(out);if(pipe(pipes))die("pipe");
+    pid_t child=fork();if(child<0)die("fork");
+    if(child==0) {
+        setpgid(0,0);close(pipes[1]);if(dup2(pipes[0],STDIN_FILENO)<0)_exit(125);close(pipes[0]);
+        path_join(p,sizeof p,out,"stdout.txt");int fd=open(p,O_WRONLY|O_CREAT|O_EXCL,0600);if(fd<0)_exit(125);dup2(fd,1);close(fd);
+        path_join(p,sizeof p,out,"stderr.txt");fd=open(p,O_WRONLY|O_CREAT|O_EXCL,0600);if(fd<0)_exit(125);dup2(fd,2);close(fd);
+        struct rlimit limit={16*1024*1024,16*1024*1024};setrlimit(RLIMIT_FSIZE,&limit);
+        limit.rlim_cur=limit.rlim_max=30;setrlimit(RLIMIT_CPU,&limit);
+        execl(adapter,adapter,op,id,out,(char *)NULL);_exit(126);
+    }
+    setpgid(child,child);active_child=child;alarm(45);close(pipes[0]);
+    FILE *to=fdopen(pipes[1],"wb"),*from=open_file(inpath,"rb");if(!to)die("fdopen");
+    fprintf(to,"MAIL-ACCEPT/1\nbase\t%"PRIu64"\n",base);
+    uint64_t pos=0;uint32_t rng=UINT32_C(0x4d41494c);unsigned char buffer[65536];
+    while(pos<size) {
+        if(!strcmp(schedule,"pauses")) fputs("again\nidle\n",to);
+        uint64_t count=!strcmp(schedule,"whole")?size-pos:chunk_size(schedule,pos,size,&rng);
+        fprintf(to,"data\t%"PRIu64"\n",count);
+        while(count) {
+            size_t n=count>sizeof buffer?sizeof buffer:(size_t)count;
+            if(fread(buffer,1,n,from)!=n)die("fixture-short-read");
+            if(fwrite(buffer,1,n,to)!=n)break;
+            pos+=n;count-=n;
+        }
+        if(ferror(to))break;
+        fputc('\n',to);fflush(to);
+    }
+    fprintf(to,"%s\n",!strcmp(schedule,"read-error")?"error\tIO":"eof");int send_failed=fclose(to)!=0;fclose(from);
+    int status=0;struct rusage usage;
+    if(wait4(child,&status,0,&usage)<0)die("wait-adapter");
+    alarm(0);active_child=0;
+    *rss=(uint64_t)usage.ru_maxrss;
+    char after_hash[65];uint64_t after_size;hash_file(adapter,after_hash,&after_size);
+    if(strcmp(after_hash,executable_hash)||after_size!=executable_size)send_failed=1;
+    path_join(p,sizeof p,out,"execution.tsv");FILE *receipt=open_file(p,"wb");
+    fprintf(receipt,"evidence\thost-adapter-process\nexecutable\t%s\nsha256\t%s\ninput-sha256\t%s\nschedule\t%s\nbase\t%"PRIu64"\npeak-rss-platform-units\t%"PRIu64"\nwait-status\t%d\n",adapter,executable_hash,h,schedule,base,*rss,status);fclose(receipt);
+    return send_failed||!WIFEXITED(status)||WEXITSTATUS(status)!=0?13:0;
+}
+static int run(const char *root,const char *adapter,const char *output,int exhaustive) {
+    char p[4096],line[2048];directory(output);path_join(p,sizeof p,root,"cases.tsv");FILE *catalog=open_file(p,"rb");
+    if(!fgets(line,sizeof line,catalog)||strcmp(line,"case\toperation\tstatus\tevidence\tpurpose\n"))die("catalog-header");
+    int failed=0,blocked=0,runs=0;FILE *matrix;
+    path_join(p,sizeof p,output,"matrix.tsv");matrix=open_file(p,"wb");fprintf(matrix,"case\tschedule\tresult\tdiagnostic\n");
+    while(fgets(line,sizeof line,catalog)) {
+        char *save=NULL,*id=strtok_r(line,"\t",&save),*op=strtok_r(NULL,"\t",&save),*state=strtok_r(NULL,"\t",&save);
+        if(!id||!op||!state||!safe_name(id))die("catalog-row");
+        if(strcmp(state,"SPEC")&&strcmp(state,"POLICY")&&strcmp(state,"UNRESOLVED"))die("unknown-case-status");
+        char fixture[4096],caseout[4096];path_join(fixture,sizeof fixture,root,id);path_join(caseout,sizeof caseout,output,id);directory(caseout);
+        path_join(p,sizeof p,fixture,"input.bin");char hash[65];uint64_t size;hash_file(p,hash,&size);
+        int semantic=strcmp(state,"UNRESOLVED")!=0;if(!semantic)blocked++;
+        const char *fixed[]={"whole","one","2","3","7","17","31","random"};
+        uint64_t cuts=exhaustive && size<4096?size-!!size:0;
+        for(uint64_t i=0;i<8+cuts;i++) {
+            char schedule[64];if(i<8)snprintf(schedule,sizeof schedule,"%s",fixed[i]);else snprintf(schedule,sizeof schedule,"cut-%"PRIu64,i-7);
+            char out[4096];path_join(out,sizeof out,caseout,schedule);uint64_t rss;
+            int verdict=invoke(fixture,adapter,op,id,schedule,out,0,&rss);
+            if(!verdict)verdict=check(fixture,out,semantic,0,"eof");
+            fprintf(matrix,"%s\t%s\t%s\t%s\n",id,schedule,verdict?"FAIL":semantic?"PASS_OBSERVATIONS":"BYTES_ONLY_UNRESOLVED",diagnostic(verdict));
+            if(verdict)failed++;
+            runs++;
+        }
+    }
+    if(ferror(catalog))die("catalog-read");
+    fclose(catalog);fclose(matrix);
+    if(!runs)die("empty-corpus");
+    printf("runs\t%d\nfailures\t%d\nunresolved-cases\t%d\n",runs,failed,blocked);
+    return failed?1:blocked?2:0;
+}
+static int self_test(const char *root,const char *adapter,const char *output) {
+    struct mutation {const char *name,*fixture,*schedule;int want;uint64_t base;} tests[]={
+        {"none","rfc-folded-repeated","one",0,0},
+        {"none","mime-base64","random",0,0},
+        {"none","rfc-no-optional","read-error",0,0},
+        {"none","rfc-no-optional","pauses",0,0},
+        {"none","rfc-ordinary","3",0,UINT64_C(4294967293)},
+        {"drop-boundary-byte","rfc-ordinary","one",10,0},
+        {"normalize-crlf","rfc-ordinary","whole",10,0},
+        {"destructive-unfold","rfc-folded-repeated","3",10,0},
+        {"decode-before-archive","mime-base64","7",10,0},
+        {"decoded-byte","mime-base64","whole",12,0},
+        {"eof-error","rfc-ordinary","whole",13,0},
+        {"error-as-eof","rfc-ordinary","read-error",15,0},
+        {"again-as-eof","rfc-ordinary","pauses",13,0},
+        {"offset32","rfc-ordinary","3",14,UINT64_C(4294967293)},
+        {"missing-id","rfc-no-optional","one",13,0},
+        {"retry-unknown","crash-accepted-ack-lost","whole",11,0},
+        {"premature-success","crash-during-submit","whole",11,0},
+        {"lost-uncertainty","crash-ack-before-durable","whole",11,0},
+        {"merge-stdout-stderr","ssh-success","one",12,0},
+        {"ignore-exit","ssh-success","whole",11,0},
+        {"accept-any-key","ssh-host-mismatch","whole",11,0},
+        {"tcp-is-auth","ssh-tcp-only","whole",11,0},
+        {"drop-duplicate-id","identity-collisions","whole",11,0},
+        {"drop-identical-copy","identity-collisions","whole",11,0},
+        {"corrupt-ledger-is-success","restart-corrupt-tail","whole",11,0},
+        {"semantic-change","rfc-ordinary","whole",11,0}
+    };
+    directory(output);setenv("AICI_REPLAY_CORPUS",root,1);int failed=0;
+    char report[4096];path_join(report,sizeof report,output,"mutations.tsv");FILE *f=open_file(report,"wb");
+    fprintf(f,"mutation\tcase\tschedule\texpected-code\tactual-code\tdiagnostic\tresult\n");
+    for(size_t i=0;i<sizeof tests/sizeof *tests;i++) {
+        char fixture[4096],out[4096],name[128];path_join(fixture,sizeof fixture,root,tests[i].fixture);
+        snprintf(name,sizeof name,"%zu-%s",i,tests[i].name);path_join(out,sizeof out,output,name);
+        setenv("AICI_MUTATION",tests[i].name,1);uint64_t rss;
+        const char *op=!strncmp(tests[i].fixture,"crash",5)?"migration":!strncmp(tests[i].fixture,"mime",4)?"mime":"rfc";
+        int code=invoke(fixture,adapter,op,tests[i].fixture,tests[i].schedule,out,tests[i].base,&rss);
+        if(!code)code=check(fixture,out,strcmp(tests[i].schedule,"read-error")!=0,tests[i].base,!strcmp(tests[i].schedule,"read-error")?"io-error":"eof");
+        int good=code==tests[i].want;failed+=!good;
+        fprintf(f,"%s\t%s\t%s\t%d\t%d\t%s\t%s\n",tests[i].name,tests[i].fixture,tests[i].schedule,tests[i].want,code,diagnostic(code),good?"PASS":"FAIL");
+    }
+    fclose(f);unsetenv("AICI_MUTATION");unsetenv("AICI_REPLAY_CORPUS");
+    printf("harness-mutation-selftest\t%s\n",failed?"FAIL":"PASS");return failed?1:0;
+}
+static int differential(const char *corpus,const char *registry,const char *output) {
+    directory(output);FILE *r=open_file(registry,"rb");char line[4096],path[4096];
+    path_join(path,sizeof path,output,"differential.tsv");FILE *matrix=open_file(path,"wb");
+    fprintf(matrix,"case\tlanguage\tschedule\tresult\tdiagnostic\n");
+    if(!fgets(line,sizeof line,r))die("empty-adapter-registry");
+    int failed=0,unknown=0,count=0;
+    while(fgets(line,sizeof line,r)) {
+        line[strcspn(line,"\n")]=0;char *save=NULL,*language=strtok_r(line,"\t",&save),*repo=strtok_r(NULL,"\t",&save),*commit=strtok_r(NULL,"\t",&save),*executable=strtok_r(NULL,"\t",&save),*wanted=strtok_r(NULL,"\t",&save);
+        if(!language||!repo||!commit||!executable||!wanted||!safe_name(language))die("adapter-registry-row");
+        count++;
+        if(!strcmp(executable,"-")) {
+            char cp[4096],cl[2048];path_join(cp,sizeof cp,corpus,"cases.tsv");FILE *c=open_file(cp,"rb");
+            if(!fgets(cl,sizeof cl,c))die("empty-corpus");
+            while(fgets(cl,sizeof cl,c)){char *tab=strchr(cl,'\t');if(!tab)die("case-row");*tab=0;fprintf(matrix,"%s\t%s\t-\tNOT_RUN\tadapter-unavailable\n",cl,language);}fclose(c);unknown++;continue;
+        }
+        if(strlen(commit)!=40||strspn(commit,"0123456789abcdef")!=40||strlen(wanted)!=64||executable[0]!='/')die("adapter-identity");
+        char actual[65];uint64_t n;hash_file(executable,actual,&n);if(strcmp(actual,wanted))die("adapter-digest-mismatch");
+        char childout[4096];path_join(childout,sizeof childout,output,language);
+        int result=run(corpus,executable,childout,0);failed+=result==1;unknown+=result==2;
+        path_join(path,sizeof path,childout,"identity.tsv");FILE *identity=open_file(path,"wb");fprintf(identity,"repository\t%s\nsource-commit\t%s\nexecutable-sha256\t%s\n",repo,commit,actual);fclose(identity);
+        path_join(path,sizeof path,childout,"matrix.tsv");FILE *rows=open_file(path,"rb");if(!fgets(line,sizeof line,rows))die("missing-matrix");
+        while(fgets(line,sizeof line,rows)){char *tab=strchr(line,'\t');if(!tab)die("matrix-row");*tab=0;fprintf(matrix,"%s\t%s\t%s",line,language,tab+1);}fclose(rows);
+    }
+    fclose(r);fclose(matrix);if(!count)die("no-adapters");return failed?1:unknown?2:0;
+}
+int main(int argc,char **argv) {
+    signal(SIGALRM,expired);signal(SIGPIPE,SIG_IGN);
+    if(argc==5&&!strcmp(argv[1],"check")) {
+        int code=check(argv[2],argv[3],strcmp(argv[4],"bytes")!=0,0,"eof");printf("%s\n",diagnostic(code));return code;
+    }
+    if(argc==5&&!strcmp(argv[1],"self-test"))return self_test(argv[2],argv[3],argv[4]);
+    if(argc==5&&!strcmp(argv[1],"differential"))return differential(argv[2],argv[3],argv[4]);
+    if((argc==5||argc==6)&&!strcmp(argv[1],"run"))return run(argv[2],argv[3],argv[4],argc==6&&!strcmp(argv[5],"exhaustive"));
+    die("usage: accept run CORPUS ABSOLUTE-ADAPTER NEW-OUTPUT [exhaustive] | check FIXTURE OUTPUT semantic|bytes");
+}

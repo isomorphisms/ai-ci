@@ -1,0 +1,5 @@
+durable	intent-A
+submit	started
+volatile-ack	g-1
+durable	accepted:g-1
+cut	after-record

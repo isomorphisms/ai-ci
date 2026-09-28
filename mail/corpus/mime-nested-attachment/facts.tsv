@@ -1,0 +1,6 @@
+part	0	multipart/mixed	7bit	-
+part	0.0	multipart/alternative	7bit	-
+part	0.0.0	text/plain	7bit	part-0.0.0.bin
+part	0.0.1	text/html	7bit	part-0.0.1.bin
+part	0.1	application/octet-stream	base64	part-0.1.bin
+filename	0.1	636166c3a92e62696e

@@ -1,0 +1,7 @@
+corpus/** -text
+# CRLF, trailing blank lines and embedded binary bytes are fixture semantics.
+*.bin -text -diff -whitespace
+*.c text eol=lf
+*.h text eol=lf
+*.md text eol=lf
+*.tsv text eol=lf

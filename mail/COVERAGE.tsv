@@ -1,0 +1,22 @@
+invariant	source-or-policy	fixtures	current-enforcement	remaining-boundary
+RAW	U-RAW	all inputs	EXECUTABLE raw byte comparison	actual implementation adapters
+SPAN	U-RAW	all source receipts; offset32	EXECUTABLE source position and digest	per-message mbox spans blocked Q1
+CHUNK	U-RAW	all stream cases	EXECUTABLE shared partitions and exhaustive cuts	actual feeds must reach native implementation
+TERMINAL	libssh2 channel_read_ex	read-error pauses EOF	EXECUTABLE control and mutant checks	live transport fault injection Q5
+HEADER	R5322	rfc-* valid	EXECUTABLE spec-profile facts	retained parser Q2
+DISPLAY	R2047	rfc-encoded-word	EXECUTABLE display and raw separation	malformed-word recovery Q2
+UTF8	R6532	rfc-utf8	EXECUTABLE byte splits	retained profile selection Q2
+DECODE	R2045	mime-base64 mime-qp mime-8bit	EXECUTABLE decoded files	actual MIME adapter Q2 Q4
+TREE	R2046	mime-alternative nested-message nested-attachment	EXECUTABLE canonical structure	actual MIME adapter Q2 Q4
+PARAM	R2231	mime-nested-attachment	EXECUTABLE UTF8 filename expectation	retained profile Q2
+MBOX	R4155 plus missing original	mbox-*	BYTES_ONLY_UNRESOLVED	Q1 blocks semantic pass
+IDENTITY	U-IDENTITY	identity-collisions mbox identity cases	EXECUTABLE occurrence model	destination dedup policy Q3
+UNKNOWN	U-CRASH	crash-* paired worlds	EXECUTABLE knowledge model	actual kill and remote effects Q6
+DURABLE	U-CRASH	restart-* and crash-after-durable	EXECUTABLE state model	chosen filesystem and ledger Q6
+HOST	knownhost.c U-TRUST	ssh-host-*	EXECUTABLE observation model	live server no-auth witness Q5
+AUTH	session.c userauth.c R4252	ssh-tcp-only auth-failed channel-denied	EXECUTABLE observation model	live SSH Q5
+CHANNEL	channel.c packet.c R4254	ssh-success abrupt-close	EXECUTABLE stream and exit observations	live SSH Q5
+FILE	sftp.c scp.c	ssh-sftp ssh-scp	EXECUTABLE model bytes	live retained file paths Q5
+BOUND	U13 SDF_MAILBOX.md	large single many	EXECUTABLE byte probes and memory mutant	actual parsing and descendants Q8
+EVIDENCE	governing rule	NOT_RUN differential and exit2	EXECUTABLE fail-closed statuses	build source binding and protected holdouts
+PHYSICAL	U17	private procedure	NOT_RUN	Q9

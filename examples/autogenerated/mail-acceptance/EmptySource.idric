@@ -1,0 +1,4 @@
+module EmptySource
+
+empty_source_size : Number
+empty_source_size = 0

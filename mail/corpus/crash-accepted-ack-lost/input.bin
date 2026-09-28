@@ -1,0 +1,4 @@
+durable	intent-A
+submit	started
+hidden-remote	accepted:g-1
+cut	before-ack

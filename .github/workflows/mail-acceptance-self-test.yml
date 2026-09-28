@@ -1,0 +1,16 @@
+name: Mail acceptance harness self-test
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  harness:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Verify corpus and reject known bad adapters
+        run: make -C "$GITHUB_WORKSPACE/mail" test BUILD="$RUNNER_TEMP/mail-acceptance"
