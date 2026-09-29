@@ -58,7 +58,9 @@ static int split_tabs(char *line, char **fields, int maximum) {
 
 static int evidence_grounded(const char *text) {
     return strncmp(text, "observed:", 9) == 0 ||
-           strncmp(text, "declared:", 9) == 0;
+           strncmp(text, "declared:human:", 15) == 0 ||
+           strncmp(text, "declared:receipt:", 17) == 0 ||
+           strncmp(text, "declared:reviewed-source:", 25) == 0;
 }
 
 static void fail(CheckResult *result, const char *code, int line) {
@@ -363,14 +365,14 @@ static int check_trace(const char *path, CheckResult *result) {
             }
         } else if (strcmp(event, "transfer") == 0) {
             if (!execution_role_seen || strcmp(host, execution_host) != 0 ||
-                strcmp(role, "execution") != 0 ||
+                strcmp(role, "execution") != 0 || !evidence_grounded(evidence) ||
                 !role_seen(roles, role_count, "source", subject) ||
                 !role_seen(roles, role_count, "destination", value)) {
                 fail(result, "HOST-CONTEXT-TRANSFER-ROLE-UNVERIFIED", line_number);
                 break;
             }
             if (strcmp(subject, value) == 0 &&
-                strcmp(evidence, "declared:self-transfer-required") != 0) {
+                strcmp(evidence, "declared:human:self-transfer-required") != 0) {
                 fail(result, "HOST-CONTEXT-SELF-TRANSFER", line_number);
                 break;
             }
