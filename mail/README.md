@@ -36,6 +36,15 @@ produces a differential table. Semantic records never substitute for raw bytes.
 Its exhaustive mode tests every two-chunk cut for inputs below 4096 bytes, plus
 whole input, one-byte reads, small and prime lengths, and a specified PRNG.
 
+`accept interrupt CORPUS ABSOLUTE_ADAPTER NEW_OUTPUT` tests read failure at every
+byte position in compact stream fixtures, including before the first byte and
+after the last. Larger cases use five boundary/interior positions. The exact
+received prefix, byte span, hash and failure terminal are checked independently.
+`PASS_PREFIX_ONLY` establishes no parser recovery semantics. Differential runs
+include this sweep, and `make test` verifies its positive replay control plus
+mutations that discard received bytes, invent unread bytes, confuse failure
+with EOF, or truncate the prefix span to 32 bits.
+
 `accept challenge ABSOLUTE_GENERATOR ABSOLUTE_ADAPTER NEW_OUTPUT` creates a
 fresh, valid RFC 5322 folded-header holdout after the candidate artifact has
 been identified. It records the random seed, generator and adapter hashes, then
@@ -61,6 +70,7 @@ The generator optionally accepts a 32-bit seed and at most 1024 extra grammar
 cases. `--generated-only OUTPUT SEED COUNT` produces a compact valid RFC
 holdout without public or unresolved cases. The runner accepts
 `run CORPUS ABSOLUTE_ADAPTER NEW_OUTPUT [exhaustive]`,
+`interrupt CORPUS ABSOLUTE_ADAPTER NEW_OUTPUT`,
 `challenge ABSOLUTE_GENERATOR ABSOLUTE_ADAPTER NEW_OUTPUT [SEED COUNT]`,
 `self-test CORPUS ABSOLUTE_GENERATOR REPLAY_ADAPTER NEW_OUTPUT`, and
 `differential CORPUS REGISTRY NEW_OUTPUT`. Exit 0 means all selected assertions

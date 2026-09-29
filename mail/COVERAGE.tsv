@@ -3,7 +3,7 @@ RAW	U-RAW	all inputs	EXECUTABLE raw byte comparison	actual implementation adapte
 SPAN	U-RAW	all source receipts; offset32	EXECUTABLE source position and digest	per-message mbox spans blocked Q1
 CHUNK	U-RAW	all stream cases	EXECUTABLE shared partitions and exhaustive cuts	actual feeds must reach native implementation
 HOLDOUT	R5322	generated folded RFC cases	EXECUTABLE random controller-generated cases and public-ID-only mutation	controller isolation and actual parser adapters
-TERMINAL	libssh2 channel_read_ex	read-error pauses EOF	EXECUTABLE control and mutant checks	live transport fault injection Q5
+TERMINAL	libssh2 channel_read_ex; user sections 5 and 9	read-error pauses EOF; every compact stream prefix	EXECUTABLE prefix bytes/span/hash and terminal; positive and negative controls	live transport fault injection Q5; partial parser semantics Q1 Q2
 HEADER	R5322	rfc-* valid	EXECUTABLE spec-profile facts	retained parser Q2
 DISPLAY	R2047	rfc-encoded-word	EXECUTABLE display and raw separation	malformed-word recovery Q2
 UTF8	R6532	rfc-utf8	EXECUTABLE byte splits	retained profile selection Q2

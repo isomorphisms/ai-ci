@@ -1,5 +1,9 @@
 # Host evidence
 
+The [partial-read failure review](interruption-review/README.md) records the
+later interruption-sweep changes and their separately hashed execution. The
+results below describe the earlier sources listed in source-files.sha256.
+
 These files describe acceptance-infrastructure execution, not a mail-stack pass.
 The source SHA-256 list binds the C sources used to the build. Binary SHA-256
 values bind measured executables. The host was Linux 6.18.44 x86_64 with Ubuntu

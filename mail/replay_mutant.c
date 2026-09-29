@@ -38,6 +38,13 @@ int main(int argc,char **argv) {
         if(getchar()!='\n')die("protocol-delimiter");
     }
     if(fclose(archive))die("archive-close");
+    if(!strcmp(terminal,"io-error")) {
+        path_join(q,sizeof q,argv[3],"archive.bin");
+        if(!strcmp(mutation,"complete-failed-input")) {
+            path_join(p,sizeof p,fixture,"input.bin");copy_file(p,q);
+        }
+        if(!strcmp(mutation,"discard-failed-prefix"))write_bytes(q,"",0);
+    }
     path_join(p,sizeof p,argv[3],"archive.bin");char digest[65];uint64_t length;hash_file(p,digest,&length);
     path_join(p,sizeof p,argv[3],"source.tsv");FILE *source=open_file(p,"wb");
     uint64_t start=base,finish=base+length;

@@ -31,8 +31,9 @@ Terminal control is exactly `eof<LF>` or `error<TAB>IO<LF>`. `again<LF>` and
 `idle<LF>` represent would-block and a zero-payload read without established
 EOF; neither terminates the stream. A pipe closing before a terminal command
 is an adapter-protocol failure. The archive contains only supplied DATA bytes.
-The runner has targeted error/idle self-tests; ordinary corpus schedules end
-with EOF. Error injection must not invent source bytes or complete messages.
+Ordinary corpus schedules end with EOF. `accept interrupt` also supplies a
+prefix followed by IO failure, without sending the unread suffix. Error
+injection must not invent source bytes or complete messages.
 
 No locale conversion is allowed. Offsets and byte counts are unsigned decimal
 mathematical integers, never floats or JSON numbers. Reject overflow explicitly.
@@ -111,6 +112,25 @@ CRLF, headers, folds, MIME delimiters, transfer encodings, UTF-8, and EOF cuts.
 The large-stream protocol is separate: a raw stdin stream and a count/hash
 observation, under a controller-enforced resource limit.
 
+`accept interrupt CORPUS ABSOLUTE_ADAPTER NEW_OUTPUT` exercises every prefix
+length from zero through the full length for `rfc`, `mime`, and `mbox` inputs
+below 4096 bytes. Larger inputs use lengths 0, 1, half (rounded down), length−1,
+and length. Each `error-at-N` schedule divides the supplied prefix using the
+same deterministic random partition rule, then sends `error<TAB>IO<LF>`.
+Failure after the last byte still differs from observed EOF. The empty-input
+case likewise distinguishes failure before reading anything from clean EOF.
+
+The controller compares archive.bin directly with the exact supplied prefix,
+and source.tsv with that prefix's byte count, absolute span and SHA-256. It
+requires terminal.tsv to report io-error. Successful rows say
+`PASS_PREFIX_ONLY`: parsed completeness and malformed-prefix recovery are not
+inferred. Partial semantic receipts are deliberately not compared with the
+complete-message facts. Those semantics require the retained parser profile.
+execution.tsv records supplied-bytes separately from input-sha256, which
+identifies the complete original fixture. The supplied count records successful
+controller writes, not proof of candidate consumption; the archive comparison
+establishes the latter for cooperative adapters.
+
 ## Results and differential runs
 
 `implementations.tsv` records language, repository, full source commit, absolute
@@ -124,6 +144,9 @@ be pivoted to the familiar case × language view without discarding schedule
 failures. Each implementation is compared with established evidence first.
 Pairwise disagreement is then an investigation lead. Never replace expected
 answers with majority output, even if C/original agrees with several ports.
+Each available adapter also runs the interruption sweep; its prefix-only rows
+remain separate from normal semantic rows. Prefix success cannot clear an
+unresolved mbox profile or unavailable adapter.
 
 Keep a resolution record containing case/source/spec IDs, both artifact hashes,
 observations, discrepancy class, reason, reviewer, and replacement regression.
