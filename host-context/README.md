@@ -41,9 +41,9 @@ A generic model-authored `declared:` string is rejected.
 - An execution host must be identified.
 - Its OS and architecture need positive evidence.
 - A command cannot be used before an observed `command -v`-style presence
-  check says it is present.
+  check says it is present and records what name/path resolution actually won.
 - An absent command cannot be installed until acquisition is separately marked
-  `proven-for-host`.
+  `proven-for-host`, with OS, architecture, and release already established.
 - After installation, the command must be re-probed before use.
 - A credential path cannot be used before it is observed readable.
 - Transfer source and destination roles must already be established.
@@ -58,7 +58,7 @@ A generic model-authored `declared:` string is rejected.
 sh host-context/probe.sh HOST gh git scp > host-context.tsv
 ```
 
-It records `uname -s`, `uname -m`, and command presence. It does not infer
+It records `uname -s`, `uname -m`, `uname -r`, and command resolution/presence. It does not infer
 a package manager or an installation recipe for an absent command.
 
 Consumers may append reviewed/declarative rows for source/destination roles,
