@@ -94,7 +94,12 @@ static int invoke(const char *fixture,const char *adapter,const char *op,const c
     uint64_t supplied=interrupted?number(schedule+9):size;
     if(supplied>size)die("interruption-beyond-input");
     hash_file(adapter,executable_hash,&executable_size);
-    directory(out);if(pipe(pipes))die("pipe");
+    directory(out);
+    /* Self-test receipts may be regenerated in the same BUILD directory.  Only
+     * these controller-owned capture names require exclusive creation below. */
+    path_join(p,sizeof p,out,"stdout.txt");if(unlink(p)&&errno!=ENOENT)die("remove-old-stdout");
+    path_join(p,sizeof p,out,"stderr.txt");if(unlink(p)&&errno!=ENOENT)die("remove-old-stderr");
+    if(pipe(pipes))die("pipe");
     pid_t child=fork();if(child<0)die("fork");
     if(child==0) {
         setpgid(0,0);close(pipes[1]);if(dup2(pipes[0],STDIN_FILENO)<0)_exit(125);close(pipes[0]);
