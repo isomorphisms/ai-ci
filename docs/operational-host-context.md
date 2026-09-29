@@ -102,7 +102,7 @@ binary, or any other acquisition method is valid.
 
 When a command is material to a handoff, either:
 
-1. use direct evidence that it is present on the execution host; or
+1. use direct evidence that it is present on the execution host, including what `command -v` resolved; or
 2. make a cheap availability probe the first operation and fail before mutation
    if the probe fails; or
 3. choose a path that does not require that command.
@@ -112,9 +112,10 @@ use another already-supported mechanism. Do **not** invent an installer.
 
 An installation recipe is itself an environment-sensitive operational claim.
 Before prescribing it, establish the material host facts it depends on, such as
-OS/release, architecture, package manager or binary format, network source,
-write/privilege requirements, and target path. Do not infer a package manager
-from the operating system name alone.
+OS, release, architecture, package manager or binary format, network source,
+write/privilege requirements, and target path. A `proven-for-host` acquisition
+claim is invalid until OS, architecture, and release have positive evidence.
+Do not infer a package manager from the operating system name alone.
 
 A later failure such as `command not found` is evidence that the presence
 preflight was missing. A later `package not found`, wrong-architecture binary,
