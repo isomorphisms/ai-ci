@@ -127,10 +127,15 @@ every repository.
   or declared facts; unknown facts require a cheap preflight or a fail-closed
   path before mutation or expensive work. Classify platforms from positive
   evidence, never from a negative catch-all such as `not Termux -> cloud`.
-  Do not assume a convenient command such as `gh` exists, do not invent SSH
-  key paths, and do not add an SSH/SCP hop when the execution host is already
-  the destination unless that loop is explicitly required. Follow
-  [the operational host-context preflight](docs/operational-host-context.md).
+  Do not assume a convenient command such as `gh` exists. Track command
+  **presence** separately from command **acquisition**: proving a command absent
+  does not prove any installer, package manager, binary download, privilege
+  model, or destination path is valid on that host. Prescribe installation only
+  when its host-specific acquisition path is itself established; otherwise
+  stop at the unknown boundary or use another already-supported mechanism. Do
+  not invent SSH key paths, and do not add an SSH/SCP hop when the execution
+  host is already the destination unless that loop is explicitly required.
+  Follow [the operational host-context preflight](docs/operational-host-context.md).
 
 
 - **Do not restore rejected abstractions from stale precedent.** Explicit current
