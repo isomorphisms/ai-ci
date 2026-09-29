@@ -1,0 +1,21 @@
+name: Operational host-context gate
+description: Verify ordered host, command, acquisition, credential, and transfer evidence
+inputs:
+  trace:
+    description: Path to the operational host-context TSV trace
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Compile host-context verifier
+      shell: sh
+      run: |
+        set -eu
+        cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 \
+          "$GITHUB_ACTION_PATH/../src/aici_host_context.c" \
+          -o "$RUNNER_TEMP/aici-host-context"
+    - name: Verify host-context trace
+      shell: sh
+      run: |
+        set -eu
+        "$RUNNER_TEMP/aici-host-context" check "${{ inputs.trace }}"
