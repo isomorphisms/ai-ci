@@ -94,6 +94,11 @@ jobs:
           sh host-context/probe.sh github-runner aici-command-that-does-not-exist             > "$RUNNER_TEMP/host-context-absent.tsv"
           /tmp/aici-host-context check "$RUNNER_TEMP/host-context-absent.tsv"
 
+      - name: Exercise reusable host-context action
+        uses: ./host-context
+        with:
+          trace: tests/operational-host-context/good-present.trace.tsv
+
       - name: Exercise the published composite action
         uses: ./
         with:
