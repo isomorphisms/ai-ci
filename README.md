@@ -49,7 +49,8 @@ revision against which the choice was made. An ICK row must say
 `ick_status=qualified` and cite qualification evidence. An NDK row must say
 `ick_status=gap:<specific capability gap>` and cite durable evidence for that
 gap. A valid NDK row emits an `ick-gap` record during verification so a green
-build cannot hide why ICK was not used.
+build cannot hide why ICK was not used. A multi-stage build may therefore have
+both ICK and NDK rows when different stages genuinely use them.
 
 The contract deliberately has no generic compiler fallback. If ICK is not
 qualified and NDK cannot target the build, the build is blocked until the ICK
