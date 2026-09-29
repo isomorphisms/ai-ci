@@ -1,0 +1,9 @@
+event	status	host	role	subject	value	evidence
+host-role	pass	netbsd-box	execution	identity	netbsd-box	observed:hostname
+host-fact	pass	netbsd-box	execution	os	NetBSD	observed:uname-s
+host-fact	pass	netbsd-box	execution	arch	x86_64	observed:uname-m
+command-presence	pass	netbsd-box	execution	toolx	absent	observed:command-v
+command-acquisition	pass	netbsd-box	execution	toolx	proven-for-host	declared:reviewed-host-specific-install
+command-install	pass	netbsd-box	execution	toolx	installed	observed:installer-success
+command-presence	pass	netbsd-box	execution	toolx	present	observed:command-v
+command-use	pass	netbsd-box	execution	toolx	requested-operation	declared:task
