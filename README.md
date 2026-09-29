@@ -36,6 +36,25 @@ fixture in `tests/cases.tsv`. The self-test audits that coverage mechanically;
 adding an assertion without a unique diagnostic and matching bad fixture makes
 CI fail.
 
+## ICK-or-NDK build policy
+
+The reusable `build-toolchain-v0` contract makes the build choice explicit.
+Each maintained build records a row in `ci/build-toolchain.tsv` with these
+fields:
+
+`build_id<TAB>target<TAB>toolchain<TAB>ick_revision<TAB>ick_status<TAB>ick_evidence`
+
+`toolchain` is exactly `ick` or `ndk`. Every row pins the exact 40-hex ICK
+revision against which the choice was made. An ICK row must say
+`ick_status=qualified` and cite qualification evidence. An NDK row must say
+`ick_status=gap:<specific capability gap>` and cite durable evidence for that
+gap. A valid NDK row emits an `ick-gap` record during verification so a green
+build cannot hide why ICK was not used.
+
+The contract deliberately has no generic compiler fallback. If ICK is not
+qualified and NDK cannot target the build, the build is blocked until the ICK
+capability exists; the policy does not relabel another compiler as compliance.
+
 ## Pull-request merge verdicts
 
 The `merge/` contract produces a fail-closed verdict from ten plain TSV files:
