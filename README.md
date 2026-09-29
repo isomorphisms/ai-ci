@@ -38,9 +38,9 @@ CI fail.
 
 ## ICK-or-NDK build policy
 
-The reusable `build-toolchain-v0` contract makes the build choice explicit.
-Each maintained build records a row in `ci/build-toolchain.tsv` with these
-fields:
+The reusable `build-toolchain-v0` contract makes each compile/link choice
+explicit. Each maintained compile/link stage records a row in
+`ci/build-toolchain.tsv` with these fields:
 
 `build_id<TAB>target<TAB>toolchain<TAB>ick_revision<TAB>ick_status<TAB>ick_evidence`
 
