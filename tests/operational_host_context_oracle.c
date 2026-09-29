@@ -289,7 +289,13 @@ static int check_trace(const char *path, CheckResult *result) {
             state->acquisition_known = 1;
             state->acquisition_proven = strcmp(value, "proven-for-host") == 0;
         } else if (strcmp(event, "command-install") == 0) {
-            CommandState *state = command_state(commands, &command_count, subject);
+            CommandState *state;
+            if (!execution_role_seen || strcmp(host, execution_host) != 0 ||
+                strcmp(role, "execution") != 0 || !evidence_grounded(evidence)) {
+                fail(result, "HOST-CONTEXT-ACQUISITION-EVIDENCE", line_number);
+                break;
+            }
+            state = command_state(commands, &command_count, subject);
             if (state == NULL) {
                 fail(result, "HOST-CONTEXT-TRACE-MALFORMED", line_number);
                 break;
@@ -304,7 +310,13 @@ static int check_trace(const char *path, CheckResult *result) {
             state->present_known = 0;
             state->present = 0;
         } else if (strcmp(event, "command-use") == 0) {
-            CommandState *state = command_state(commands, &command_count, subject);
+            CommandState *state;
+            if (!execution_role_seen || strcmp(host, execution_host) != 0 ||
+                strcmp(role, "execution") != 0 || !evidence_grounded(evidence)) {
+                fail(result, "HOST-CONTEXT-COMMAND-EVIDENCE", line_number);
+                break;
+            }
+            state = command_state(commands, &command_count, subject);
             if (state == NULL) {
                 fail(result, "HOST-CONTEXT-TRACE-MALFORMED", line_number);
                 break;
@@ -334,7 +346,13 @@ static int check_trace(const char *path, CheckResult *result) {
             }
             state->present = strcmp(value, "present") == 0;
         } else if (strcmp(event, "credential-use") == 0) {
-            CredentialState *state = credential_state(credentials, &credential_count, subject);
+            CredentialState *state;
+            if (!execution_role_seen || strcmp(host, execution_host) != 0 ||
+                strcmp(role, "execution") != 0 || !evidence_grounded(evidence)) {
+                fail(result, "HOST-CONTEXT-CREDENTIAL-EVIDENCE", line_number);
+                break;
+            }
+            state = credential_state(credentials, &credential_count, subject);
             if (state == NULL) {
                 fail(result, "HOST-CONTEXT-TRACE-MALFORMED", line_number);
                 break;
