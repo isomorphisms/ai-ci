@@ -1,0 +1,2 @@
+build_id	target	toolchain	ick_revision	ick_status	ick_evidence
+host-verifier	linux-x86_64	ick	main	qualified	receipt:hosted-linux-x86_64
