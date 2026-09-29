@@ -20,11 +20,14 @@ every repository.
   renderer, or convenient reimplementation does not count as acceptance of the
   named implementation.
 
-- **Build through ICK or the Android NDK.** Every maintained build must declare
-  exactly one of `ick` or `ndk` as its build toolchain. Prefer ICK when the
-  exact target and required language/runtime surface have current qualification
-  evidence. Do not force an immature ICK path merely to satisfy the rule. When
-  NDK is selected because ICK is not yet qualified, pin the exact ICK revision
+- **Build through ICK or the Android NDK.** Every maintained compile/link stage
+  must declare exactly one of `ick` or `ndk` as its build toolchain. A
+  multi-stage build may use both only by recording the stages separately; for
+  example, an ICK-compiled object followed by an NDK platform link is two
+  declared stages, not one ambiguous toolchain. Prefer ICK when the exact target
+  and required language/runtime surface have current qualification evidence. Do
+  not force an immature ICK path merely to satisfy the rule. When NDK is selected
+  because ICK is not yet qualified for that stage, pin the exact ICK revision
   evaluated, record a specific `gap:...` capability statement plus durable
   evidence, and surface that gap in CI output. Generic `cc`, Clang, GCC,
   Java/Kotlin/Gradle, or another build path is not an undeclared fallback.
