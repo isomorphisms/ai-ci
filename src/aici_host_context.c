@@ -110,7 +110,7 @@ static CredentialState *credential_state(CredentialState *items, int *count,
     return &items[*count - 1];
 }
 
-static int role_seen(const char roles[][NAME_MAXIMUM], int count,
+static int role_seen(char roles[][NAME_MAXIMUM], int count,
                      const char *role, const char *host) {
     int i;
     char wanted[NAME_MAXIMUM];
