@@ -1,21 +1,23 @@
-name: Operational host-context gate
-description: Verify ordered host, command, acquisition, credential, and transfer evidence
+name: Host-context trace consistency audit (legacy)
+description: Audit supplied declarations only; this does NOT authorize or mediate execution
 inputs:
   trace:
-    description: Path to the operational host-context TSV trace
+    description: Claimed TSV history to audit, not an execution permission or proof of observation
     required: true
 runs:
   using: composite
   steps:
-    - name: Compile host-context verifier
+    - name: Compile legacy trace auditor
       shell: sh
       run: |
         set -eu
         cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 \
           "$GITHUB_ACTION_PATH/../src/aici_host_context.c" \
           -o "$RUNNER_TEMP/aici-host-context"
-    - name: Verify host-context trace
+    - name: Check trace consistency, not actual execution
       shell: sh
+      env:
+        HC_AUDIT_TRACE: ${{ inputs.trace }}
       run: |
         set -eu
-        "$RUNNER_TEMP/aici-host-context" check "${{ inputs.trace }}"
+        "$RUNNER_TEMP/aici-host-context" check "$HC_AUDIT_TRACE"
