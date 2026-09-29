@@ -118,6 +118,21 @@ every repository.
   artifact, or conversation fact cannot actually be recovered, report it as
   missing or uncertain rather than reconstructing a plausible history.
 
+- **Bind operational commands to the observed execution host.** Before giving,
+  accepting, or running environment-sensitive commands, identify the execution
+  host and keep source, destination, and build hosts distinct. Treat material
+  facts such as OS/release, architecture, command availability, filesystem
+  paths, writable/executable locations, credentials, and network reachability
+  as observed, declared, or unknown. Direct commands may rely only on observed
+  or declared facts; unknown facts require a cheap preflight or a fail-closed
+  path before mutation or expensive work. Classify platforms from positive
+  evidence, never from a negative catch-all such as `not Termux -> cloud`.
+  Do not assume a convenient command such as `gh` exists, do not invent SSH
+  key paths, and do not add an SSH/SCP hop when the execution host is already
+  the destination unless that loop is explicitly required. Follow
+  [the operational host-context preflight](docs/operational-host-context.md).
+
+
 - **Do not restore rejected abstractions from stale precedent.** Explicit current
   human corrections and current architecture outrank inherited code, generated
   files, old branches, bootstrap history, upstream conventions, and familiar
