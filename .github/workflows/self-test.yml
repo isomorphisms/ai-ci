@@ -21,7 +21,7 @@ jobs:
         run: |
           cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici src/aici.c
           cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-build-preflight tests/build_preflight_oracle.c
-          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-host-context tests/operational_host_context_oracle.c
+          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-host-context src/aici_host_context.c
       - name: Prove bad fixtures are rejected
         shell: sh
         run: /tmp/aici self-test tests/cases.tsv
@@ -89,9 +89,9 @@ jobs:
         shell: sh
         run: |
           /tmp/aici-host-context self-test tests/operational-host-context/cases.tsv
-          sh tests/operational-host-context/probe.sh github-runner sh git             > "$RUNNER_TEMP/host-context-live.tsv"
+          sh host-context/probe.sh github-runner sh git             > "$RUNNER_TEMP/host-context-live.tsv"
           /tmp/aici-host-context check "$RUNNER_TEMP/host-context-live.tsv"
-          sh tests/operational-host-context/probe.sh github-runner aici-command-that-does-not-exist             > "$RUNNER_TEMP/host-context-absent.tsv"
+          sh host-context/probe.sh github-runner aici-command-that-does-not-exist             > "$RUNNER_TEMP/host-context-absent.tsv"
           /tmp/aici-host-context check "$RUNNER_TEMP/host-context-absent.tsv"
 
       - name: Exercise the published composite action
