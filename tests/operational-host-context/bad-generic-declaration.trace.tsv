@@ -2,5 +2,6 @@ event	status	host	role	subject	value	evidence
 host-role	pass	sdf	execution	identity	sdf	observed:prompt
 host-fact	pass	sdf	execution	os	NetBSD	observed:uname-s
 host-fact	pass	sdf	execution	arch	x86_64	observed:uname-m
-command-presence	pass	sdf	execution	gh	absent	observed:command-v
+host-fact	pass	sdf	execution	release	11.0	observed:uname-r
+command-presence	pass	sdf	execution	gh	absent	observed:command-v:absent
 command-acquisition	pass	sdf	execution	gh	proven-for-host	declared:probably-pkg
