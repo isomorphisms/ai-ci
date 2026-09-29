@@ -143,6 +143,7 @@ static int check_trace(const char *path, CheckResult *result) {
     int execution_role_seen = 0;
     int os_seen = 0;
     int arch_seen = 0;
+    int release_seen = 0;
     char execution_host[NAME_MAXIMUM] = "";
     char roles[ITEM_MAXIMUM][NAME_MAXIMUM];
     int role_count = 0;
@@ -250,6 +251,7 @@ static int check_trace(const char *path, CheckResult *result) {
             }
             if (strcmp(subject, "os") == 0) os_seen = 1;
             else if (strcmp(subject, "arch") == 0) arch_seen = 1;
+            else if (strcmp(subject, "release") == 0) release_seen = 1;
             else {
                 fail(result, "HOST-CONTEXT-TRACE-MALFORMED", line_number);
                 break;
@@ -258,11 +260,29 @@ static int check_trace(const char *path, CheckResult *result) {
             CommandState *state;
             if (!execution_role_seen || strcmp(host, execution_host) != 0 ||
                 strcmp(role, "execution") != 0 ||
-                strcmp(evidence, "observed:command-v") != 0 ||
                 (strcmp(value, "present") != 0 &&
                  strcmp(value, "absent") != 0)) {
                 fail(result, "HOST-CONTEXT-COMMAND-EVIDENCE", line_number);
                 break;
+            }
+            if (strcmp(value, "absent") == 0) {
+                if (strcmp(evidence, "observed:command-v:absent") != 0) {
+                    fail(result, "HOST-CONTEXT-COMMAND-EVIDENCE", line_number);
+                    break;
+                }
+            } else {
+                static const char command_prefix[] = "observed:command-v:";
+                const char *resolved;
+                if (strncmp(evidence, command_prefix,
+                            sizeof(command_prefix) - 1) != 0) {
+                    fail(result, "HOST-CONTEXT-COMMAND-EVIDENCE", line_number);
+                    break;
+                }
+                resolved = evidence + sizeof(command_prefix) - 1;
+                if (*resolved == '\0' || strcmp(resolved, "absent") == 0) {
+                    fail(result, "HOST-CONTEXT-COMMAND-EVIDENCE", line_number);
+                    break;
+                }
             }
             state = command_state(commands, &command_count, subject);
             if (state == NULL) {
@@ -288,12 +308,17 @@ static int check_trace(const char *path, CheckResult *result) {
                 fail(result, "HOST-CONTEXT-TRACE-MALFORMED", line_number);
                 break;
             }
+            if (strcmp(value, "proven-for-host") == 0 && !release_seen) {
+                fail(result, "HOST-CONTEXT-ACQUISITION-HOST-INCOMPLETE", line_number);
+                break;
+            }
             state->acquisition_known = 1;
             state->acquisition_proven = strcmp(value, "proven-for-host") == 0;
         } else if (strcmp(event, "command-install") == 0) {
             CommandState *state;
             if (!execution_role_seen || strcmp(host, execution_host) != 0 ||
-                strcmp(role, "execution") != 0 || !evidence_grounded(evidence)) {
+                strcmp(role, "execution") != 0 ||
+                strcmp(evidence, "observed:installer-success") != 0) {
                 fail(result, "HOST-CONTEXT-ACQUISITION-EVIDENCE", line_number);
                 break;
             }
