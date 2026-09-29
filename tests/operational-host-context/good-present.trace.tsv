@@ -4,10 +4,11 @@ host-role	pass	workstation	source	identity	workstation	observed:prompt
 host-role	pass	sdf	destination	identity	sdf	declared:human:task
 host-fact	pass	workstation	execution	os	Linux	observed:uname-s
 host-fact	pass	workstation	execution	arch	x86_64	observed:uname-m
-command-presence	pass	workstation	execution	gh	present	observed:command-v
+host-fact	pass	workstation	execution	release	6.8.0	observed:uname-r
+command-presence	pass	workstation	execution	gh	present	observed:command-v:/usr/bin/gh
 command-use	pass	workstation	execution	gh	run-download	declared:human:handoff
 credential-presence	pass	workstation	execution	~/.ssh/id_ed25519	present	observed:test-r
 credential-use	pass	workstation	execution	~/.ssh/id_ed25519	ssh-key	declared:human:handoff
-command-presence	pass	workstation	execution	scp	present	observed:command-v
+command-presence	pass	workstation	execution	scp	present	observed:command-v:/usr/bin/scp
 command-use	pass	workstation	execution	scp	artifact-transfer	declared:human:handoff
 transfer	pass	workstation	execution	workstation	sdf	declared:human:task
