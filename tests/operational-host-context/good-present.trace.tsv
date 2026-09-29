@@ -1,0 +1,13 @@
+event	status	host	role	subject	value	evidence
+host-role	pass	workstation	execution	identity	workstation	observed:prompt
+host-role	pass	workstation	source	identity	workstation	observed:prompt
+host-role	pass	sdf	destination	identity	sdf	declared:task
+host-fact	pass	workstation	execution	os	Linux	observed:uname-s
+host-fact	pass	workstation	execution	arch	x86_64	observed:uname-m
+command-presence	pass	workstation	execution	gh	present	observed:command-v
+command-use	pass	workstation	execution	gh	run-download	declared:handoff
+credential-presence	pass	workstation	execution	~/.ssh/id_ed25519	present	observed:test-r
+credential-use	pass	workstation	execution	~/.ssh/id_ed25519	ssh-key	declared:handoff
+command-presence	pass	workstation	execution	scp	present	observed:command-v
+command-use	pass	workstation	execution	scp	artifact-transfer	declared:handoff
+transfer	pass	workstation	execution	workstation	sdf	declared:task
