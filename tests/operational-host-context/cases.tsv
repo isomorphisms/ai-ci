@@ -7,3 +7,4 @@ fail	tests/operational-host-context/bad-no-reprobe.trace.tsv	HOST-CONTEXT-REPROB
 fail	tests/operational-host-context/bad-self-transfer.trace.tsv	HOST-CONTEXT-SELF-TRANSFER
 fail	tests/operational-host-context/bad-credential.trace.tsv	HOST-CONTEXT-CREDENTIAL-UNVERIFIED
 fail	tests/operational-host-context/bad-platform-inference.trace.tsv	HOST-CONTEXT-PLATFORM-EVIDENCE
+fail	tests/operational-host-context/bad-generic-declaration.trace.tsv	HOST-CONTEXT-ACQUISITION-EVIDENCE
