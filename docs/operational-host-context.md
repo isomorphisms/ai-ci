@@ -78,15 +78,48 @@ manager, directory layout, or privilege model.
 Do not assume `gh`, `git`, `scp`, `rsync`, a compiler, a package manager,
 or any other non-shell command exists merely because it is convenient.
 
+Track **presence** and **acquisition** separately for every material external
+command.
+
+Command presence is one of:
+
+- **observed-present**: the execution host directly proved the command runnable;
+- **observed-absent**: the execution host directly proved it unavailable;
+- **unknown**: no direct host evidence exists.
+
+Command acquisition is one of:
+
+- **not-needed**: the command is observed-present;
+- **proven-for-host**: an installation/acquisition path is established for the
+  exact relevant host facts and required privilege model;
+- **unknown**: no such path has been established;
+- **unsupported**: evidence shows that the proposed acquisition path does not
+  apply to this host.
+
+These are independent claims. Discovering that `gh` is absent does not imply
+that `apt install gh`, `pkg install gh`, `brew install gh`, downloading a
+binary, or any other acquisition method is valid.
+
 When a command is material to a handoff, either:
 
-1. use direct evidence that it exists on the execution host; or
+1. use direct evidence that it is present on the execution host; or
 2. make a cheap availability probe the first operation and fail before mutation
    if the probe fails; or
 3. choose a path that does not require that command.
 
-A later failure such as `command not found` is evidence that the preflight was
-missing, not an acceptable substitute for it.
+If the command is absent and acquisition is unknown, stop at that boundary or
+use another already-supported mechanism. Do **not** invent an installer.
+
+An installation recipe is itself an environment-sensitive operational claim.
+Before prescribing it, establish the material host facts it depends on, such as
+OS/release, architecture, package manager or binary format, network source,
+write/privilege requirements, and target path. Do not infer a package manager
+from the operating system name alone.
+
+A later failure such as `command not found` is evidence that the presence
+preflight was missing. A later `package not found`, wrong-architecture binary,
+permission failure, or unsupported installer is evidence that acquisition was
+claimed without sufficient host evidence.
 
 ## 5. Do not invent paths or credentials
 
