@@ -90,6 +90,18 @@ jobs:
           suite: tests/good-suite.tsv
           root: .
 
+  mail-acceptance-self-test:
+    name: ${{ github.event_name == 'pull_request' && 'mail-acceptance-self-test' || format('mail-acceptance-self-test-{0}', github.event_name) }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Regenerate the mail corpus and reject hostile adapters
+        shell: sh
+        run: make -C mail test BUILD="$RUNNER_TEMP/mail-acceptance"
+
   biology-self-test:
     name: ${{ github.event_name == 'pull_request' && 'biology-self-test' || format('biology-self-test-{0}', github.event_name) }}
     runs-on: ubuntu-24.04
