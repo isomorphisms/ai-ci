@@ -20,6 +20,20 @@ every repository.
   renderer, or convenient reimplementation does not count as acceptance of the
   named implementation.
 
+- **Build through ICK or the Android NDK.** Every maintained build must declare
+  exactly one of `ick` or `ndk` as its build toolchain. Prefer ICK when the
+  exact target and required language/runtime surface have current qualification
+  evidence. Do not force an immature ICK path merely to satisfy the rule. When
+  NDK is selected because ICK is not yet qualified, pin the exact ICK revision
+  evaluated, record a specific `gap:...` capability statement plus durable
+  evidence, and surface that gap in CI output. Generic `cc`, Clang, GCC,
+  Java/Kotlin/Gradle, or another build path is not an undeclared fallback.
+  Bootstrap dependencies are evidence about how ICK itself was produced, not
+  permission for consumer builds to bypass the selected toolchain. Consumer
+  repositories that build maintained code must wire the shared
+  `build-toolchain-v0` contract (or a stricter executable equivalent) into
+  their required build checks.
+
 - **Do not weaken acceptance to obtain green.** Repair the implementation.
   Change a test or contract only when the intended requirement itself is
   independently shown to be wrong or obsolete.
