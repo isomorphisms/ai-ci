@@ -6,6 +6,10 @@ the canonical shared guardrail for recurrent agent failures. Repository-local
 `AGENTS.md` files may add stricter rules; do not copy this whole section into
 every repository.
 
+For the repository-design rationale behind small agent entry points, progressive
+disclosure, mechanical constraints, and agent-legible evidence, see
+[`docs/harness-engineering.md`](docs/harness-engineering.md).
+
 ## Recurrent agent anti-patterns
 
 - **Do not claim stronger evidence than was produced.** Source presence,
