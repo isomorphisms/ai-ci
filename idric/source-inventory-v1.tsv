@@ -1,0 +1,25 @@
+repository	ref	path	policy	role	note
+isomorphisms/ai-ci	main	_/pr-9-catfood-bare-cloud-acceptance/code/catfood/fixtures/ib/AiciCatfoodFixture.idric	review-only	historical-snapshot	Do not migrate automatically; retained PR-9 snapshot.
+isomorphisms/ai-ci	main	_/pr-9-catfood-bare-cloud-acceptance/code/catfood/fixtures/idric/Main.idric	review-only	historical-snapshot	Do not migrate automatically; retained PR-9 snapshot.
+isomorphisms/ai-ci	main	benchmarks/iridium-2014/IdricBench.idric	follow	benchmark	Keep compiling under the current Idriç language.
+isomorphisms/ai-ci	main	tests/fixtures/coupled-bad-partial/coupled-substitution.idric	follow	negative-fixture	Migrate surface syntax as needed while preserving the intended partial-substitution failure.
+isomorphisms/ai-ci	main	tests/fixtures/coupled-bad-precheck/coupled-substitution.idric	follow	negative-fixture	Migrate surface syntax as needed while preserving the intended precheck failure.
+isomorphisms/ai-ci	main	tests/fixtures/coupled-bad-signature/coupled-substitution.idric	follow	negative-fixture	Migrate surface syntax as needed while preserving the intended signature failure.
+isomorphisms/ai-ci	main	tests/fixtures/coupled-good/coupled-substitution.idric	follow	positive-fixture	Keep the positive fixture valid under the current Idriç language.
+isomorphismes/pauli	main	raytracer/RayTracer.idric	follow	program	Wolfgang Pauli ray-tracer language-pressure test.
+isomorphismes/pauli	main	raytracer/RayTracerTypes.idric	follow	program	Wolfgang Pauli ray-tracer type definitions.
+isomorphismes/Conway	main	wallpapers/ConwayWallpaper.idric	follow	program	Conway wallpaper program.
+isomorphismes/hopf_fibration	master	src/GenerateHeader.idric	follow	program	Hopf-fibration generator.
+isomorphismes/hopf_fibration	master	src/GenerateSource.idric	follow	program	Hopf-fibration generator.
+isomorphismes/hopf_fibration	master	src/Hopf.idric	follow	program	Hopf-fibration program.
+isomorphismes/theta	main	src/BrowserMain.idric	follow	program	Theta browser entry point.
+isomorphismes/theta	main	src/Main.idric	follow	program	Theta entry point.
+isomorphismes/theta	main	src/Theta/Interaction.idric	follow	program	Theta interaction code.
+isomorphismes/theta	main	src/Theta/Math.idric	follow	program	Theta mathematics code.
+isomorphismes/theta	main	src/Theta/Model.idric	follow	program	Theta model.
+isomorphismes/theta	main	src/Theta/Surface.idric	follow	program	Theta surface code.
+isomorphismes/theta	main	src/Theta/Touch.idric	follow	program	Theta touch code.
+isomorphismes/ortho	main	src/Generate.idric	follow	program	Ortho generator.
+isomorphismes/ortho	main	src/Orthant.idric	follow	program	Ortho orthant code.
+isomorphismes/L	main	shader/LWegert.idric	follow	program	L/Wegert shader program.
+isomorphismes/coxeter	main	pseudocode/Dynkin.idric	follow	program	Coxeter Dynkin pseudocode/program.
