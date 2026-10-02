@@ -1,0 +1,1 @@
+The shared evidence rules distinguished UI activity from semantic execution in general, but no focused acceptance pattern required interactive renderer controls to demonstrate a downstream semantic-output change.
