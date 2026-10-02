@@ -23,3 +23,82 @@ isomorphismes/ortho	main	src/Generate.idric	follow	program	Ortho generator.
 isomorphismes/ortho	main	src/Orthant.idric	follow	program	Ortho orthant code.
 isomorphismes/L	main	shader/LWegert.idric	follow	program	L/Wegert shader program.
 isomorphismes/coxeter	main	pseudocode/Dynkin.idric	follow	program	Coxeter Dynkin pseudocode/program.
+isomorphismes/knot-complement	main	refactor/idric/Recenter.idric	follow	program	Keep the knot-complement Idriç source valid under language changes.
+isomorphisms/Idric	Idriç	XbrlCanary.idric	follow	canary	Keep the current Idriç canary valid under language changes.
+isomorphisms/Idric	Idriç	_/examples/compiler-one-step/PrintX.idric	follow	example	Keep the Idriç example valid under language changes.
+isomorphisms/Idric	Idriç	_/examples/unified-higher-mathematics/Circle96.idric	follow	example	Keep the Idriç example valid under language changes.
+isomorphisms/Idric	Idriç	_/examples/unified-higher-mathematics/Circle96Tests.idric	follow	example	Keep the Idriç example valid under language changes.
+isomorphisms/Idric	Idriç	_/examples/unified-higher-mathematics/CompactUnitDirectionStorage.idric	follow	example	Keep the Idriç example valid under language changes.
+isomorphisms/Idric	Idriç	_/examples/unified-higher-mathematics/CompactUnitDirectionStorageTests.idric	follow	example	Keep the Idriç example valid under language changes.
+isomorphisms/Idric	Idriç	_/examples/unified-higher-mathematics/ComplexPairAgreement.idric	follow	example	Keep the Idriç example valid under language changes.
+isomorphisms/Idric	Idriç	_/examples/unified-higher-mathematics/ComplexPairAgreementTests.idric	follow	example	Keep the Idriç example valid under language changes.
+isomorphisms/Idric	Idriç	_/examples/unified-higher-mathematics/ComplexProjective.idric	follow	example	Keep the Idriç example valid under language changes.
+isomorphisms/Idric	Idriç	_/examples/unified-higher-mathematics/ComplexProjectiveTests.idric	follow	example	Keep the Idriç example valid under language changes.
+isomorphisms/Idric	Idriç	_/examples/unified-higher-mathematics/EuclideanGeometry.idric	follow	example	Keep the Idriç example valid under language changes.
+isomorphisms/Idric	Idriç	_/examples/unified-higher-mathematics/FormTests.idric	follow	example	Keep the Idriç example valid under language changes.
+isomorphisms/Idric	Idriç	_/examples/unified-higher-mathematics/MathematicalSpaces.idric	follow	example	Keep the Idriç example valid under language changes.
+isomorphisms/Idric	Idriç	_/examples/unified-higher-mathematics/NamedFacts.idric	follow	example	Keep the Idriç example valid under language changes.
+isomorphisms/Idric	Idriç	_/examples/unified-higher-mathematics/PairArithmetic.idric	follow	example	Keep the Idriç example valid under language changes.
+isomorphisms/Idric	Idriç	_/examples/unified-higher-mathematics/PairArithmeticTests.idric	follow	example	Keep the Idriç example valid under language changes.
+isomorphisms/Idric	Idriç	_/examples/unified-higher-mathematics/PresheafRestriction.idric	follow	example	Keep the Idriç example valid under language changes.
+isomorphisms/Idric	Idriç	_/examples/unified-higher-mathematics/QuadraticForms.idric	follow	example	Keep the Idriç example valid under language changes.
+isomorphisms/Idric	Idriç	_/examples/unified-higher-mathematics/QuaternionPairAgreement.idric	follow	example	Keep the Idriç example valid under language changes.
+isomorphisms/Idric	Idriç	_/examples/unified-higher-mathematics/QuaternionPairAgreementTests.idric	follow	example	Keep the Idriç example valid under language changes.
+isomorphisms/Idric	Idriç	_/examples/unified-higher-mathematics/Tests.idric	follow	example	Keep the Idriç example valid under language changes.
+isomorphisms/Idric	Idriç	_/examples/unified-higher-mathematics/TopologyFacts.idric	follow	example	Keep the Idriç example valid under language changes.
+isomorphisms/Idric	Idriç	_/examples/units-time-intervals/Tests.idric	follow	example	Keep the Idriç example valid under language changes.
+isomorphisms/Idric	Idriç	_/examples/units-time-intervals/UnitsTimeIntervals.idric	follow	example	Keep the Idriç example valid under language changes.
+isomorphisms/Idric	Idriç	_/koans/01-values-types-and-holes/exercise/Main.idric	follow	koan	Keep the exercise or solution valid under the current Idriç language.
+isomorphisms/Idric	Idriç	_/koans/01-values-types-and-holes/solution/Main.idric	follow	koan	Keep the exercise or solution valid under the current Idriç language.
+isomorphisms/Idric	Idriç	_/koans/02-functions-with-unicode-arrows/exercise/Main.idric	follow	koan	Keep the exercise or solution valid under the current Idriç language.
+isomorphisms/Idric	Idriç	_/koans/02-functions-with-unicode-arrows/solution/Main.idric	follow	koan	Keep the exercise or solution valid under the current Idriç language.
+isomorphisms/Idric	Idriç	_/koans/03-lists-and-length-indexed-lists/exercise/Main.idric	follow	koan	Keep the exercise or solution valid under the current Idriç language.
+isomorphisms/Idric	Idriç	_/koans/03-lists-and-length-indexed-lists/solution/Main.idric	follow	koan	Keep the exercise or solution valid under the current Idriç language.
+isomorphisms/Idric	Idriç	_/koans/04-equality-proofs/exercise/Main.idric	follow	koan	Keep the exercise or solution valid under the current Idriç language.
+isomorphisms/Idric	Idriç	_/koans/04-equality-proofs/solution/Main.idric	follow	koan	Keep the exercise or solution valid under the current Idriç language.
+isomorphisms/Idric	Idriç	_/koans/05-totality-and-coverage/exercise/Main.idric	follow	koan	Keep the exercise or solution valid under the current Idriç language.
+isomorphisms/Idric	Idriç	_/koans/05-totality-and-coverage/solution/Main.idric	follow	koan	Keep the exercise or solution valid under the current Idriç language.
+isomorphisms/Idric	Idriç	_/koans/06-implicit-dependent-results/exercise/Main.idric	follow	koan	Keep the exercise or solution valid under the current Idriç language.
+isomorphisms/Idric	Idriç	_/koans/06-implicit-dependent-results/solution/Main.idric	follow	koan	Keep the exercise or solution valid under the current Idriç language.
+isomorphisms/Idric	Idriç	_/koans/07-erased-arguments/exercise/Main.idric	follow	koan	Keep the exercise or solution valid under the current Idriç language.
+isomorphisms/Idric	Idriç	_/koans/07-erased-arguments/solution/Main.idric	follow	koan	Keep the exercise or solution valid under the current Idriç language.
+isomorphisms/Idric	Idriç	_/koans/08-linear-arguments/exercise/Main.idric	follow	koan	Keep the exercise or solution valid under the current Idriç language.
+isomorphisms/Idric	Idriç	_/koans/08-linear-arguments/solution/Main.idric	follow	koan	Keep the exercise or solution valid under the current Idriç language.
+isomorphisms/Idric	Idriç	_/koans/09-storage-neutral-choices/exercise/Main.idric	follow	koan	Keep the exercise or solution valid under the current Idriç language.
+isomorphisms/Idric	Idriç	_/koans/09-storage-neutral-choices/solution/Main.idric	follow	koan	Keep the exercise or solution valid under the current Idriç language.
+isomorphisms/Idric	Idriç	_/koans/10-exhaustive-choice-patterns/exercise/Main.idric	follow	koan	Keep the exercise or solution valid under the current Idriç language.
+isomorphisms/Idric	Idriç	_/koans/10-exhaustive-choice-patterns/solution/Main.idric	follow	koan	Keep the exercise or solution valid under the current Idriç language.
+isomorphisms/Idric	Idriç	_/koans/11-source-boundaries/exercise/Main.idric	follow	koan	Keep the exercise or solution valid under the current Idriç language.
+isomorphisms/Idric	Idriç	_/koans/11-source-boundaries/solution/Main.idric	follow	koan	Keep the exercise or solution valid under the current Idriç language.
+isomorphisms/Idric	Idriç	_/koans/12-wegert-model/exercise/Main.idric	follow	koan	Keep the exercise or solution valid under the current Idriç language.
+isomorphisms/Idric	Idriç	_/koans/12-wegert-model/solution/Main.idric	follow	koan	Keep the exercise or solution valid under the current Idriç language.
+isomorphisms/Idric	Idriç	_/tests/base/system_environment_value/InvalidNames.idric	follow	negative-fixture	Migrate language surface while preserving the intended rejection.
+isomorphisms/Idric	Idriç	_/tests/base/system_environment_value/Test.idric	follow	test-fixture	Keep the compiler fixture valid under the current Idriç language.
+isomorphisms/Idric	Idriç	_/tests/idris2/basic/edric002/Main.idric	follow	test-fixture	Keep the compiler fixture valid under the current Idriç language.
+isomorphisms/Idric	Idriç	_/tests/idris2/basic/edric002/WegertSource.idric	follow	test-fixture	Keep the compiler fixture valid under the current Idriç language.
+isomorphisms/Idric	Idriç	_/tests/idris2/basic/edric003/Main.idric	follow	test-fixture	Keep the compiler fixture valid under the current Idriç language.
+isomorphisms/Idric	Idriç	_/tests/idris2/basic/edric003/WegertTouch.idric	follow	test-fixture	Keep the compiler fixture valid under the current Idriç language.
+isomorphisms/Idric	Idriç	_/tests/idris2/basic/edric005/Main.idric	follow	test-fixture	Keep the compiler fixture valid under the current Idriç language.
+isomorphisms/Idric	Idriç	_/tests/idris2/basic/edric010/Main.idric	follow	test-fixture	Keep the compiler fixture valid under the current Idriç language.
+isomorphisms/android-NDK	main	dex/idric/examples/DexArithmetic.idric	follow	target-example	Keep the DEX Idriç example valid under language changes.
+isomorphisms/android-NDK	main	dex/idric/examples/DexText.idric	follow	target-example	Keep the DEX Idriç example valid under language changes.
+isomorphisms/android-NDK	main	dex/idric/tests/source/InvalidDexInt.idric	follow	negative-fixture	Migrate language surface while preserving the intended DEX rejection.
+isomorphisms/ib	main	examples/autogenerated/protected-long-view-task/protected-long-view-task.idric	follow	generated-example	Keep the generated IB Idriç example reconciled with language changes.
+isomorphisms/ib	main	src/ArxivPrepaint.idric	follow	program	Keep the IB Idriç source valid under language changes.
+isomorphisms/ib	main	src/HostileIngestionReceipt.idric	follow	program	Keep the IB Idriç source valid under language changes.
+isomorphisms/ib	main	src/IB/DisplayRepair.idric	follow	program	Keep the IB Idriç source valid under language changes.
+isomorphisms/ib	main	src/IB/History.idric	follow	program	Keep the IB Idriç source valid under language changes.
+isomorphisms/ib	main	src/IB/Index.idric	follow	program	Keep the IB Idriç source valid under language changes.
+isomorphisms/ib	main	src/IB/Information.idric	follow	program	Keep the IB Idriç source valid under language changes.
+isomorphisms/ib	main	src/IB/Inspect.idric	follow	program	Keep the IB Idriç source valid under language changes.
+isomorphisms/ib	main	src/IB/LongViewTask.idric	follow	program	Keep the IB Idriç source valid under language changes.
+isomorphisms/ib	main	src/IB/Occurrence.idric	follow	program	Keep the IB Idriç source valid under language changes.
+isomorphisms/ib	main	src/IB/Prefetch.idric	follow	program	Keep the IB Idriç source valid under language changes.
+isomorphisms/ib	main	src/IB/RecoveredInformation.idric	follow	program	Keep the IB Idriç source valid under language changes.
+isomorphisms/ib	main	src/IB/ScientificMedia.idric	follow	program	Keep the IB Idriç source valid under language changes.
+isomorphisms/ib	main	src/IB/Storage.idric	follow	program	Keep the IB Idriç source valid under language changes.
+isomorphisms/ib	main	src/InformationSmoke.idric	follow	program	Keep the IB Idriç source valid under language changes.
+isomorphisms/ib	main	src/OccurrenceSmoke.idric	follow	program	Keep the IB Idriç source valid under language changes.
+isomorphisms/ib	main	src/PDFCaptionAssociate.idric	follow	program	Keep the IB Idriç source valid under language changes.
+isomorphisms/ib	main	src/Smoke.idric	follow	program	Keep the IB Idriç source valid under language changes.
+isomorphisms/ib	main	src/Workbench.idric	follow	program	Keep the IB Idriç source valid under language changes.
