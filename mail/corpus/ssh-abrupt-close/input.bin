@@ -1,0 +1,7 @@
+tcp	connected
+kex	fixture-common
+trust	match
+auth	accepted
+channel	opened
+read	partial
+peer	reset

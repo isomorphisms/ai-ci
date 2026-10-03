@@ -1,0 +1,3 @@
+host	untrusted
+auth	not-attempted
+channel	not-opened

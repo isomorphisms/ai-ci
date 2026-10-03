@@ -1,0 +1,76 @@
+case	operation	status	evidence	purpose
+rfc-ordinary	rfc	SPEC	R5322	ordinary headers and body
+rfc-folded-repeated	rfc	SPEC	R5322	preserve order capitalization whitespace and folding bytes
+rfc-no-optional	rfc	SPEC	R5322	Message-ID Subject and To absent
+rfc-unusual-value	rfc	SPEC	R5322	commas quoted names comments and colon in value
+rfc-utf8	rfc	SPEC	R6532	internationalized headers under explicit RFC6532 profile
+rfc-encoded-word	rfc	SPEC	R2047	encoded word display distinct from stored header
+rfc-long-fold	rfc	SPEC	R5322	long unfolded field without long physical line
+rfc-bad-word	rfc	UNRESOLVED	Q-MESSAGE	recovery policy needs retained source; raw preservation active
+rfc-no-colon	rfc	UNRESOLVED	Q-MESSAGE	recovery policy needs retained source; raw preservation active
+rfc-leading-fold	rfc	UNRESOLVED	Q-MESSAGE	recovery policy needs retained source; raw preservation active
+rfc-bare-lf	rfc	UNRESOLVED	Q-MESSAGE	recovery policy needs retained source; raw preservation active
+rfc-missing-separator	rfc	UNRESOLVED	Q-MESSAGE	recovery policy needs retained source; raw preservation active
+rfc-bare-cr	rfc	UNRESOLVED	Q-MESSAGE	recovery policy needs retained source; raw preservation active
+rfc-nul-header	rfc	UNRESOLVED	Q-MESSAGE	recovery policy needs retained source; raw preservation active
+rfc-duplicate-singleton	rfc	UNRESOLVED	Q-MESSAGE	recovery policy needs retained source; raw preservation active
+mime-plain	mime	SPEC	R2045	literal transfer encoding pair
+mime-html	mime	SPEC	R2045	literal transfer encoding pair
+mime-base64	mime	SPEC	R2045	literal transfer encoding pair
+mime-qp	mime	SPEC	R2045	literal transfer encoding pair
+mime-8bit	mime	SPEC	R2045	literal transfer encoding pair
+mime-base64-wrapped	mime	SPEC	R2045	literal transfer encoding pair
+mime-qp-soft-break	mime	SPEC	R2045	QP soft break and escaped equals
+mime-alternative	mime	SPEC	R2046	ordered alternatives are not concatenated
+mime-nested-attachment	mime	SPEC	R2046,R2231	nested structure attachment bytes and filename continuations
+mime-empty-quoted-boundary	mime	SPEC	R2046	empty part unusual quoted boundary and boundary-looking payload
+mime-nested-message	mime	SPEC	R2046	message/rfc822 with independently encoded inner leaf
+mime-missing-close	mime	UNRESOLVED	Q-MESSAGE	malformed-input recovery not invented
+mime-invalid-base64	mime	UNRESOLVED	Q-MESSAGE	malformed-input recovery not invented
+mime-invalid-qp	mime	UNRESOLVED	Q-MESSAGE	malformed-input recovery not invented
+mime-encoded-multipart	mime	UNRESOLVED	Q-MESSAGE	malformed-input recovery not invented
+mime-prefix-collision	mime	UNRESOLVED	Q-MESSAGE	malformed-input recovery not invented
+mbox-empty	mbox	UNRESOLVED	Q-MBOX	empty file pending selected format
+mbox-one	mbox	UNRESOLVED	Q-MBOX	constructed spans are evidence, not selected parser semantics
+mbox-several	mbox	UNRESOLVED	Q-MBOX	constructed spans are evidence, not selected parser semantics
+mbox-no-final-lf	mbox	UNRESOLVED	Q-MBOX	constructed spans are evidence, not selected parser semantics
+mbox-empty-body	mbox	UNRESOLVED	Q-MBOX	constructed spans are evidence, not selected parser semantics
+mbox-newlines	mbox	UNRESOLVED	Q-MBOX	constructed spans are evidence, not selected parser semantics
+mbox-from-quotes	mbox	UNRESOLVED	Q-MBOX	constructed spans are evidence, not selected parser semantics
+mbox-mime-separator	mbox	UNRESOLVED	Q-MBOX	constructed spans are evidence, not selected parser semantics
+mbox-binary	mbox	UNRESOLVED	Q-MBOX	constructed spans are evidence, not selected parser semantics
+mbox-incomplete	mbox	UNRESOLVED	Q-MBOX	constructed spans are evidence, not selected parser semantics
+mbox-adjacent	mbox	UNRESOLVED	Q-MBOX	constructed spans are evidence, not selected parser semantics
+mbox-duplicate-id	mbox	UNRESOLVED	Q-MBOX	constructed spans are evidence, not selected parser semantics
+mbox-absent-id	mbox	UNRESOLVED	Q-MBOX	constructed spans are evidence, not selected parser semantics
+mbox-malformed-id	mbox	UNRESOLVED	Q-MBOX	constructed spans are evidence, not selected parser semantics
+mbox-same-body	mbox	UNRESOLVED	Q-MBOX	constructed spans are evidence, not selected parser semantics
+mbox-identical-copies	mbox	UNRESOLVED	Q-MBOX	constructed spans are evidence, not selected parser semantics
+mbox-truncated-separator	mbox	UNRESOLVED	Q-MBOX	boundary/recovery ambiguity retained for resolution
+mbox-malformed-separator	mbox	UNRESOLVED	Q-MBOX	boundary/recovery ambiguity retained for resolution
+mbox-invalid-message	mbox	UNRESOLVED	Q-MBOX	boundary/recovery ambiguity retained for resolution
+mbox-content-length-conflict	mbox	UNRESOLVED	Q-MBOX	boundary/recovery ambiguity retained for resolution
+crash-before-read	migration	POLICY	U-CRASH	knowledge after cut, distinct from hidden destination truth
+crash-during-read	migration	POLICY	U-CRASH	knowledge after cut, distinct from hidden destination truth
+crash-after-parse	migration	POLICY	U-CRASH	knowledge after cut, distinct from hidden destination truth
+crash-during-submit	migration	POLICY	U-CRASH	knowledge after cut, distinct from hidden destination truth
+crash-accepted-ack-lost	migration	POLICY	U-CRASH	knowledge after cut, distinct from hidden destination truth
+crash-not-accepted-ack-lost	migration	POLICY	U-CRASH	knowledge after cut, distinct from hidden destination truth
+crash-ack-before-durable	migration	POLICY	U-CRASH	knowledge after cut, distinct from hidden destination truth
+crash-after-durable	migration	POLICY	U-CRASH	knowledge after cut, distinct from hidden destination truth
+restart-corrupt-tail	migration	POLICY	U-CRASH	knowledge after cut, distinct from hidden destination truth
+restart-truncated-tail	migration	POLICY	U-CRASH	knowledge after cut, distinct from hidden destination truth
+crash-definite-failure	migration	POLICY	U-CRASH	knowledge after cut, distinct from hidden destination truth
+restart-safe-retry	migration	POLICY	U-CRASH	knowledge after cut, distinct from hidden destination truth
+ssh-success	ssh-model	POLICY	SSH,U-TRUST	observable-contract model; never live SSH evidence
+ssh-host-mismatch	ssh-model	POLICY	SSH,U-TRUST	observable-contract model; never live SSH evidence
+ssh-host-missing	ssh-model	POLICY	SSH,U-TRUST	observable-contract model; never live SSH evidence
+ssh-auth-failed	ssh-model	POLICY	SSH,U-TRUST	observable-contract model; never live SSH evidence
+ssh-tcp-only	ssh-model	POLICY	SSH,U-TRUST	observable-contract model; never live SSH evidence
+ssh-no-algorithm	ssh-model	POLICY	SSH,U-TRUST	observable-contract model; never live SSH evidence
+ssh-channel-denied	ssh-model	POLICY	SSH,U-TRUST	observable-contract model; never live SSH evidence
+ssh-setup-close	ssh-model	POLICY	SSH,U-TRUST	observable-contract model; never live SSH evidence
+ssh-abrupt-close	ssh-model	POLICY	SSH,U-TRUST	observable-contract model; never live SSH evidence
+ssh-sftp	ssh-model	POLICY	SSH,U-TRUST	observable-contract model; never live SSH evidence
+ssh-scp	ssh-model	POLICY	SSH,U-TRUST	observable-contract model; never live SSH evidence
+identity-collisions	identity	POLICY	U-IDENTITY	retain occurrence records without choosing destination deduplication

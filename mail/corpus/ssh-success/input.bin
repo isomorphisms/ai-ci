@@ -1,0 +1,12 @@
+tcp	connected
+kex	fixture-common
+trust	match
+auth	accepted
+channel	opened
+command	streams-exit23
+read	again
+read	idle
+read	stdout
+read	stderr
+read	eof
+close	ordinary

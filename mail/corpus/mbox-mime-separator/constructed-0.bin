@@ -1,0 +1,9 @@
+Content-Type: multipart/mixed; boundary=b
+
+--b
+Content-Type: text/plain
+
+From sender@example.invalid Mon Sep 28 12:00:00 2026
+inside
+--b--
+

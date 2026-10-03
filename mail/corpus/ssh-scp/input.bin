@@ -1,0 +1,4 @@
+protocol	scp
+file	synthetic.bin
+read	short
+read	eof

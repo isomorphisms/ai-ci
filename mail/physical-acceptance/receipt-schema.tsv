@@ -1,0 +1,19 @@
+field	required	public-policy
+evidence-kind	yes	physical-sdf-gmail only after actual services exercised
+run-id	yes	opaque identifier
+aici-commit	yes	exact full commit
+implementation-source-commits	yes	exact full commits
+executable-digests	yes	public build hashes permitted
+actual-sdf-host	yes	private or opaque alias
+host-identity-check	yes	verified plus private evidence pointer
+source-snapshot-identity	yes	private evidence pointer
+source-mailbox-path	yes	private only
+source-spans-and-digests	yes	private or keyed/redacted linkage
+parser-boundary-receipt	yes	private evidence pointer
+gmail-method-and-options	yes	redact account identity
+gmail-returned-identifiers	yes	private or opaque aliases
+destination-content-inspection	yes	private evidence pointer
+kill-and-restart-observations	yes	private evidence pointer
+duplicate-accounting	yes	explicit outcome not inferred from Message-ID
+unknown-write-resolution	yes	unresolved is not PASS
+result	yes	PASS FAIL UNKNOWN NOT_RUN

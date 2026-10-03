@@ -1,0 +1,4 @@
+durable	intent-A
+submit	started
+corrupt-tail	accepted:g-1
+cut	recovery

@@ -1,0 +1,7 @@
+connection	closed
+negotiation	success
+host	verified
+auth	success
+channel	opened
+exit	23
+terminal	eof

@@ -1,0 +1,20 @@
+id	source	sections	purpose
+R4155	https://www.rfc-editor.org/rfc/rfc4155	2 and Appendix A	variant warning and explicit default format; not proof of SDF dialect
+R5322	https://www.rfc-editor.org/rfc/rfc5322	2.1,2.2.3,3.5,3.6,3.6.4	message syntax, unfolding, optional Message-ID
+R2045	https://www.rfc-editor.org/rfc/rfc2045	6.1,6.7,6.8	transfer encodings and decoded payloads
+R2046	https://www.rfc-editor.org/rfc/rfc2046	5.1.1,5.1.2,5.1.3,5.1.4,5.2.1	multipart boundaries, nested messages, alternatives
+R2047	https://www.rfc-editor.org/rfc/rfc2047	2,4,6	encoded-word display versus raw headers
+R2231	https://www.rfc-editor.org/rfc/rfc2231	3,4	filename charset and parameter continuations
+R6532	https://www.rfc-editor.org/rfc/rfc6532	3.1,3.2	UTF-8 header profile, not permission for all legacy parsers
+SSH	https://github.com/dilapidated-shed/issh/tree/67da05b1af80be9039485a9102da5ee9049d6db8	docs/libssh2_channel_read_ex.md,knownhost_checkp,session_handshake,sftp_read	retained library contract; see INVARIANTS
+R4252	https://www.rfc-editor.org/rfc/rfc4252	5	SSH authentication distinct from transport
+R4253	https://www.rfc-editor.org/rfc/rfc4253	7	negotiation and host key
+R4254	https://www.rfc-editor.org/rfc/rfc4254	5.2,5.3,6.10	channel data, extended stderr, EOF, exit status
+GMAIL-IMPORT	https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages/import	method,parameters,response	import is distinct from send; request options and returned Message
+GMAIL-MESSAGE	https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages	id,threadId,raw	Gmail identity and base64url raw representation
+U-RAW	current-user-request-2026-09-28	4,5,6,7	byte preservation and exact provenance
+U-CRASH	current-user-request-2026-09-28	9,12	unknown write cannot be automatically retried
+U-IDENTITY	current-user-request-2026-09-28	11	source/content/Message-ID/destination distinctions
+U-TRUST	current-user-request-2026-09-28	10	host-key check before privileged operations
+Q-MBOX	OPEN_QUESTIONS.md	Q1	missing retained mbox source
+Q-MESSAGE	OPEN_QUESTIONS.md	Q2	missing original message parser and recovery policy
