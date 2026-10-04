@@ -36,6 +36,26 @@ fixture in `tests/cases.tsv`. The self-test audits that coverage mechanically;
 adding an assertion without a unique diagnostic and matching bad fixture makes
 CI fail.
 
+## ICK-or-NDK build policy
+
+The reusable `build-toolchain-v0` contract makes each compile/link choice
+explicit. Each maintained compile/link stage records a row in
+`ci/build-toolchain.tsv` with these fields:
+
+`build_id<TAB>target<TAB>toolchain<TAB>ick_revision<TAB>ick_status<TAB>ick_evidence`
+
+`toolchain` is exactly `ick` or `ndk`. Every row pins the exact 40-hex ICK
+revision against which the choice was made. An ICK row must say
+`ick_status=qualified` and cite qualification evidence. An NDK row must say
+`ick_status=gap:<specific capability gap>` and cite durable evidence for that
+gap. A valid NDK row emits an `ick-gap` record during verification so a green
+build cannot hide why ICK was not used. A multi-stage build may therefore have
+both ICK and NDK rows when different stages genuinely use them.
+
+The contract deliberately has no generic compiler fallback. If ICK is not
+qualified and NDK cannot target the build, the build is blocked until the ICK
+capability exists; the policy does not relabel another compiler as compliance.
+
 ## Pull-request merge verdicts
 
 The `merge/` contract produces a fail-closed verdict from ten plain TSV files:
@@ -86,10 +106,30 @@ bounded API reads.
 live-base/baseline responses across PRs in the same sweep.
 
 `merge/collect-account.sh OWNER REGISTRY.tsv OUTPUT_DIRECTORY` discovers every open
-PR authored by that owner in that owner's repositories, maps registered repositories
+PR authored by that account across repositories visible to the credential, maps registered repositories
 to their merge policies, and feeds the managed set through the same exact-state
 collector. Unregistered PRs remain visible as `UNMANAGED`; age is not treated as a
 blocker or a reason to close work.
+
+The collector writes `collection.tsv` as `COMPLETE` only after every search page
+and managed result has been collected. It rejects incomplete API results,
+more than 1,000 reported results, missing or malformed fields, changing totals,
+short pages, duplicate PRs, and failed managed collection. The record binds the
+reported/discovered counts and SHA-256 hashes of `managed/results.tsv` and
+`unmanaged.tsv`. Starting a refresh invalidates the previous completion record.
+Run `sh tests/merge-account.sh` for the adversarial discovery checks.
+
+The version 2 scope follows the author across repository owners, including
+organization transfers and upstream contributions. It does not infer ownership
+or permission to merge from authorship. Repositories without a matching policy
+remain `UNMANAGED`; transferred repositories must use their current name in the
+policy registry. PRs by other authors and resources hidden from the API credential
+remain outside this scope. GitHub search is
+not an atomic snapshot; matching counts cannot prove that no work changed
+during collection. The record establishes a validated collection in that scope,
+not current merge authority. Cockswain requires this record before reporting
+that the collected scope has no open PRs. Version 1 owner-only output must be
+recollected: its narrower scope can omit outstanding work after a transfer.
 
 `merge/retire-ready.sh OUTPUT_DIRECTORY` lists the PRs whose collected state is
 `READY`. With `--apply`, it re-runs the exact-state classifier immediately before
@@ -146,6 +186,12 @@ local build, an open fdroiddata merge request, or a successful status query
 cannot be mislabeled as store acceptance. See [`fdroid/README.md`](fdroid/README.md)
 for the receipt schema, ABI-split rules, current official-check mapping, and the
 manual-review boundary.
+
+## Current Android release shelves
+
+The optional `release-shelf/` action keeps a consumer-owned current-artifact shelf synchronized with GitHub releases. It scans a declared repository population, verifies APK ZIP structure, classifies APKs from their actual native-library ABIs, validates DEX magic, and can inspect explicitly named DEX-producing release archives. The resulting manifests preserve repository, release, asset/member, SHA-256, byte count, ABI, and source URL.
+
+The action changes only the consumer working tree; the consumer decides when to commit it. Collection is artifact/provenance evidence only and is not installation, launch, runtime, emulator, or physical-device acceptance. See [`release-shelf/README.md`](release-shelf/README.md).
 
 ## Hostile-web ingestion acceptance
 

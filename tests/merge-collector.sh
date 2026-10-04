@@ -88,4 +88,31 @@ AICI_GITHUB_GET=$getter AICI_GITHUB_GET_LOG=$work/api.log \
 test "$(wc -l < "$work/api.log")" -eq 4
 test "$(grep -c 'READY' "$work/set-result")" -eq 2
 
+printf 'repository\tpolicy\nmoved-organization/example\t%s\n' "$policy" > "$work/registry.tsv"
+printf '%s\n' '{"total_count":1,"incomplete_results":false,"items":[{"number":17,"title":"Fixture PR","pull_request":{},"repository_url":"https://api.github.com/repos/moved-organization/example"}]}' > "$work/api/search.json"
+sed 's@isomorphisms/example@moved-organization/example@g' "$policy/settings.tsv" > "$work/moved-settings.tsv"
+cp "$work/moved-settings.tsv" "$policy/settings.tsv"
+sed 's@/repos/isomorphisms/example/@/repos/moved-organization/example/@g' "$getter" > "$work/moved-get"
+chmod +x "$work/moved-get"
+AICI_GITHUB_GET=$work/moved-get AICI_REPOSITORY_ROOT=$work/repository \
+    sh "$root/merge/collect-account.sh" isomorphisms "$work/registry.tsv" "$work/account" > "$work/account-result"
+grep -F 'READY' "$work/account-result" >/dev/null
+awk -F '\t' '$1=="status" && $2=="COMPLETE" {found=1} END {exit !found}' "$work/account/collection.tsv"
+if [ -n "${COCKSWAIN_PR_RETIREMENT:-}" ]; then
+    "$COCKSWAIN_PR_RETIREMENT" "$work/account" > "$work/decision"
+    awk -F '\t' '$1=="action" && $2=="CONTINUE" {found=1} END {exit !found}' "$work/decision"
+    awk -F '\t' '$1=="reason_code" && $2=="READY" {found=1} END {exit !found}' "$work/decision"
+    awk -F '\t' '$1=="repository" && $2=="moved-organization/example" {found=1} END {exit !found}' "$work/decision"
+fi
+
+# A failed managed refresh cannot reuse prior completion or masquerade as BLOCKED.
+mv "$policy/settings.tsv" "$work/settings.tsv"
+if AICI_GITHUB_GET=$work/moved-get AICI_REPOSITORY_ROOT=$work/repository \
+    sh "$root/merge/collect-account.sh" isomorphisms "$work/registry.tsv" "$work/account" > "$work/failed-result" 2> "$work/failed-error"; then
+    echo 'account collector accepted a failed managed policy collection' >&2
+    exit 1
+fi
+grep -F 'no valid classifier result' "$work/failed-error" >/dev/null
+awk -F '\t' '$1=="status" && $2=="INCOMPLETE" {found=1} END {exit !found}' "$work/account/collection.tsv"
+
 printf '%s\n' 'GitHub collector fixtures pass; set collection caches repeated API reads'

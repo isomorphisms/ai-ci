@@ -21,9 +21,13 @@ jobs:
         run: |
           cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici src/aici.c
           cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-build-preflight tests/build_preflight_oracle.c
+          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-host-context src/aici_host_context.c
       - name: Prove bad fixtures are rejected
         shell: sh
         run: /tmp/aici self-test tests/cases.tsv
+      - name: Keep historical backend probes off the recurring queue
+        shell: sh
+        run: /tmp/aici verify compiler_backends/historical.contract.tsv .
       - name: Refuse new first-party Python source
         shell: sh
         run: |
@@ -37,6 +41,9 @@ jobs:
             'tests/fixtures/language-bad-python/ci/hidden.py' \
             > "$RUNNER_TEMP/python-source.expected"
           diff -u "$RUNNER_TEMP/python-source.expected" "$RUNNER_TEMP/python-source.actual"
+      - name: Prove APK and DEX release shelf classification
+        shell: sh
+        run: sh release-shelf/tests/self-test.sh
       - name: Check out pinned Ike
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -84,6 +91,20 @@ jobs:
           tests/build-preflight/fixture.sh bad-tree tests/build-preflight/bad-tree.trace.tsv
           /tmp/aici-build-preflight self-test tests/build-preflight/cases.tsv
           git diff --exit-code -- tests/build-preflight/*.trace.tsv
+      - name: Prove operational host-context preflight
+        shell: sh
+        run: |
+          /tmp/aici-host-context self-test tests/operational-host-context/cases.tsv
+          sh host-context/probe.sh github-runner sh git             > "$RUNNER_TEMP/host-context-live.tsv"
+          /tmp/aici-host-context check "$RUNNER_TEMP/host-context-live.tsv"
+          sh host-context/probe.sh github-runner aici-command-that-does-not-exist             > "$RUNNER_TEMP/host-context-absent.tsv"
+          /tmp/aici-host-context check "$RUNNER_TEMP/host-context-absent.tsv"
+
+      - name: Exercise reusable host-context action
+        uses: ./host-context
+        with:
+          trace: tests/operational-host-context/good-present.trace.tsv
+
       - name: Exercise the published composite action
         uses: ./
         with:

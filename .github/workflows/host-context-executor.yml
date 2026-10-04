@@ -1,0 +1,66 @@
+name: Host-context execution control
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  local-execution:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact proposed revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Test real child effects and blocked execution under sh
+        shell: sh
+        run: ENV= BASH_ENV= /bin/sh host-context/tests/executor.sh
+      - name: Repeat under Bash
+        shell: sh
+        run: ENV= BASH_ENV= TEST_SHELL=/bin/bash /bin/sh host-context/tests/executor.sh
+      - name: Request a harmless directory creation
+        shell: sh
+        run: |
+          printf '%s\n' mkdir "$RUNNER_TEMP/guarded-directory" > "$RUNNER_TEMP/guarded-request"
+      - name: Exercise the execution action, not the trace auditor
+        uses: ./host-context/execute
+        with:
+          request: ${{ runner.temp }}/guarded-request
+          receipt: ${{ runner.temp }}/guarded-execution.tsv
+          expected_os: Linux
+          expected_arch: x86_64
+      - name: Verify actual result independently
+        shell: sh
+        run: |
+          test -d "$RUNNER_TEMP/guarded-directory"
+          grep -F 'final	outcome	succeeded' "$RUNNER_TEMP/guarded-execution.tsv"
+      - name: Preserve this test-only execution receipt
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: host-context-execution-${{ github.event_name }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/guarded-execution.tsv
+          if-no-files-found: error
+
+  netbsd-execution:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact proposed revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Run the same behavioural tests inside NetBSD 11
+        uses: vmactions/netbsd-vm@c8a0d7ddb84619a7a8cc4e652efa7950b3fd9f92
+        with:
+          release: "11.0"
+          arch: x86_64
+          run: |
+            set -eu
+            cd "$GITHUB_WORKSPACE"
+            ENV= BASH_ENV= /bin/sh host-context/tests/executor.sh

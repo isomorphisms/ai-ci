@@ -1,0 +1,4 @@
+event	status	host	role	subject	value	evidence
+host-role	pass	mystery	execution	identity	mystery	observed:prompt
+host-fact	pass	mystery	execution	os	Linux	inferred:not-termux
+host-fact	pass	mystery	execution	arch	x86_64	observed:uname-m

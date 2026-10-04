@@ -1179,6 +1179,122 @@ static int script_uses_runner(const char *path, const char *script,
     return ok && matches > 0;
 }
 
+typedef enum {
+    BUILD_TOOLCHAIN_ALLOWED,
+    BUILD_TOOLCHAIN_REVISION,
+    BUILD_TOOLCHAIN_EVIDENCE,
+    BUILD_TOOLCHAIN_NDK_GAP
+} BuildToolchainRule;
+
+static int exact_sha40(const char *value) {
+    size_t i;
+    if (strlen(value) != 40) return 0;
+    for (i = 0; i < 40; ++i) {
+        if (!isxdigit((unsigned char)value[i])) return 0;
+    }
+    return 1;
+}
+
+static int useful_build_toolchain_field(const char *value) {
+    return value[0] != '\0' && strcmp(value, "-") != 0;
+}
+
+static void emit_ick_gap(const char *build_id, const char *target,
+                         const char *ick_revision, const char *gap,
+                         const char *evidence) {
+    fputs("{\"kind\":\"ick-gap\",\"build\":", stdout);
+    json_string(build_id);
+    fputs(",\"target\":", stdout);
+    json_string(target);
+    fputs(",\"ickRevision\":", stdout);
+    json_string(ick_revision);
+    fputs(",\"gap\":", stdout);
+    json_string(gap);
+    fputs(",\"evidence\":", stdout);
+    json_string(evidence);
+    fputs("}\n", stdout);
+}
+
+static int build_toolchain_manifest_rule(const char *path,
+                                         BuildToolchainRule rule,
+                                         int emit_gaps) {
+    FILE *file = fopen(path, "r");
+    char *line = NULL;
+    size_t capacity = 0;
+    ssize_t length;
+    int header_seen = 0;
+    int rows = 0;
+    int ok = 1;
+
+    if (file == NULL) return 0;
+    while ((length = getline(&line, &capacity, file)) >= 0) {
+        char *fields[AICI_FIELDS_MAX];
+        char *content;
+        int count;
+        const char *toolchain;
+        const char *ick_revision;
+        const char *ick_status;
+        const char *ick_evidence;
+        int row_ok = 1;
+
+        if (length > AICI_LINE_MAX) {
+            ok = 0;
+            continue;
+        }
+        content = trim(line);
+        if (*content == '\0' || *content == '#') continue;
+        if (!header_seen) {
+            header_seen = 1;
+            continue;
+        }
+
+        ++rows;
+        count = split_tabs(content, fields, AICI_FIELDS_MAX);
+        if (count != 6) {
+            ok = 0;
+            continue;
+        }
+
+        toolchain = fields[2];
+        ick_revision = fields[3];
+        ick_status = fields[4];
+        ick_evidence = fields[5];
+
+        switch (rule) {
+            case BUILD_TOOLCHAIN_ALLOWED:
+                row_ok = strcmp(toolchain, "ick") == 0 ||
+                         strcmp(toolchain, "ndk") == 0;
+                break;
+            case BUILD_TOOLCHAIN_REVISION:
+                row_ok = exact_sha40(ick_revision);
+                break;
+            case BUILD_TOOLCHAIN_EVIDENCE:
+                if (strcmp(toolchain, "ick") == 0) {
+                    row_ok = strcmp(ick_status, "qualified") == 0 &&
+                             useful_build_toolchain_field(ick_evidence);
+                } else if (strcmp(toolchain, "ndk") == 0) {
+                    row_ok = useful_build_toolchain_field(ick_evidence);
+                }
+                break;
+            case BUILD_TOOLCHAIN_NDK_GAP:
+                if (strcmp(toolchain, "ndk") == 0) {
+                    row_ok = strncmp(ick_status, "gap:", 4) == 0 &&
+                             useful_build_toolchain_field(ick_status + 4);
+                    if (row_ok && emit_gaps) {
+                        emit_ick_gap(fields[0], fields[1], ick_revision,
+                                     ick_status + 4, ick_evidence);
+                    }
+                }
+                break;
+        }
+        if (!row_ok) ok = 0;
+    }
+
+    free(line);
+    fclose(file);
+    return header_seen && rows > 0 && ok;
+}
+
 static int valid_code(const char *code) {
     const unsigned char *p = (const unsigned char *)code;
     if (*p == '\0') return 0;
@@ -1330,6 +1446,37 @@ static int verify_contract(const char *contract_path, const char *root,
             if (!malformed) ok = script_uses_runner(left, fields[3], fields[4]);
             snprintf(detail, sizeof(detail), "%s runs %s with %s",
                      fields[2], fields[3], fields[4]);
+        } else if (strcmp(operation, "build_toolchains_allowed") == 0 &&
+                   count == 3) {
+            malformed = !join_path(left, sizeof(left), root, fields[2]);
+            if (!malformed) {
+                ok = build_toolchain_manifest_rule(left, BUILD_TOOLCHAIN_ALLOWED, 0);
+            }
+            snprintf(detail, sizeof(detail), "%s uses only ick or ndk", fields[2]);
+        } else if (strcmp(operation, "build_toolchains_revision") == 0 &&
+                   count == 3) {
+            malformed = !join_path(left, sizeof(left), root, fields[2]);
+            if (!malformed) {
+                ok = build_toolchain_manifest_rule(left, BUILD_TOOLCHAIN_REVISION, 0);
+            }
+            snprintf(detail, sizeof(detail), "%s pins exact ICK revisions", fields[2]);
+        } else if (strcmp(operation, "build_toolchains_evidence") == 0 &&
+                   count == 3) {
+            malformed = !join_path(left, sizeof(left), root, fields[2]);
+            if (!malformed) {
+                ok = build_toolchain_manifest_rule(left, BUILD_TOOLCHAIN_EVIDENCE, 0);
+            }
+            snprintf(detail, sizeof(detail), "%s records ICK qualification evidence",
+                     fields[2]);
+        } else if (strcmp(operation, "build_toolchains_ndk_gap") == 0 &&
+                   count == 3) {
+            malformed = !join_path(left, sizeof(left), root, fields[2]);
+            if (!malformed) {
+                ok = build_toolchain_manifest_rule(left, BUILD_TOOLCHAIN_NDK_GAP,
+                                                   !quiet);
+            }
+            snprintf(detail, sizeof(detail), "%s explains every NDK fallback",
+                     fields[2]);
         } else {
             malformed = 1;
             snprintf(detail, sizeof(detail), "%s:%d", contract_path, line_number);

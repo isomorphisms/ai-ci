@@ -15,11 +15,17 @@ branch exists and records the SHA selected for that run.
 Resolution proves only what source was selected. Compatibility still requires
 the executable lane owned by the named receipt owner.
 
-The DEX lane selects `isomorphisms/Idric@Idriç` together with
-`isomorphisms/idric-arm-thumb@dex/sibling-backend-boundary`. This deliberately
+The DEX lane selects `dilapidated-shed/Idric@Idriç` together with
+`dilapidated-shed/idric-arm-thumb@dex/sibling-backend-boundary`. This deliberately
 follows the reconstructed DEX sibling boundary rather than the old ARM/Thumb
 implementation ancestry. A resolved DEX ref is not a DEX execution or
 physical-phone receipt.
+
+The former shader/AVE lane is retired from current selection: AVE PR #12 closed
+without merging and its `dogfood/idris-shader-f16` branch was deleted. Its exact
+head remains available to the explicitly historical backend source probe.
+This removes a dead selection, not an unmet physical-GPU evidence requirement;
+any new consumer lane must declare its own current source and acceptance owner.
 
 ## Historical and fixed evidence
 

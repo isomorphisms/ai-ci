@@ -1,0 +1,1 @@
+Acceptance for a semantic control must prove that deterministic input reaches the intended semantic state and changes the semantic output outside the control chrome. Handle motion alone is not acceptance.
