@@ -6,6 +6,10 @@ the canonical shared guardrail for recurrent agent failures. Repository-local
 `AGENTS.md` files may add stricter rules; do not copy this whole section into
 every repository.
 
+For the repository-design rationale behind small agent entry points, progressive
+disclosure, mechanical constraints, and agent-legible evidence, see
+[`docs/harness-engineering.md`](docs/harness-engineering.md).
+
 ## Human-found test flaws
 
 - **Treat a human-found bad test as a generator bug until shown otherwise.** Repair the concrete test, then search for the semantic defect class across repositories and investigate the upstream reasoning mechanism, prompt, helper, fixture, oracle, schema, wrapper, or precedent that made the bad test seem valid. Prefer repairing the earliest reusable cause that can be changed safely. Before broad causal changes, establish landmarks such as exact revisions, known-good controls, known-bad mutants, independent semantic outputs, consumer inventories, and executed-case provenance; rerun them afterward and investigate every unexpected movement. Preserve the original defect and corrected form as regression evidence. See issue #183.
