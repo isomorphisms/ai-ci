@@ -21,3 +21,7 @@ match `contracts/evaluation-case-v0.contract.tsv`:
 The manifest is deliberately provider-neutral. A future runner may translate
 it to a hosted evaluation service, but the repository remains the authoritative
 source of objectives, cases, evidence requirements, and thresholds.
+
+## Blackball response comparison
+
+[Blackball's result contract and synthetic fixtures](blackball/README.md) separate substantive change, evidence status, and operational run status. [The fresh-chat boundary](blackball/CLI.md) specifies literal paired prompts and raw receipts without prescribing a provider implementation. These fixtures are not live model evidence.

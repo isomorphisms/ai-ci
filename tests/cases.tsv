@@ -64,3 +64,7 @@ fail	contracts/build-toolchain-v0.contract.tsv	tests/fixtures/build-toolchain-ba
 fail	contracts/build-toolchain-v0.contract.tsv	tests/fixtures/build-toolchain-bad-revision	BUILD-TOOLCHAIN-ICK-REVISION
 fail	contracts/build-toolchain-v0.contract.tsv	tests/fixtures/build-toolchain-bad-evidence	BUILD-TOOLCHAIN-ICK-EVIDENCE
 fail	contracts/build-toolchain-v0.contract.tsv	tests/fixtures/build-toolchain-bad-gap	BUILD-TOOLCHAIN-ICK-GAP
+pass	contracts/blackball-verdict-v0.contract.tsv	tests/fixtures/blackball-verdicts-good	-
+fail	contracts/blackball-verdict-v0.contract.tsv	tests/fixtures/blackball-verdicts-empty	BLACKBALL-VERDICTS-EMPTY
+fail	contracts/blackball-verdict-v0.contract.tsv	tests/fixtures/blackball-verdicts-bad-header	BLACKBALL-VERDICTS-HEADER
+fail	contracts/blackball-verdict-v0.contract.tsv	tests/fixtures/blackball-verdicts-bad-fields	BLACKBALL-VERDICTS-FIELDS
