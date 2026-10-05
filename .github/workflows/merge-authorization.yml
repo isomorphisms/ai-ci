@@ -85,7 +85,7 @@ jobs:
 
           status=0
           merge/collect-github.sh "$GITHUB_REPOSITORY" "$PR_NUMBER" "$policy" "$output" > "$output/result.tsv" || status=$?
+          sed -n '1,$p' "$output/result.tsv"
           test "$status" -eq 1
           grep -Eq 'CI_PENDING|NOT_VERIFIED' "$output/result.tsv"
           grep -F 'HUMAN_AUTHORIZATION_REQUIRED' "$output/result.tsv"
-          sed -n '1,$p' "$output/result.tsv"
