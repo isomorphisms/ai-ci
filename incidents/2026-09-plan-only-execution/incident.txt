@@ -1,0 +1,1 @@
+An explicit execution job could end after another plan, audit, or catalogue instead of repository changes.

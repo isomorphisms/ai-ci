@@ -1,0 +1,1 @@
+Runner, QEMU, emulator, packaged, and handwritten-oracle evidence could be promoted to physical-device, executed, or compiler-generated claims.

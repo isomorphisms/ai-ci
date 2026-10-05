@@ -1,0 +1,9 @@
+hardware_board	software_page	mode
+movement	-	hardware_only
+signals	-	hardware_only
+mathKeys	Math	mirror
+programming	Programming	mirror
+regex	Regular Expressions	mirror
+separation	Concept Separation	mirror
+incantations	Incantation Assistance	mirror
+pastebins	Several Pastebins	mirror

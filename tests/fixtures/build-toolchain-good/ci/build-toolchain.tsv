@@ -1,0 +1,3 @@
+build_id	target	toolchain	ick_revision	ick_status	ick_evidence
+host-verifier	linux-x86_64	ick	0123456789abcdef0123456789abcdef01234567	qualified	receipt:hosted-linux-x86_64
+android-platform	armeabi-v7a	ndk	89abcdef0123456789abcdef0123456789abcdef	gap:Android platform linking is not qualified in ICK	issue:ick-platform-link

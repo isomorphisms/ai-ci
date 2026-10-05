@@ -1,0 +1,17 @@
+schema	aici-follower-receipt-v1
+job_id	native-boundary-armv7-build
+repository	isomorphisms/ai-ci
+trigger_commit	e424d6d7dff0eca092351b9d601212645011782c
+follower_platform	github-hosted-ubuntu-ndk-bionic-api24
+follower_arch	armv7a
+acceptance_kind	build
+result	pass
+attempt_commit	e424d6d7dff0eca092351b9d601212645011782c
+os_runtime	Ubuntu 24.04.5 LTS x86_64; GitHub-hosted
+build_command	bash native-boundary/build.sh armv7a $OUTPUT
+test_command	Compile/link/ELF/package checks in native-boundary/build.sh; Android execution NOT_RUN
+artifact	native-boundary-armv7a.tar.gz
+artifact_sha256	c13136a004bf6f7a7e786ef0dbba4707b03155892af925674480e5024782b1f7
+evidence_url	https://github.com/isomorphisms/ai-ci/actions/runs/35012458599/job/104527531400
+recorded_at	2026-09-15T19:15:17Z
+note	Exact-head ARMv7a cross-build evidence only; Android runtime and physical-device acceptance remain unclaimed.

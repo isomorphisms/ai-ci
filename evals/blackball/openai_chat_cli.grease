@@ -1,6 +1,6 @@
-#!/usr/bin/env osh
+#!/usr/bin/env grease
 # Fresh OpenAI Responses client for the Blackball evaluator.
-# Grease shell syntax: no Bash [[ ]], &&, ||, or ! operators.
+# Execute through the verified current Grease source pin; another shell is not a receipt.
 
 if ¬ command -v curl >/dev/null 2>&1; then
   echo 'openai_chat_cli: curl is required' >&2
@@ -35,7 +35,7 @@ if ⟦ "$web_search" = 1 ⟧; then
   request=$(jq -cn \
     --arg model "$model" \
     --arg input "$prompt" \
-    '{model:$model,input:$input,store:false,tools:[{type:"web_search_preview"}],tool_choice:"auto"}') ∨ exit 70
+    '{model:$model,input:$input,store:false,tools:[{type:"web_search"}],tool_choice:"auto"}') ∨ exit 70
 else
   request=$(jq -cn \
     --arg model "$model" \
@@ -46,7 +46,8 @@ fi
 http_code=$(curl \
   --silent \
   --show-error \
-  --location \
+  --connect-timeout 15 \
+  --max-time 300 \
   --output "$work/response.json" \
   --write-out '%{http_code}' \
   --header "Authorization: Bearer $OPENAI_API_KEY" \
@@ -76,4 +77,4 @@ if ¬ jq -e '.status == "completed"' "$work/response.json" >/dev/null; then
   exit 70
 fi
 
-jq -erj '[.output[]? | select(.type == "message") | .content[]? | select(.type == "output_text") | .text] | if length == 0 then error("response has no output_text") else join("") end' "$work/response.json"
+jq -erj '[.output[]? | select(.type == "message") | .content[]? | select(.type == "output_text") | .text] | join("") | if length == 0 then error("response has no output_text") else . end' "$work/response.json"

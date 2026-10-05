@@ -14,7 +14,9 @@
 
 ## Next deterministic contracts
 
-- `revision-stack`: bind results to the exact PR head and base graph;
+- `revision-stack`: live collection and fail-closed verification are implemented
+  in `merge/`; the collector resolves current GitHub/Git facts, active ruleset
+  gates, Cockswain authority provenance, and the ten-file verifier snapshot;
 - `artifact-freshness`: bind artifact hashes to source and toolchain hashes;
 - `idempotent-generation`: run harvest/generation twice and compare the full
   output inventory, then remove an input and prove stale output disappears;
@@ -39,6 +41,10 @@
   runner can produce the receipt directly inside the pinned buildserver image;
 - `narrative-audio`: compare canonical script/captions exactly and independently
   transcribe the generated audio rather than trusting a generation receipt.
+
+## Cross-backend mathematical evidence
+
+[`holomorphic-explorer-evidence.md`](holomorphic-explorer-evidence.md) defines the evidence layers and capability names for the Analytic Continuation whole-plane explorer. It deliberately does not add an executable contract yet: the general complex/projective arithmetic corpus is being established separately, while the application still needs a stable candidate-descriptor corpus and target-device receipts. A future executable profile must follow this repository's normal rule of one distinct diagnostic and known-bad fixture for every required assertion.
 
 ## Semantic review cases
 

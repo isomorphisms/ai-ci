@@ -1,0 +1,78 @@
+name: "AI CI Android signing"
+description: "Verify an APK signer against the central package signing registry"
+inputs:
+  apk:
+    description: "Finished APK path"
+    required: true
+  lane:
+    description: "Signing lane, such as test or release"
+    required: true
+    default: "test"
+runs:
+  using: "composite"
+  steps:
+    - shell: bash
+      env:
+        AICI_APK: ${{ inputs.apk }}
+        AICI_SIGNING_LANE: ${{ inputs.lane }}
+      run: |
+        set -Eeuo pipefail
+
+        [[ -f "$AICI_APK" ]] || {
+          echo "missing APK: $AICI_APK" >&2
+          exit 1
+        }
+
+        android_home=${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}
+        [[ -n "$android_home" ]] || {
+          echo "ANDROID_HOME/ANDROID_SDK_ROOT is required" >&2
+          exit 1
+        }
+
+        build_tools=$(
+          find "$android_home/build-tools"             -mindepth 1 -maxdepth 1 -type d |
+          sort -V |
+          tail -n 1
+        )
+
+        aapt2="$build_tools/aapt2"
+        apksigner="$build_tools/apksigner"
+        [[ -x "$aapt2" && -x "$apksigner" ]] || {
+          echo "Android build-tools aapt2/apksigner are required" >&2
+          exit 1
+        }
+
+        verifier="$RUNNER_TEMP/aici-android-signing"
+        cc -std=c17 -Wall -Wextra -Werror -pedantic -O2           "$GITHUB_ACTION_PATH/../src/aici_android_signing.c"           -o "$verifier"
+
+        package=$(
+          "$aapt2" dump badging "$AICI_APK" |
+          sed -n "s/^package: name='\([^']*\)'.*/\1/p" |
+          head -n 1
+        )
+        [[ -n "$package" ]] || {
+          echo "could not extract APK package id" >&2
+          exit 1
+        }
+
+        cert_report=$("$apksigner" verify --verbose --print-certs "$AICI_APK" 2>&1)
+        printf '%s\n' "$cert_report"
+
+        signer=$(
+          printf '%s\n' "$cert_report" |
+          sed -n 's/^.*certificate SHA-256 digest:[[:space:]]*//p' |
+          tr '[:upper:]' '[:lower:]' |
+          tr -d ':[:space:]' |
+          sort -u
+        )
+
+        [[ -n "$signer" ]] || {
+          echo "APK signer digest is missing" >&2
+          exit 1
+        }
+        [[ "$signer" != *$'\n'* ]] || {
+          echo "APK has multiple distinct signer certificates" >&2
+          exit 1
+        }
+
+        "$verifier" verify           "$GITHUB_ACTION_PATH/identities.tsv"           "$package"           "$AICI_SIGNING_LANE"           "$signer"

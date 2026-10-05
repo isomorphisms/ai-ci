@@ -1,4 +1,4 @@
-#!/usr/bin/env osh
+#!/usr/bin/env grease
 # Grease smoke test for a real fresh-chat command.
 
 if ⟦ "$#" -lt 1 ⟧; then
@@ -13,7 +13,7 @@ work=$(mktemp -d) ∨ exit 70
 trap 'rm -rf "$work"' 0 1 2 15
 
 prompt='Return exactly one character, 4. Do not include punctuation, Markdown, or explanation.'
-answer=$(printf '%s\n' "$prompt" | "$client" "$@" 2>"$work/client.stderr")
+printf '%s\n' "$prompt" | "$client" "$@" >"$work/client.stdout" 2>"$work/client.stderr"
 status=$?
 
 if ⟦ "$status" -ne 0 ⟧; then
@@ -26,10 +26,12 @@ if ⟦ -s "$work/client.stderr" ⟧; then
   cat "$work/client.stderr" >&2
 fi
 
-if ⟦ "$answer" = 4 ⟧; then
+printf 4 >"$work/expected.stdout"
+if cmp -s "$work/client.stdout" "$work/expected.stdout"; then
   echo 'PASS live_chat_smoke'
   exit 0
 fi
 
-printf 'FAIL live_chat_smoke: expected exact stdout 4, got: <%s>\n' "$answer" >&2
+printf 'FAIL live_chat_smoke: expected exactly one stdout byte, 4; got:\n' >&2
+cat "$work/client.stdout" >&2
 exit 1

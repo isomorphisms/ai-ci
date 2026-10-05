@@ -1,0 +1,1 @@
+Retain the exact-head gate and render mismatched evidence as STALE in merge/check-table.sh.
