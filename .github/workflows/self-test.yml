@@ -9,17 +9,77 @@ permissions:
 
 jobs:
   self-test:
+    name: ${{ github.event_name == 'pull_request' && 'self-test' || format('self-test-{0}', github.event_name) }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - name: Compile independent verifiers
         shell: sh
         run: |
           cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici src/aici.c
           cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-build-preflight tests/build_preflight_oracle.c
+          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-host-context src/aici_host_context.c
       - name: Prove bad fixtures are rejected
         shell: sh
         run: /tmp/aici self-test tests/cases.tsv
+      - name: Keep historical backend probes off the recurring queue
+        shell: sh
+        run: /tmp/aici verify compiler_backends/historical.contract.tsv .
+      - name: Refuse new first-party Python source
+        shell: sh
+        run: |
+          find . -type f -name '*.py' ! -path './.git/*' -print |
+            sed 's#^./##' |
+            sort > "$RUNNER_TEMP/python-source.actual"
+          printf '%s\n' \
+            '_/pr-45-wegert-edric-host-diagnostics/check_wegert_host_receipt.py' \
+            'benchmarks/iridium-2014/make-hackage-2014-index.py' \
+            'complex-projective/verify_receipt.py' \
+            'tests/fixtures/language-bad-python/ci/hidden.py' \
+            > "$RUNNER_TEMP/python-source.expected"
+          diff -u "$RUNNER_TEMP/python-source.expected" "$RUNNER_TEMP/python-source.actual"
+      - name: Prove APK and DEX release shelf classification
+        shell: sh
+        run: sh release-shelf/tests/self-test.sh
+      - name: Check out pinned Ike
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: dilapidated-shed/ike
+          ref: 3f513e58ed2b83946fca8e9be6a952a582bafb85
+          path: _ike
+          persist-credentials: false
+      - name: Bootstrap pinned Ike and independent receipt verifier
+        shell: sh
+        run: |
+          cc -std=c11 -Wall -Wextra -Wpedantic -O2 _ike/ike.c -o /tmp/ike
+          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 \
+            ike/verify_receipt.c -o /tmp/aici-ike-receipt
+      - name: Prove mutated Ike receipts are rejected
+        shell: sh
+        run: sh ike/tests.sh /tmp/aici-ike-receipt
+      - name: Shadow the AICI core build through Ike
+        shell: sh
+        run: |
+          ikefile_digest=$(sha256sum ike/Ikefile | cut -d ' ' -f 1)
+          ikefile_identity="sha256:$ikefile_digest"
+          receipt="$RUNNER_TEMP/ike-build-v1.tsv"
+          (
+            cd ike
+            IKE_RECEIPT="$receipt" \
+            IKE_IKEFILE_IDENTITY="$ikefile_identity" \
+              /tmp/ike aici-self-test
+          )
+          /tmp/aici-ike-receipt verify "$receipt" "$ikefile_identity"
+          cmp /tmp/aici /tmp/aici-ike
+      - name: Upload the exact Ike shadow receipt
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: aici-ike-shadow-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/ike-build-v1.tsv
+          if-no-files-found: error
       - name: Prove source preflight gates heavyweight mutation
         shell: sh
         run: |
@@ -31,6 +91,20 @@ jobs:
           tests/build-preflight/fixture.sh bad-tree tests/build-preflight/bad-tree.trace.tsv
           /tmp/aici-build-preflight self-test tests/build-preflight/cases.tsv
           git diff --exit-code -- tests/build-preflight/*.trace.tsv
+      - name: Prove operational host-context preflight
+        shell: sh
+        run: |
+          /tmp/aici-host-context self-test tests/operational-host-context/cases.tsv
+          sh host-context/probe.sh github-runner sh git             > "$RUNNER_TEMP/host-context-live.tsv"
+          /tmp/aici-host-context check "$RUNNER_TEMP/host-context-live.tsv"
+          sh host-context/probe.sh github-runner aici-command-that-does-not-exist             > "$RUNNER_TEMP/host-context-absent.tsv"
+          /tmp/aici-host-context check "$RUNNER_TEMP/host-context-absent.tsv"
+
+      - name: Exercise reusable host-context action
+        uses: ./host-context
+        with:
+          trace: tests/operational-host-context/good-present.trace.tsv
+
       - name: Exercise the published composite action
         uses: ./
         with:
@@ -38,9 +112,13 @@ jobs:
           root: .
 
   biology-self-test:
+    name: ${{ github.event_name == 'pull_request' && 'biology-self-test' || format('biology-self-test-{0}', github.event_name) }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: isomorphisms/bioawk
@@ -76,9 +154,13 @@ jobs:
           corpus_root: _bioawk/sample data
 
   video-self-test:
+    name: ${{ github.event_name == 'pull_request' && 'video-self-test' || format('video-self-test-{0}', github.event_name) }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - name: Install FFmpeg probes
         shell: sh
         run: |
@@ -105,17 +187,26 @@ jobs:
           root: ${{ runner.temp }}/aici-video-fixtures/good
 
   fdroid-self-test:
+    name: ${{ github.event_name == 'pull_request' && 'fdroid-self-test' || format('fdroid-self-test-{0}', github.event_name) }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - name: Require APK receipt probes
         shell: sh
-        run: command -v sha256sum >/dev/null && command -v zip >/dev/null && command -v unzip >/dev/null
+        run: command -v git >/dev/null && command -v jq >/dev/null && command -v sha256sum >/dev/null && command -v zip >/dev/null && command -v unzip >/dev/null
       - name: Compile F-Droid verifier and fixture generator
         shell: sh
         run: |
           cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-fdroid src/aici_fdroid.c
           cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-fdroid-fixtures fdroid/tests/make_receipt_fixtures.c
+      - name: Prove candidate receipt producer derives evidence
+        shell: sh
+        run: |
+          chmod +x fdroid/produce-candidate-v1.sh fdroid/tests/producer-self-test.sh
+          fdroid/tests/producer-self-test.sh fdroid/produce-candidate-v1.sh /tmp/aici-fdroid
       - name: Generate real APK ZIP and receipt fixtures
         shell: sh
         run: /tmp/aici-fdroid-fixtures fdroid/contracts/native-upstream-v1.example.tsv "$RUNNER_TEMP/aici-fdroid-fixtures"
@@ -133,9 +224,13 @@ jobs:
           root: ${{ runner.temp }}/aici-fdroid-fixtures/good
 
   ingestion-self-test:
+    name: ${{ github.event_name == 'pull_request' && 'ingestion-self-test' || format('ingestion-self-test-{0}', github.event_name) }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - name: Install the explicit HTML oracle
         shell: sh
         run: |

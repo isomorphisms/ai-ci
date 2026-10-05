@@ -1,0 +1,1 @@
+Cancelled, skipped, absent, stale, failed, and unknown checks must remain distinct non-passing states.

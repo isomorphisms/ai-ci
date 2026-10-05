@@ -1,0 +1,1 @@
+Use the normalized exact-head table and dedicated CHECK-CANCELLED, CHECK-SKIPPED, CHECK-MISSING, CHECK-STALE, CHECK-FAILED, and CHECK-UNKNOWN diagnostics.

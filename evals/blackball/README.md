@@ -42,19 +42,8 @@ Each fixture also records three diagnostic dimensions. They supplement the verdi
 
 `unsupported_pessimism` is also distinct from ordinary `worse`: it targets the specific false positive where Blackball makes an answer gloomier or more suspicious without earning that change through evidence, argument, or logic.
 
-## One fixture source, two boundary mocks
+## Execution boundary
 
-`mocks/cases.jsonl` is the single fixture source for both mock surfaces:
+The synthetic fixture source is `mocks/cases.jsonl`. It records expected distinctions; it is not a live provider, measured model result, or runnable A/B evaluator.
 
-- `mock_chat_cli.py` implements the provider-neutral stdin/stdout/stderr/exit-status boundary used by the evaluator;
-- `mock_openai_responses.py` exposes the same fixtures through a local OpenAI Responses-shaped HTTP endpoint for testing an API client or parser.
-
-Those are different boundaries, not competing providers. There is deliberately no additional CLI/provider fake with a second fixture table.
-
-The process boundary is documented in `CLI.md`. A nonzero exit means no answer exists and must not be classified. The HTTP mock preserves the same rule by returning an error instead of manufacturing an answer.
-
-## Literal A/B runner
-
-`run_cli_ab.py` invokes any client once for the literal question and once for the same question with only `https://github.com/bl4ckb4ll/blackball` prepended. Across repeated trials it alternates order and preserves the exact prompt, stdout, stderr, exit status, timestamps, and whether an answer exists.
-
-The initial positive BME fixture checks the intended decision behavior: surface the high-debt employment risk before merely matching interests to a major, ask for program-specific bachelor’s outcomes, compare alternative engineering routes, and require evidence for implied as well as explicit institutional career claims without inventing accusations.
+`CLI.md` specifies the provider-neutral fresh-chat boundary and raw receipt requirements. No Python or YSH client, mock server, or runner is bundled here. A future implementation must use the current checked Idriç/Ithon/Grease and build-toolchain policies; failed generation still means that no answer exists.

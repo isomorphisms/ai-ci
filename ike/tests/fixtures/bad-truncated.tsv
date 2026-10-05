@@ -1,0 +1,5 @@
+schema	ike-build-v1
+selected_target_hex	616963692d73656c662d74657374
+ikefile_identity_hex	666978747572653a696b66696c652d7631
+recipe_runner_mode	posix-system
+recipe_runner_identity_hex	504f5349582d73797374656d2829

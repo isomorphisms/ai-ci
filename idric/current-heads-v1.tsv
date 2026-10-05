@@ -1,0 +1,11 @@
+lane	repository	requested_ref	role	receipt_owner
+x86	dilapidated-shed/Idric	Idriç	compiler	dilapidated-shed/idric-x86-aggressive-backend
+x86	dilapidated-shed/idric-x86-aggressive-backend	backend/checked-idric-direct-elf64	backend	dilapidated-shed/idric-x86-aggressive-backend
+dex	dilapidated-shed/Idric	Idriç	compiler	dilapidated-shed/idric-arm-thumb
+dex	dilapidated-shed/idric-arm-thumb	dex/sibling-backend-boundary	backend	dilapidated-shed/idric-arm-thumb
+idric-net	dilapidated-shed/Idric	Idriç	compiler	dilapidated-shed/Idric-Net
+idric-net	dilapidated-shed/Idric-Net	net	library	dilapidated-shed/Idric-Net
+sms	dilapidated-shed/Idric	Idriç	compiler	isomorphisms/ai-ci
+sms	dilapidated-shed/Idric-Net	sms-server-foundation	parser	isomorphisms/ai-ci
+sms	dilapidated-shed/grease	sms-server-filesystem-foundation	service	isomorphisms/ai-ci
+sms	isomorphisms/ai-ci	sms-cross-repository-receipt	acceptance	isomorphisms/ai-ci

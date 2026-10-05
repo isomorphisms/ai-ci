@@ -1,0 +1,29 @@
+name: Execute with live host preflight
+description: Observe this host, check the request, execute it, and write a new private receipt
+inputs:
+  request:
+    description: Absolute path to a text argv file, program on its first line
+    required: true
+  receipt:
+    description: Absolute path to a NEW receipt; an existing path is rejected
+    required: true
+  expected_os:
+    description: Required exact uname -s value
+    required: true
+  expected_arch:
+    description: Required exact uname -m value
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Preflight and execute through the same process
+      shell: sh
+      env:
+        HC_REQUEST: ${{ inputs.request }}
+        HC_RECEIPT: ${{ inputs.receipt }}
+        HC_EXPECT_OS: ${{ inputs.expected_os }}
+        HC_EXPECT_ARCH: ${{ inputs.expected_arch }}
+      run: |
+        ENV= BASH_ENV= exec /bin/sh "$GITHUB_ACTION_PATH/../execute.sh" \
+          --request "$HC_REQUEST" --receipt "$HC_RECEIPT" \
+          --expect-os "$HC_EXPECT_OS" --expect-arch "$HC_EXPECT_ARCH"

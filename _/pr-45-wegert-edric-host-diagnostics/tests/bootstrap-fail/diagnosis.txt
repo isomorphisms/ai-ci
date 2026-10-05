@@ -1,0 +1,7 @@
+Wegert Edric -> GLSL host diagnostic
+float_precision=mediump
+failures=1
+first_failure=edric_bootstrap
+classification=FAILED_AT_edric_bootstrap
+
+ICK boundary: NOT_USED. The hosted x86_64 probe uses the ordinary C fallback.

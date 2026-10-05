@@ -1,0 +1,25 @@
+schema	aici-follower-job-v1
+job_id	native-boundary-aarch64-16k
+repository	isomorphisms/ai-ci
+branch	native-bionic-boundary
+pr	86
+trigger_commit	e424d6d7dff0eca092351b9d601212645011782c
+leader_platform	github-hosted-ubuntu
+leader_arch	x86_64
+leader_evidence	https://github.com/isomorphisms/ai-ci/actions/runs/35012458599/job/104527531439
+artifact	native-boundary-aarch64.tar.gz
+artifact_sha256	c2a896dae713659968f5910bae2fb993837de0cd1bb047caa6a21bcb7b02383c
+follower_platform	android-16k-runtime
+follower_arch	aarch64
+required	conditional
+action	If a maintained native AArch64 Android target with a 16384-byte runtime page size is explicitly identified, execute the exact-source bundle there, verify the archive digest, and run sh bundle/run.sh in a fresh directory.
+acceptance_kind	runtime
+acceptance_action	Require page_size=16384 in both probe logs, both offset-mode results passing, ELF/load evidence, image or device identity and exact source/artifact digest. Classify emulator versus physical device explicitly.
+state	n/a
+last_attempt_commit	-
+blocker	-
+evidence	-
+depends_on	native-boundary-aarch64-build
+reason	No maintained native AArch64 16-KiB Android deployment target is identified. The physical AArch64 tablet is a 4-KiB target; generic Android/Bionic 16-KiB coverage and translated exact-AArch64 compatibility evidence do not create a native or physical 16-KiB deployment obligation. Reactivate this follower only when such a target is actually named.
+superseded_by	-
+follow_policy	exact

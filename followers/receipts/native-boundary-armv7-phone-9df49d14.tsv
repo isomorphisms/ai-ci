@@ -1,0 +1,17 @@
+schema	aici-follower-receipt-v1
+job_id	native-boundary-armv7-phone-9df49d14
+repository	isomorphisms/ai-ci
+trigger_commit	9df49d14f91a6596bd35f1183b85d4b1b0848a68
+follower_platform	android-termux-physical-phone
+follower_arch	armv7a
+acceptance_kind	physical-device
+result	pass
+attempt_commit	9df49d14f91a6596bd35f1183b85d4b1b0848a68
+os_runtime	Android 14 API 34; Linux 5.15.149-android13-8-g8407b75767d0-dirty armv7l; Termux private storage path /data/data/com.termux/files/home observed in operator receipt
+build_command	No on-device build; exact merged-main Actions artifact was SHA-256 verified before execution
+test_command	sh bundle/run.sh $HOME/aici-native-armv7a-receipt
+artifact	native-boundary-armv7a.tar.gz
+artifact_sha256	630a8fd44e39d04d7eac71f810deade60502a2770c692452309cbc7a0d20d604
+evidence_url	https://github.com/isomorphisms/ai-ci/issues/107#issuecomment-5715968733
+recorded_at	2026-09-17T08:41:14Z
+note	Operator evidence identifies a physical ARMv7 Android phone; outer Actions artifact ZIP SHA-256 b27c2d2d0a195f09ba1b4c8bbf15017d96049ac41513fcb46056bd9fdf2ddc39 was verified; qemu property was empty; bundle integrity checks passed; default and large-file probes both reported Bionic, page_size 4096, exact source revision and summary PASS failures=0; pointer width was 4, default off_t width 4 and large-file off_t width 8. The bundle runtime field physical_device=NOT_ATTESTED remains unchanged because physical identity is established independently by the operator evidence.

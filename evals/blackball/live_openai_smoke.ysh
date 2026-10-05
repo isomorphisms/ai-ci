@@ -1,3 +1,0 @@
-#!/usr/bin/env ysh
-
-echo 'Reply with exactly: live provider reached' | python3 evals/blackball/openai_responses_cli.py gpt-5.6-luna

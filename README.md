@@ -7,6 +7,11 @@ Its rule is stricter than ordinary green CI:
 > A check must demonstrate the promised result, and it must prove that it
 > rejects a deliberately broken example of the same result.
 
+The `sms/` receipt applies that rule across the moving Idric-Net and Grease SMS
+branches. It compiles the real `Network.SMS` parser, drives the filesystem
+service through that executable, and proves four hostile service mutations are
+rejected. See [`sms/README.md`](sms/README.md).
+
 The initial kernel is a small native C verifier. It has no package-manager
 bootstrap and does not treat file existence alone as acceptance. A consumer pins
 this repository by full commit SHA, supplies a tab-separated contract, and
@@ -18,7 +23,8 @@ runs the verifier against the finished repository or artifact tree.
   caption text remain byte-identical;
 - asset provenance manifest schema and nonempty required attribution fields;
 - workflow integrity: rejection of `continue-on-error`, shell `||`, and
-  `set +e`; full-SHA action pins; and event-scoped coverage of critical paths;
+  `set +e`; full-SHA action pins; explicit PR-head checkout for primary source
+  when exact-head evidence is required; and event-scoped coverage of critical paths;
 - language boundaries, including detecting shell files mislabeled as Grease.
 - evaluation-case manifests with explicit objectives, oracles, evidence,
   provenance, variants, holdout splits, trial counts, and blocking status.
@@ -29,6 +35,125 @@ Every required assertion has a good contract fixture and a targeted known-bad
 fixture in `tests/cases.tsv`. The self-test audits that coverage mechanically;
 adding an assertion without a unique diagnostic and matching bad fixture makes
 CI fail.
+
+## ICK-or-NDK build policy
+
+The reusable `build-toolchain-v0` contract makes each compile/link choice
+explicit. Each maintained compile/link stage records a row in
+`ci/build-toolchain.tsv` with these fields:
+
+`build_id<TAB>target<TAB>toolchain<TAB>ick_revision<TAB>ick_status<TAB>ick_evidence`
+
+`toolchain` is exactly `ick` or `ndk`. Every row pins the exact 40-hex ICK
+revision against which the choice was made. An ICK row must say
+`ick_status=qualified` and cite qualification evidence. An NDK row must say
+`ick_status=gap:<specific capability gap>` and cite durable evidence for that
+gap. A valid NDK row emits an `ick-gap` record during verification so a green
+build cannot hide why ICK was not used. A multi-stage build may therefore have
+both ICK and NDK rows when different stages genuinely use them.
+
+The contract deliberately has no generic compiler fallback. If ICK is not
+qualified and NDK cannot target the build, the build is blocked until the ICK
+capability exists; the policy does not relabel another compiler as compliance.
+
+## Pull-request merge verdicts
+
+The `merge/` contract produces a fail-closed verdict from ten plain TSV files:
+exact PR/topology state, checks, dependencies, evidence receipts, scope,
+exact-artifact consumption, merge authority, blockers, scheduled-workflow
+reality, and job completion. The authority receipt is bound to the repository,
+PR number/title, exact head and base, prospective patch, changed paths, intent
+record, and the human text or task context that established authority. The
+receipt separately records the human actor, authority-source kind, stable source
+identifier, and source role, so an acknowledgement cannot be relabeled as an
+explicit merge instruction merely by changing `authorization_kind`. An
+ambiguous acknowledgement may continue a task that already authorizes merging;
+it cannot create merge authority when the surrounding task did not provide it.
+Unresolved objections still fail closed.
+
+The verdict prints exact-head checks as
+`PASS|FAIL|CANCELLED|SKIPPED|ABSENT|STALE|UNKNOWN`. Receipts bind source and
+build commits, artifact hashes, target/evidence class, provenance, and execution
+result, so QEMU cannot satisfy a physical-phone requirement, a handwritten
+oracle cannot satisfy compiler generation, and packaging cannot satisfy
+execution. Receipt claims themselves use `PASS|FAIL|NOT_VERIFIED`; absence of
+evidence is not a product failure.
+
+Run `merge/pr-verdict.sh SNAPSHOT_DIRECTORY`; see
+[`docs/merge-authorization.md`](docs/merge-authorization.md) for the schemas and
+collection rules.
+
+`merge/collect-verdict.sh OWNER/REPOSITORY PR POLICY_DIRECTORY OUTPUT_DIRECTORY`
+is the repository-owned live path. It resolves the PR head, live base, merge
+tree, prospective first-parent patch, changed paths, active ruleset contexts,
+Actions runs/jobs, checkout witnesses, dependencies, scheduled runs, and
+contextual-authority provenance before invoking the same deterministic
+verifier. Repository policy supplies semantic scope, evidence requirements,
+durable blockers, completion state, and Cockswain's authority receipt; the
+collector does not infer them from GitHub or conversation text.
+
+For the ordinary operational question before final authorization, run
+`merge/state.sh SNAPSHOT_DIRECTORY`. Its six-file observation contract emits
+either one `READY` row or a small table of typed blockers with concrete objects
+and next actions. It preserves `NOT_VERIFIED`, classifies conflicts separately
+from CI, distinguishes target-branch/upstream/transient failures, and keeps
+informational followers from becoming merge gates. See
+[`merge/state/README.md`](merge/state/README.md).
+
+`merge/collect-github.sh` builds that smaller operational snapshot with four
+bounded API reads.
+`merge/collect-set.sh` evaluates a TSV population in one command and shares
+live-base/baseline responses across PRs in the same sweep.
+
+`merge/collect-account.sh OWNER REGISTRY.tsv OUTPUT_DIRECTORY` discovers every open
+PR authored by that account across repositories visible to the credential, maps registered repositories
+to their merge policies, and feeds the managed set through the same exact-state
+collector. Unregistered PRs remain visible as `UNMANAGED`; age is not treated as a
+blocker or a reason to close work.
+
+The collector writes `collection.tsv` as `COMPLETE` only after every search page
+and managed result has been collected. It rejects incomplete API results,
+more than 1,000 reported results, missing or malformed fields, changing totals,
+short pages, duplicate PRs, and failed managed collection. The record binds the
+reported/discovered counts and SHA-256 hashes of `managed/results.tsv` and
+`unmanaged.tsv`. Starting a refresh invalidates the previous completion record.
+Run `sh tests/merge-account.sh` for the adversarial discovery checks.
+
+The version 2 scope follows the author across repository owners, including
+organization transfers and upstream contributions. It does not infer ownership
+or permission to merge from authorship. Repositories without a matching policy
+remain `UNMANAGED`; transferred repositories must use their current name in the
+policy registry. PRs by other authors and resources hidden from the API credential
+remain outside this scope. GitHub search is
+not an atomic snapshot; matching counts cannot prove that no work changed
+during collection. The record establishes a validated collection in that scope,
+not current merge authority. Cockswain requires this record before reporting
+that the collected scope has no open PRs. Version 1 owner-only output must be
+recollected: its narrower scope can omit outstanding work after a transfer.
+
+`merge/retire-ready.sh OUTPUT_DIRECTORY` lists the PRs whose collected state is
+`READY`. With `--apply`, it re-runs the exact-state classifier immediately before
+each merge and merges only heads that are still `READY`. Because `READY` already
+requires valid merge authority as well as current checks, evidence, dependencies,
+followers, and draft state, this is the mechanical retirement path rather than a
+second heuristic merge decision.
+
+## Workflow trigger integrity
+
+A semantic check is only protective when changes to the implementation it
+asserts can actually trigger the workflow. The shared
+`workflow-integrity-v0` contract already provides event-scoped
+`yaml_paths` checking: consumers keep a repository-specific list of critical
+paths and the contract rejects omitted, negative, commented, or misplaced path
+entries. `yaml_primary_checkout_ref` also rejects the default synthetic
+pull-request merge checkout when the contract requires the primary repository to
+use the explicit PR-head expression. If the material dependency set is broad or difficult to maintain,
+prefer an unfiltered `pull_request`/push trigger over a narrow filter that can
+leave production changes untested.
+
+The reusable parsing and diagnostics belong here in `ai-ci`; consumer
+repositories should keep only their own critical-path lists, fixtures, expected
+results, and workflow wiring.
 
 ## Finished-video acceptance
 
@@ -62,6 +187,12 @@ cannot be mislabeled as store acceptance. See [`fdroid/README.md`](fdroid/README
 for the receipt schema, ABI-split rules, current official-check mapping, and the
 manual-review boundary.
 
+## Current Android release shelves
+
+The optional `release-shelf/` action keeps a consumer-owned current-artifact shelf synchronized with GitHub releases. It scans a declared repository population, verifies APK ZIP structure, classifies APKs from their actual native-library ABIs, validates DEX magic, and can inspect explicitly named DEX-producing release archives. The resulting manifests preserve repository, release, asset/member, SHA-256, byte count, ABI, and source URL.
+
+The action changes only the consumer working tree; the consumer decides when to commit it. Collection is artifact/provenance evidence only and is not installation, launch, runtime, emulator, or physical-device acceptance. See [`release-shelf/README.md`](release-shelf/README.md).
+
 ## Hostile-web ingestion acceptance
 
 The optional `ingestion/` action owns a ten-case hostile-input corpus and a
@@ -75,6 +206,25 @@ revision, state `fallback=none`, and include an `execve` trace. The verifier
 rejects traces that invoke the side-by-side curl/libxml2 oracle. See
 [`ingestion/README.md`](ingestion/README.md) for the schema and current
 `document_log_subset_v0` boundary.
+
+## Idriç bounded orthogonal-core acceptance
+
+The optional [`idric-orthogonal/`](idric-orthogonal/) gate pins one exact Idriç
+revision and reruns the compiler-owned unified higher-mathematics receipt plus
+its independent exact R128 oracle.  Its machine-readable output is explicitly
+`BOUNDED_GREEN`: backend handoff, target execution, certified sphere action,
+arbitrary transforms, and numerical algorithm choice do not silently inherit
+`PASS` from the closed R128 sample.
+
+## Merge authorization
+
+The optional `merge/` action is the fail-closed authorization layer for routine
+PR merges. It consumes snapshots of the live base/stack graph, observed checks,
+dependency revisions, receipts, scope provenance, and exact-artifact consumer
+trace. It rejects stale or synthetic-head evidence, skipped or missing checks,
+check-name collisions, moving refs used as exact dependencies, evidence-class
+promotion, inherited scope, and rebuild fallback. See
+[`docs/merge-authorization.md`](docs/merge-authorization.md).
 
 ## Run locally
 
@@ -166,6 +316,8 @@ The v0 Action requires a POSIX runner with a C17 `cc`; CI currently exercises
 Ubuntu 24.04. Native Windows runners are not yet supported.
 
 See `docs/evaluation-protocol.md` for the normative evaluation method,
-`research/llm-failure-modes.md` for the empirical basis, and
+`research/llm-failure-modes.md` for the empirical basis,
+`research/repository-context-methodology.md` for the boundary among retrieval,
+in-context learning, training, and constrained decision state, and
 `docs/failure-ledger.md` for the reconstructed incident classes. The next
 contracts are in `docs/roadmap.md`.

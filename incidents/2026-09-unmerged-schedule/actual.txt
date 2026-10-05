@@ -1,0 +1,1 @@
+Branch-local workflow text was treated as if GitHub were already executing it periodically.

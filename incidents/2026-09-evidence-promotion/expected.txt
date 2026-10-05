@@ -1,0 +1,1 @@
+Receipts must bind target class, provenance, source/build commits, artifact hash, and execution result and satisfy requirements exactly.

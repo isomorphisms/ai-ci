@@ -1,0 +1,63 @@
+name: ai-ci current Android release shelf
+description: Collect the newest APK and DEX release artifacts into consumer-owned shelves without promoting them to install or runtime evidence
+inputs:
+  repositories:
+    description: File containing one GitHub owner/repository per non-comment line
+    required: true
+  dex_archive_repositories:
+    description: Optional file listing repositories whose ZIP/TAR release assets should be inspected for embedded DEX files
+    required: false
+    default: ''
+  supplemental_apks:
+    description: Optional TSV of pinned non-release APKs using the shared APK manifest schema
+    required: false
+    default: ''
+  supplemental_apk_root:
+    description: Directory containing files named by supplemental_apks
+    required: false
+    default: ''
+  output_root:
+    description: Consumer-owned output directory
+    required: true
+  phone_dir:
+    description: MIRO/armeabi-v7a APK shelf directory below output_root
+    required: false
+    default: miro-a1
+  tablet_dir:
+    description: AArch64 APK shelf directory below output_root
+    required: false
+    default: tab-p10-row
+  dex_dir:
+    description: General DEX shelf directory below output_root
+    required: false
+    default: dex
+  github_token:
+    description: GitHub token used only for API rate limits and public release reads
+    required: false
+    default: ''
+runs:
+  using: composite
+  steps:
+    - name: Require release shelf probes
+      shell: sh
+      run: |
+        command -v curl >/dev/null
+        command -v jq >/dev/null
+        command -v unzip >/dev/null
+        command -v zip >/dev/null
+        command -v tar >/dev/null
+        command -v sha256sum >/dev/null
+        command -v od >/dev/null
+    - name: Collect current release artifacts
+      shell: sh
+      env:
+        RELEASE_SHELF_REPOSITORIES: ${{ inputs.repositories }}
+        RELEASE_SHELF_DEX_ARCHIVE_REPOSITORIES: ${{ inputs.dex_archive_repositories }}
+        RELEASE_SHELF_SUPPLEMENTAL_APKS: ${{ inputs.supplemental_apks }}
+        RELEASE_SHELF_SUPPLEMENTAL_APK_ROOT: ${{ inputs.supplemental_apk_root }}
+        RELEASE_SHELF_OUTPUT_ROOT: ${{ inputs.output_root }}
+        RELEASE_SHELF_PHONE_DIR: ${{ inputs.phone_dir }}
+        RELEASE_SHELF_TABLET_DIR: ${{ inputs.tablet_dir }}
+        RELEASE_SHELF_DEX_DIR: ${{ inputs.dex_dir }}
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+      run: sh "$GITHUB_ACTION_PATH/collect.sh"

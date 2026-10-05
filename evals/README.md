@@ -24,13 +24,4 @@ source of objectives, cases, evidence requirements, and thresholds.
 
 ## Blackball response comparison
 
-`blackball/` contains a paired context-effect evaluation for answers produced
-with and without Blackball material. Its command boundary is provider-neutral,
-and its deterministic mocks are plumbing fixtures rather than claims about live
-model behavior.
-
-The evaluation has one canonical verdict vocabulary while retaining substantive
-effect, evidential support, operational run state, and epistemic uncertainty as
-separate information. In particular, failure and unknown are not coerced to a
-negative result, and unsupported pessimism is not counted as improvement merely
-because the response moves in an expected skeptical direction.
+[Blackball's result contract and synthetic fixtures](blackball/README.md) separate substantive change, evidence status, and operational run status. [The fresh-chat boundary](blackball/CLI.md) specifies literal paired prompts and raw receipts without prescribing a provider implementation. These fixtures are not live model evidence.

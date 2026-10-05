@@ -1,0 +1,1 @@
+A failed required check remains blocking unless a narrower authoritative check and recorded causal exclusion replace that requirement.

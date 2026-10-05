@@ -1,0 +1,59 @@
+name: ai-ci merge authorization
+
+description: Fail-closed merge authorization over exact revision, topology, checks, receipts, scope, and runtime-consumer snapshots.
+
+inputs:
+  state:
+    description: merge state snapshot
+    required: true
+  checks:
+    description: observed and required check snapshot
+    required: true
+  dependencies:
+    description: exact or resolved-moving dependency snapshot
+    required: true
+  receipts:
+    description: evidence receipts and exact requirements
+    required: true
+  scope:
+    description: provenance-classified scope snapshot
+    required: true
+  consumer:
+    description: exact-artifact consumer trace
+    required: true
+  approval:
+    description: human merge authority receipt bound to exact PR, head, base, intent, and diff
+    required: true
+  blockers:
+    description: explicit blocker ledger
+    required: true
+  schedules:
+    description: scheduled-workflow reality snapshot
+    required: true
+  completion:
+    description: required job-step completion ledger
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Verify merge authorization snapshot
+      shell: sh
+      env:
+        AICI_STATE: ${{ inputs.state }}
+        AICI_CHECKS: ${{ inputs.checks }}
+        AICI_DEPENDENCIES: ${{ inputs.dependencies }}
+        AICI_RECEIPTS: ${{ inputs.receipts }}
+        AICI_SCOPE: ${{ inputs.scope }}
+        AICI_CONSUMER: ${{ inputs.consumer }}
+        AICI_APPROVAL: ${{ inputs.approval }}
+        AICI_BLOCKERS: ${{ inputs.blockers }}
+        AICI_SCHEDULES: ${{ inputs.schedules }}
+        AICI_COMPLETION: ${{ inputs.completion }}
+      run: |
+        set -eu
+        sh "$GITHUB_ACTION_PATH/verify.sh" verify \
+          "$AICI_STATE" "$AICI_CHECKS" "$AICI_DEPENDENCIES" \
+          "$AICI_RECEIPTS" "$AICI_SCOPE" "$AICI_CONSUMER" \
+          "$AICI_APPROVAL" "$AICI_BLOCKERS" "$AICI_SCHEDULES" \
+          "$AICI_COMPLETION"
