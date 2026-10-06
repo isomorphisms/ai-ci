@@ -1,0 +1,48 @@
+"""Conservative producer wiring inventory. Scanner findings are not enforcement."""
+from argparse import ArgumentParser
+from pathlib import Path
+from builtins import sorted
+import re
+import sys
+
+def main() → None:
+    parser ∈ ArgumentParser ← ArgumentParser(description="Identify unguarded APK producer/export paths")
+    parser.add_argument("root")
+    args ∈ object ← parser.parse_args()
+    root_name ∈ str ← args.root
+    root ∈ Path ← Path(root_name)
+    failures ← 0
+    producers ← 0
+    files ∈ list[Path] ← sorted(root.joinpath(".github/workflows").glob("*.yml"))
+    for path in files:
+        text ∈ str ← path.read_text()
+        jobs ∈ list[str] ← re.split(r"(?m)^  (?=[A-Za-z0-9_-]+:\s*$)", text)
+        for job in jobs:
+            producer ∈ bool ← bool(re.search(r"\.apk\b|build-miro|apksigner sign|run-pipeline android-native-apk", job))
+            if producer:
+                producers ← producers + 1
+                registered ∈ bool ← job.__contains__("run-pipeline android-native-apk")
+                direct_gate ∈ bool ← job.__contains__("uses: isomorphisms/ai-ci/android-producer@")
+                contract ∈ bool ← job.__contains__("source-commit:")
+                execution ∈ bool ← job.__contains__("decision:")
+                guarded ← registered
+                if direct_gate:
+                    if contract:
+                        if execution:
+                            guarded ← True
+                forbidden ∈ bool ← bool(re.search(r"\bgradlew?\b|keytool[^\n]*-genkeypair|\b(?:javac|kotlinc|d8)\b", job))
+                if forbidden:
+                    guarded ← False
+                label ∈ str ← job.splitlines().__getitem__(0)
+                if guarded:
+                    print(str(path) + "\t" + label + "\tWIRED_SOURCE_ONLY\tactual gate/artifact still required")
+                else:
+                    failures ← failures + 1
+                    print(str(path) + "\t" + label + "\tUNGUARDED\tmissing mandatory producer binding or forbidden path")
+    if producers == 0:
+        print("UNKNOWN_UNCLASSIFIED:no APK producer recognized")
+        sys.exit(2)
+    if failures != 0:
+        sys.exit(1)
+
+main()

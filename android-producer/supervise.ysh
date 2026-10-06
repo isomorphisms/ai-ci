@@ -24,6 +24,20 @@ equal_field "$release/release.tsv" stable_lane_authorization APPROVED
 equal_field "$release/release.tsv" target miro-a1
 equal_field "$release/release.tsv" abi armeabi-v7a
 equal_field "$release/release.tsv" acceptance_scope android-native-package
+# Stable test signing never silently migrates the installed original A1 build.
+# This is approved release data, outside the application candidate's authority.
+var identity_context = $(field "$release/release.tsv" identity_context)
+case "$identity_context" in
+  fresh-test-instance) ;;
+  existing-miro-a1-report)
+    equal_field "$release/release.tsv" update_mode replacement-candidate
+    var original_signer = $(field "$release/release.tsv" prior_signer_cert_sha256)
+    test "$original_signer" = 02e2d1895d922f5f722edebeaf5f9d23dd20fa56a1e9725fe9d412a05f6a7118 || reject 'PRIOR_ACCEPTED_IDENTITY_CONFLICT'
+    var selected_signer = $(field "$release/release.tsv" signer_cert_sha256)
+    test "$selected_signer" = "$original_signer" || reject 'SIGNING_AUTHORITY_BLOCKED: original A1 signer or independently admitted migration is unavailable'
+    ;;
+  *) reject 'MISSING_INPUT: independently admitted identity_context' ;;
+esac
 var recipe_sha = $(sha "$release/source/.github/scripts/build-miro.ysh")
 var package_recipe_sha = $(sha "$release/source/.github/scripts/package-miro.ysh")
 equal_field "$release/release.tsv" recipe_sha256 "$recipe_sha"
@@ -188,3 +202,4 @@ for material in halite quartz bismuth; do
 done
 printf 'state\tVERIFIED\nacceptance_scope\tandroid-native-package\n' > "$run/journal.tsv"
 echo "AICI producer verified storage: $run/sealed/packages"
+printf 'verified_storage\t%s\n' "$run/sealed/packages"

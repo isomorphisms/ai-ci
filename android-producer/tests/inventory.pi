@@ -1,0 +1,54 @@
+"""Source wiring is observable, never proof of APK verification."""
+from argparse import ArgumentParser
+from pathlib import Path
+from builtins import dict, ValueError
+import subprocess
+import os
+
+def main() → None:
+    parser ∈ ArgumentParser ← ArgumentParser()
+    for name in ["ithon", "python", "crystal", "output"]:
+        parser.add_argument("--" + name, required=True)
+    args ∈ object ← parser.parse_args()
+    ithon ∈ str ← args.ithon
+    python ∈ str ← args.python
+    crystal ∈ str ← args.crystal
+    output ∈ str ← args.output
+    root ∈ Path ← Path(output).resolve()
+    root.mkdir(mode=448, exist_ok=False)
+    historical ∈ subprocess.CompletedProcess ← subprocess.run(["/usr/bin/git", "-C", crystal, "show", "021fbe6b4e2d66d2b58bcd9d6954f248542b2057:.github/workflows/build-miro-apks.yml"], check=True, capture_output=True)
+    old ∈ bytes ← historical.stdout
+    program ∈ str ← __file__
+    scanner ∈ Path ← Path(program).resolve().parents.__getitem__(1).joinpath("inventory.pi")
+    env ∈ dict[str, str] ← dict()
+    env.__setitem__("PATH", "/usr/bin:/bin")
+    env.__setitem__("ITHON_PYTHON", python)
+    ledger ← "case\texpected\tobserved_exit\tresult\n"
+    for name in ["historical-crystal", "green-unguarded", "current-crystal"]:
+        case ∈ Path ← root.joinpath(name)
+        workflows ∈ Path ← case.joinpath(".github/workflows")
+        workflows.mkdir(parents=True)
+        payload ← old
+        expected ← "UNGUARDED"
+        if name == "green-unguarded":
+            payload ← b"jobs:\n  green:\n    steps:\n      - run: echo successful-build.apk\n"
+        elif name == "current-crystal":
+            payload ← Path(crystal + "/.github/workflows/build-miro-apks.yml").read_bytes()
+            expected ← "WIRED_SOURCE_ONLY"
+        workflows.joinpath("build.yml").write_bytes(payload)
+        child ∈ subprocess.CompletedProcess ← subprocess.run([ithon, str(scanner), str(case)], env=env, capture_output=True, timeout=10)
+        code ∈ int ← child.returncode
+        captured ∈ bytes ← child.stdout
+        case.joinpath("stdout").write_bytes(captured)
+        matched ∈ bool ← captured.__contains__(expected.encode())
+        if matched == False:
+            raise ValueError("WIRING_EXPECTATION_FAILED:" + name)
+        if name != "current-crystal" and code != 1:
+            raise ValueError("UNGUARDED_ACCEPTED:" + name)
+        if name == "current-crystal" and code != 0:
+            raise ValueError("WIRED_SOURCE_NOT_RECOGNIZED")
+        ledger ← ledger + name + "\t" + expected + "\t" + str(code) + "\tPASS\n"
+    root.joinpath("results.tsv").write_text(ledger)
+    print(ledger)
+
+main()

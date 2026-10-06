@@ -1,0 +1,96 @@
+from argparse import ArgumentParser
+from pathlib import Path
+from builtins import dict
+from subprocess import CompletedProcess
+import json
+import subprocess
+import sys
+
+def main() → None:
+    parser ∈ ArgumentParser ← ArgumentParser()
+    parser.add_argument("--ithon", required=True)
+    parser.add_argument("--python", required=True)
+    parser.add_argument("--output", required=True)
+    args ∈ object ← parser.parse_args()
+    ithon ∈ str ← args.ithon
+    python ∈ str ← args.python
+    output_name ∈ str ← args.output
+    root ∈ Path ← Path(output_name).resolve()
+    root.mkdir(mode=448, exist_ok=False)
+    source_name ∈ str ← sys._getframe().f_code.co_filename
+    checker ∈ Path ← Path(source_name).resolve().parent.joinpath("check.pi")
+    environment ∈ dict[str, str] ← dict()
+    environment.__setitem__("ITHON_PYTHON", python)
+    environment.__setitem__("PATH", "/usr/bin:/bin")
+    ledger ← "case\texpected\texit\tresult\n"
+    failures ← 0
+    for scenario in ["frame-positive", "crash-positive", "zoom-positive", "compositor", "historic-runner", "missing-telemetry", "bad-geometry-image", "bad-transform-image", "physical-from-emulator", "placeholder-package", "destructive-action"]:
+        plan ∈ dict[str, str] ← json.loads('{"observed_symptom":"reported wrong image","candidate_explanation":"geometry or transform remains unknown","required_observable":"frame","observable_producer":"screencap","producer_scope":"platform-frame","experiment":"capture one frame without mutation","repository":"functorial-games/crystal","source_commit":"1111111111111111111111111111111111111111","target":"miro-a1","device_instance":"a1-one","package":"org.isomorphisms.crystal.halite","claim":"frame-observation","permitted_actions":"observe","task_sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}')
+        expected ← "PREPARED"
+        if scenario == "crash-positive":
+            plan.__setitem__("claim", "crash-observation")
+            plan.__setitem__("required_observable", "bounded-log")
+            plan.__setitem__("observable_producer", "CrystalProducer")
+        elif scenario == "zoom-positive":
+            plan.__setitem__("claim", "zoom-state-observation")
+            plan.__setitem__("required_observable", "crystal-state-v1")
+            plan.__setitem__("producer_scope", "application-context")
+        elif scenario == "compositor":
+            plan.__setitem__("claim", "zoom-state-observation")
+            plan.__setitem__("producer_scope", "SurfaceFlinger")
+            expected ← "WRONG_EVIDENCE_SCOPE"
+        elif scenario == "historic-runner":
+            plan.__setitem__("claim", "zoom-state-observation")
+            plan.__setitem__("producer_scope", "historical-shader-runner")
+            expected ← "WRONG_EVIDENCE_SCOPE"
+        elif scenario == "missing-telemetry":
+            plan.__setitem__("claim", "zoom-state-observation")
+            plan.__setitem__("producer_scope", "application-context")
+            expected ← "INSTRUMENTATION_GAP"
+        elif scenario == "bad-geometry-image":
+            plan.__setitem__("claim", "geometry-cause-confirmed")
+            expected ← "UNSUPPORTED_CAUSAL_CLAIM"
+        elif scenario == "bad-transform-image":
+            plan.__setitem__("claim", "transform-cause-confirmed")
+            expected ← "UNSUPPORTED_CAUSAL_CLAIM"
+        elif scenario == "physical-from-emulator":
+            plan.__setitem__("claim", "physical-visual-pass")
+            plan.__setitem__("target", "x86_64-emulator")
+            expected ← "UNSUPPORTED_CAUSAL_CLAIM"
+        elif scenario == "placeholder-package":
+            plan.__setitem__("package", "com.whatever.crystal")
+            expected ← "PLACEHOLDER_PACKAGE"
+        elif scenario == "destructive-action":
+            plan.__setitem__("permitted_actions", "observe,uninstall")
+            expected ← "ACTION_NOT_ADMITTED"
+        file ∈ Path ← root.joinpath(scenario + ".json")
+        rendered ∈ str ← json.dumps(plan)
+        file.write_text(rendered)
+        child ∈ CompletedProcess ← subprocess.run([ithon, str(checker), "--plan", str(file), "--output", str(root.joinpath(scenario + ".decision.json"))], env=environment, capture_output=True, cwd="/")
+        code ∈ int ← child.returncode
+        stdout ∈ bytes ← child.stdout
+        stderr ∈ bytes ← child.stderr
+        root.joinpath(scenario + ".stdout").write_bytes(stdout)
+        root.joinpath(scenario + ".stderr").write_bytes(stderr)
+        matched ← False
+        if expected == "PREPARED":
+            if code == 0:
+                present ∈ bool ← stdout.__contains__(b'"acceptance_scope": "prepared-experiment"')
+                if present:
+                    matched ← True
+        else:
+            if code != 0:
+                found ∈ bool ← stderr.__contains__(expected.encode())
+                if found:
+                    matched ← True
+        result ← "PASS"
+        if matched == False:
+            result ← "FAIL"
+            failures ← failures + 1
+        ledger ← ledger + scenario + "\t" + expected + "\t" + str(code) + "\t" + result + "\n"
+    root.joinpath("results.tsv").write_text(ledger)
+    print(ledger)
+    if failures != 0:
+        sys.exit(1)
+
+main()

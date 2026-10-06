@@ -9,8 +9,15 @@ var packager = ENV.ANDROID_PACKAGER_ROOT
 var host = ENV.AICI_HOST_VERIFIERS
 var cc = "$[ENV.ANDROID_NDK_ROOT]/toolchains/llvm/prebuilt/linux-x86_64/bin/clang-18"
 var linker = "$[ENV.ANDROID_NDK_ROOT]/toolchains/llvm/prebuilt/linux-x86_64/bin/ld.lld"
-var work = $(/usr/bin/mktemp -d /tmp/aici-decision-qualification.XXXXXXXX)
-trap --add EXIT { /usr/bin/rm -r "$work" }
+var work = ''
+if test "$#" = 1; then
+  /usr/bin/mkdir -m 700 "$1"
+  setvar work = $(/usr/bin/readlink -f "$1")
+else
+  setvar work = $(/usr/bin/mktemp -d /tmp/aici-decision-qualification.XXXXXXXX)
+fi
+# Preserve failed receipts and diagnostics. Never retain fixture private keys.
+trap --add EXIT { /usr/bin/rm -f "$work/fixture-private.pem" }
 source "$producer/decision.ysh"
 /usr/bin/mkdir -p "$work/release/runtime" "$work/release/source/ci"
 /usr/bin/cp "$host/aici" "$host/aici_android_signing" "$work/release/runtime/"
