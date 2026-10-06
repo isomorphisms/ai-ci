@@ -1,0 +1,42 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+var script = $(/usr/bin/readlink -f "$0")
+var action_root = $(/usr/bin/dirname "$script")
+var root = $(/usr/bin/dirname "$action_root")
+var ndk = ENV.ANDROID_NDK_ROOT
+var cc = "$ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/clang-18"
+var linker = "$ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/ld.lld"
+test "$#" = 1 || exit 2
+var output = "$1"
+test ! -e "$output" || { echo 'use a fresh verifier output directory' >&2; exit 1; }
+var cc_hash = $(/usr/bin/sha256sum "$cc" | /usr/bin/awk '{print $1}')
+var linker_hash = $(/usr/bin/sha256sum "$linker" | /usr/bin/awk '{print $1}')
+test "$cc_hash" = a871130d810536f7bb924c8aeaff57c66de27bed9b13d0ccafba25fdcc8bd02d
+test "$linker_hash" = c4a7473d3b8a99a32335616838af2aa85c6333091abeab423be2a905ff5f288c
+/usr/bin/mkdir -p "$output"
+for unit in aici aici_android_signing; do
+  "$cc" --target=x86_64-linux-gnu --sysroot=/ --ld-path="$linker" -rtlib=libgcc -unwindlib=libgcc -std=c17 -Wall -Wextra -Werror -O2 -MD -MF "$output/$unit.dependencies" "$root/src/$unit.c" -o "$output/$unit"
+done
+"$output/aici" verify "$root/contracts/build-toolchain-v0.contract.tsv" "$root" > "$output/build-policy.log"
+var tab = $(printf '\t')
+while IFS="$tab" read -r result contract fixture diagnostic; do
+  case "$result" in \#*|'') continue ;; esac
+  if "$output/aici" verify "$root/$contract" "$root/$fixture" > "$output/case.log" 2>&1; then
+    test "$result" = pass || { echo "false acceptance: $fixture" >&2; exit 1; }
+  else
+    test "$result" = fail || { echo "false rejection: $fixture" >&2; exit 1; }
+    /usr/bin/grep -Fq "$diagnostic" "$output/case.log"
+  fi
+done < "$root/tests/cases.tsv"
+while IFS="$tab" read -r name result package lane certificate diagnostic; do
+  case "$name" in \#*|'') continue ;; esac
+  if "$output/aici_android_signing" verify "$root/android-signing/identities.tsv" "$package" "$lane" "$certificate" > "$output/case.log" 2>&1; then
+    test "$result" = PASS || exit 1
+  else
+    test "$result" = FAIL || exit 1
+  fi
+  /usr/bin/grep -Fq "$diagnostic" "$output/case.log"
+done < "$root/android-signing/tests/cases.tsv"
+/usr/bin/sha256sum "$root/src/aici.c" "$root/src/aici_android_signing.c" "$cc" "$linker" "$output/aici" "$output/aici_android_signing" /usr/lib/x86_64-linux-gnu/libc.so.6 /usr/lib/x86_64-linux-gnu/libgcc_s.so.1 /usr/lib/x86_64-linux-gnu/crt1.o /usr/lib/x86_64-linux-gnu/crti.o /usr/lib/x86_64-linux-gnu/crtn.o > "$output/materials.sha256"
+printf 'schema\taici-host-verifier-qualification-v1\ncompile_toolchain\tndk\nlink_toolchain\tndk\ntarget\tx86_64-linux-gnu\nndk_revision\t27.2.12479018\nick_revision\t79eccb8ff232e05bdbb9e345fc224f251636b43f\nick_status\tgap:complete AICI host libc surface has no qualified ICK runtime here\nick_evidence\tissue:isomorphisms/ai-ci#207\nkernel-cases\tPASS\nsigning-cases\tPASS\npromotion\tNOT_VERIFIED\n' > "$output/qualification.tsv"
+echo 'AICI NDK host verifier qualification: PASS (candidate, native Linux glibc closure recorded)'

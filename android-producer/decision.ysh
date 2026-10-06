@@ -1,0 +1,83 @@
+# The trusted decision consumer is shared by AICI and Cat Food. A caller-supplied
+# receipt, key, policy ref, check list, or historical main ancestor is never authority.
+proc reject(message) { echo "AICI producer: $message" >&2; exit 1; }
+proc sha(path) { /usr/bin/sha256sum "$path" | /usr/bin/awk '{print $1}'; }
+proc field(path, key) {
+  /usr/bin/awk -F '\t' -v key="$key" '$1==key {n++;v=$2;if(NF!=2)bad=1} END {if(n!=1||bad)exit 1;print v}' "$path"
+}
+proc equal_field(path, key, expected) {
+  var actual = $(field "$path" "$key")
+  test "$actual" = "$expected" || reject "field mismatch: $key"
+}
+proc signed(path, key) {
+  test -f "$path" && test ! -L "$path" || reject 'nonregular signed object'
+  /usr/bin/openssl dgst -sha256 -verify "$key" -signature "$path.sig" "$path" >/dev/null || reject 'unauthenticated producer object'
+}
+proc verify_decision(release, decision, apk, source_commit, target, scope) {
+  # `release` is supplied ONLY by the deployed entry point or the qualification
+  # harness. The public entry point has no release/key override.
+  signed "$decision" "$release/decision-public.pem"
+  equal_field "$decision" schema 'aici-android-producer-v2'
+  equal_field "$decision" result PASS
+  var generation = $(field "$release/release.tsv" generation)
+  equal_field "$decision" registry_generation "$generation"
+  var policy = $(field "$release/release.tsv" policy_commit)
+  equal_field "$decision" policy_commit "$policy"
+  var release_digest = $(sha "$release/release.tsv")
+  equal_field "$decision" release_sha256 "$release_digest"
+  equal_field "$decision" source_commit "$source_commit"
+  equal_field "$decision" target "$target"
+  equal_field "$decision" acceptance_scope "$scope"
+  equal_field "$release/release.tsv" target "$target"
+  equal_field "$release/release.tsv" acceptance_scope "$scope"
+  equal_field "$release/release.tsv" abi armeabi-v7a
+  var digest = $(sha "$apk")
+  equal_field "$decision" apk_sha256 "$digest"
+  var apk_size = $(/usr/bin/stat -c %s "$apk")
+  equal_field "$decision" apk_size "$apk_size"
+  equal_field "$decision" signing_lane test
+  equal_field "$decision" abi armeabi-v7a
+  equal_field "$decision" install_result NOT_RUN
+  equal_field "$decision" launch_result NOT_RUN
+  equal_field "$decision" replacement_result NOT_RUN
+  equal_field "$decision" visual_result NOT_RUN
+  equal_field "$decision" physical_result NOT_RUN
+  # Mandatory witness is fetched as an immutable signed object, never optional.
+  var witness_digest = $(sha "$decision.witness.tsv")
+  equal_field "$decision" witness_sha256 "$witness_digest"
+  signed "$decision.witness.tsv" "$release/witness-public.pem"
+  equal_field "$decision.witness.tsv" source_commit "$source_commit"
+  equal_field "$decision.witness.tsv" apk_sha256 "$digest"
+  equal_field "$decision.witness.tsv" target "$target"
+  equal_field "$decision.witness.tsv" acceptance_scope "$scope"
+  var stage_contract = $(sha "$release/required-stages.tsv")
+  equal_field "$decision.witness.tsv" stage_contract_sha256 "$stage_contract"
+  /usr/bin/awk -F '\t' '
+    BEGIN {wanted["compile"]=wanted["link"]=wanted["strip"]=wanted["package"]=wanted["inspect"]=wanted["build-toolchain"]=wanted["signing"]=1}
+    /^#/ || /^$/ {next}
+    NF!=2 || !($1 in wanted) || length($2)!=64 || $2!~/^[0-9a-f]+$/ {bad=1}
+    {seen[$1]++}
+    END {for(k in wanted)if(seen[k]!=1)bad=1; if(bad)exit 1}
+  ' "$release/required-stages.tsv" || reject 'incomplete mandatory stage inventory'
+  var tab = $(printf '\t')
+  while IFS="$tab" read -r stage executable; do
+    case "$stage" in \#*|'') continue ;; esac
+    equal_field "$decision.witness.tsv" "$stage.result" PASS
+    equal_field "$decision.witness.tsv" "$stage.executable_sha256" "$executable"
+    # A signed mandatory process must have started, exited, and produced bytes.
+    equal_field "$decision.witness.tsv" "$stage.started" true
+    equal_field "$decision.witness.tsv" "$stage.exit" 0
+    var output_digest = $(field "$decision.witness.tsv" "$stage.output_sha256")
+    test "${#output_digest}" = 64 || reject "missing stage output: $stage"
+    var output_valid = $(/usr/bin/printf '%s\n' "$output_digest" | /usr/bin/grep -Ec '^[0-9a-f]{64}$')
+    test "$output_valid" = 1 || reject "invalid stage output: $stage"
+  done < "$release/required-stages.tsv"
+  var package = $(field "$decision" package)
+  var version = $(field "$decision" version_code)
+  var signer = $(field "$decision" signer_cert_sha256)
+  "$release/runtime/aici_android_signing" verify "$release/policy/android-signing/identities.tsv" "$package" test "$signer"
+  "$release/runtime/aici" verify "$release/policy/contracts/build-toolchain-v0.contract.tsv" "$release/source"
+  # Independently inspect actual APK bytes using the bound canonical program.
+  /usr/bin/env -i PATH=/usr/bin:/bin ANDROID_NDK_ROOT="$release/tools/ndk" ANDROID_SDK_ROOT="$release/tools/sdk" ANDROID_JAVA_HOME="$release/tools/jre" AICI_ROOT="$release/policy" "$release/runtime/grease" "$release/packager/apk/inspect-nativeactivity-apk.ysh" "$apk" armeabi-v7a libcrystal.so "$package" "$version" > /dev/null
+  printf 'AICI_ANDROID_AUTHENTICATED_ARTIFACT\tPASS\nAPK_SHA256\t%s\n' "$digest"
+}

@@ -1,0 +1,11 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+test "$#" = 0 || exit 2
+var release = '/opt/aici/android-producer/current'
+var anchor = '/opt/aici/keys/android-producer-release.pem'
+test -f "$anchor" && test -f "$release/release.tsv" || { echo 'BLOCKED: independently qualified producer deployment unavailable' >&2; exit 1; }
+/usr/bin/openssl dgst -sha256 -verify "$anchor" -signature "$release/release.tsv.sig" "$release/release.tsv" >/dev/null
+var source_commit = $(/usr/bin/awk -F '\t' '$1=="source_commit" {n++;v=$2} END{if(n!=1)exit 1;print v}' "$release/release.tsv")
+# A deployed qualification probe must contain real APK bytes and an independently
+# authenticated decision. This command creates neither policy nor credentials.
+/usr/bin/env -i PATH=/usr/bin:/bin "$release/runtime/grease" "$release/policy/android-producer/check.ysh" "$release/qualification/decision.tsv" "$release/qualification/payload.apk" "$source_commit" miro-a1 android-native-package

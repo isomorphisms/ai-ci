@@ -1,51 +1,31 @@
-name: "AI CI Android producer gate"
-description: "Fail-closed Android APK producer verification with merged policy authority"
+name: AI CI authenticated Android producer decision
+description: Verify exact APK bytes under the independently deployed active producer release
 inputs:
+  decision:
+    description: Authenticated producer decision with mandatory signed witness
+    required: true
   apk:
-    description: "Finished APK path"
+    description: Exact finished APK
     required: true
-  root:
-    description: "Consumer repository root"
-    required: false
-    default: "."
-  packager-receipt:
-    description: "Receipt emitted by the canonical android-NDK NativeActivity packager"
+  source-commit:
+    description: Source commit admitted by the registered operation
     required: true
-  packager-root:
-    description: "Checked-out isomorphisms/android-NDK repository used for packaging"
+  target:
+    description: Fixed registered target
     required: true
-  expected-abi:
-    description: "Only native ABI expected in the APK"
+  acceptance-scope:
+    description: Explicit package scope
     required: true
-  lane:
-    description: "Central Android signing lane"
-    required: false
-    default: "test"
-  prior-receipt:
-    description: "Optional prior accepted producer receipt for update continuity"
-    required: false
-    default: ""
-  require-no-dex:
-    description: "Reject classes*.dex in a direct NativeActivity APK"
-    required: false
-    default: "true"
-  receipt-output:
-    description: "Output receipt path"
-    required: false
-    default: "aici-android-producer.receipt.tsv"
 runs:
-  using: "composite"
+  using: composite
   steps:
-    - shell: bash
+    - shell: sh
       env:
-        AICI_APK: ${{ inputs.apk }}
-        AICI_ROOT: ${{ inputs.root }}
-        AICI_PACKAGER_RECEIPT: ${{ inputs.packager-receipt }}
-        AICI_PACKAGER_ROOT: ${{ inputs.packager-root }}
-        AICI_EXPECTED_ABI: ${{ inputs.expected-abi }}
-        AICI_SIGNING_LANE: ${{ inputs.lane }}
-        AICI_PRIOR_RECEIPT: ${{ inputs.prior-receipt }}
-        AICI_REQUIRE_NO_DEX: ${{ inputs.require-no-dex }}
-        AICI_RECEIPT_OUTPUT: ${{ inputs.receipt-output }}
-        AICI_POLICY_REF: ${{ github.action_ref }}
-      run: bash "$GITHUB_ACTION_PATH/check.sh"
+        DECISION: ${{ inputs.decision }}
+        APK: ${{ inputs.apk }}
+        SOURCE_COMMIT: ${{ inputs.source-commit }}
+        TARGET: ${{ inputs.target }}
+        ACCEPTANCE_SCOPE: ${{ inputs.acceptance-scope }}
+      # Thin foreign-runner boundary; no compiler/runtime bootstrap.
+      run: |
+        exec /usr/bin/env -i PATH=/usr/bin:/bin /opt/aici/android-producer/current/runtime/grease /opt/aici/android-producer/current/policy/android-producer/check.ysh "$DECISION" "$APK" "$SOURCE_COMMIT" "$TARGET" "$ACCEPTANCE_SCOPE"

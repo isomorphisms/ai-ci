@@ -292,6 +292,16 @@ also anchor the contract's source revision to the release ref or CI event.
 
 ## Limits
 
+The Android producer composite consumes a v2 independently authenticated
+decision and mandatory witness through a fixed active release. Main ancestry,
+caller AICI_POLICY_REF, optional prior sidecars and printed PASS are insufficient.
+Android producer paths have no generic cc bootstrap or no-DEX disable switch.
+NDK host verifier candidates pass existing kernel/signing cases; the execution
+supervisor and deployment are not qualified here. See
+[deployment boundary](android-producer/deployment-v2.md) and
+[FP3 evidence](android-producer/qualification/fp3.tsv). Ordinary CI reports the
+unavailable independent deployment instead of claiming green fixture authority.
+
 The deterministic checks cannot decide whether an explanation is
 mathematically insightful or whether an obscure remembered source is the
 intended one. The video probe cannot infer whether a changed region changed for

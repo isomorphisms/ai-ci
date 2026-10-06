@@ -1,0 +1,9 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+var script = $(/usr/bin/readlink -f "$0")
+var test_root = $(/usr/bin/dirname "$script")
+var producer = $(/usr/bin/dirname "$test_root")
+source "$producer/decision.ysh"
+test "$#" = 2 || reject 'expected TRUSTED_QUALIFICATION_RELEASE APK'
+verify_decision "$1" "$1/decision.tsv" "$2" 'b8fb0cbe18b37ad38411e70e47c105a1b76e58fb' miro-a1 android-native-package
+echo 'qualification-only decision inspection: PASS; public promotion is NOT_VERIFIED'

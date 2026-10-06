@@ -1,0 +1,160 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+var GREASE = ENV.GREASE_BIN
+var script = $(/usr/bin/readlink -f "$0")
+var tests = $(/usr/bin/dirname "$script")
+var producer = $(/usr/bin/dirname "$tests")
+var policy = $(/usr/bin/dirname "$producer")
+var packager = ENV.ANDROID_PACKAGER_ROOT
+var host = ENV.AICI_HOST_VERIFIERS
+var cc = "$[ENV.ANDROID_NDK_ROOT]/toolchains/llvm/prebuilt/linux-x86_64/bin/clang-18"
+var linker = "$[ENV.ANDROID_NDK_ROOT]/toolchains/llvm/prebuilt/linux-x86_64/bin/ld.lld"
+var work = $(/usr/bin/mktemp -d /tmp/aici-decision-qualification.XXXXXXXX)
+trap --add EXIT { /usr/bin/rm -r "$work" }
+source "$producer/decision.ysh"
+/usr/bin/mkdir -p "$work/release/runtime" "$work/release/source/ci"
+/usr/bin/cp "$host/aici" "$host/aici_android_signing" "$work/release/runtime/"
+/usr/bin/cp "$GREASE" "$work/release/runtime/grease"
+/usr/bin/ln -s "$policy" "$work/release/policy"
+/usr/bin/ln -s "$packager" "$work/release/packager"
+/usr/bin/mkdir "$work/release/tools"
+/usr/bin/ln -s "$[ENV.ANDROID_NDK_ROOT]" "$work/release/tools/ndk"
+/usr/bin/ln -s "$[ENV.ANDROID_SDK_ROOT]" "$work/release/tools/sdk"
+/usr/bin/ln -s "$[ENV.ANDROID_JAVA_HOME]" "$work/release/tools/jre"
+/usr/bin/cp "$[ENV.CRYSTAL_ROOT]/ci/build-toolchain.tsv" "$work/release/source/ci/"
+# Test-only issuer keys never leave this qualification fixture.
+/usr/bin/openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$work/fixture-private.pem" 2> /dev/null
+/usr/bin/openssl pkey -in "$work/fixture-private.pem" -pubout -out "$work/release/decision-public.pem" 2> /dev/null
+/usr/bin/cp "$work/release/decision-public.pem" "$work/release/witness-public.pem"
+"$cc" --target=armv7a-linux-androideabi21 -fPIC -c "$packager/apk/tests/fixtures/native_activity.c" -o "$work/native.o"
+"$cc" --target=armv7a-linux-androideabi21 --ld-path="$linker" -shared "$work/native.o" -Wl,-soname,libcrystal.so -landroid -llog -o "$work/libcrystal.so"
+"$[ENV.ANDROID_NDK_ROOT]/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip" --strip-unneeded "$work/libcrystal.so"
+setglobal ENV.ANDROID_PACKAGE_ID = 'org.isomorphisms.crystal.halite'
+setglobal ENV.ANDROID_VERSION_CODE = '6'
+setglobal ENV.ANDROID_VERSION_NAME = 'qualification'
+setglobal ENV.ANDROID_MIN_SDK = '21'
+setglobal ENV.ANDROID_TARGET_SDK = '34'
+/usr/bin/sed 's/android:value="fixture"/android:value="crystal"/' "$packager/apk/tests/fixtures/AndroidManifest.xml" > "$work/manifest.xml"
+"$GREASE" "$packager/apk/build-nativeactivity-apk.ysh" "$work/manifest.xml" "$work/libcrystal.so" armeabi-v7a "$work/payload.apk" > "$work/package.log"
+var digest = $(sha "$work/payload.apk")
+var size = $(/usr/bin/stat -c %s "$work/payload.apk")
+"$GREASE" "$packager/apk/inspect-nativeactivity-apk.ysh" "$work/payload.apk" armeabi-v7a libcrystal.so org.isomorphisms.crystal.halite 6 > "$work/inspect.log"
+"$host/aici" verify "$policy/contracts/build-toolchain-v0.contract.tsv" "$work/release/source" > "$work/build-toolchain.log"
+"$host/aici_android_signing" verify "$policy/android-signing/identities.tsv" org.isomorphisms.crystal.halite test de9b1d47c5a65e6d46a204b79dd9ee566b9d3c9832ba81ebc4213d3392e92ff9 > "$work/signing.log"
+var cc_sha = $(sha "$cc")
+var packager_sha = $(sha "$packager/apk/build-nativeactivity-apk.ysh")
+var kernel_sha = $(sha "$host/aici")
+var strip_sha = $(sha "$[ENV.ANDROID_NDK_ROOT]/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip")
+var inspect_sha = $(sha "$packager/apk/inspect-nativeactivity-apk.ysh")
+var signing_sha = $(sha "$host/aici_android_signing")
+printf 'compile\t%s\nlink\t%s\nstrip\t%s\npackage\t%s\ninspect\t%s\nbuild-toolchain\t%s\nsigning\t%s\n' "$cc_sha" "$cc_sha" "$strip_sha" "$packager_sha" "$inspect_sha" "$kernel_sha" "$signing_sha" > "$work/release/required-stages.tsv"
+printf 'generation\t2\npolicy_commit\t9fca932be8da84b806727ffc75845df39fa85233\ntarget\tmiro-a1\nacceptance_scope\tandroid-native-package\nabi\tarmeabi-v7a\n' > "$work/release/release.tsv"
+var release_sha = $(sha "$work/release/release.tsv")
+var contract_sha = $(sha "$work/release/required-stages.tsv")
+var tab = $(printf '\t')
+proc write_witness {
+  {
+    printf 'source_commit\tb8fb0cbe18b37ad38411e70e47c105a1b76e58fb\napk_sha256\t%s\ntarget\tmiro-a1\nacceptance_scope\tandroid-native-package\nstage_contract_sha256\t%s\n' "$digest" "$contract_sha"
+    while IFS="$tab" read -r stage executable; do
+      var stage_output = ''
+      case "$stage" in
+        compile)
+          setvar stage_output = "$work/native.o"
+          ;;
+        link|strip)
+          setvar stage_output = "$work/libcrystal.so"
+          ;;
+        package)
+          setvar stage_output = "$work/payload.apk"
+          ;;
+        *)
+          setvar stage_output = "$work/$stage.log"
+          ;;
+      esac
+      var output_sha = $(sha "$stage_output")
+      printf '%s.result\tPASS\n%s.executable_sha256\t%s\n%s.started\ttrue\n%s.exit\t0\n%s.output_sha256\t%s\n' "$stage" "$stage" "$executable" "$stage" "$stage" "$stage" "$output_sha"
+    done < "$work/release/required-stages.tsv"
+  } > "$work/release/decision.tsv.witness.tsv"
+}
+proc sign_witness {
+  /usr/bin/openssl dgst -sha256 -sign "$work/fixture-private.pem" -out "$work/release/decision.tsv.witness.tsv.sig" "$work/release/decision.tsv.witness.tsv"
+}
+proc write_decision {
+  var witness_sha = $(sha "$work/release/decision.tsv.witness.tsv")
+  {
+    printf 'schema\taici-android-producer-v2\nresult\tPASS\nregistry_generation\t2\npolicy_commit\t9fca932be8da84b806727ffc75845df39fa85233\nrelease_sha256\t%s\nsource_commit\tb8fb0cbe18b37ad38411e70e47c105a1b76e58fb\ntarget\tmiro-a1\nacceptance_scope\tandroid-native-package\napk_sha256\t%s\napk_size\t%s\nsigning_lane\ttest\nabi\tarmeabi-v7a\npackage\torg.isomorphisms.crystal.halite\nversion_code\t6\nsigner_cert_sha256\tde9b1d47c5a65e6d46a204b79dd9ee566b9d3c9832ba81ebc4213d3392e92ff9\nwitness_sha256\t%s\n' "$release_sha" "$digest" "$size" "$witness_sha"
+    for stage in install launch replacement visual physical; do
+      printf '%s_result\tNOT_RUN\n' "$stage"
+    done
+  } > "$work/release/decision.tsv"
+}
+proc sign_decision {
+  /usr/bin/openssl dgst -sha256 -sign "$work/fixture-private.pem" -out "$work/release/decision.tsv.sig" "$work/release/decision.tsv"
+}
+proc reset {
+  write_witness
+  sign_witness
+  write_decision
+  sign_decision
+}
+proc rejected(id, needle) {
+  if "$GREASE" "$tests/decision.ysh" "$work/release" "$work/payload.apk" > "$work/$id.log" 2>&1; then
+    echo "false acceptance: $id" >&2
+    exit 1
+  fi
+  /usr/bin/grep -Fq "$needle" "$work/$id.log"
+  printf '%s\tPASS\n' "$id"
+}
+reset
+"$GREASE" "$tests/decision.ysh" "$work/release" "$work/payload.apk" > "$work/positive.log"
+echo 'real APK, authentic fixture issuer, mandatory records, independent inspection: PASS'
+printf 'result\tPASS\n' >> "$work/release/decision.tsv"
+rejected forged-receipt 'unauthenticated producer object'
+reset
+/usr/bin/sed -i 's/registry_generation\t2/registry_generation\t1/' "$work/release/decision.tsv"
+sign_decision
+rejected historical-policy 'field mismatch: registry_generation'
+reset
+/usr/bin/sed -i 's/source_commit\t.*/source_commit\t1111111111111111111111111111111111111111/' "$work/release/decision.tsv"
+sign_decision
+rejected stale-source 'field mismatch: source_commit'
+reset
+/usr/bin/sed -i 's/target\tmiro-a1/target\ttab-p10/' "$work/release/decision.tsv"
+sign_decision
+rejected stale-target 'field mismatch: target'
+reset
+/usr/bin/sed -i 's/signer_cert_sha256\t.*/signer_cert_sha256\t0000000000000000000000000000000000000000000000000000000000000000/' "$work/release/decision.tsv"
+sign_decision
+rejected wrong-signer ''
+reset
+/usr/bin/sed -i 's/acceptance_scope\tandroid-native-package/acceptance_scope\tphysical-device/' "$work/release/decision.tsv"
+sign_decision
+rejected scope-overclaim 'field mismatch: acceptance_scope'
+reset
+/usr/bin/sed -i '/compile.result/d' "$work/release/decision.tsv.witness.tsv"
+sign_witness
+write_decision
+sign_decision
+rejected missing-stage ''
+reset
+/usr/bin/sed -i 's/package.result\tPASS/package.result\tSKIP/' "$work/release/decision.tsv.witness.tsv"
+sign_witness
+write_decision
+sign_decision
+rejected skipped-packaging 'field mismatch: package.result'
+reset
+/usr/bin/sed -i 's/package.executable_sha256\t.*/package.executable_sha256\t0000000000000000000000000000000000000000000000000000000000000000/' "$work/release/decision.tsv.witness.tsv"
+sign_witness
+write_decision
+sign_decision
+rejected NDK-then-unapproved-packager 'field mismatch: package.executable_sha256'
+reset
+/usr/bin/sed -i 's/build-toolchain.started\ttrue/build-toolchain.started\tfalse/' "$work/release/decision.tsv.witness.tsv"
+sign_witness
+write_decision
+sign_decision
+rejected no-op-check 'field mismatch: build-toolchain.started'
+reset
+printf 'changed bytes\n' >> "$work/payload.apk"
+rejected changed-artifact 'field mismatch: apk_sha256'
+echo 'fixture authentication/semantic rejection suite: PASS; trusted producer deployment: NOT_VERIFIED'
