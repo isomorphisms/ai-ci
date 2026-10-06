@@ -10,7 +10,7 @@ test "$(field evidence_kind)" = synthetic-contract || fail 'this verifier does n
 test "$(field live_source)" = NOT_RUN || fail 'synthetic evidence cannot qualify a live source'
 test "$(field physical_device)" = NOT_RUN || fail 'synthetic evidence cannot qualify a physical device'
 test "$(field private_source_inspection)" = NOT_RUN || fail 'private-source inspection is an independent gate'
-for key in cloud_source ib_source; do
+for key in cloud_source ib_source aici_source flexible_pipes_source grease_source; do
   value=$(field "$key")
   case $value in *[!0-9a-f]*|'') fail "invalid revision: $key" ;; esac
   test "${#value}" = 40 || fail "invalid revision length: $key"
