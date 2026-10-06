@@ -20,7 +20,7 @@ for key in upload_state_sha256 grease_launcher_sha256; do
   case $value in *[!0-9a-f]*|'') fail "invalid artifact hash: $key" ;; esac
   test "${#value}" = 64 || fail "invalid artifact hash length: $key"
 done
-for key in source_intake raw_url_projection upload_stream sdf_generation; do
+for key in source_intake raw_url_projection conversation_projection upload_stream sdf_generation sdf_completed_receipt; do
   test "$(field "$key")" = PASS || fail "required contract did not pass: $key"
 done
 printf '%s\n' 'PASS: deterministic retained-source/transport evidence shape; no live or physical promotion'
