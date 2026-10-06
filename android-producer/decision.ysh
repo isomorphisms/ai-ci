@@ -3,7 +3,7 @@
 proc reject(message) { echo "AICI producer: $message" >&2; exit 1; }
 proc sha(path) { /usr/bin/sha256sum "$path" | /usr/bin/awk '{print $1}'; }
 proc field(path, key) {
-  /usr/bin/awk -F '\t' -v key="$key" '$1==key {n++;v=$2;if(NF!=2)bad=1} END {if(n!=1||bad)exit 1;print v}' "$path"
+  /usr/bin/awk -F '\t' -v key="$key" '$1==key {n++;v=$2;if(NF!=2)bad=1} END {if(n!=1||bad){print "AICI producer: missing, duplicate or malformed field: " key > "/dev/stderr";exit 1}print v}' "$path"
 }
 proc equal_field(path, key, expected) {
   var actual = $(field "$path" "$key")

@@ -110,10 +110,13 @@ proc rejected(id, needle) {
     exit 1
   fi
   /usr/bin/grep -Fq "$needle" "$work/$id.log"
+  printf '%s\t%s\tPASS\n' "$id" "$needle" >> "$work/results.tsv"
   printf '%s\tPASS\n' "$id"
 }
 reset
+printf 'case\texpected\tresult\n' > "$work/results.tsv"
 "$GREASE" "$tests/decision.ysh" "$work/release" "$work/payload.apk" > "$work/positive.log"
+printf 'positive\tqualification-only decision inspection: PASS\tPASS\n' >> "$work/results.tsv"
 echo 'real APK, authentic fixture issuer, mandatory records, independent inspection: PASS'
 printf 'result\tPASS\n' >> "$work/release/decision.tsv"
 rejected forged-receipt 'unauthenticated producer object'
@@ -132,7 +135,7 @@ rejected stale-target 'field mismatch: target'
 reset
 /usr/bin/sed -i 's/signer_cert_sha256\t.*/signer_cert_sha256\t0000000000000000000000000000000000000000000000000000000000000000/' "$work/release/decision.tsv"
 sign_decision
-rejected wrong-signer ''
+rejected wrong-signer 'SIGNER_MISMATCH'
 reset
 /usr/bin/sed -i 's/acceptance_scope\tandroid-native-package/acceptance_scope\tphysical-device/' "$work/release/decision.tsv"
 sign_decision
@@ -142,7 +145,7 @@ reset
 sign_witness
 write_decision
 sign_decision
-rejected missing-stage ''
+rejected missing-stage 'missing, duplicate or malformed field: compile.result'
 reset
 /usr/bin/sed -i 's/package.result\tPASS/package.result\tSKIP/' "$work/release/decision.tsv.witness.tsv"
 sign_witness
@@ -165,3 +168,4 @@ reset
 printf 'changed bytes\n' >> "$work/payload.apk"
 rejected changed-artifact 'field mismatch: apk_sha256'
 echo 'fixture authentication/semantic rejection suite: PASS; trusted producer deployment: NOT_VERIFIED'
+/usr/bin/unlink "$work/fixture-private.pem"
