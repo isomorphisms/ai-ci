@@ -39,3 +39,4 @@ attachment-link-only	young-tableaux	attachment-link-only	JOB-VISIBLE-MISSING
 attachment-mutated	young-tableaux	attachment-mutated	JOB-EVENT-IDENTITY
 attachment-wrong-name	young-tableaux	attachment-wrong-name	JOB-ATTACHMENT-NAME
 attachment-wrong-mime	young-tableaux	attachment-wrong-mime	JOB-ATTACHMENT-MIME
+attachment-duplicate	young-tableaux	attachment-duplicate	JOB-DUPLICATE-ATTACHMENT

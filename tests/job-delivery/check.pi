@@ -49,6 +49,8 @@ def run_attachment_case(variant ∈ str) → str:
             name ∈ str ← "wrong.apk" if variant == "attachment-wrong-name" else str(attachment["file_name"])
             mime ∈ str ← "application/zip" if variant == "attachment-wrong-mime" else str(attachment["mime_type"])
             events.append(attachment_event(actual, 1, name, mime))
+            if variant == "attachment-duplicate":
+                events.append(attachment_event(actual, 2, name, mime))
             record["visible_state"] ← "OBSERVED"
         record["events"] ← events
         stage["handoff"] ← record

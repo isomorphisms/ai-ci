@@ -17,7 +17,7 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           repository: isomorphisms/flexible-pipes
-          ref: e5d95fd667d77243d36af045de28ba912abc6622
+          ref: f422a4568da709d7528e7177a791a5592bb38636
           path: _fp
           persist-credentials: false
       - name: Check out qualified checked Ithon interface

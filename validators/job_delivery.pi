@@ -104,6 +104,8 @@ def check_attachment(stage ∈ dict[str, object], source ∈ bytes, complete ∈
         elif kind == "attachment":
             if mode == "dispatch-only":
                 raise ValueError("JOB-UNREQUESTED-SURFACE")
+            if visible:
+                raise ValueError("JOB-DUPLICATE-ATTACHMENT")
             if int(event["payload_size"]) != len(payload):
                 raise ValueError("JOB-ATTACHMENT-IDENTITY")
             if str(event["file_name"]) != str(attachment["file_name"]):
