@@ -1,0 +1,71 @@
+name: Android producer gate self-test
+
+on:
+  pull_request:
+    paths:
+      - "android-producer/**"
+      - ".github/workflows/android-producer-self-test.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "android-producer/**"
+      - ".github/workflows/android-producer-self-test.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  authority:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Shell syntax
+        shell: bash
+        run: bash -n android-producer/check.sh
+
+      - name: Exercise policy-authority boundary
+        shell: bash
+        env:
+          PR_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          MERGED_BASE: 6a87f20b39a71bd9e875061874c841f68c9db888
+        run: |
+          set -Eeuo pipefail
+          work="$RUNNER_TEMP/android-producer-authority"
+          mkdir -p "$work/app/ci" "$work/packager/apk"
+          : > "$work/candidate.apk"
+          printf 'schema\tbogus\n' > "$work/packager.receipt.tsv"
+          printf 'header\n' > "$work/app/ci/build-toolchain.tsv"
+          printf '# fixture\n' > "$work/packager/apk/build-nativeactivity-apk.sh"
+
+          export AICI_APK="$work/candidate.apk"
+          export AICI_ROOT="$work/app"
+          export AICI_PACKAGER_RECEIPT="$work/packager.receipt.tsv"
+          export AICI_PACKAGER_ROOT="$work/packager"
+          export AICI_EXPECTED_ABI=armeabi-v7a
+          export AICI_RECEIPT_OUTPUT="$work/out.tsv"
+
+          expect_failure() {
+            ref=$1
+            needle=$2
+            log=$3
+            if AICI_POLICY_REF="$ref" bash android-producer/check.sh >"$log" 2>&1; then
+              echo "unexpected producer-gate success for $ref" >&2
+              exit 1
+            fi
+            grep -Fq "$needle" "$log"
+          }
+
+          expect_failure main             "AICI policy must be pinned by full commit SHA"             "$work/non-sha.log"
+
+          if [ "$PR_HEAD" != "$MERGED_BASE" ]; then
+            expect_failure "$PR_HEAD"               "AICI policy commit is not merged into isomorphisms/ai-ci main"               "$work/unmerged.log"
+          fi
+
+          # A known merged SHA must pass the authority check and fail later on
+          # the deliberately invalid packager-receipt schema.
+          expect_failure "$MERGED_BASE"             "unsupported packager receipt schema: bogus"             "$work/merged.log"
