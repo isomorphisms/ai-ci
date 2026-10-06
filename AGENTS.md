@@ -16,6 +16,14 @@ disclosure, mechanical constraints, and agent-legible evidence, see
 
 ## Recurrent agent anti-patterns
 
+- **Deliver the requested assignment on the requested surface.** A Star/Sun/
+  Earth/Moon assignment requested for inspection, copying or dispatch defaults
+  to display. Use Flexible Pipes' authoritative stage artifact and ai-ci's
+  [job-delivery gate](docs/job-delivery.md). Internal composition, an issue,
+  successful dispatch or a link/summary does not establish visible delivery.
+  Bind optional dispatch to the same bytes and preserve a later “where’s the
+  text?” as failed-delivery evidence for that assignment.
+
 - **Do not claim stronger evidence than was produced.** Source presence,
   generation, compilation, packaging, installation, launch, semantic execution,
   backend execution, physical-device execution, and publication are different
