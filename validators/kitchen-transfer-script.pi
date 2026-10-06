@@ -43,6 +43,9 @@ if mode == "personal" or mode == "organization":
 elif mode == "accepted-unverified":
     if execution["first_exit"] == 0 or execution["second_exit"] != 0 or mutations != 1 or observed["owner"] != destination:
         raise ValueError("accepted/unverified retry was not reconciled safely")
+elif mode == "accepted-still-pending":
+    if execution["first_exit"] == 0 or execution["second_exit"] == 0 or mutations != 1 or observed["owner"] != source:
+        raise ValueError("pending transfer was resent or falsely accepted")
 elif mode == "visibility" or mode == "post-failure":
     if execution["first_exit"] == 0 or mutations != 1:
         raise ValueError("failed mutation lost first failure")
