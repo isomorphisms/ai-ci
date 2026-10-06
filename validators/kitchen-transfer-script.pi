@@ -1,0 +1,62 @@
+"""Independent fixture observation check; child stdout is never a receipt."""
+import sys
+import json
+import hashlib
+from pathlib import Path
+from builtins import dict, list, ValueError
+
+argv ∈ list[str] ← sys.argv
+config ∈ dict[str, object] ← json.loads(Path(argv[1]).read_bytes())
+observed ∈ dict[str, object] ← json.loads(Path(argv[2]).read_bytes())
+execution ∈ dict[str, object] ← json.loads(Path(argv[3]).read_bytes())
+inputs ∈ dict[str, object] ← dict(config["inputs"])
+events ∈ list[dict[str, object]] ← list(observed["events"])
+mode ∈ str ← str(config["mode"])
+source ∈ str ← str(inputs["source_owner"]) + "/" + str(inputs["repository"])
+destination ∈ str ← str(inputs["destination_owner"]) + "/" + str(inputs["repository"])
+mutations ∈ int ← 0
+last_mutation ∈ int ← -1
+observations_after ∈ int ← 0
+memberships ∈ int ← 0
+for event in events:
+    if event["method"] == "POST":
+        mutations ← mutations + 1
+        last_mutation ← int(event["index"])
+        if event["endpoint"] != "repos/" + source + "/transfer":
+            raise ValueError("unexpected mutation endpoint")
+        args ∈ list[str] ← list(event["argv"])
+        if args[5] != "new_owner=" + str(inputs["destination_owner"]):
+            raise ValueError("unexpected mutation owner")
+    elif last_mutation >= 0 and event["endpoint"] == "repositories/" + str(inputs["expected_repository_id"]):
+        observations_after ← observations_after + 1
+    if event["endpoint"] == "user/memberships/orgs/" + str(inputs["destination_owner"]):
+        memberships ← memberships + 1
+if len(events) == 0:
+    raise ValueError("no API observations: skipped or no-op test")
+if mode == "personal" or mode == "organization":
+    if execution["first_exit"] != 0 or execution["second_exit"] != 0 or mutations != 1 or observed["owner"] != destination or observed["visibility"] != "private":
+        raise ValueError("positive transfer/reconciliation postcondition failed")
+    if mode == "personal" and memberships != 0:
+        raise ValueError("personal destination used organization API")
+    if mode == "organization" and memberships != 1:
+        raise ValueError("organization permission check missing")
+elif mode == "accepted-unverified":
+    if execution["first_exit"] == 0 or execution["second_exit"] != 0 or mutations != 1 or observed["owner"] != destination:
+        raise ValueError("accepted/unverified retry was not reconciled safely")
+elif mode == "visibility" or mode == "post-failure":
+    if execution["first_exit"] == 0 or mutations != 1:
+        raise ValueError("failed mutation lost first failure")
+else:
+    if execution["first_exit"] == 0 or mutations != 0:
+        raise ValueError("negative fixture accepted or mutated")
+if mutations > 0 and observations_after < 1:
+    raise ValueError("attempted mutation lacked independent canonical observation")
+if observed["repository_id"] != inputs["expected_repository_id"]:
+    raise ValueError("observation identity mismatch")
+artifact ∈ bytes ← Path(argv[4]).read_bytes()
+digest ∈ str ← hashlib.sha256(artifact).hexdigest()
+if digest != config["artifact_sha256"]:
+    raise ValueError("artifact changed after checking")
+decision ∈ dict[str, object] ← {"schema_version": 1, "check_id": "kitchen-api-observation", "status": "PASS", "artifact_sha256": digest, "observations_sha256": hashlib.sha256(Path(argv[2]).read_bytes()).hexdigest(), "mode": mode, "attempts": len(events), "mutations": mutations}
+encoded ∈ str ← json.dumps(decision, sort_keys=True)
+Path(argv[5]).write_text(encoded + "\n")
