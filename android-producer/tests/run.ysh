@@ -5,6 +5,11 @@ var script = $(/usr/bin/readlink -f "$0")
 var tests = $(/usr/bin/dirname "$script")
 var producer = $(/usr/bin/dirname "$tests")
 var policy = $(/usr/bin/dirname "$producer")
+var approved_policy = ENV.AICI_APPROVED_POLICY_ROOT
+var approved_ref = $(/usr/bin/git -C "$approved_policy" rev-parse HEAD)
+test "$approved_ref" = 9fca932be8da84b806727ffc75845df39fa85233 || { echo 'fixture approved policy revision mismatch' >&2; exit 1; }
+var approved_dirty = $(/usr/bin/git -C "$approved_policy" status --porcelain --untracked-files=no)
+test -z "$approved_dirty" || { echo 'fixture approved policy checkout dirty' >&2; exit 1; }
 var packager = ENV.ANDROID_PACKAGER_ROOT
 var host = ENV.AICI_HOST_VERIFIERS
 var cc = "$[ENV.ANDROID_NDK_ROOT]/toolchains/llvm/prebuilt/linux-x86_64/bin/clang-18"
@@ -22,7 +27,7 @@ source "$producer/decision.ysh"
 /usr/bin/mkdir -p "$work/release/runtime" "$work/release/source/ci"
 /usr/bin/cp "$host/aici" "$host/aici_android_signing" "$work/release/runtime/"
 /usr/bin/cp "$GREASE" "$work/release/runtime/grease"
-/usr/bin/ln -s "$policy" "$work/release/policy"
+/usr/bin/ln -s "$approved_policy" "$work/release/policy"
 /usr/bin/ln -s "$packager" "$work/release/packager"
 /usr/bin/mkdir "$work/release/tools"
 /usr/bin/ln -s "$[ENV.ANDROID_NDK_ROOT]" "$work/release/tools/ndk"
@@ -42,12 +47,12 @@ setglobal ENV.ANDROID_VERSION_NAME = 'qualification'
 setglobal ENV.ANDROID_MIN_SDK = '21'
 setglobal ENV.ANDROID_TARGET_SDK = '34'
 /usr/bin/sed 's/android:value="fixture"/android:value="crystal"/' "$packager/apk/tests/fixtures/AndroidManifest.xml" > "$work/manifest.xml"
-"$GREASE" "$packager/apk/build-nativeactivity-apk.ysh" "$work/manifest.xml" "$work/libcrystal.so" armeabi-v7a "$work/payload.apk" > "$work/package.log"
+ANDROID_APPROVED_POLICY_ROOT="$approved_policy" AICI_ROOT="$approved_policy" "$GREASE" "$packager/apk/build-nativeactivity-apk.ysh" "$work/manifest.xml" "$work/libcrystal.so" armeabi-v7a "$work/payload.apk" > "$work/package.log"
 var digest = $(sha "$work/payload.apk")
 var size = $(/usr/bin/stat -c %s "$work/payload.apk")
-"$GREASE" "$packager/apk/inspect-nativeactivity-apk.ysh" "$work/payload.apk" armeabi-v7a libcrystal.so org.isomorphisms.crystal.halite 6 > "$work/inspect.log"
-"$host/aici" verify "$policy/contracts/build-toolchain-v0.contract.tsv" "$work/release/source" > "$work/build-toolchain.log"
-"$host/aici_android_signing" verify "$policy/android-signing/identities.tsv" org.isomorphisms.crystal.halite test de9b1d47c5a65e6d46a204b79dd9ee566b9d3c9832ba81ebc4213d3392e92ff9 > "$work/signing.log"
+AICI_ROOT="$approved_policy" "$GREASE" "$packager/apk/inspect-nativeactivity-apk.ysh" "$work/payload.apk" armeabi-v7a libcrystal.so org.isomorphisms.crystal.halite 6 > "$work/inspect.log"
+"$host/aici" verify "$approved_policy/contracts/build-toolchain-v0.contract.tsv" "$work/release/source" > "$work/build-toolchain.log"
+"$host/aici_android_signing" verify "$approved_policy/android-signing/identities.tsv" org.isomorphisms.crystal.halite test de9b1d47c5a65e6d46a204b79dd9ee566b9d3c9832ba81ebc4213d3392e92ff9 > "$work/signing.log"
 var cc_sha = $(sha "$cc")
 var packager_sha = $(sha "$packager/apk/build-nativeactivity-apk.ysh")
 var kernel_sha = $(sha "$host/aici")
