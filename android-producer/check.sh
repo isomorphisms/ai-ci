@@ -46,6 +46,7 @@ verify_merged_commit() {
 : "${AICI_APK:?AICI_APK is required}"
 : "${AICI_ROOT:?AICI_ROOT is required}"
 : "${AICI_PACKAGER_RECEIPT:?AICI_PACKAGER_RECEIPT is required}"
+: "${AICI_PACKAGER_ROOT:?AICI_PACKAGER_ROOT is required}"
 : "${AICI_EXPECTED_ABI:?AICI_EXPECTED_ABI is required}"
 : "${AICI_SIGNING_LANE:=test}"
 : "${AICI_REQUIRE_NO_DEX:=true}"
@@ -56,13 +57,19 @@ action_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 require_file "$AICI_APK"
 require_file "$AICI_PACKAGER_RECEIPT"
 require_file "$AICI_ROOT/ci/build-toolchain.tsv"
+require_file "$AICI_PACKAGER_ROOT/apk/build-nativeactivity-apk.sh"
 
 verify_merged_commit "isomorphisms/ai-ci" "$AICI_POLICY_REF" "AICI policy"
 
 packager_schema=$(tsv_value "$AICI_PACKAGER_RECEIPT" schema)
 [[ "$packager_schema" == android-ndk-nativeactivity-apk-v1 ]] ||
     fail "unsupported packager receipt schema: $packager_schema"
-packager_commit=$(tsv_value "$AICI_PACKAGER_RECEIPT" packager_commit)
+
+git -C "$AICI_PACKAGER_ROOT" diff --quiet -- apk/build-nativeactivity-apk.sh ||
+    fail "android-NDK packager checkout has local modifications"
+git -C "$AICI_PACKAGER_ROOT" diff --cached --quiet -- apk/build-nativeactivity-apk.sh ||
+    fail "android-NDK packager checkout has staged modifications"
+packager_commit=$(git -C "$AICI_PACKAGER_ROOT" rev-parse HEAD)
 verify_merged_commit "isomorphisms/android-NDK" "$packager_commit" "android-NDK packager"
 
 android_home=${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}
