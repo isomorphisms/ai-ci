@@ -11,6 +11,9 @@ inputs:
   packager-receipt:
     description: "Receipt emitted by the canonical android-NDK NativeActivity packager"
     required: true
+  packager-root:
+    description: "Checked-out isomorphisms/android-NDK repository used for packaging"
+    required: true
   expected-abi:
     description: "Only native ABI expected in the APK"
     required: true
@@ -38,6 +41,7 @@ runs:
         AICI_APK: ${{ inputs.apk }}
         AICI_ROOT: ${{ inputs.root }}
         AICI_PACKAGER_RECEIPT: ${{ inputs.packager-receipt }}
+        AICI_PACKAGER_ROOT: ${{ inputs.packager-root }}
         AICI_EXPECTED_ABI: ${{ inputs.expected-abi }}
         AICI_SIGNING_LANE: ${{ inputs.lane }}
         AICI_PRIOR_RECEIPT: ${{ inputs.prior-receipt }}
