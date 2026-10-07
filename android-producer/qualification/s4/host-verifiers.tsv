@@ -1,0 +1,11 @@
+schema	aici-host-verifier-qualification-v1
+compile_toolchain	ndk
+link_toolchain	ndk
+target	x86_64-linux-gnu
+ndk_revision	27.2.12479018
+ick_revision	79eccb8ff232e05bdbb9e345fc224f251636b43f
+ick_status	gap:complete AICI host libc surface has no qualified ICK runtime here
+ick_evidence	issue:isomorphisms/ai-ci#207
+kernel-cases	PASS
+signing-cases	PASS
+promotion	NOT_VERIFIED

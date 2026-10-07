@@ -1,0 +1,16 @@
+schema	aici-qualification-invocation-v1
+policy_commit	6a90fbb9fac8984fe853924d6f5e7298f2458574
+working_directory	/workspace/scratch/cdb1ac396278/ai-ci
+program	android-producer/tests/qualify.ysh
+argument	/workspace/scratch/cdb1ac396278/qualification-final
+exit	3
+LSAN_OPTIONS	detect_leaks=0
+GREASE_BIN	/workspace/scratch/543c87bc3a26/runtime-artifacts/grease-host/ysh
+ANDROID_NDK_ROOT	/workspace/scratch/5aee68bc8651/deps/sdk/ndk/android-ndk-r27c
+ANDROID_SDK_ROOT	/workspace/scratch/cdb1ac396278/sdk
+ANDROID_JAVA_HOME	/usr/lib/jvm/java-17-openjdk-amd64
+ANDROID_PACKAGER_ROOT	/workspace/scratch/cdb1ac396278/android-NDK
+AICI_HOST_VERIFIERS	/workspace/scratch/cdb1ac396278/runtime/host-verifiers-v3
+AICI_APPROVED_POLICY_ROOT	/workspace/scratch/cdb1ac396278/approved-policy
+ANDROID_TEST_KEYSTORE	/workspace/scratch/5aee68bc8651/Fourier-sound/.test-signing/_/build/app/wegert-debug.keystore
+AICI_SOURCE_PIN	6a90fbb9fac8984fe853924d6f5e7298f2458574

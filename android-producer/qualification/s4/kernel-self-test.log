@@ -1,0 +1,120 @@
+{"kind":"self-test","status":"pass","contract":"contracts/narrative-sync-v0.contract.tsv","fixture":"tests/fixtures/narrative-good","expected":"pass","observedCode":""}
+{"kind":"self-test","status":"pass","contract":"contracts/narrative-sync-v0.contract.tsv","fixture":"tests/fixtures/narrative-empty-script","expected":"fail","observedCode":"NARRATIVE-SCRIPT-EMPTY"}
+{"kind":"self-test","status":"pass","contract":"contracts/narrative-sync-v0.contract.tsv","fixture":"tests/fixtures/narrative-bad-voiceover","expected":"fail","observedCode":"NARRATIVE-SCRIPT-VOICEOVER"}
+{"kind":"self-test","status":"pass","contract":"contracts/narrative-sync-v0.contract.tsv","fixture":"tests/fixtures/narrative-bad-captions","expected":"fail","observedCode":"NARRATIVE-SCRIPT-CAPTIONS"}
+{"kind":"self-test","status":"pass","contract":"contracts/asset-provenance-v0.contract.tsv","fixture":"tests/fixtures/provenance-good","expected":"pass","observedCode":""}
+{"kind":"self-test","status":"pass","contract":"contracts/asset-provenance-v0.contract.tsv","fixture":"tests/fixtures/provenance-empty","expected":"fail","observedCode":"PROVENANCE-MANIFEST-EMPTY"}
+{"kind":"self-test","status":"pass","contract":"contracts/asset-provenance-v0.contract.tsv","fixture":"tests/fixtures/provenance-bad-header","expected":"fail","observedCode":"PROVENANCE-HEADER"}
+{"kind":"self-test","status":"pass","contract":"contracts/asset-provenance-v0.contract.tsv","fixture":"tests/fixtures/provenance-bad-creator","expected":"fail","observedCode":"PROVENANCE-FIELDS"}
+{"kind":"self-test","status":"pass","contract":"contracts/workflow-integrity-v0.contract.tsv","fixture":"tests/fixtures/workflow-good","expected":"pass","observedCode":""}
+{"kind":"self-test","status":"pass","contract":"contracts/workflow-integrity-v0.contract.tsv","fixture":"tests/fixtures/workflow-bad-continue","expected":"fail","observedCode":"WORKFLOW-CONTINUE"}
+{"kind":"self-test","status":"pass","contract":"contracts/workflow-integrity-v0.contract.tsv","fixture":"tests/fixtures/workflow-bad-continue-expression","expected":"fail","observedCode":"WORKFLOW-CONTINUE"}
+{"kind":"self-test","status":"pass","contract":"contracts/workflow-integrity-v0.contract.tsv","fixture":"tests/fixtures/workflow-bad-continue-spacing","expected":"fail","observedCode":"WORKFLOW-CONTINUE"}
+{"kind":"self-test","status":"pass","contract":"contracts/workflow-integrity-v0.contract.tsv","fixture":"tests/fixtures/workflow-bad-swallow","expected":"fail","observedCode":"WORKFLOW-SWALLOW-OR"}
+{"kind":"self-test","status":"pass","contract":"contracts/workflow-integrity-v0.contract.tsv","fixture":"tests/fixtures/workflow-bad-set-plus-e","expected":"fail","observedCode":"WORKFLOW-SWALLOW-SET"}
+{"kind":"self-test","status":"pass","contract":"contracts/workflow-integrity-v0.contract.tsv","fixture":"tests/fixtures/workflow-bad-pin","expected":"fail","observedCode":"WORKFLOW-ACTION-PIN"}
+{"kind":"self-test","status":"pass","contract":"contracts/workflow-integrity-v0.contract.tsv","fixture":"tests/fixtures/workflow-bad-key-spacing","expected":"fail","observedCode":"WORKFLOW-ACTION-PIN"}
+{"kind":"self-test","status":"pass","contract":"contracts/workflow-integrity-v0.contract.tsv","fixture":"tests/fixtures/workflow-bad-docker","expected":"fail","observedCode":"WORKFLOW-ACTION-PIN"}
+{"kind":"self-test","status":"pass","contract":"contracts/workflow-integrity-v0.contract.tsv","fixture":"tests/fixtures/workflow-bad-path","expected":"fail","observedCode":"WORKFLOW-PATH-COVERAGE"}
+{"kind":"self-test","status":"pass","contract":"contracts/workflow-integrity-v0.contract.tsv","fixture":"tests/fixtures/workflow-bad-comment","expected":"fail","observedCode":"WORKFLOW-PATH-COVERAGE"}
+{"kind":"self-test","status":"pass","contract":"contracts/workflow-integrity-v0.contract.tsv","fixture":"tests/fixtures/workflow-action-only-in-comment","expected":"fail","observedCode":"WORKFLOW-ACTION-PIN"}
+{"kind":"self-test","status":"pass","contract":"contracts/workflow-integrity-v0.contract.tsv","fixture":"tests/fixtures/workflow-path-only-under-with","expected":"fail","observedCode":"WORKFLOW-PATH-COVERAGE"}
+{"kind":"self-test","status":"pass","contract":"contracts/workflow-integrity-v0.contract.tsv","fixture":"tests/fixtures/workflow-bad-negative-path","expected":"fail","observedCode":"WORKFLOW-PATH-COVERAGE"}
+{"kind":"self-test","status":"pass","contract":"contracts/workflow-integrity-v0.contract.tsv","fixture":"tests/fixtures/workflow-bad-default-checkout","expected":"fail","observedCode":"WORKFLOW-PR-HEAD-CHECKOUT"}
+{"kind":"self-test","status":"pass","contract":"contracts/workflow-integrity-v0.contract.tsv","fixture":"tests/fixtures/workflow-bad-checkout-env-ref","expected":"fail","observedCode":"WORKFLOW-PR-HEAD-CHECKOUT"}
+{"kind":"self-test","status":"pass","contract":"contracts/workflow-integrity-v0.contract.tsv","fixture":"tests/fixtures/workflow-bad-checkout-env-repository","expected":"fail","observedCode":"WORKFLOW-PR-HEAD-CHECKOUT"}
+{"kind":"self-test","status":"pass","contract":"contracts/workflow-integrity-v0.contract.tsv","fixture":"tests/fixtures/workflow-bad-swallow-block-header","expected":"fail","observedCode":"WORKFLOW-SWALLOW-OR"}
+{"kind":"self-test","status":"pass","contract":"contracts/language-boundary-v0.contract.tsv","fixture":"tests/fixtures/language-good","expected":"pass","observedCode":""}
+{"kind":"self-test","status":"pass","contract":"contracts/language-boundary-v0.contract.tsv","fixture":"tests/fixtures/language-bad-python","expected":"fail","observedCode":"LANGUAGE-FORBIDDEN"}
+{"kind":"self-test","status":"pass","contract":"contracts/language-boundary-v0.contract.tsv","fixture":"tests/fixtures/language-bad-shebang","expected":"fail","observedCode":"GREASE-SHEBANG"}
+{"kind":"self-test","status":"pass","contract":"contracts/language-boundary-v0.contract.tsv","fixture":"tests/fixtures/language-bad-hidden-shebang","expected":"fail","observedCode":"GREASE-SHEBANG"}
+{"kind":"self-test","status":"pass","contract":"contracts/language-boundary-v0.contract.tsv","fixture":"tests/fixtures/language-bad-bash","expected":"fail","observedCode":"GREASE-INVOCATION"}
+{"kind":"self-test","status":"pass","contract":"contracts/language-boundary-v0.contract.tsv","fixture":"tests/fixtures/language-bad-sh","expected":"fail","observedCode":"GREASE-INVOCATION"}
+{"kind":"self-test","status":"pass","contract":"contracts/language-boundary-v0.contract.tsv","fixture":"tests/fixtures/language-missing-runtime","expected":"fail","observedCode":"GREASE-INVOCATION"}
+{"kind":"self-test","status":"pass","contract":"contracts/language-boundary-v0.contract.tsv","fixture":"tests/fixtures/language-bash-plus-echo","expected":"fail","observedCode":"GREASE-INVOCATION"}
+{"kind":"self-test","status":"pass","contract":"contracts/language-boundary-v0.contract.tsv","fixture":"tests/fixtures/language-dead-branch","expected":"fail","observedCode":"GREASE-INVOCATION"}
+{"kind":"self-test","status":"pass","contract":"contracts/evaluation-case-v0.contract.tsv","fixture":"tests/fixtures/evaluation-good","expected":"pass","observedCode":""}
+{"kind":"self-test","status":"pass","contract":"contracts/evaluation-case-v0.contract.tsv","fixture":"tests/fixtures/evaluation-empty","expected":"fail","observedCode":"EVAL-CASES-EMPTY"}
+{"kind":"self-test","status":"pass","contract":"contracts/evaluation-case-v0.contract.tsv","fixture":"tests/fixtures/evaluation-bad-header","expected":"fail","observedCode":"EVAL-CASES-HEADER"}
+{"kind":"self-test","status":"pass","contract":"contracts/evaluation-case-v0.contract.tsv","fixture":"tests/fixtures/evaluation-bad-fields","expected":"fail","observedCode":"EVAL-CASES-FIELDS"}
+{"kind":"self-test","status":"pass","contract":"contracts/scoped-evidence-v0.contract.tsv","fixture":"tests/fixtures/runtime-unrelated-noise","expected":"pass","observedCode":""}
+{"kind":"self-test","status":"pass","contract":"contracts/scoped-evidence-v0.contract.tsv","fixture":"tests/fixtures/runtime-empty","expected":"fail","observedCode":"RUNTIME-EVIDENCE-EMPTY"}
+{"kind":"self-test","status":"pass","contract":"contracts/scoped-evidence-v0.contract.tsv","fixture":"tests/fixtures/runtime-target-absent","expected":"fail","observedCode":"RUNTIME-TOUCH-MISSING"}
+{"kind":"self-test","status":"pass","contract":"contracts/scoped-evidence-v0.contract.tsv","fixture":"tests/fixtures/runtime-missing-touch","expected":"fail","observedCode":"RUNTIME-TOUCH-MISSING"}
+{"kind":"self-test","status":"pass","contract":"contracts/scoped-evidence-v0.contract.tsv","fixture":"tests/fixtures/runtime-missing-clipboard","expected":"fail","observedCode":"RUNTIME-CLIPBOARD-MISSING"}
+{"kind":"self-test","status":"pass","contract":"contracts/scoped-evidence-v0.contract.tsv","fixture":"tests/fixtures/runtime-missing-page","expected":"fail","observedCode":"RUNTIME-PAGE-MISSING"}
+{"kind":"self-test","status":"pass","contract":"contracts/scoped-evidence-v0.contract.tsv","fixture":"tests/fixtures/runtime-target-fatal","expected":"fail","observedCode":"RUNTIME-TARGET-FATAL"}
+{"kind":"self-test","status":"pass","contract":"tests/contracts/empty.contract.tsv","fixture":"tests/fixtures/narrative-good","expected":"fail","observedCode":"AICI-NO-ASSERTIONS"}
+{"kind":"self-test","status":"pass","contract":"contracts/narrative-sync-v0.contract.tsv","fixture":"tests/fixtures/narrative-missing-voiceover","expected":"fail","observedCode":"NARRATIVE-SCRIPT-VOICEOVER"}
+{"kind":"self-test","status":"pass","contract":"contracts/coupled-substitution-v0.contract.tsv","fixture":"tests/fixtures/coupled-good","expected":"pass","observedCode":""}
+{"kind":"self-test","status":"pass","contract":"contracts/coupled-substitution-v0.contract.tsv","fixture":"tests/fixtures/coupled-bad-signature","expected":"fail","observedCode":"COUPLED-RESULT"}
+{"kind":"self-test","status":"pass","contract":"contracts/coupled-substitution-v0.contract.tsv","fixture":"tests/fixtures/coupled-bad-precheck","expected":"fail","observedCode":"COUPLED-PRECHECK"}
+{"kind":"self-test","status":"pass","contract":"contracts/coupled-substitution-v0.contract.tsv","fixture":"tests/fixtures/coupled-bad-partial","expected":"fail","observedCode":"COUPLED-NO-STANDALONE"}
+{"kind":"self-test","status":"pass","contract":"contracts/catfood-idric-cli-v0.contract.tsv","fixture":"tests/fixtures/catfood-idric-cli-good","expected":"pass","observedCode":""}
+{"kind":"self-test","status":"pass","contract":"contracts/catfood-idric-cli-v0.contract.tsv","fixture":"tests/fixtures/catfood-idric-cli-missing-tools","expected":"fail","observedCode":"CATFOOD-TOOLS-EMPTY"}
+{"kind":"self-test","status":"pass","contract":"contracts/catfood-idric-cli-v0.contract.tsv","fixture":"tests/fixtures/catfood-idric-cli-missing-link","expected":"fail","observedCode":"CATFOOD-IDRIC-CLI"}
+{"kind":"self-test","status":"pass","contract":"contracts/catfood-issh-v0.contract.tsv","fixture":"tests/fixtures/catfood-issh-good","expected":"pass","observedCode":""}
+{"kind":"self-test","status":"pass","contract":"contracts/catfood-issh-v0.contract.tsv","fixture":"tests/fixtures/catfood-issh-missing-tools","expected":"fail","observedCode":"CATFOOD-TOOLS-EMPTY"}
+{"kind":"self-test","status":"pass","contract":"contracts/catfood-issh-v0.contract.tsv","fixture":"tests/fixtures/catfood-issh-missing-link","expected":"fail","observedCode":"CATFOOD-ISSH"}
+{"kind":"self-test","status":"pass","contract":"contracts/build-toolchain-v0.contract.tsv","fixture":"tests/fixtures/build-toolchain-good","expected":"pass","observedCode":""}
+{"kind":"self-test","status":"pass","contract":"contracts/build-toolchain-v0.contract.tsv","fixture":"tests/fixtures/build-toolchain-empty","expected":"fail","observedCode":"BUILD-TOOLCHAIN-MANIFEST"}
+{"kind":"self-test","status":"pass","contract":"contracts/build-toolchain-v0.contract.tsv","fixture":"tests/fixtures/build-toolchain-bad-header","expected":"fail","observedCode":"BUILD-TOOLCHAIN-HEADER"}
+{"kind":"self-test","status":"pass","contract":"contracts/build-toolchain-v0.contract.tsv","fixture":"tests/fixtures/build-toolchain-bad-choice","expected":"fail","observedCode":"BUILD-TOOLCHAIN-CHOICE"}
+{"kind":"self-test","status":"pass","contract":"contracts/build-toolchain-v0.contract.tsv","fixture":"tests/fixtures/build-toolchain-bad-revision","expected":"fail","observedCode":"BUILD-TOOLCHAIN-ICK-REVISION"}
+{"kind":"self-test","status":"pass","contract":"contracts/build-toolchain-v0.contract.tsv","fixture":"tests/fixtures/build-toolchain-bad-evidence","expected":"fail","observedCode":"BUILD-TOOLCHAIN-ICK-EVIDENCE"}
+{"kind":"self-test","status":"pass","contract":"contracts/build-toolchain-v0.contract.tsv","fixture":"tests/fixtures/build-toolchain-bad-gap","expected":"fail","observedCode":"BUILD-TOOLCHAIN-ICK-GAP"}
+{"kind":"self-test","status":"pass","contract":"contracts/blackball-verdict-v0.contract.tsv","fixture":"tests/fixtures/blackball-verdicts-good","expected":"pass","observedCode":""}
+{"kind":"self-test","status":"pass","contract":"contracts/blackball-verdict-v0.contract.tsv","fixture":"tests/fixtures/blackball-verdicts-empty","expected":"fail","observedCode":"BLACKBALL-VERDICTS-EMPTY"}
+{"kind":"self-test","status":"pass","contract":"contracts/blackball-verdict-v0.contract.tsv","fixture":"tests/fixtures/blackball-verdicts-bad-header","expected":"fail","observedCode":"BLACKBALL-VERDICTS-HEADER"}
+{"kind":"self-test","status":"pass","contract":"contracts/blackball-verdict-v0.contract.tsv","fixture":"tests/fixtures/blackball-verdicts-bad-fields","expected":"fail","observedCode":"BLACKBALL-VERDICTS-FIELDS"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/evaluation-case-v0.contract.tsv","code":"","detail":"positive fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/evaluation-case-v0.contract.tsv","code":"EVAL-CASES-EMPTY","detail":"targeted bad fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/evaluation-case-v0.contract.tsv","code":"EVAL-CASES-HEADER","detail":"targeted bad fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/evaluation-case-v0.contract.tsv","code":"EVAL-CASES-FIELDS","detail":"targeted bad fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/build-toolchain-v0.contract.tsv","code":"","detail":"positive fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/build-toolchain-v0.contract.tsv","code":"BUILD-TOOLCHAIN-MANIFEST","detail":"targeted bad fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/build-toolchain-v0.contract.tsv","code":"BUILD-TOOLCHAIN-HEADER","detail":"targeted bad fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/build-toolchain-v0.contract.tsv","code":"BUILD-TOOLCHAIN-CHOICE","detail":"targeted bad fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/build-toolchain-v0.contract.tsv","code":"BUILD-TOOLCHAIN-ICK-REVISION","detail":"targeted bad fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/build-toolchain-v0.contract.tsv","code":"BUILD-TOOLCHAIN-ICK-EVIDENCE","detail":"targeted bad fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/build-toolchain-v0.contract.tsv","code":"BUILD-TOOLCHAIN-ICK-GAP","detail":"targeted bad fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/catfood-issh-v0.contract.tsv","code":"","detail":"positive fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/catfood-issh-v0.contract.tsv","code":"CATFOOD-TOOLS-EMPTY","detail":"targeted bad fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/catfood-issh-v0.contract.tsv","code":"CATFOOD-ISSH","detail":"targeted bad fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/asset-provenance-v0.contract.tsv","code":"","detail":"positive fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/asset-provenance-v0.contract.tsv","code":"PROVENANCE-MANIFEST-EMPTY","detail":"targeted bad fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/asset-provenance-v0.contract.tsv","code":"PROVENANCE-HEADER","detail":"targeted bad fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/asset-provenance-v0.contract.tsv","code":"PROVENANCE-FIELDS","detail":"targeted bad fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/blackball-verdict-v0.contract.tsv","code":"","detail":"positive fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/blackball-verdict-v0.contract.tsv","code":"BLACKBALL-VERDICTS-EMPTY","detail":"targeted bad fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/blackball-verdict-v0.contract.tsv","code":"BLACKBALL-VERDICTS-HEADER","detail":"targeted bad fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/blackball-verdict-v0.contract.tsv","code":"BLACKBALL-VERDICTS-FIELDS","detail":"targeted bad fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/narrative-sync-v0.contract.tsv","code":"","detail":"positive fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/narrative-sync-v0.contract.tsv","code":"NARRATIVE-SCRIPT-EMPTY","detail":"targeted bad fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/narrative-sync-v0.contract.tsv","code":"NARRATIVE-SCRIPT-VOICEOVER","detail":"targeted bad fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/narrative-sync-v0.contract.tsv","code":"NARRATIVE-SCRIPT-CAPTIONS","detail":"targeted bad fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/coupled-substitution-v0.contract.tsv","code":"","detail":"positive fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/coupled-substitution-v0.contract.tsv","code":"COUPLED-RESULT","detail":"targeted bad fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/coupled-substitution-v0.contract.tsv","code":"COUPLED-PRECHECK","detail":"targeted bad fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/coupled-substitution-v0.contract.tsv","code":"COUPLED-NO-STANDALONE","detail":"targeted bad fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/scoped-evidence-v0.contract.tsv","code":"","detail":"positive fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/scoped-evidence-v0.contract.tsv","code":"RUNTIME-EVIDENCE-EMPTY","detail":"targeted bad fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/scoped-evidence-v0.contract.tsv","code":"RUNTIME-TOUCH-MISSING","detail":"targeted bad fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/scoped-evidence-v0.contract.tsv","code":"RUNTIME-CLIPBOARD-MISSING","detail":"targeted bad fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/scoped-evidence-v0.contract.tsv","code":"RUNTIME-PAGE-MISSING","detail":"targeted bad fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/scoped-evidence-v0.contract.tsv","code":"RUNTIME-TARGET-FATAL","detail":"targeted bad fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/catfood-idric-cli-v0.contract.tsv","code":"","detail":"positive fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/catfood-idric-cli-v0.contract.tsv","code":"CATFOOD-TOOLS-EMPTY","detail":"targeted bad fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/catfood-idric-cli-v0.contract.tsv","code":"CATFOOD-IDRIC-CLI","detail":"targeted bad fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/language-boundary-v0.contract.tsv","code":"","detail":"positive fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/language-boundary-v0.contract.tsv","code":"LANGUAGE-FORBIDDEN","detail":"targeted bad fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/language-boundary-v0.contract.tsv","code":"GREASE-SHEBANG","detail":"targeted bad fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/language-boundary-v0.contract.tsv","code":"GREASE-INVOCATION","detail":"targeted bad fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/workflow-integrity-v0.contract.tsv","code":"","detail":"positive fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/workflow-integrity-v0.contract.tsv","code":"WORKFLOW-CONTINUE","detail":"targeted bad fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/workflow-integrity-v0.contract.tsv","code":"WORKFLOW-SWALLOW-OR","detail":"targeted bad fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/workflow-integrity-v0.contract.tsv","code":"WORKFLOW-SWALLOW-SET","detail":"targeted bad fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/workflow-integrity-v0.contract.tsv","code":"WORKFLOW-ACTION-PIN","detail":"targeted bad fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/workflow-integrity-v0.contract.tsv","code":"WORKFLOW-PATH-COVERAGE","detail":"targeted bad fixture"}
+{"kind":"self-test-coverage","status":"pass","contract":"contracts/workflow-integrity-v0.contract.tsv","code":"WORKFLOW-PR-HEAD-CHECKOUT","detail":"targeted bad fixture"}
+{"kind":"self-test-summary","status":"pass","cases":69,"failures":0}

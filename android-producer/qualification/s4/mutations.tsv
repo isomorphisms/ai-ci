@@ -1,0 +1,13 @@
+mutant	invariant	observation	result
+result	field mismatch: compile.result	corruption accepted by mutant; suite would fail	KILLED
+started	field mismatch: compile.started	corruption accepted by mutant; suite would fail	KILLED
+exit	field mismatch: compile.exit	corruption accepted by mutant; suite would fail	KILLED
+executable_sha256	field mismatch: compile.executable_sha256	corruption accepted by mutant; suite would fail	KILLED
+argv_sha256	field mismatch: compile.argv_sha256	corruption accepted by mutant; suite would fail	KILLED
+output_sha256	field mismatch: compile.output_sha256	corruption accepted by mutant; suite would fail	KILLED
+trace_sha256	field mismatch: compile.trace_sha256	corruption accepted by mutant; suite would fail	KILLED
+decision-signature	unauthenticated producer object	corruption accepted by mutant; suite would fail	KILLED
+witness-signature	unauthenticated producer object	corruption accepted by mutant; suite would fail	KILLED
+inspector	actual APK inspection refused	corruption accepted by mutant; suite would fail	KILLED
+early-return	mandatory-decision-execution	valid receipt absent after zero exit	KILLED
+execution-observer-disable	actual-host-execution-mutation	PTRACE_UNAVAILABLE	BLOCKED
