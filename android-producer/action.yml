@@ -28,4 +28,4 @@ runs:
         ACCEPTANCE_SCOPE: ${{ inputs.acceptance-scope }}
       # Thin foreign-runner boundary; no compiler/runtime bootstrap.
       run: |
-        exec /usr/bin/env -i PATH=/usr/bin:/bin /opt/aici/android-producer/current/runtime/grease /opt/aici/android-producer/current/policy/android-producer/check.ysh "$DECISION" "$APK" "$SOURCE_COMMIT" "$TARGET" "$ACCEPTANCE_SCOPE"
+        exec /usr/bin/env -i PATH=/usr/bin:/bin /opt/aici/android-producer/current/runtime/ysh /opt/aici/android-producer/current/policy/android-producer/check.ysh "$DECISION" "$APK" "$SOURCE_COMMIT" "$TARGET" "$ACCEPTANCE_SCOPE"

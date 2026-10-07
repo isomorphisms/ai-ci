@@ -1,5 +1,14 @@
 # Android producer v2 deployment boundary
 
+## CF-A2-S4 continuation
+
+The historical FP3 description below retains its original scope/failures. The
+current application-neutral finite-graph candidate and stronger current-state,
+plan/material/payload/execution bindings are documented in
+[shared-boundary.md](shared-boundary.md). Crystal's signer incident remains
+separate. S4 does not activate deployment or claim isolated execution on a host
+that denies bubblewrap/ptrace; full multi-group S2 integration is still pending.
+
 The v1 merged action is insufficient producer authority. Its ancestry test,
 caller policy ref, optional prior sidecar, and generic `cc` build are superseded.
 `check.ysh` does not certify them or fall back to v1. It consumes an independently

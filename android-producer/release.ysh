@@ -1,0 +1,113 @@
+# Internal release verifier. Public callers always use the fixed anchor/current.
+proc reject(message) { echo "AICI producer: $message" >&2; exit 1; }
+proc sha(path) { /usr/bin/sha256sum "$path" | /usr/bin/awk '{print $1}'; }
+proc regular(path) { test -f "$path" && test ! -L "$path" || reject "nonregular material: $path"; }
+proc field(path, key) {
+  /usr/bin/awk -F '\t' -v key="$key" '$1==key {n++;v=$2;if(NF!=2||!length(v))bad=1} END {if(n!=1||bad){print "AICI producer: missing, duplicate or malformed field: " key > "/dev/stderr";exit 1}print v}' "$path"
+}
+proc equal_field(path, key, expected) {
+  var actual = $(field "$path" "$key")
+  test "$actual" = "$expected" || reject "field mismatch: $key"
+}
+proc signed(path, key) {
+  regular "$path"
+  regular "$path.sig"
+  regular "$key"
+  /usr/bin/openssl dgst -sha256 -verify "$key" -signature "$path.sig" "$path" >/dev/null 2>&1 || reject 'unauthenticated producer object'
+}
+proc no_overrides {
+  for forbidden in AICI_POLICY_REF AICI_RELEASE_ROOT AICI_DECISION_KEY AICI_WITNESS_KEY AICI_TRUST_ROOT AICI_REQUIRE_NO_DEX LD_PRELOAD LD_LIBRARY_PATH JAVA_TOOL_OPTIONS JDK_JAVA_OPTIONS GIT_DIR GIT_WORK_TREE GIT_CONFIG_COUNT; do
+    var override = get(ENV, forbidden, '')
+    test -z "$override" || reject "caller override: $forbidden"
+  done
+}
+proc material(release, name, key) {
+  regular "$release/$name"
+  var digest = $(sha "$release/$name")
+  equal_field "$release/release.tsv" "$key" "$digest"
+}
+proc verify_release(release, anchor) {
+  signed "$release/release.tsv" "$anchor"
+  equal_field "$release/release.tsv" schema aici-android-release-v3
+  /usr/bin/awk -F '\t' '$1=="policy_commit"||$1=="source_commit"||$1=="catfood_commit" {if(length($2)!=40||$2!~/^[0-9a-f]+$/)bad=1} END{if(bad)exit 1}' "$release/release.tsv" || reject 'source/policy identities must be full commits'
+  material "$release" files.sha256 files_sha256
+  # Strict manifest paths: no absolute/escaping/duplicate paths, symlink files,
+  # GNU checksum options or ignored entries. Digest checks cover closure bytes.
+  /usr/bin/awk 'length($1)!=64||$1!~/^[0-9a-f]+$/||NF!=2||$2!~/^[A-Za-z0-9_.\/-]+$/||$2~/^\//||$2~/(^|\/)\.\.?($|\/)/||seen[$2]++ {bad=1} END{if(NR==0||bad)exit 1}' "$release/files.sha256" || reject 'unsafe release manifest'
+  var tab = $(printf '\t')
+  while read -r digest relative; do
+    case "$relative" in
+      tools/*) test -f "$release/$relative" || reject "missing tool material: $relative" ;;
+      *) regular "$release/$relative" ;;
+    esac
+    var actual = $(sha "$release/$relative")
+    test "$actual" = "$digest" || reject "release material changed: $relative"
+  done < "$release/files.sha256"
+  # Mandatory control material must occur in the signed manifest, even if a
+  # malicious release assembler omitted it from the list being checked.
+  for required in policy/android-producer/check.ysh policy/android-producer/decision.ysh policy/android-producer/release.ysh policy/android-producer/graph.ysh policy/android-producer/execution.ysh policy/android-producer/supervise.ysh policy/android-signing/identities.tsv policy/contracts/build-toolchain-v0.contract.tsv inspection-policy/android-signing/identities.tsv packager/apk/inspect-nativeactivity-apk.ysh packager/apk/build-nativeactivity-apk.ysh packager/apk/common.ysh packager/apk/tools.tsv runtime/ysh runtime/aici runtime/aici_android_signing runtime/bounded_process decision-public.pem witness-public.pem plan.tsv binding.tsv obligations.tsv payloads.tsv stages.tsv exec-allowlist.tsv recipe.sha256 source/ci/build-toolchain.tsv; do
+    /usr/bin/awk -v p="$required" '$2==p{n++} END{if(n!=1)exit 1}' "$release/files.sha256" || reject "unbound release material: $required"
+  done
+  material "$release" plan.tsv plan_sha256
+  material "$release" binding.tsv binding_sha256
+  material "$release" obligations.tsv obligations_sha256
+  material "$release" payloads.tsv payloads_sha256
+  material "$release" stages.tsv stage_contract_sha256
+  material "$release" recipe.sha256 recipe_sha256
+  var source_commit = $(field "$release/release.tsv" source_commit)
+  var observed_source = $(/usr/bin/env -i PATH=/usr/bin:/bin GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null /usr/bin/git --no-replace-objects -C "$release/source" rev-parse HEAD)
+  test "$observed_source" = "$source_commit" || reject 'source checkout is not the admitted source'
+  /usr/bin/env -i PATH=/usr/bin:/bin GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null /usr/bin/git --no-replace-objects -c core.fsmonitor=false -C "$release/source" diff --quiet --no-ext-diff --no-textconv HEAD || reject 'source checkout changed'
+  var extra_source = $(/usr/bin/env -i PATH=/usr/bin:/bin GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null /usr/bin/git --no-replace-objects -c core.fsmonitor=false -C "$release/source" ls-files --others --exclude-standard)
+  test -z "$extra_source" || reject 'unadmitted source files'
+  var binding = "$release/binding.tsv"
+  equal_field "$binding" schema aici-catfood-producer-binding-v1
+  var plan_digest = $(sha "$release/plan.tsv")
+  equal_field "$binding" plan_sha256 "$plan_digest"
+  for key in source_repository_id source_commit dependency_material_sha256 recipe_sha256 catfood_commit resolver_sha256 publication_scope package version_code signing_lane signer_cert_sha256 update_mode artifact_group; do
+    var admitted = $(field "$release/release.tsv" "$key")
+    equal_field "$binding" "$key" "$admitted"
+  done
+  var obligations = $(sha "$release/obligations.tsv")
+  equal_field "$binding" obligations_sha256 "$obligations"
+  var payloads = $(sha "$release/payloads.tsv")
+  equal_field "$binding" payloads_sha256 "$payloads"
+}
+proc verify_current(release, authority, anchor) {
+  # This protected independently installed current-state object is OUTSIDE
+  # the release. An old signed release cannot select its own rollback floor.
+  signed "$authority" "$anchor"
+  equal_field "$authority" schema aici-android-current-v1
+  equal_field "$authority" state ACTIVE
+  var release_digest = $(sha "$release/release.tsv")
+  equal_field "$authority" release_sha256 "$release_digest"
+  var generation = $(field "$release/release.tsv" generation)
+  equal_field "$authority" generation "$generation"
+  var publication = $(field "$release/release.tsv" publication_scope)
+  equal_field "$authority" publication_scope "$publication"
+}
+proc require_deployment(release) {
+  equal_field "$release/release.tsv" plan_binding_qualification QUALIFIED
+  equal_field "$release/release.tsv" execution_qualification QUALIFIED
+  equal_field "$release/release.tsv" stable_lane_authorization APPROVED
+  equal_field "$release/release.tsv" publication_authorization APPROVED
+  equal_field "$release/release.tsv" runtime_closure_qualification QUALIFIED
+  equal_field "$release/release.tsv" isolation_qualification QUALIFIED
+  equal_field "$release/release.tsv" protected_store_qualification QUALIFIED
+  equal_field "$release/release.tsv" issuer_qualification QUALIFIED
+  # A qualified flag cannot conceal subsequent changes to the actual host
+  # loader/libc/utility closure. The independent qualifier supplies the full set.
+  material "$release" host-files.tsv host_runtime_sha256
+  /usr/bin/awk -F '\t' 'NF!=2||$1!~/^\/[A-Za-z0-9_.\/-]+$/||$1~/(^|\/)\.\.?($|\/)/||length($2)!=64||$2!~/^[0-9a-f]+$/||seen[$1]++{bad=1} END{if(NR==0||NR>10000||bad)exit 1}' "$release/host-files.tsv" || reject 'invalid qualified host runtime closure'
+  var tab = $(printf '\t')
+  while IFS="$tab" read -r host_path expected; do
+    test -f "$host_path" || reject "missing qualified host runtime: $host_path"
+    var actual = $(sha "$host_path")
+    test "$actual" = "$expected" || reject "qualified host runtime changed: $host_path"
+  done < "$release/host-files.tsv"
+  # Material-domain roots must resolve inside the read-only /release mount.
+  # Internal tool aliases are allowed; escaping root-directory symlinks are not.
+  for domain in source policy packager materials runtime inspection-policy tools/ndk tools/sdk tools/jre; do
+    test -d "$release/$domain" && test ! -L "$release/$domain" || reject "unqualified material domain: $domain"
+  done
+}

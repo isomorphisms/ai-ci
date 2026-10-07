@@ -14,7 +14,7 @@ var linker_hash = $(/usr/bin/sha256sum "$linker" | /usr/bin/awk '{print $1}')
 test "$cc_hash" = a871130d810536f7bb924c8aeaff57c66de27bed9b13d0ccafba25fdcc8bd02d
 test "$linker_hash" = c4a7473d3b8a99a32335616838af2aa85c6333091abeab423be2a905ff5f288c
 /usr/bin/mkdir -p "$output"
-for unit in aici aici_android_signing; do
+for unit in aici aici_android_signing bounded_process; do
   "$cc" --target=x86_64-linux-gnu --sysroot=/ --ld-path="$linker" -rtlib=libgcc -unwindlib=libgcc -std=c17 -Wall -Wextra -Werror -O2 -MD -MF "$output/$unit.dependencies" "$root/src/$unit.c" -o "$output/$unit"
 done
 "$output/aici" verify "$root/contracts/build-toolchain-v0.contract.tsv" "$root" > "$output/build-policy.log"

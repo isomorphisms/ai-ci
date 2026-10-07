@@ -1,17 +1,18 @@
 #!/usr/bin/env grease
 set -eu -o pipefail
 # Deployment identity is fixed outside request/application write authority.
+var script = $(/usr/bin/readlink -f "$0")
+var producer = $(/usr/bin/dirname "$script")
+source "$producer/release.ysh"
+no_overrides
 var release = '/opt/aici/android-producer/current'
 var anchor = '/opt/aici/keys/android-producer-release.pem'
 test -f "$anchor" && test -f "$release/release.tsv" || {
   echo 'BLOCKED: trusted Android producer release is not deployed' >&2
   exit 1
 }
-for forbidden in AICI_POLICY_REF AICI_RELEASE_ROOT AICI_DECISION_KEY AICI_REQUIRE_NO_DEX LD_PRELOAD LD_LIBRARY_PATH JAVA_TOOL_OPTIONS JDK_JAVA_OPTIONS GIT_DIR GIT_WORK_TREE GIT_CONFIG_COUNT; do
-  var override = get(ENV, forbidden, '')
-  test -z "$override" || { echo "BLOCKED: caller override $forbidden" >&2; exit 1; }
-done
-/usr/bin/openssl dgst -sha256 -verify "$anchor" -signature "$release/release.tsv.sig" "$release/release.tsv" >/dev/null
+verify_release "$release" "$anchor"
+verify_current "$release" '/opt/aici/android-producer/authority/current.tsv' "$anchor"
 var own_path = $(/usr/bin/readlink -f "$0")
 var own_sha = $(/usr/bin/sha256sum "$own_path" | /usr/bin/awk '{print $1}')
 var approved_sha = $(/usr/bin/awk -F '\t' '$1=="entrypoint_sha256" {print $2}' "$release/release.tsv")
@@ -21,8 +22,10 @@ var manifest_sha = $(/usr/bin/sha256sum "$release/files.sha256" | /usr/bin/awk '
 var approved_manifest = $(/usr/bin/awk -F '\t' '$1=="files_sha256" {print $2}' "$release/release.tsv")
 test "$manifest_sha" = "$approved_manifest" || exit 1
 cd "$release" { /usr/bin/sha256sum -c files.sha256 >/dev/null }
-var qualified = $(/usr/bin/awk -F '\t' '$1=="execution_qualification" {n++;v=$2} END{if(n!=1)exit 1;print v}' "$release/release.tsv")
-test "$qualified" = QUALIFIED || { echo 'BLOCKED: producer execution qualification is unavailable' >&2; exit 1; }
+require_deployment "$release"
+equal_field "$release/release.tsv" evidence_class ISOLATED
+source "$release/policy/android-producer/graph.ysh"
+source "$release/policy/android-producer/execution.ysh"
 source "$release/policy/android-producer/decision.ysh"
 test "$#" = 5 || reject 'expected DECISION APK SOURCE_COMMIT TARGET ACCEPTANCE_SCOPE'
 verify_decision "$release" "$1" "$2" "$3" "$4" "$5"

@@ -1,32 +1,25 @@
 # Android producer gate
 
-This action composes the fail-closed checks required before a maintained direct
-NativeActivity APK can be treated as a producer-approved artifact.
+The public v2 consumer verifies an authenticated exact-byte decision and mandatory
+witness under a fixed independent release/current-state boundary. It does not
+activate candidate policy, accept caller-selected trust roots, issue unsigned v1
+approvals, or infer deployment from main ancestry.
 
-It verifies that:
+See [the shared producer candidate](shared-boundary.md) for graph, plan/material,
+target, package/signer/version, execution and publication binding. Promotion is
+disabled until independent plan adapter, release, issuer, store, isolation and
+runtime closure qualification exists. Cat Food owns profile resolution; AICI
+owns producer qualification. The current registered NativeActivity route has
+explicit shape/SDK limits and does not claim full multi-group plan acceptance.
 
-- the action is pinned by a full AICI commit already reachable from protected
-  `isomorphisms/ai-ci` `main`;
-- the consumer's `ci/build-toolchain.tsv` satisfies
-  `build-toolchain-v0`;
-- the android-NDK packager receipt names a full packager commit already
-  reachable from protected `isomorphisms/android-NDK` `main`;
-- package ID and signer match the central Android signing registry;
-- versionCode, ABI, APK SHA-256, signer, and NativeActivity launcher match the
-  finished APK and the packager receipt;
-- direct NativeActivity APKs contain no DEX by default;
-- when a prior accepted receipt is supplied, package/signer identity remains
-  stable and versionCode does not decrease.
+`tests/run.ysh` validates real APK bytes and authenticated test records, with
+separate actual execution cases where host capabilities permit.
+`tests/qualify.ysh` fails overall qualification when mandatory execution is
+blocked. Mutations must first preserve the valid counterpart. Historical
+[FP3 records](qualification/fp3.tsv) keep their original weaker claims and failures.
 
-A candidate policy or packager PR may be tested as candidate work, but this
-normal producer gate deliberately refuses to let an unmerged policy or
-packager commit authorize delivery. A full SHA proves byte identity; ancestry
-from protected main supplies the additional approval boundary.
-
-The resulting receipt distinguishes producer approval from update-continuity
-evidence. If no prior accepted receipt is supplied,
-`update_identity_result=NOT_VERIFIED`; producer success must not be relabeled
-as replacement-install acceptance.
-
-This gate does not prove physical-device launch, visual correctness, touch
-behavior, or other runtime semantics.
+The inherited [policy-reference controls](tests/authority.ysh) remain narrow:
+they reject branch names/unmerged heads and admit merged SHAs only far enough to
+reach a deliberately invalid schema. The frozen admission prefix always refuses
+and cannot approve or compile artifacts. That workflow's green result grants no
+producer, deployment, installation or physical acceptance.

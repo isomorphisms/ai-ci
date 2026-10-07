@@ -1,0 +1,107 @@
+# Internal execution mechanism. HOST_OBSERVATION is only a no-issuer test lane;
+# it never qualifies isolation, issues a producer decision or authorizes export.
+proc inspect_trace(release, trace, expected_path) {
+  /usr/bin/awk -F '\t' -v expected="$expected_path" '
+    FNR==NR {allowed[$1]=1;next}
+    /execveat\(/ {bad=1;next}
+    /execve\(/ {
+      line=$0;sub(/^([0-9]+[ ]+)?execve\("/,"",line)
+      path=line;sub(/".*/,"",path)
+      if(path!~/^\/[A-Za-z0-9_.\/-]+$/||$0!~/ = (0|-1 [A-Z0-9_]+ \([^\n]*\))$/){bad=1;next}
+      if($0~/ = 0$/){if(!(path in allowed)){print "AICI producer: undeclared execution: " path > "/dev/stderr";bad=1};if(path==expected)observed++}
+      next}
+    /unfinished|resumed|truncated|detached/ {bad=1;next}
+    /killed by|exited with [1-9]/ {bad=1;next}
+    /^([0-9]+[ ]+)?(\+\+\+ exited with 0 \+\+\+|--- [A-Z0-9_]+ .* ---)$/ {next}
+    {bad=1}
+    END{if(bad||!observed)exit 1}
+  ' "$release/exec-allowlist.tsv" "$trace" || reject 'execution trace refused'
+}
+proc require_stage_execution(release, trace, kind, material_root) {
+  # Mandatory roles are fixed by this registered NDK/NativeActivity adapter,
+  # not by a worker-chosen list or a graph entry named "signing".
+  var required_executable = ''
+  var required_script = ''
+  case "$kind" in
+    compile)
+      setvar required_executable = "$material_root/tools/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/clang-18"
+      ;;
+    link)
+      setvar required_executable = "$material_root/tools/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/ld.lld"
+      ;;
+    strip)
+      setvar required_executable = "$material_root/tools/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
+      ;;
+    package)
+      setvar required_executable = "$material_root/runtime/ysh"
+      setvar required_script = "$material_root/packager/apk/build-nativeactivity-apk.ysh"
+      ;;
+    inspect)
+      setvar required_executable = "$material_root/runtime/ysh"
+      setvar required_script = "$material_root/packager/apk/inspect-nativeactivity-apk.ysh"
+      ;;
+    build-toolchain)
+      setvar required_executable = "$material_root/runtime/aici"
+      ;;
+    signing)
+      setvar required_executable = "$material_root/runtime/aici_android_signing"
+      ;;
+    *) reject 'unknown mandatory stage role' ;;
+  esac
+  /usr/bin/awk -v executable="$required_executable" -v script="$required_script" '
+    index($0,"execve(\"" executable "\"")&&/ = 0$/ {
+      if(script==""||index($0,"\", \"" script "\""))observed++
+    }
+    END{if(!observed)exit 1}
+  ' "$trace" || reject "missing observed mandatory role: $kind"
+}
+proc run_graph(release, run, mode) {
+  verify_graph "$release"
+  case "$mode" in
+    ISOLATED)
+      /usr/bin/bwrap --unshare-all --ro-bind /usr /usr --ro-bind /lib /lib --ro-bind /lib64 /lib64 --dev /dev --proc /proc /usr/bin/true > "$run/isolation.log" 2>&1 || reject 'ISOLATION_UNAVAILABLE'
+      ;;
+    HOST_OBSERVATION) ;;
+    *) reject 'unqualified execution mode' ;;
+  esac
+  /usr/bin/mkdir "$run/worker" "$run/evidence"
+  printf 'schema\taici-stage-execution-v1\nmode\t%s\n' "$mode" > "$run/evidence/execution.tsv"
+  var tab = $(printf '\t')
+  var header = true
+  while IFS="$tab" read -r id kind deps executable executable_sha argv argv_sha output; do
+    if test "$header" = true; then setvar header = false; continue; fi
+    var worker_root = "$run/worker"
+    var material_root = "$release"
+    if test "$mode" = ISOLATED; then setvar worker_root = '/output'; setvar material_root = '/release'; fi
+    var arguments = []
+    while IFS= read -r argument; do
+      # Tokens are literal substitutions, never shell parsing/eval.
+      var expanded = $(/usr/bin/printf '%s\n' "$argument" | /usr/bin/sed "s|@WORK@|$worker_root|g;s|@RELEASE@|$material_root|g")
+      call arguments->append(expanded)
+    done < "$release/$argv"
+    var observed_path = "$material_root/$executable"
+    var command = ["$observed_path"] ++ arguments
+    if test "$mode" = ISOLATED; then
+      setvar command = ['/usr/bin/bwrap', '--unshare-all', '--die-with-parent', '--new-session', '--ro-bind', '/usr', '/usr', '--ro-bind', '/lib', '/lib', '--ro-bind', '/lib64', '/lib64', '--dev', '/dev', '--proc', '/proc', '--tmpfs', '/tmp', '--ro-bind', "$release", '/release', '--bind', "$run/worker", '/output', '--chdir', '/output', '--clearenv', '--setenv', 'PATH', '/usr/bin:/bin'] ++ command
+    fi
+    # Timeout + session + namespace destruction bounds descendants. Traces and
+    # evidence are never mounted into the worker; signing keys are not in release.
+    if ! "$release/runtime/bounded_process" 120 16777216 "$run/evidence/$id.stdout" "$run/evidence/$id.stderr" "$run/evidence/$id.status" -- /usr/bin/strace -ff -qq -s 65536 -e trace=execve,execveat -o "$run/evidence/$id.raw" /usr/bin/env -i PATH=/usr/bin:/bin LSAN_OPTIONS=detect_leaks=0 @command; then
+      reject "stage failed: $id"
+    fi
+    /usr/bin/find "$run/evidence" -maxdepth 1 -type f -name "$id.raw.*" -print | /usr/bin/sort | while read -r trace_part; do /usr/bin/cat "$trace_part"; done > "$run/evidence/$id.execve"
+    inspect_trace "$release" "$run/evidence/$id.execve" "$observed_path"
+    require_stage_execution "$release" "$run/evidence/$id.execve" "$kind" "$material_root"
+    # Each command produces its own nonempty, confined output. A later stage
+    # cannot overwrite an earlier witness; the sealed evidence preserves bytes.
+    var produced = "$run/worker/$output"
+    regular "$produced"
+    var canonical = $(/usr/bin/readlink -f "$produced")
+    test "$canonical" = "$produced" || reject "escaping stage output: $id"
+    test -s "$produced" || reject "empty stage output: $id"
+    /usr/bin/cp "$produced" "$run/evidence/$id.output"
+    var output_sha = $(sha "$run/evidence/$id.output")
+    var trace_sha = $(sha "$run/evidence/$id.execve")
+    printf '%s.result\tPASS\n%s.executable_sha256\t%s\n%s.argv_sha256\t%s\n%s.started\ttrue\n%s.exit\t0\n%s.output_sha256\t%s\n%s.trace_sha256\t%s\n' "$id" "$id" "$executable_sha" "$id" "$argv_sha" "$id" "$id" "$id" "$output_sha" "$id" "$trace_sha" >> "$run/evidence/execution.tsv"
+  done < "$release/stages.tsv"
+}

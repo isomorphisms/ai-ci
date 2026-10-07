@@ -1,0 +1,160 @@
+"""Enforce actual output satisfaction using Flexible Pipes' artifact contract.
+
+Transport observations must come from the trusted controller. This gate does
+not attest arbitrary caller-provided files as real ChatGPT messages.
+"""
+import handoff
+import hashlib
+import json
+import sys
+import re
+from pathlib import Path
+from builtins import dict, list, ValueError
+
+def check(stage ∈ dict[str, object], payload ∈ bytes, response ∈ bytes, complete ∈ bool) → None:
+    record ∈ dict[str, object] ← handoff.identity(stage, payload)
+    if int(record["version"]) != 1:
+        raise ValueError("JOB-TRANSPORT")
+    requested ∈ str ← handoff.validate_request(dict(record["request"]))
+    mode ∈ str ← str(record["delivery_mode"])
+    events ∈ list[dict[str, object]] ← list(record["events"])
+    visible ∈ bool ← False
+    dispatched ∈ bool ← False
+    recovery ∈ bool ← False
+    sequence ∈ int ← 0
+    latest_response ∈ bytes ← b""
+    for event in events:
+        sequence ← sequence + 1
+        if event["sequence"] != sequence or event["payload_sha256"] != record["payload_sha256"]:
+            raise ValueError("JOB-EVENT-IDENTITY")
+        kind ∈ str ← str(event["kind"])
+        if kind == "delivery-failed":
+            handoff.plain(event["correction"])
+            visible ← False
+            recovery ← True
+        elif kind == "visible":
+            if mode == "dispatch-only":
+                raise ValueError("JOB-UNREQUESTED-SURFACE")
+            captured ∈ bytes ← str(event["response_text"]).encode()
+            if event["response_sha256"] != str(handoff.digest(captured)):
+                raise ValueError("JOB-RESPONSE-IDENTITY")
+            if bytes(handoff.extract(captured, payload)) != payload:
+                raise ValueError("JOB-VISIBLE-IDENTITY")
+            handoff.plain(event["message_id"])
+            handoff.plain(event["surface"])
+            visible ← True
+            latest_response ← captured
+        elif kind == "dispatch":
+            if requested == "display-only":
+                raise ValueError("JOB-UNAUTHORIZED-DISPATCH")
+            if requested != "dispatch-only" and not visible:
+                raise ValueError("JOB-DISPATCH-BEFORE-VISIBLE")
+            if dispatched:
+                raise ValueError("JOB-DUPLICATE-DISPATCH")
+            handoff.plain(event["dispatch_id"])
+            dispatched ← True
+        else:
+            raise ValueError("JOB-UNKNOWN-EVENT")
+    if mode != requested:
+        if not recovery or mode != "display-only" or not dispatched:
+            raise ValueError("JOB-MODE-IDENTITY")
+    request ∈ dict[str, object] ← dict(record["request"])
+    text ∈ str ← str(request["text"]).lower().replace("’", "'")
+    if bool(re.search(r"where(?:'s| is| is the| was).*\b(?:text|job|assignment)\b", text)) and not recovery:
+        raise ValueError("JOB-RECOVERY-CONTEXT-MISSING")
+    if mode != "dispatch-only":
+        if not visible or record["visible_state"] != "OBSERVED":
+            raise ValueError("JOB-VISIBLE-MISSING")
+        if bytes(handoff.extract(response, payload)) != payload:
+            raise ValueError("JOB-VISIBLE-IDENTITY")
+        if latest_response != response:
+            raise ValueError("JOB-RESPONSE-IDENTITY")
+    elif response != b"" or record["visible_state"] != "NOT_REQUESTED":
+        raise ValueError("JOB-DISPATCH-ONLY-SURFACE")
+    if complete and requested != "display-only":
+        if not dispatched or record["dispatch_state"] != "ACCEPTED":
+            raise ValueError("JOB-DISPATCH-MISSING")
+    if record["dispatch_state"] == "ACCEPTED" and not dispatched:
+        raise ValueError("JOB-DISPATCH-UNOBSERVED")
+    if requested == "display-only" and record["dispatch_state"] != "NOT_REQUESTED":
+        raise ValueError("JOB-UNAUTHORIZED-DISPATCH")
+
+def check_attachment(stage ∈ dict[str, object], source ∈ bytes, complete ∈ bool) → None:
+    record ∈ dict[str, object] ← handoff.identity(stage, source)
+    if int(record["version"]) != 2 or str(record.get("transport")) != "attachment":
+        raise ValueError("JOB-TRANSPORT")
+    payload ∈ bytes ← handoff.materialize(stage, source)
+    attachment ∈ dict[str, object] ← dict(record["attachment"])
+    requested ∈ str ← handoff.validate_request(dict(record["request"]))
+    mode ∈ str ← str(record["delivery_mode"])
+    events ∈ list[dict[str, object]] ← list(record["events"])
+    visible ∈ bool ← False
+    dispatched ∈ bool ← False
+    recovery ∈ bool ← False
+    sequence ∈ int ← 0
+    for event in events:
+        sequence ← sequence + 1
+        if int(event["sequence"]) != sequence or str(event["payload_sha256"]) != str(record["payload_sha256"]):
+            raise ValueError("JOB-EVENT-IDENTITY")
+        kind ∈ str ← str(event["kind"])
+        if kind == "delivery-failed":
+            handoff.plain(event["correction"])
+            visible ← False
+            recovery ← True
+        elif kind == "attachment":
+            if mode == "dispatch-only":
+                raise ValueError("JOB-UNREQUESTED-SURFACE")
+            if visible:
+                raise ValueError("JOB-DUPLICATE-ATTACHMENT")
+            if int(event["payload_size"]) != len(payload):
+                raise ValueError("JOB-ATTACHMENT-IDENTITY")
+            if str(event["file_name"]) != str(attachment["file_name"]):
+                raise ValueError("JOB-ATTACHMENT-NAME")
+            if str(event["mime_type"]) != str(attachment["mime_type"]):
+                raise ValueError("JOB-ATTACHMENT-MIME")
+            handoff.plain(event["file_id"])
+            handoff.plain(event["surface"])
+            visible ← True
+        elif kind == "dispatch":
+            if requested == "display-only":
+                raise ValueError("JOB-UNAUTHORIZED-DISPATCH")
+            if requested != "dispatch-only" and not visible:
+                raise ValueError("JOB-DISPATCH-BEFORE-VISIBLE")
+            if dispatched:
+                raise ValueError("JOB-DUPLICATE-DISPATCH")
+            handoff.plain(event["dispatch_id"])
+            dispatched ← True
+        else:
+            raise ValueError("JOB-UNKNOWN-EVENT")
+    if mode != requested:
+        if not recovery or mode != "display-only" or not dispatched:
+            raise ValueError("JOB-MODE-IDENTITY")
+    if mode != "dispatch-only":
+        if not visible or record["visible_state"] != "OBSERVED":
+            raise ValueError("JOB-VISIBLE-MISSING")
+    elif record["visible_state"] != "NOT_REQUESTED":
+        raise ValueError("JOB-DISPATCH-ONLY-SURFACE")
+    if complete and requested != "display-only":
+        if not dispatched or record["dispatch_state"] != "ACCEPTED":
+            raise ValueError("JOB-DISPATCH-MISSING")
+    if record["dispatch_state"] == "ACCEPTED" and not dispatched:
+        raise ValueError("JOB-DISPATCH-UNOBSERVED")
+    if requested == "display-only" and record["dispatch_state"] != "NOT_REQUESTED":
+        raise ValueError("JOB-UNAUTHORIZED-DISPATCH")
+
+def main() → None:
+    args ∈ list[str] ← sys.argv
+    if len(args) != 5:
+        raise ValueError("usage: job_delivery.pi STAGE_JSON PAYLOAD RESPONSE RESULT")
+    stage ∈ dict[str, object] ← json.loads(Path(args[1]).read_bytes())
+    payload ∈ bytes ← Path(args[2]).read_bytes()
+    response ∈ bytes ← Path(args[3]).read_bytes()
+    record ∈ dict[str, object] ← handoff.identity(stage, payload)
+    if int(record["version"]) == 2:
+        if response != b"":
+            raise ValueError("JOB-ATTACHMENT-LINK-SUBSTITUTE")
+        check_attachment(stage, payload, True)
+    else:
+        check(stage, payload, response, True)
+    encoded ∈ str ← json.dumps({"status": "PASS", "check_id": "job-delivery-v2", "stage_sha256": handoff.digest(Path(args[1]).read_bytes()), "payload_sha256": str(record["payload_sha256"]), "response_sha256": handoff.digest(response)}, sort_keys=True)
+    Path(args[4]).write_text(encoded + "\n")

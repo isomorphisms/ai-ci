@@ -2,6 +2,10 @@
 
 `ai-ci` is a shared contract test suite for AI-authored project work.
 
+[Job delivery](docs/job-delivery.md) checks complete visible assignment bytes
+and first-class binary attachment identity, plus separately bound dispatch,
+using Flexible Pipes' existing stage artifact.
+
 Its rule is stricter than ordinary green CI:
 
 > A check must demonstrate the promised result, and it must prove that it

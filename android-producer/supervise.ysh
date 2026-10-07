@@ -1,205 +1,79 @@
 #!/usr/bin/env grease
 set -eu -o pipefail
-# Fixed authoring candidate for the Crystal operation. Requests cannot supply
-# executables, commands, policy refs, keys, targets or package identities.
+# Registered finite graph, independently admitted plan and materials. An
+# application name or a caller-supplied target list never selects commands.
+var script = $(/usr/bin/readlink -f "$0")
+var producer = $(/usr/bin/dirname "$script")
+source "$producer/release.ysh"
+no_overrides
+test "$#" = 0 || reject 'bound operation accepts no executable parameters'
 var release = '/opt/aici/android-producer/current'
 var anchor = '/opt/aici/keys/android-producer-release.pem'
 var decision_key = '/opt/aici/keys/android-producer-decision.private.pem'
 var witness_key = '/opt/aici/keys/android-producer-witness.private.pem'
-test "$#" = 0 || { echo 'BLOCKED: this bound operation accepts no executable parameters' >&2; exit 1; }
 for prerequisite in "$anchor" "$release/release.tsv" "$decision_key" "$witness_key"; do
-  test -f "$prerequisite" || { echo "BLOCKED: unavailable trusted producer prerequisite: $prerequisite" >&2; exit 1; }
+  test -f "$prerequisite" || reject "DEPLOYMENT_BLOCKED: unavailable trusted producer prerequisite: $prerequisite"
 done
-/usr/bin/openssl dgst -sha256 -verify "$anchor" -signature "$release/release.tsv.sig" "$release/release.tsv" >/dev/null
-var approved_files = $(/usr/bin/awk -F '\t' '$1=="files_sha256" {n++;v=$2} END{if(n!=1)exit 1;print v}' "$release/release.tsv")
-var files_sha = $(/usr/bin/sha256sum "$release/files.sha256" | /usr/bin/awk '{print $1}')
-test "$approved_files" = "$files_sha" || { echo 'BLOCKED: release file manifest changed' >&2; exit 1; }
-cd "$release" { /usr/bin/sha256sum -c files.sha256 >/dev/null }
-source "$release/policy/android-producer/decision.ysh"
-equal_field "$release/release.tsv" execution_qualification QUALIFIED
-var own = $(/usr/bin/readlink -f "$0")
-var own_sha = $(sha "$own")
+verify_release "$release" "$anchor"
+verify_current "$release" '/opt/aici/android-producer/authority/current.tsv' "$anchor"
+require_deployment "$release"
+equal_field "$release/release.tsv" evidence_class ISOLATED
+var own_sha = $(sha "$script")
 equal_field "$release/release.tsv" supervisor_sha256 "$own_sha"
-equal_field "$release/release.tsv" stable_lane_authorization APPROVED
-equal_field "$release/release.tsv" target miro-a1
-equal_field "$release/release.tsv" abi armeabi-v7a
-equal_field "$release/release.tsv" acceptance_scope android-native-package
-# Stable test signing never silently migrates the installed original A1 build.
-# This is approved release data, outside the application candidate's authority.
-var identity_context = $(field "$release/release.tsv" identity_context)
-case "$identity_context" in
-  fresh-test-instance) ;;
-  existing-miro-a1-report)
-    equal_field "$release/release.tsv" update_mode replacement-candidate
-    var original_signer = $(field "$release/release.tsv" prior_signer_cert_sha256)
-    test "$original_signer" = 02e2d1895d922f5f722edebeaf5f9d23dd20fa56a1e9725fe9d412a05f6a7118 || reject 'PRIOR_ACCEPTED_IDENTITY_CONFLICT'
-    var selected_signer = $(field "$release/release.tsv" signer_cert_sha256)
-    test "$selected_signer" = "$original_signer" || reject 'SIGNING_AUTHORITY_BLOCKED: original A1 signer or independently admitted migration is unavailable'
-    ;;
-  *) reject 'MISSING_INPUT: independently admitted identity_context' ;;
-esac
-var recipe_sha = $(sha "$release/source/.github/scripts/build-miro.ysh")
-var package_recipe_sha = $(sha "$release/source/.github/scripts/package-miro.ysh")
-equal_field "$release/release.tsv" recipe_sha256 "$recipe_sha"
-equal_field "$release/release.tsv" package_recipe_sha256 "$package_recipe_sha"
-var version = $(field "$release/release.tsv" version_code)
-var source_commit = $(field "$release/release.tsv" source_commit)
-var observed_source = $(/usr/bin/env -i PATH=/usr/bin:/bin GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null /usr/bin/git --no-replace-objects -C "$release/source" rev-parse HEAD)
-test "$observed_source" = "$source_commit" || reject 'source checkout is not the admitted source'
-/usr/bin/env -i PATH=/usr/bin:/bin GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null /usr/bin/git --no-replace-objects -c core.fsmonitor=false -C "$release/source" diff --quiet --no-ext-diff --no-textconv HEAD
-var extra_source = $(/usr/bin/env -i PATH=/usr/bin:/bin GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null /usr/bin/git --no-replace-objects -c core.fsmonitor=false -C "$release/source" ls-files --others --exclude-standard)
-test -z "$extra_source" || reject 'unadmitted source files'
-var generation = $(field "$release/release.tsv" generation)
-var policy_commit = $(field "$release/release.tsv" policy_commit)
-var release_sha = $(sha "$release/release.tsv")
+source "$release/policy/android-producer/graph.ysh"
+source "$release/policy/android-producer/execution.ysh"
+source "$release/policy/android-producer/decision.ysh"
+verify_coverage "$release"
+verify_graph "$release"
 var run = $(/usr/bin/mktemp -d /var/lib/aici/android-producer/run.XXXXXXXX)
-/usr/bin/mkdir "$run/worker" "$run/sealed"
-printf 'state\tADMITTED\nrelease_sha256\t%s\nsource_commit\t%s\n' "$release_sha" "$source_commit" > "$run/journal.tsv"
-# Test the actual isolation capability before compilation or packaging. Never
-# reroute to unconfined execution when user namespaces/mounting are unavailable.
-if ! /usr/bin/bwrap --unshare-all --ro-bind /usr /usr --ro-bind /lib /lib --ro-bind /lib64 /lib64 --dev /dev --proc /proc /usr/bin/true > "$run/isolation.log" 2>&1; then
-  printf 'state\tBLOCKED\ncode\tISOLATION_UNAVAILABLE\n' > "$run/journal.tsv"
-  reject "worker isolation is unavailable; diagnostic run: $run"
-fi
+printf 'state\tADMITTED\n' > "$run/journal.tsv"
 trap --add INT { printf 'state\tINTERRUPTED\n' > "$run/journal.tsv"; exit 130 }
 trap --add TERM { printf 'state\tINTERRUPTED\n' > "$run/journal.tsv"; exit 143 }
-# The tracer and logs live OUTSIDE worker mounts. The worker sees no signer
-# private key, journal, decision, output store or trusted credentials.
-if ! /usr/bin/timeout --kill-after=10s 900s /usr/bin/strace -f -qq -s 4096 -e trace=execve -o "$run/native.execve" /usr/bin/bwrap --unshare-all --die-with-parent --new-session --ro-bind /usr /usr --ro-bind /lib /lib --ro-bind /lib64 /lib64 --dev /dev --proc /proc --tmpfs /tmp --ro-bind "$release/source" /source --ro-bind "$release/materials" /materials --ro-bind "$release/tools/ndk" /ndk --ro-bind "$release/runtime" /runtime --ro-bind "$release/policy" /policy --bind "$run/worker" /output --chdir /source --clearenv --setenv PATH /usr/bin:/bin --setenv ANDROID_NDK_ROOT /ndk --setenv AICI_HOST_VERIFIERS /runtime --setenv AICI_POLICY_ROOT /policy /runtime/grease /source/.github/scripts/build-miro.ysh armeabi-v7a /output/build /materials > "$run/native.log" 2>&1; then
-  printf 'state\tFAIL\nstage\tnative-worker\n' > "$run/journal.tsv"
-  reject "native worker failed; diagnostic run: $run"
-fi
-# Independent execution observations: declarations/recipe-written sidecars are
-# ignored. The actual trace must include all three links and strips, and more
-# than just three application compilation units (real Lua and raylib builds).
-var compiles = $(/usr/bin/grep -c 'clang-18.*"-c".* = 0' "$run/native.execve")
-var links = $(/usr/bin/grep -c 'ld.lld.* = 0' "$run/native.execve")
-var strips = $(/usr/bin/grep -c 'llvm-strip.* = 0' "$run/native.execve")
-test "$compiles" -ge 35 && test "$links" = 3 && test "$strips" = 3 || reject 'missing observed compile/link/strip execution'
-if /usr/bin/grep -Eq 'execve\("[^" ]*/(gradle|gradlew|javac|kotlinc|d8|keytool|cc|gcc|clang\+\+|g\+\+)"' "$run/native.execve"; then
-  reject 'forbidden producer execution'
-fi
-# The worker has exited. Seal every native library by copying, reject escaping
-# nodes, and inspect/package only the copies controlled by the supervisor.
-for material in halite quartz bismuth; do
-  var native = "$run/worker/build/native/$material/libcrystal.so"
-  test -f "$native" && test ! -L "$native" || reject 'invalid native worker output'
-  /usr/bin/mkdir -p "$run/sealed/build/native/$material"
-  /usr/bin/cp "$native" "$run/sealed/build/native/$material/libcrystal.so"
-done
-/usr/bin/cp "$run/worker/build/sizes.tsv" "$run/worker/build/stages.tsv" "$run/worker/build/materials.tsv" "$run/sealed/build/"
-# Packaging is a bound canonical program; secrets are the approved public TEST
-# lane only. Production/store signing has no route in this operation.
-var GREASE = "$release/runtime/grease"
-if ! /usr/bin/strace -f -qq -s 4096 -e trace=execve -o "$run/package.execve" /usr/bin/env -i PATH=/usr/bin:/bin GREASE_BIN="$GREASE" ANDROID_NDK_ROOT="$release/tools/ndk" ANDROID_SDK_ROOT="$release/tools/sdk" ANDROID_JAVA_HOME="$release/tools/jre" AICI_ROOT="$release/policy" ANDROID_KEYSTORE="$release/materials/test-signing.p12" ANDROID_KEY_ALIAS=wegert-debug ANDROID_STORE_PASSWORD=wegert-debug ANDROID_KEY_PASSWORD=wegert-debug "$GREASE" "$release/source/.github/scripts/package-miro.ysh" "$run/sealed/build" "$run/sealed/packages" "$version" "$release/packager" > "$run/package.log" 2>&1; then
-  printf 'state\tFAIL\nstage\tcanonical-package\n' > "$run/journal.tsv"
-  reject "packaging failed; diagnostic run: $run"
-fi
-var packages = $(/usr/bin/grep -c 'aapt2.*"link".* = 0' "$run/package.execve")
-test "$packages" = 3 || reject 'missing observed canonical packaging'
-if /usr/bin/grep -Eq 'execve\("[^" ]*/(gradle|gradlew|javac|kotlinc|d8|cc|gcc|clang\+\+|g\+\+)"|keytool.*"-genkey(pair)?"' "$run/package.execve"; then
-  reject 'forbidden packaging execution'
-fi
-var contract_sha = $(sha "$release/required-stages.tsv")
+run_graph "$release" "$run" ISOLATED
+# Namespace teardown precedes sealing. Workers never see keys, traces, decisions
+# or final publication storage. The graph output paths are all release-owned.
+var apk_path = $(/usr/bin/awk -F '\t' '$2=="package"{n++;p=$8} END{if(n!=1)exit 1;print p}' "$release/stages.tsv")
+/usr/bin/mkdir "$run/sealed"
+/usr/bin/cp "$run/worker/$apk_path" "$run/sealed/payload.apk"
+var apk = "$run/sealed/payload.apk"
+var decision = "$run/sealed/decision.tsv"
+var apk_digest = $(sha "$apk")
+var apk_size = $(/usr/bin/stat -c %s "$apk")
+var release_digest = $(sha "$release/release.tsv")
+/usr/bin/cp "$run/evidence/execution.tsv" "$decision.witness.tsv"
+{
+  printf 'release_sha256\t%s\napk_sha256\t%s\n' "$release_digest" "$apk_digest"
+  for key in source_commit plan_sha256 binding_sha256 obligations_sha256 payloads_sha256 stage_contract_sha256; do
+    var value = $(field "$release/release.tsv" "$key")
+    printf '%s\t%s\n' "$key" "$value"
+  done
+} >> "$decision.witness.tsv"
+/usr/bin/mkdir "$decision.evidence"
 var tab = $(printf '\t')
-# Compare each trusted required identity with the executable that this supervisor
-# actually invoked. Copying identities from a contract into a receipt is insufficient.
-while IFS="$tab" read -r stage expected_executable; do
-  case "$stage" in \#*|'') continue ;; esac
-  var actual_executable = ''
-  case "$stage" in
-    compile)
-      setvar actual_executable = "$release/tools/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/clang-18"
-      ;;
-    link)
-      setvar actual_executable = "$release/tools/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/ld.lld"
-      ;;
-    strip)
-      setvar actual_executable = "$release/tools/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
-      ;;
-    package)
-      setvar actual_executable = "$release/packager/apk/build-nativeactivity-apk.ysh"
-      ;;
-    inspect)
-      setvar actual_executable = "$release/packager/apk/inspect-nativeactivity-apk.ysh"
-      ;;
-    build-toolchain)
-      setvar actual_executable = "$release/runtime/aici"
-      ;;
-    signing)
-      setvar actual_executable = "$release/runtime/aici_android_signing"
-      ;;
-    *) reject 'unknown required execution stage' ;;
-  esac
-  var actual_sha = $(sha "$actual_executable")
-  test "$actual_sha" = "$expected_executable" || reject "required executable did not execute: $stage"
-done < "$release/required-stages.tsv"
-for material in halite quartz bismuth; do
-  var apk = "$run/sealed/packages/crystal-$material-miro-armeabi-v7a.apk"
-  var decision = "$run/sealed/packages/$material.decision.tsv"
-  var package = "org.isomorphisms.crystal.$material"
-  var digest = $(sha "$apk")
-  var size = $(/usr/bin/stat -c %s "$apk")
-  # Independent mandatory C kernels, invoked against the immutable source and
-  # central registry; their actual logs, executable and exit bind the witness.
-  "$release/runtime/aici" verify "$release/policy/contracts/build-toolchain-v0.contract.tsv" "$release/source" > "$run/$material.build-toolchain.log"
-  var signer = $(/usr/bin/awk -F '\t' -v p="$package" '$1==p&&$2=="test" {n++;s=$3} END{if(n!=1)exit 1;print s}' "$release/policy/android-signing/identities.tsv")
-  var update_mode = $(field "$release/release.tsv" update_mode)
-  var prior_sha = '-'
-  case "$update_mode" in
-    approved-first-stable-build) ;;
-    replacement-candidate)
-      var prior = "$release/prior/$material.decision.tsv"
-      signed "$prior" "$release/decision-public.pem"
-      equal_field "$prior" schema aici-android-producer-v2
-      equal_field "$prior" result PASS
-      equal_field "$prior" package "$package"
-      equal_field "$prior" signer_cert_sha256 "$signer"
-      equal_field "$prior" target miro-a1
-      equal_field "$prior" acceptance_scope android-native-package
-      var prior_version = $(field "$prior" version_code)
-      setvar prior_sha = $(field "$prior" apk_sha256)
-      test "$version" -ge "$prior_version" || reject 'versionCode rollback'
-      test "$digest" != "$prior_sha" || reject 'replacement qualification requires distinct APK bytes'
-      ;;
-    *) reject 'first build or prior accepted decision is not authorized' ;;
-  esac
-  "$release/runtime/aici_android_signing" verify "$release/policy/android-signing/identities.tsv" "$package" test "$signer" > "$run/$material.signing.log"
-  /usr/bin/env -i PATH=/usr/bin:/bin ANDROID_NDK_ROOT="$release/tools/ndk" ANDROID_SDK_ROOT="$release/tools/sdk" ANDROID_JAVA_HOME="$release/tools/jre" AICI_ROOT="$release/policy" "$GREASE" "$release/packager/apk/inspect-nativeactivity-apk.ysh" "$apk" armeabi-v7a libcrystal.so "$package" "$version" > "$run/$material.inspect.log"
-  {
-    printf 'source_commit\t%s\napk_sha256\t%s\ntarget\tmiro-a1\nacceptance_scope\tandroid-native-package\nstage_contract_sha256\t%s\n' "$source_commit" "$digest" "$contract_sha"
-    while IFS="$tab" read -r stage executable; do
-      case "$stage" in \#*|'') continue ;; esac
-      # Executable identities were verified by files.sha256 before execution;
-      # the trace and postcondition logs bind this run rather than stdout PASS.
-      printf '%s.result\tPASS\n%s.executable_sha256\t%s\n%s.started\ttrue\n%s.exit\t0\n' "$stage" "$stage" "$executable" "$stage" "$stage"
-      var evidence = ''
-      case "$stage" in
-        compile|link|strip)
-          setvar evidence = "$run/native.execve"
-          ;;
-        package)
-          setvar evidence = "$run/package.execve"
-          ;;
-        *)
-          setvar evidence = "$run/$material.$stage.log"
-          ;;
-      esac
-      var evidence_sha = $(sha "$evidence")
-      printf '%s.output_sha256\t%s\n' "$stage" "$evidence_sha"
-    done < "$release/required-stages.tsv"
-  } > "$decision.witness.tsv"
-  /usr/bin/openssl dgst -sha256 -sign "$witness_key" -out "$decision.witness.tsv.sig" "$decision.witness.tsv"
-  var witness_sha = $(sha "$decision.witness.tsv")
-  {
-    printf 'schema\taici-android-producer-v2\nresult\tPASS\nregistry_generation\t%s\npolicy_commit\t%s\nrelease_sha256\t%s\nsource_commit\t%s\ntarget\tmiro-a1\nacceptance_scope\tandroid-native-package\napk_sha256\t%s\napk_size\t%s\nsigning_lane\ttest\nabi\tarmeabi-v7a\npackage\t%s\nversion_code\t%s\nsigner_cert_sha256\t%s\nwitness_sha256\t%s\n' "$generation" "$policy_commit" "$release_sha" "$source_commit" "$digest" "$size" "$package" "$version" "$signer" "$witness_sha"
-    printf 'install_result\tNOT_RUN\nlaunch_result\tNOT_RUN\nreplacement_result\tNOT_RUN\nvisual_result\tNOT_RUN\nphysical_result\tNOT_RUN\n'
-    printf 'update_mode\t%s\nprior_apk_sha256\t%s\n' "$update_mode" "$prior_sha"
-  } > "$decision"
-  /usr/bin/openssl dgst -sha256 -sign "$decision_key" -out "$decision.sig" "$decision"
-  # A key mismatch or stale result fails here, before Cat Food/export.
-  /usr/bin/env -i PATH=/usr/bin:/bin ANDROID_NDK_ROOT="$release/tools/ndk" ANDROID_SDK_ROOT="$release/tools/sdk" ANDROID_JAVA_HOME="$release/tools/jre" AICI_ROOT="$release/policy" "$GREASE" "$release/policy/android-producer/check.ysh" "$decision" "$apk" "$source_commit" miro-a1 android-native-package > "$run/$material.validation.log"
-done
-printf 'state\tVERIFIED\nacceptance_scope\tandroid-native-package\n' > "$run/journal.tsv"
-echo "AICI producer verified storage: $run/sealed/packages"
-printf 'verified_storage\t%s\n' "$run/sealed/packages"
+var header = true
+while IFS="$tab" read -r id kind deps executable executable_sha argv argv_sha output; do
+  if test "$header" = true; then setvar header = false; continue; fi
+  /usr/bin/cp "$run/evidence/$id.output" "$decision.evidence/$id.output"
+  /usr/bin/cp "$run/evidence/$id.execve" "$decision.evidence/$id.trace"
+done < "$release/stages.tsv"
+/usr/bin/openssl dgst -sha256 -sign "$witness_key" -out "$decision.witness.tsv.sig" "$decision.witness.tsv"
+var witness_digest = $(sha "$decision.witness.tsv")
+{
+  printf 'schema\taici-android-producer-v2\nbinding_schema\taici-catfood-producer-binding-v1\nresult\tPASS\nevidence_class\tISOLATED\nrelease_sha256\t%s\napk_sha256\t%s\napk_size\t%s\nwitness_sha256\t%s\n' "$release_digest" "$apk_digest" "$apk_size" "$witness_digest"
+  for key in generation policy_commit source_repository_id source_commit dependency_material_sha256 recipe_sha256 catfood_commit resolver_sha256 plan_sha256 binding_sha256 obligations_sha256 payloads_sha256 stage_contract_sha256 publication_scope package version_code signing_lane signer_cert_sha256 update_mode artifact_group acceptance_scope; do
+    var value = $(field "$release/release.tsv" "$key")
+    printf '%s\t%s\n' "$key" "$value"
+  done
+  var prior = '-'
+  var update = $(field "$release/release.tsv" update_mode)
+  if test "$update" = replacement; then setvar prior = $(field "$release/prior/decision.tsv" apk_sha256); fi
+  printf 'prior_apk_sha256\t%s\n' "$prior"
+  for stage in install launch replacement visual physical; do printf '%s_result\tNOT_RUN\n' "$stage"; done
+} > "$decision"
+/usr/bin/openssl dgst -sha256 -sign "$decision_key" -out "$decision.sig" "$decision"
+var source_commit = $(field "$release/release.tsv" source_commit)
+var target = $(/usr/bin/awk -F '\t' 'NR==2{print $1}' "$release/obligations.tsv")
+var scope = $(field "$release/release.tsv" acceptance_scope)
+verify_decision "$release" "$decision" "$apk" "$source_commit" "$target" "$scope" > "$run/validation.log"
+printf 'state\tVERIFIED\npublication\tNOT_RUN\n' > "$run/journal.tsv"
+printf 'verified_storage\t%s\n' "$run/sealed"
