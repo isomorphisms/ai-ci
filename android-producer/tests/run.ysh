@@ -417,5 +417,11 @@ fi
   {if(NF!=4||!($1 in inventory)||seen[$1]++)bad=1;if(inventory[$1]=="PASS"&&$4!="PASS")bad=1;if(inventory[$1]=="PASS-or-BLOCKED"&&$4!="PASS"&&$4!="BLOCKED")bad=1}
   END{for(k in inventory)if(seen[k]!=1||seen_inventory[k]!=1)bad=1;if(bad)exit 1}
 ' "$tests/cases.tsv" "$work/results.tsv"
+# Do not rely exclusively on the runtime's exit hook for successful runs.
+# No fixture authority key may remain beside the published test receipts.
+/usr/bin/rm -f "$work/issuer.private.pem" "$work/anchor.private.pem" "$work/wrong-apk-signer.p12"
+for private in issuer.private.pem anchor.private.pem wrong-apk-signer.p12; do
+  test ! -e "$work/$private" || reject 'fixture private key cleanup failed'
+done
 /usr/bin/cat "$work/results.tsv"
 echo 'DEPLOYMENT_BLOCKED: fixture/host observation cannot activate production promotion'
