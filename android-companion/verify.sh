@@ -120,8 +120,9 @@ for target in phone c67; do
     verified+=("$target"$'\t'"$abi"$'\t'"$(sha256sum "$apk" | awk '{print $1}')")
 done
 [[ "${#verified[@]}" -gt 0 ]] || fail 'no required APK qualified'
-if [[ "$requested" == phone && "${#verified[@]}" -ne 2 ]]; then
-    fail 'A1 request did not qualify the compatible C67 companion'
+required_count=$(awk -F '\t' 'NF==5 && $4=="required" {n++} END {print n+0}' "$plan")
+if [[ "${#verified[@]}" -ne "$required_count" ]]; then
+    fail 'required companion rows were not all qualified'
 fi
 first_sha=$(printf '%s\n' "${verified[0]}" | cut -f3)
 if [[ "${#verified[@]}" -eq 2 ]]; then
