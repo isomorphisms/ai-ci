@@ -58,6 +58,8 @@ awk -F '\t' '
     NF!=2 || $2!~/^\// || ($1!="phone" && $1!="c67") || seen[$1]++ {exit 2}
     END {if(NR<2) exit 2}
 ' "$map" || fail 'invalid APK map; expected unique target and absolute APK path'
+required_abis=$(awk -F '\t' '$4=="required" {print $3}' "$plan" | sort -u)
+[[ -n "$required_abis" ]] || fail 'plan has no required native ABI'
 package=$(get package_id)
 label=$(get launcher_label)
 packaging=$(get packaging)
@@ -86,7 +88,8 @@ for target in phone c67; do
     version=$(printf '%s\n' "$badging" |
       sed -n "s/^package: .*versionCode='\([^']*\)'.*/\1/p" | head -1)
     observed_sdk=$(printf '%s\n' "$badging" |
-      sed -n "s/^sdkVersion:'\([^']*\)'.*/\1/p" | head -1)
+      sed -n -e "s/^minSdkVersion:'\([^']*\)'.*/\1/p" \
+             -e "s/^sdkVersion:'\([^']*\)'.*/\1/p" | head -1)
     observed_label=$(printf '%s\n' "$badging" |
       sed -n -e "s/^application-label:'\(.*\)'$/\1/p" \
              -e "s/^application: label='\([^']*\)'.*/\1/p" | head -1)
@@ -110,6 +113,14 @@ for target in phone c67; do
     [[ "$signer" =~ ^[0-9a-f]{64}$ ]] || fail "$target signer missing or ambiguous"
     "$tmp/signing-verifier" verify "$aici/android-signing/identities.tsv" "$package" test "$signer" ||
         fail "$target did not match central test signer"
+    actual_abis=$(unzip -Z1 "$apk" | awk -F '/' '/^lib\// && NF==3 && $3 ~ /[.]so$/ {print $2}' | sort -u)
+    if [[ "$packaging" == split ]]; then
+        [[ "$actual_abis" == "$abi" ]] ||
+            fail "$target split APK ABI set changed: $actual_abis"
+    else
+        [[ "$actual_abis" == "$required_abis" ]] ||
+            fail "$target shared APK ABI set changed"
+    fi
     entry=$(unzip -Z1 "$apk" | grep -E "^lib/$abi/[^/]+\\.so$" | head -1) ||
         fail "$target native ABI $abi missing"
     [[ -n "$entry" ]] || fail "$target native library is missing"
