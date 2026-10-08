@@ -1,0 +1,93 @@
+"""Controller-only entry: untrusted service results cannot select approval."""
+import sys
+import json
+import hashlib
+import request_delivery
+import acceptance_state
+from pathlib import Path
+from builtins import dict, list, ValueError, Exception, FileNotFoundError, KeyError
+
+args ∈ list[str] ← sys.argv
+if len(args) != 11 and len(args) != 13:
+    raise ValueError("usage: check-request-delivery.pi APPROVED_CONFIG EXPECTED_REQUEST SUBMITTED_REQUEST SERVICE_RESULT OBSERVATIONS STAGE PAYLOAD RESPONSE HUMAN_REQUEST RESULT [ARTIFACT_DIRECTORY SUBMISSION]")
+output ∈ str ← args[10]
+acceptance_state.write(output, "PENDING", {"check_id": "request-delivery"})
+response ∈ bytes ← b""
+try:
+    config_bytes ∈ bytes ← Path(args[1]).read_bytes()
+    config ∈ dict[str, object] ← json.loads(config_bytes)
+    expected ∈ bytes ← Path(args[2]).read_bytes()
+    submitted ∈ bytes ← Path(args[3]).read_bytes()
+    candidate_bytes ∈ bytes ← Path(args[4]).read_bytes()
+    candidate ∈ dict[str, object] ← json.loads(candidate_bytes)
+    if str(candidate["status"]) != "PASS":
+        if expected != submitted:
+            raise ValueError("FP-REQUEST-IDENTITY")
+        no_artifacts ∈ list[dict[str, object]] ← []
+        candidate_artifacts ∈ list[dict[str, object]] ← list(candidate.get("artifacts", no_artifacts))
+        if len(candidate_artifacts) != 0:
+            raise ValueError("FP-NONPASS-DELIVERED-BYTES")
+        service_state ∈ str ← str(candidate["status"])
+        state ∈ str ← "PENDING" if service_state == "PENDING" or service_state == "RUNNING" else "BLOCKED" if service_state == "BLOCKED" else "PARTIAL" if service_state == "PARTIAL" else "FAILED"
+        acceptance_state.write(output, state, {"check_id": "request-delivery", "service_status": service_state, "request_sha256": hashlib.sha256(expected).hexdigest(), "first_failure": str(candidate.get("first_failure", "Operation has not supplied a verified result"))})
+        sys.exit(75)
+    observation_bytes ∈ bytes ← Path(args[5]).read_bytes()
+    observations ∈ dict[str, object] ← json.loads(observation_bytes)
+    stage_bytes ∈ bytes ← Path(args[6]).read_bytes()
+    stage ∈ dict[str, object] ← json.loads(stage_bytes)
+    payload ∈ bytes ← Path(args[7]).read_bytes()
+    response ← Path(args[8]).read_bytes()
+    human_bytes ∈ bytes ← Path(args[9]).read_bytes()
+    human_request ∈ dict[str, object] ← json.loads(human_bytes)
+    artifacts ∈ dict[str, bytes] ← {}
+    submission_bytes ∈ bytes ← b""
+    if len(args) == 13:
+        exported ∈ list[dict[str, object]] ← list(candidate["artifacts"])
+        for artifact in exported:
+            name ∈ str ← str(artifact["name"])
+            if name == "" or name.__contains__("/") or name.__contains__("\\") or name == "." or name == ".." or artifacts.__contains__(name):
+                raise ValueError("FP-FINAL-BYTES")
+            artifacts[name] ← Path(args[11]).joinpath(name).read_bytes()
+        submission_bytes ← Path(args[12]).read_bytes()
+        decision ∈ dict[str, object] ← request_delivery.check_registered(config, expected, submitted, candidate, observations, artifacts, stage, response, human_request, json.loads(submission_bytes))
+        delivery ∈ dict[str, object] ← dict(config["delivered_byte_contract"])
+        if artifacts[str(delivery["file_name"])] != payload:
+            raise ValueError("FP-FINAL-BYTES")
+    else:
+        if int(config["operation_version"]) != 4:
+            raise ValueError("FP-REGISTERED-EXPORTS-MISSING")
+        decision ← request_delivery.check(config, expected, submitted, candidate, observations, payload)
+    request_delivery.check_surface(stage, payload, response, human_request)
+    # A path handed to the consumer must still name the bytes just checked.
+    current_payload ∈ bytes ← Path(args[7]).read_bytes()
+    current_response ∈ bytes ← Path(args[8]).read_bytes()
+    current_stage ∈ bytes ← Path(args[6]).read_bytes()
+    current_config ∈ bytes ← Path(args[1]).read_bytes()
+    current_expected ∈ bytes ← Path(args[2]).read_bytes()
+    current_submitted ∈ bytes ← Path(args[3]).read_bytes()
+    current_candidate ∈ bytes ← Path(args[4]).read_bytes()
+    current_observation ∈ bytes ← Path(args[5]).read_bytes()
+    current_human ∈ bytes ← Path(args[9]).read_bytes()
+    if current_payload != payload or current_response != response or current_stage != stage_bytes or current_config != config_bytes or current_expected != expected or current_submitted != submitted or current_candidate != candidate_bytes or current_observation != observation_bytes or current_human != human_bytes:
+        raise ValueError("FP-POST-VERIFICATION-EDIT")
+    if len(args) == 13:
+        current_submission ∈ bytes ← Path(args[12]).read_bytes()
+        if current_submission != submission_bytes:
+            raise ValueError("FP-POST-VERIFICATION-EDIT")
+        for name in artifacts:
+            current_artifact ∈ bytes ← Path(args[11]).joinpath(name).read_bytes()
+            if current_artifact != artifacts[name]:
+                raise ValueError("FP-POST-VERIFICATION-EDIT")
+    current_release ∈ str ← request_delivery.release_identity(config)
+    if current_release != decision["release_sha256"]:
+        raise ValueError("FP-POST-VERIFICATION-EDIT")
+    decision["response_sha256"] ← hashlib.sha256(response).hexdigest()
+    decision["stage_sha256"] ← hashlib.sha256(stage_bytes).hexdigest()
+    acceptance_state.write(output, "VERIFIED", decision)
+except (FileNotFoundError, KeyError) as missing:
+    acceptance_state.write(output, "BLOCKED", {"check_id": "request-delivery", "first_failure": str(missing)})
+    raise
+except Exception as failure:
+    state ∈ str ← "PARTIAL" if len(response) > 0 else "FAILED"
+    acceptance_state.write(output, state, {"check_id": "request-delivery", "first_failure": str(failure)})
+    raise

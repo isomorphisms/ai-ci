@@ -1,0 +1,99 @@
+name: Independent request-to-delivery acceptance
+on:
+  # Producer pins, oracle, fixtures, runtime, transport and workflow changes
+  # can all invalidate evidence. Keep both events unfiltered.
+  pull_request:
+  push:
+permissions:
+  contents: read
+jobs:
+  acceptance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Exact AICI source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: ai-ci
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Resulting retained control and contract
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: isomorphisms/flexible-pipes
+          ref: 442a33bfd36a23df3d757d17a31b8084cab21a38
+          path: flexible-pipes
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Current artifact contract
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: isomorphisms/flexible-pipes
+          ref: f422a4568da709d7528e7177a791a5592bb38636
+          path: fp-contract
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Resulting compact Kitchen producer
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: isomorphisms/kitchen
+          ref: 933ec7974b7b06050fa107a6733a3d1698cabb87
+          path: kitchen
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Checked Ithon
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: dilapidated-shed/ithon
+          ref: d6e83969f82512e920fb17b44326cb54f31d015c
+          path: ithon
+          persist-credentials: false
+      - name: Existing Cat Food bootstrap owner
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: isomorphisms/catfood
+          ref: 894e9048b1addd549e03e3972fa11f1d6ff43f52
+          path: catfood
+          persist-credentials: false
+      - name: Pinned Grease substrate
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: dilapidated-shed/grease
+          ref: f19c94c6df18cddbdc1e81463e5bd689533e3c13
+          submodules: recursive
+          path: runtime/grease
+          persist-credentials: false
+      - name: Reuse Cat Food bootstrap recipe
+        env:
+          CATFOOD_ROOT: ${{ github.workspace }}/runtime
+          CATFOOD_JOBS: '2'
+        run: /bin/sh catfood/build-tools.sh
+      - name: Bind the declared paste runtime path
+        shell: /usr/bin/env runtime/.build/grease/bin/grease {0}
+        run: |
+          /usr/bin/sudo /usr/bin/mkdir -p /opt/catfood/bin
+          /usr/bin/sudo /usr/bin/ln -s "$[ENV.GITHUB_WORKSPACE]/runtime/.build/grease/bin/grease" /opt/catfood/bin/grease
+      - name: Execute exact maintained paste twice in separate fresh homes
+        shell: /usr/bin/env runtime/.build/grease/bin/grease {0}
+        env:
+          PYTHONPATH: ${{ github.workspace }}/fp-contract/scripts:${{ github.workspace }}/ai-ci/validators
+          ITHON_CHECK_RECEIPT: ${{ runner.temp }}/artifact-checked.jsonl
+        run: /usr/bin/env -u PYTHONHOME -u PYTHONPATH "PYTHONPATH=$[ENV.GITHUB_WORKSPACE]/fp-contract/scripts:$[ENV.GITHUB_WORKSPACE]/ai-ci/validators" /usr/bin/python3 ithon/ithon_host.py ai-ci/tests/request-delivery/observe-paste.pi "$[ENV.GITHUB_WORKSPACE]" "$[ENV.RUNNER_TEMP]/maintained-artifact" "$[ENV.GITHUB_WORKSPACE]/runtime/.build/grease/bin/grease" "$[ENV.GITHUB_WORKSPACE]/runtime/grease/source"
+      - name: Reject contract and sink mutants with positive twins
+        shell: /usr/bin/env runtime/.build/grease/bin/grease {0}
+        env:
+          PYTHONPATH: ${{ github.workspace }}/fp-contract/scripts:${{ github.workspace }}/ai-ci/validators
+          ITHON_CHECK_RECEIPT: ${{ runner.temp }}/request-delivery-checked.jsonl
+        run: /usr/bin/env -u PYTHONHOME -u PYTHONPATH "PYTHONPATH=$[ENV.GITHUB_WORKSPACE]/fp-contract/scripts:$[ENV.GITHUB_WORKSPACE]/ai-ci/validators" /usr/bin/python3 ithon/ithon_host.py ai-ci/tests/request-delivery/check.pi "$[ENV.GITHUB_WORKSPACE]" "$[ENV.RUNNER_TEMP]/request-delivery" "$[ENV.RUNNER_TEMP]/maintained-artifact"
+      - name: Retain outcomes and exact-head matrix even after failure
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: request-delivery-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            ${{ runner.temp }}/request-delivery/
+            ${{ runner.temp }}/maintained-artifact/
+            ${{ runner.temp }}/artifact-checked.jsonl
+            ${{ runner.temp }}/request-delivery-checked.jsonl
+          if-no-files-found: error

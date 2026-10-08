@@ -1,0 +1,5 @@
+HELD-OUT OUTCOME, never model input at the preceding decision point.
+The useful supported counterpart displays the complete maintained artifact with
+source=source, repository=sample, numeric ID=123 and destination=destination.
+It does not introduce a new organization, ask for cwd, or replace transfer with
+fork/copy/rename. This outcome remains held out even after K's compact unit exists.

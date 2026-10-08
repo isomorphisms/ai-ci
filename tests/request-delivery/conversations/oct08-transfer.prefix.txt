@@ -1,0 +1,7 @@
+SANITIZED TECHNICAL PARAPHRASE; synthetic repository and numeric identity.
+USER: Move the sample repository from source to destination.
+ASSISTANT CLAIM: A copy in other-destination will do.
+USER CORRECTION: Transfer ownership. Use destination. Do not fork, copy or rename.
+REPOSITORY OBSERVATION: source/sample has numeric identity 123 and private visibility.
+USER: The destination already exists. Give me the maintained runnable unit.
+CURRENT CAPABILITY: Direct administrative execution is unavailable in this session.

@@ -1,0 +1,302 @@
+"""Accept existing FP registered results against independent controller inputs.
+
+The deployment, expected request, delivery contract and observations are supplied
+by the trusted controller, outside request/worker control. This module consumes
+FP's existing registry; it is not a policy registry or a remote attestation API.
+"""
+import hashlib
+import json
+import re
+import subprocess
+import ast
+import ithon_frontend
+import kitchen_transfer
+import job_delivery
+import handoff
+import registered_delivery
+from pathlib import Path
+from builtins import dict, list, ValueError, isinstance, type
+
+OPERATION_FIELDS ∈ list[str] ← ["operation", "operation_version", "registry_generation", "authority", "required_checks", "control_commit", "ithon", "grease", "worker", "watchdog", "generator", "parent_probe", "fixture_server", "fixture_bin", "api_validator", "seal_validator", "contract_sha256"]
+
+def operation_fields(config ∈ dict[str, object]) → list[str]:
+    version ∈ int ← int(config["operation_version"])
+    if version == 4:
+        return list(OPERATION_FIELDS)
+    fields ∈ list[str] ← registered_delivery.OPERATION_FIELDS
+    return list(fields)
+
+def digest(value ∈ bytes) → str:
+    return hashlib.sha256(value).hexdigest()
+
+def encode(value ∈ object) → bytes:
+    encoded ∈ str ← json.dumps(value, sort_keys=True, separators=(",", ":"))
+    return encoded.encode()
+
+def git(checkout ∈ str, arguments ∈ list[str]) → bytes:
+    command ∈ list[str] ← ["/usr/bin/git", "--no-replace-objects", "-c", "safe.directory=" + checkout, "-C", checkout]
+    command.extend(arguments)
+    environment ∈ dict[str, str] ← {"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8", "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_NO_REPLACE_OBJECTS": "1", "GIT_TERMINAL_PROMPT": "0"}
+    child ∈ object ← subprocess.run(command, env=environment, capture_output=True, timeout=15)
+    code ∈ int ← child.returncode
+    if code != 0:
+        raise ValueError("FP-SOURCE-UNAVAILABLE")
+    output ∈ bytes ← child.stdout
+    return output
+
+def check_imports(material ∈ dict[str, object], materials ∈ list[dict[str, object]], seen ∈ list[str]) → None:
+    """Same-repository Ithon imports are part of executable checker identity."""
+    relative ∈ str ← str(material["relative_path"])
+    if not relative.endswith(".pi") or seen.__contains__(relative):
+        return
+    seen.append(relative)
+    source ∈ str ← Path(str(material["path"])).read_text()
+    tree ∈ object ← ithon_frontend.check_source(source, relative)
+    nodes ∈ list[object] ← list(ast.walk(tree))
+    imports ∈ list[str] ← []
+    for node in nodes:
+        if isinstance(node, ast.Import):
+            aliases ∈ list[object] ← list(node.names)
+            for alias in aliases:
+                name ∈ str ← alias.name
+                imports.append(name)
+        elif isinstance(node, ast.ImportFrom):
+            module_name ∈ object ← node.module
+            name ← str(module_name) if module_name != None else ""
+            imports.append(name)
+    checkout ∈ str ← str(material["checkout"])
+    revision ∈ str ← str(material["commit"])
+    for name in imports:
+        module_relative ∈ str ← name.replace(".", "/")
+        imported_relative ∈ str ← str(Path(relative).parent.joinpath(module_relative + ".pi"))
+        listing ∈ bytes ← git(checkout, ["ls-tree", revision, "--", imported_relative])
+        if listing != b"":
+            matched ∈ bool ← False
+            for dependency in materials:
+                if dependency["checkout"] == checkout and dependency["commit"] == revision and dependency["relative_path"] == imported_relative:
+                    matched ← True
+                    check_imports(dependency, materials, seen)
+            if not matched:
+                raise ValueError("FP-UNBOUND-CHECKER-IMPORT")
+
+def release_identity(config ∈ dict[str, object]) → str:
+    contract_bytes ∈ bytes ← Path(str(config["contract"])).read_bytes()
+    if digest(contract_bytes) != config["contract_sha256"]:
+        raise ValueError("FP-REGISTRY-BYTES")
+    contract ∈ dict[str, object] ← json.loads(contract_bytes)
+    if config["qualified"] != True or config["operation"] != contract["operation"] or config["operation_version"] != contract["operation_version"]:
+        raise ValueError("FP-UNQUALIFIED-OPERATION")
+    required ∈ list[str] ← list(contract["required_checks"])
+    if len(required) == 0 or len(set(required)) != len(required) or config["required_checks"] != required:
+        raise ValueError("FP-REQUIRED-CHECKS")
+    materials ∈ list[dict[str, object]] ← list(config["materials"])
+    tools ∈ list[dict[str, object]] ← list(config["tools"])
+    if len(materials) == 0 or len(tools) == 0:
+        raise ValueError("FP-SOURCE-EVIDENCE")
+    material_paths ∈ list[str] ← []
+    for material in materials:
+        path ∈ str ← str(material["path"])
+        revision ∈ str ← str(material["commit"])
+        if not bool(re.fullmatch("[0-9a-f]{40}", revision)):
+            raise ValueError("FP-SOURCE-EVIDENCE")
+        if digest(Path(path).read_bytes()) != material["sha256"]:
+            raise ValueError("FP-MATERIAL-BYTES")
+        checkout ∈ str ← str(material["checkout"])
+        blob ∈ bytes ← git(checkout, ["show", revision + ":" + str(material["relative_path"])])
+        if digest(blob) != material["sha256"]:
+            raise ValueError("FP-SOURCE-BLOB")
+        head ∈ str ← git(checkout, ["rev-parse", "HEAD"]).decode().strip()
+        if head != revision:
+            raise ValueError("FP-SOURCE-REVISION")
+        origin ∈ str ← git(checkout, ["config", "--local", "--get", "remote.origin.url"]).decode().strip()
+        if origin != material["origin"]:
+            raise ValueError("FP-SOURCE-ORIGIN")
+        git(checkout, ["merge-base", "--is-ancestor", revision, str(material["published_ref"])])
+        material_paths.append(path)
+    tool_paths ∈ list[str] ← []
+    for tool in tools:
+        path ← str(tool["path"])
+        if digest(Path(path).read_bytes()) != tool["sha256"]:
+            raise ValueError("FP-RUNTIME-BYTES")
+        tool_paths.append(path)
+    roles ∈ list[str] ← ["worker", "watchdog", "generator", "parent_probe", "fixture_server", "api_validator", "seal_validator"]
+    version ∈ int ← int(config["operation_version"])
+    if version != 4:
+        roles.extend(["acquisition_probe", "compact_recipe", "contract"])
+    for role in roles:
+        if not material_paths.__contains__(str(config[role])):
+            raise ValueError("FP-UNBOUND-ENTRYPOINT")
+    for material in materials:
+        if material["path"] == config["api_validator"]:
+            checked_imports ∈ list[str] ← []
+            check_imports(material, materials, checked_imports)
+    runtime ∈ list[str] ← list(config["ithon"])
+    grease_command ∈ list[str] ← list(config["grease"])
+    runtime.extend(grease_command[:2])
+    for path in runtime:
+        if not tool_paths.__contains__(path) and not material_paths.__contains__(path):
+            raise ValueError("FP-UNBOUND-RUNTIME")
+    qualification_bytes ∈ bytes ← Path(str(config["qualification"])).read_bytes()
+    if digest(qualification_bytes) != config["qualification_sha256"]:
+        raise ValueError("FP-QUALIFICATION-BYTES")
+    qualification ∈ dict[str, object] ← json.loads(qualification_bytes)
+    operation ∈ dict[str, object] ← {}
+    fields ∈ list[str] ← operation_fields(config)
+    for field in fields:
+        operation[field] ← config[field]
+    if qualification["status"] != "PASS" or qualification["scope"] != config["authority"]:
+        raise ValueError("FP-QUALIFICATION-AUTHORITY")
+    if qualification["operation_sha256"] != digest(encode(operation)) or qualification["materials_sha256"] != digest(encode(materials)) or qualification["tools_sha256"] != digest(encode(tools)) or qualification["environment_sha256"] != digest(encode(config["grease_environment"])):
+        raise ValueError("FP-STALE-QUALIFICATION")
+    # This separately supplied contract is K/R's resulting delivered-byte
+    # obligation, not a future hash guessed by the consumer.
+    delivery ∈ dict[str, object] ← dict(config["delivered_byte_contract"])
+    if delivery["operation"] != config["operation"] or delivery["target_context"] != contract["target_context"]:
+        raise ValueError("FP-DELIVERY-CONTRACT")
+    if config["authority"] == "deployed-trusted" and delivery["kind"] != "maintained-paste-unit":
+        raise ValueError("FP-PASTE-UNIT-MISSING")
+    identity ∈ dict[str, object] ← {"operation": operation, "materials": materials, "tools": tools, "environment": config["grease_environment"], "qualification_sha256": config["qualification_sha256"], "delivered_byte_contract": delivery}
+    return digest(encode(identity))
+
+def binding(config ∈ dict[str, object], request ∈ bytes) → str:
+    return digest(encode({"release_sha256": release_identity(config), "request_sha256": digest(request)}))
+
+def check(config ∈ dict[str, object], expected_request ∈ bytes, submitted_request ∈ bytes, result ∈ dict[str, object], observed ∈ dict[str, object], payload ∈ bytes) → dict[str, object]:
+    release ∈ str ← release_identity(config)
+    if submitted_request != expected_request or observed["request_sha256"] != digest(expected_request):
+        raise ValueError("FP-REQUEST-IDENTITY")
+    request ∈ dict[str, object] ← json.loads(expected_request, object_pairs_hook=registered_delivery.unique_object)
+    if set(request) != set(["schema_version", "request_id", "pipeline", "inputs"]) or request["schema_version"] != 1 or request["pipeline"] != config["operation"]:
+        raise ValueError("FP-REQUEST-OPERATION")
+    inputs ∈ dict[str, object] ← dict(request["inputs"])
+    input_fields ∈ list[str] ← registered_delivery.INPUT_FIELDS
+    if set(inputs) != set(input_fields):
+        raise ValueError("FP-REQUEST-INPUT")
+    for field in ["source_owner", "repository", "destination_owner", "expected_login"]:
+        if type(inputs[field]) != str or not bool(re.fullmatch("[A-Za-z0-9][A-Za-z0-9_.-]{0,99}", str(inputs[field]))):
+            raise ValueError("FP-REQUEST-INPUT")
+    if type(inputs["expected_repository_id"]) != int or int(inputs["expected_repository_id"]) <= 0 or inputs["source_owner"] == inputs["destination_owner"]:
+        raise ValueError("FP-REQUEST-INPUT")
+    delivery ∈ dict[str, object] ← dict(config["delivered_byte_contract"])
+    if inputs["target_context"] != delivery["target_context"]:
+        raise ValueError("FP-REQUEST-CONTEXT")
+    key ∈ str ← digest(encode({"release_sha256": release, "request_sha256": digest(expected_request)}))
+    if observed["binding_sha256"] != key or observed["release_sha256"] != release:
+        raise ValueError("FP-OBSERVATION-BINDING")
+    if result["status"] != "PASS" or result["request_id"] != request["request_id"] or result["request_sha256"] != digest(submitted_request):
+        raise ValueError("FP-RESULT-REQUEST")
+    for pair in [("operation_id", "operation"), ("operation_version", "operation_version"), ("registry_generation", "registry_generation"), ("qualification_sha256", "qualification_sha256"), ("contract_sha256", "contract_sha256")]:
+        if result[pair[0]] != config[pair[1]]:
+            raise ValueError("FP-RESULT-RELEASE")
+    control ∈ dict[str, object] ← dict(result["control"])
+    engine_bound ∈ bool ← False
+    source_materials ∈ list[dict[str, object]] ← list(config["materials"])
+    for material in source_materials:
+        if material["relative_path"] == "scripts/registered-execution.pi" and material["commit"] == config["control_commit"] and material["sha256"] == observed["control_executable_sha256"]:
+            engine_bound ← True
+    if not engine_bound:
+        raise ValueError("FP-UNBOUND-CONTROL")
+    if control["commit"] != config["control_commit"] or control["deployment_identity"] != config["authority"] or control["executable_sha256"] != observed["control_executable_sha256"]:
+        raise ValueError("FP-RESULT-AUTHORITY")
+    if control["repository_id"] != observed["control_repository_id"]:
+        raise ValueError("FP-RESULT-AUTHORITY")
+    if result["source"] != config["materials"] or result["dependencies"] != config["tools"]:
+        raise ValueError("FP-RESULT-SOURCE")
+    required ∈ list[str] ← list(config["required_checks"])
+    claims ∈ list[dict[str, object]] ← list(result["stages"])
+    checks ∈ list[dict[str, object]] ← list(observed["checks"])
+    claimed_ids ∈ list[str] ← []
+    observed_ids ∈ list[str] ← []
+    for claim in claims:
+        claimed_ids.append(str(claim["check_id"]))
+        if claim["required"] != True or claim["state"] != "PASS":
+            raise ValueError("FP-CANDIDATE-CHECK")
+    for checked_stage in checks:
+        observed_ids.append(str(checked_stage["check_id"]))
+        if checked_stage["exit_code"] != 0 or checked_stage["skipped"] != 0 or checked_stage["binding_sha256"] != key or checked_stage["observation_kind"] != "independent-postcondition" or checked_stage["completed"] != True:
+            raise ValueError("FP-INDEPENDENT-CHECK")
+    if claimed_ids != required or observed_ids != required:
+        raise ValueError("FP-MISSING-CHECK")
+    generations ∈ list[dict[str, object]] ← list(observed["generations"])
+    if len(generations) != 2:
+        raise ValueError("FP-REPEATED-GENERATION")
+    homes ∈ list[str] ← []
+    directories ∈ list[str] ← []
+    for generation in generations:
+        if generation["inputs"] != inputs or generation["exit_code"] != 0 or generation["binding_sha256"] != key:
+            raise ValueError("FP-GENERATION-INPUT")
+        captured ∈ bytes ← Path(str(generation["payload_path"])).read_bytes()
+        if captured != payload or generation["payload_sha256"] != digest(captured):
+            raise ValueError("FP-GENERATION-BYTES")
+        homes.append(str(generation["home"]))
+        directories.append(str(generation["cwd"]))
+    if homes[0] == homes[1] or directories[0] == directories[1]:
+        raise ValueError("FP-FRESH-CONTEXT")
+    artifact_digest ∈ str ← digest(payload)
+    artifacts ∈ list[dict[str, object]] ← list(result["artifacts"])
+    if len(payload) == 0 or len(artifacts) != 1 or artifacts[0]["name"] != delivery["file_name"] or artifacts[0]["sha256"] != artifact_digest or observed["artifact_sha256"] != artifact_digest:
+        raise ValueError("FP-FINAL-BYTES")
+    contract ∈ dict[str, object] ← json.loads(Path(str(config["contract"])).read_bytes())
+    if observed["effects"] != contract["effects"] or delivery["effects"] != contract["effects"]:
+        raise ValueError("FP-UNAUTHORIZED-EFFECTS")
+    fixtures ∈ list[dict[str, object]] ← list(observed["api_fixtures"])
+    fixture_checks ∈ list[str] ← []
+    for fixture in fixtures:
+        fixture_config ∈ dict[str, object] ← dict(fixture["config"])
+        if fixture_config["inputs"] != inputs or fixture["binding_sha256"] != key:
+            raise ValueError("FP-FIXTURE-INPUT")
+        kitchen_transfer.check(fixture_config, dict(fixture["observations"]), dict(fixture["execution"]), payload)
+        fixture_checks.append("fixture-" + str(fixture_config["mode"]))
+    expected_fixtures ∈ list[str] ← []
+    for check_id in required:
+        if check_id.startswith("fixture-"):
+            expected_fixtures.append(check_id)
+    if fixture_checks != expected_fixtures:
+        raise ValueError("FP-MISSING-API-FIXTURE")
+    paste_runs ∈ list[dict[str, object]] ← list(observed["paste_runs"])
+    if len(paste_runs) != 2 or observed["unit_kind"] != delivery["kind"]:
+        raise ValueError("FP-PASTE-UNIT-MISSING")
+    for paste in paste_runs:
+        if paste["binding_sha256"] != key or paste["payload_sha256"] != artifact_digest or paste["exit_code"] != 0 or paste["parent_survived"] != True or paste["fresh_home"] != True or paste["unrelated_cwd"] != True:
+            raise ValueError("FP-PASTE-EXECUTION")
+    if paste_runs[0]["home"] == paste_runs[1]["home"] or paste_runs[0]["cwd"] == paste_runs[1]["cwd"]:
+        raise ValueError("FP-FRESH-CONTEXT")
+    scope ∈ str ← str(observed["evidence_class"])
+    if config["authority"] != "deployed-trusted" and scope != "disposable-contract-fixture":
+        raise ValueError("FP-DEPLOYMENT-INACTIVE")
+    if config["authority"] == "deployed-trusted" and scope != "observed-supported-caller":
+        raise ValueError("FP-CALLER-NOT-OBSERVED")
+    return {"check_id": "request-delivery", "status": "PASS", "binding_sha256": key, "request_sha256": digest(expected_request), "release_sha256": release, "payload_sha256": artifact_digest, "acceptance_scope": scope, "reuse": observed["reuse"]}
+
+def check_surface(stage ∈ dict[str, object], payload ∈ bytes, response ∈ bytes, human_request ∈ dict[str, object]) → None:
+    record ∈ dict[str, object] ← handoff.identity(stage, payload)
+    if record["request"] != human_request:
+        raise ValueError("FP-HUMAN-REQUEST-IDENTITY")
+    job_delivery.check(stage, payload, response, True)
+
+def check_registered(config ∈ dict[str, object], expected_request ∈ bytes, submitted_request ∈ bytes, result ∈ dict[str, object], observed ∈ dict[str, object], artifacts ∈ dict[str, bytes], stage ∈ dict[str, object], response ∈ bytes, human_request ∈ dict[str, object], submission ∈ dict[str, object]) → dict[str, object]:
+    """Extend the maintained registered gate with root-owned run observations.
+
+    The existing gate checks the complete ordered output pair and intake
+    provenance first. The v4 single-output observation adapter then checks the
+    human paste against independently executed generation/API/sink evidence.
+    Neither adapter selects an operation registry or grants promotion.
+    """
+    registered_delivery.check(config, submitted_request, result, artifacts, stage, response, submission)
+    delivery ∈ dict[str, object] ← dict(config["delivered_byte_contract"])
+    filename ∈ str ← str(delivery["file_name"])
+    payload ∈ bytes ← artifacts[filename]
+    records ∈ list[dict[str, object]] ← list(result["artifacts"])
+    paste_records ∈ list[dict[str, object]] ← []
+    for record in records:
+        if record["name"] == filename:
+            paste_records.append(record)
+    if len(paste_records) != 1 or paste_records[0]["role"] != "human-transfer-paste":
+        raise ValueError("FP-PASTE-UNIT-MISSING")
+    paste_view ∈ dict[str, object] ← dict(result)
+    paste_view["artifacts"] ← paste_records
+    decision ∈ dict[str, object] ← check(config, expected_request, submitted_request, paste_view, observed, payload)
+    check_surface(stage, payload, response, human_request)
+    decision["registered_result_sha256"] ← digest(encode(result))
+    decision["submission_sha256"] ← digest(encode(submission))
+    return decision

@@ -1,0 +1,154 @@
+"""Execute Kitchen's exact compact unit; independently witness each API run.
+
+This is a disposable API/acquisition fixture, never a live transfer. Unlike a
+repeat using retained state, each terminal here receives a distinct empty home.
+The controller owns the fixture service and observes event boundaries at run
+time; child PASS text is not the API oracle.
+"""
+import sys
+import os
+import json
+import subprocess
+import signal
+from pathlib import Path
+from builtins import dict, list, open, ValueError, ProcessLookupError
+import request_delivery
+import kitchen_transfer
+
+argv ∈ list[str] ← sys.argv
+workspace ∈ str ← argv[1]
+output ∈ Path ← Path(argv[2])
+launcher ∈ str ← argv[3]
+grease_source ∈ str ← argv[4]
+output.mkdir(mode=448, parents=True, exist_ok=False)
+task ∈ str ← workspace + "/kitchen/tasks/github-repository-transfer"
+runtime ∈ bytes ← Path(launcher).read_bytes()
+runtime_root ∈ Path ← Path(launcher).parent.parent
+runtime_binary ∈ Path ← runtime_root.joinpath("python2", "python")
+runtime_tools ∈ list[dict[str, object]] ← []
+for executable in [launcher, str(runtime_binary), "/usr/bin/python3"]:
+    runtime_tools.append({"path": executable, "sha256": request_delivery.digest(Path(executable).read_bytes())})
+runtime_source_head ∈ str ← request_delivery.git(grease_source, ["rev-parse", "HEAD"]).decode().strip()
+grease_checkout ∈ str ← str(Path(grease_source).parent)
+grease_head ∈ str ← request_delivery.git(grease_checkout, ["rev-parse", "HEAD"]).decode().strip()
+ithon_head ∈ str ← request_delivery.git(workspace + "/ithon", ["rev-parse", "HEAD"]).decode().strip()
+output.joinpath("observed-runtime.json").write_bytes(request_delivery.encode({"evidence_class": "observed-executable-identity-not-qualified-runtime", "grease_head": grease_head, "runtime_source_head": runtime_source_head, "ithon_head": ithon_head, "tools": runtime_tools, "environment_search_path": "fixture-bin plus /usr/bin:/bin", "approved_registry_identity": "UNKNOWN", "authority": "disposable-api-fixture"}))
+installed_runtime ∈ bytes ← Path("/opt/catfood/bin/grease").read_bytes()
+if installed_runtime != runtime:
+    raise ValueError("PASTE_RUNTIME_IDENTITY")
+bin_directory ∈ Path ← output.joinpath("bin")
+bin_directory.mkdir()
+for bridge_name in ["gh", "curl"]:
+    target ∈ str ← "fixture-gh.pi" if bridge_name == "gh" else "fixture-acquisition.pi " + task + "/transfer-github-repository.grease"
+    bridge ∈ str ← "#!" + launcher + "\nexec /usr/bin/env -u PYTHONHOME -u PYTHONPATH /usr/bin/python3 " + workspace + "/ithon/ithon_host.py " + task + "/" + target + ' "$@"\n'
+    bin_directory.joinpath(bridge_name).write_text(bridge)
+    os.chmod(str(bin_directory.joinpath(bridge_name)), 365)
+environment ∈ dict[str, str] ← {"PATH": str(bin_directory) + ":/usr/bin:/bin", "PYTHONPATH": grease_source + ":" + grease_source + "/vendor", "LANG": "C.UTF-8", "LC_ALL": "C.UTF-8"}
+control_environment ∈ dict[str, str] ← {"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8", "LC_ALL": "C.UTF-8"}
+inputs ∈ dict[str, object] ← {"source_owner": "source", "repository": "sample", "destination_owner": "destination", "expected_login": "login", "expected_repository_id": 123, "target_context": "linux-x86_64-grease-v1"}
+fields ∈ list[str] ← ["source_owner", "repository", "destination_owner", "expected_login", "expected_repository_id", "target_context"]
+filename ∈ str ← "transfer-sample-from-source-to-destination.paste.grease"
+artifacts ∈ list[bytes] ← []
+for index in range(2):
+    work ∈ Path ← output.joinpath("generation space '" + str(index))
+    home ∈ Path ← output.joinpath('generation fresh home "' + str(index))
+    work.mkdir()
+    home.mkdir()
+    command ∈ list[str] ← [launcher, task + "/generate-transfer-github-repository-script.sh"]
+    for field in fields:
+        command.append(str(inputs[field]))
+    child_environment ∈ dict[str, str] ← dict(environment)
+    child_environment["HOME"] ← str(home)
+    child_environment["FP_GENERATION_OBSERVATIONS"] ← str(work.joinpath("api-attempts.json"))
+    child ∈ object ← subprocess.run(command, cwd=str(work), env=child_environment, capture_output=True, timeout=10)
+    work.joinpath("stdout.bin").write_bytes(child.stdout)
+    work.joinpath("stderr.bin").write_bytes(child.stderr)
+    code ∈ int ← child.returncode
+    if code != 0 or work.joinpath("api-attempts.json").exists():
+        raise ValueError("GENERATION_EFFECT_OR_FAILURE")
+    artifacts.append(work.joinpath(filename).read_bytes())
+if artifacts[0] != artifacts[1]:
+    raise ValueError("GENERATION_NOT_REPRODUCIBLE")
+payload ∈ bytes ← artifacts[0]
+payload_text ∈ str ← payload.decode()
+output.joinpath(filename).write_bytes(payload)
+standalone_name ∈ str ← filename.replace(".paste.grease", ".sh")
+standalone ∈ bytes ← output.joinpath("generation space '0", standalone_name).read_bytes()
+second_standalone ∈ bytes ← output.joinpath("generation space '1", standalone_name).read_bytes()
+if standalone != second_standalone:
+    raise ValueError("GENERATION_NOT_REPRODUCIBLE")
+output.joinpath(standalone_name).write_bytes(standalone)
+digest ∈ str ← request_delivery.digest(payload)
+decisions ∈ list[dict[str, object]] ← []
+modes ∈ list[str] ← kitchen_transfer.MODES
+for mode in modes:
+    base ∈ Path ← output.joinpath(mode)
+    base.mkdir()
+    os.mkfifo(str(base.joinpath("request")))
+    os.mkfifo(str(base.joinpath("response")))
+    specification ∈ dict[str, object] ← {"inputs": inputs, "mode": mode, "artifact_sha256": digest}
+    base.joinpath("fixture.json").write_bytes(request_delivery.encode(specification))
+    server_command ∈ list[str] ← ["/usr/bin/python3", workspace + "/ithon/ithon_host.py", task + "/fixture-api.pi", str(base), str(base.joinpath("fixture.json"))]
+    with open(str(base.joinpath("server.stderr.bin")), "xb") as error:
+        server ∈ object ← subprocess.Popen(server_command, env=control_environment, stderr=error, start_new_session=True)
+        codes ∈ list[int] ← []
+        runs ∈ list[dict[str, int]] ← []
+        try:
+            executions ∈ int ← 2 if mode == "personal" or mode == "organization" or mode == "accepted-unverified" or mode == "accepted-still-pending" else 1
+            for index in range(executions):
+                observation_path ∈ Path ← base.joinpath("observations.json")
+                observed ∈ dict[str, object] ← json.loads(observation_path.read_bytes()) if observation_path.exists() else {"events": []}
+                begin ∈ int ← len(observed["events"])
+                work ← base.joinpath("unrelated cwd '" + str(index))
+                home ← base.joinpath('fresh home "' + str(index))
+                work.mkdir()
+                home.mkdir()
+                # Pending repeat alone must retain the intent ledger. The two
+                # successful paste twins above and below always use empty homes.
+                if index == 1 and (mode == "accepted-unverified" or mode == "accepted-still-pending"):
+                    home ← base.joinpath('fresh home "0')
+                child_environment ← dict(environment)
+                child_environment["HOME"] ← str(home)
+                child_environment["FP_FIXTURE_IO"] ← str(base)
+                child_environment["GH_TOKEN"] ← "disposable-fixture-token"
+                child_environment["GITHUB_TOKEN"] ← "disposable-fixture-token"
+                child_environment["GH_HOST"] ← "invalid.fixture"
+                terminal ∈ str ← 'var before_here = $(pwd)\nvar before_home = ENV.HOME\nvar before_token = ENV.GH_TOKEN\nvar parent_marker = "unchanged"\n' + payload_text + '\nif ($(pwd) !== before_here or ENV.HOME !== before_home or ENV.GH_TOKEN !== before_token or parent_marker !== "unchanged") { echo "PARENT_STATE_CHANGED" >&2; exit 9 }\necho "PARENT_SURVIVED"\n'
+                child ← subprocess.run([launcher, "-c", terminal, "independent-paste-terminal"], cwd=str(work), env=child_environment, capture_output=True, timeout=10)
+                base.joinpath("stdout-" + str(index) + ".bin").write_bytes(child.stdout)
+                base.joinpath("stderr-" + str(index) + ".bin").write_bytes(child.stderr)
+                wrapper_exit ∈ int ← child.returncode
+                stdout ∈ bytes ← child.stdout
+                if wrapper_exit != 0 or not stdout.endswith(b"PARENT_SURVIVED\n"):
+                    raise ValueError("PASTE_PARENT_FAILURE")
+                markers ∈ list[str] ← []
+                lines ∈ list[str] ← stdout.decode().splitlines()
+                for line in lines:
+                    if line.startswith("KITCHEN_TRANSFER_CHILD_EXIT:"):
+                        markers.append(line[28:])
+                if len(markers) != 1:
+                    raise ValueError("PASTE_CHILD_STATUS")
+                code ← int(markers[0])
+                if (code == 0) != (b"OWNERSHIP_TRANSFER_VERIFIED\n" in stdout):
+                    raise ValueError("PASTE_FALSE_PASS")
+                codes.append(code)
+                observed ← json.loads(observation_path.read_bytes())
+                end ∈ int ← len(observed["events"])
+                runs.append({"exit": code, "event_begin": begin, "event_end": end})
+                base.joinpath("context-" + str(index) + ".json").write_bytes(request_delivery.encode({"home": str(home), "cwd": str(work), "wrapper_exit": wrapper_exit, "fresh_home": index == 0 or mode == "personal" or mode == "organization", "payload_sha256": digest}))
+            if len(codes) == 1:
+                codes.append(-125)
+            execution ∈ dict[str, object] ← {"first_exit": codes[0], "second_exit": codes[1], "runs": runs}
+            base.joinpath("execution.json").write_bytes(request_delivery.encode(execution))
+            observed ← json.loads(base.joinpath("observations.json").read_bytes())
+            decision ∈ dict[str, object] ← kitchen_transfer.check(specification, observed, execution, payload)
+            base.joinpath("decision.json").write_bytes(request_delivery.encode(decision))
+            decisions.append(decision)
+            print("PASS exact maintained paste " + mode)
+        finally:
+            try:
+                os.killpg(server.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            server.wait()
+output.joinpath("result.json").write_bytes(request_delivery.encode({"status": "PASS", "scope": "local-artifact-diagnostic", "presentation": "paste", "parent_context": "grease", "inputs": inputs, "artifact_sha256": digest, "generator_sha256": request_delivery.digest(Path(task + "/generate-transfer-github-repository-script.sh").read_bytes()), "recipe_sha256": request_delivery.digest(Path(task + "/transfer-github-repository.grease").read_bytes()), "launcher_sha256": request_delivery.digest(runtime), "source_head": request_delivery.git(workspace + "/kitchen", ["rev-parse", "HEAD"]).decode().strip(), "fixtures": decisions, "excluded_claims": ["trusted-execution", "worker-isolation", "deployment", "live-transfer", "actual-platform-caller"]}))

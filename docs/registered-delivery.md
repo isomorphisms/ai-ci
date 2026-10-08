@@ -25,12 +25,20 @@ Missing checks, current-byte changes under unchanged Git names, stale release
 evidence, another operation or repository, changed outputs, a hidden or truncated
 paste, and a link substitute cannot inherit the acceptance.
 
-PENDING, BLOCKED, INTERRUPTED and FAIL are preserved by their producer receipts;
+PENDING, BLOCKED, PARTIAL and failed states are preserved by their producer receipts;
 they do not establish accepted delivery. Before each CLI evaluation, any old
-acceptance is invalidated. Invalid input or failed validation writes FAIL and
-rethrows the original failure. Successful receipts identify the exact input
+acceptance is invalidated atomically. Invalid input or failed validation records
+FAILED, PARTIAL or BLOCKED and rethrows the original failure; only VERIFIED
+exports PASS. Successful receipts identify the exact input
 snapshots and checker bytes and explicitly exclude live transfer, actual
 ChatGPT-surface observation, and fresh model judgment.
+
+This captured-delivery CLI cannot export a deployed-trusted acceptance. Use the
+[independent request/delivery supplement](request-delivery.md) with root-owned
+observations, the full registered output directory and original submission.
+That supplement calls this maintained versioned checker before accepting the
+human paste. A frontend failure before either entrypoint executes requires the
+supervisor to allocate a fresh attempt and invalidate any stale export.
 
 `tests/registered-delivery/check.pi` supplies protected synthetic material and
 captured-sink fixtures with positive controls and targeted negative controls.

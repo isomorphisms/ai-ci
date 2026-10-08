@@ -1,0 +1,444 @@
+"""Independent contract mutants plus the actual FP handoff caller with inert sinks.
+
+Contract records below are explicitly synthetic controller fixtures, not claims
+that nineteen production stages ran. Kitchen API traces are from the separately
+executed maintained artifact diagnostic. No credentials or live API are used.
+"""
+import sys
+import os
+import json
+import copy
+import subprocess
+import hashlib
+import base64
+from pathlib import Path
+from types import SimpleNamespace
+from builtins import dict, list, ValueError, AssertionError, Exception, RuntimeError
+import request_delivery
+import kitchen_transfer
+import job_delivery
+import handoff
+import acceptance_state
+import registered_delivery
+
+args ∈ list[str] ← sys.argv
+workspace ∈ str ← args[1]
+output ∈ Path ← Path(args[2])
+diagnostic ∈ Path ← Path(args[3])
+output.mkdir(parents=True, exist_ok=False)
+aici ∈ str ← workspace + "/ai-ci"
+fp ∈ str ← workspace + "/flexible-pipes"
+kitchen ∈ str ← workspace + "/kitchen"
+ithon ∈ str ← workspace + "/ithon"
+result_rows ∈ list[str] ← ["id\texpected\tactual\tresult\tevidence_class"]
+
+def report(name ∈ str, expected ∈ str, actual ∈ str, evidence ∈ str) → None:
+    result_rows.append(name + "\t" + expected + "\t" + actual + "\t" + ("PASS" if expected == actual else "FAIL") + "\t" + evidence)
+    output.joinpath("results.tsv").write_text(str("\n".join(result_rows)) + "\n")
+    if actual != expected:
+        raise AssertionError(name + ": expected " + expected + ", got " + actual)
+    print("PASS " + name + " -> " + actual)
+
+def read(path ∈ Path) → dict[str, object]:
+    result ∈ dict[str, object] ← json.loads(path.read_bytes())
+    return result
+
+def save(path ∈ Path, value ∈ object) → None:
+    path.write_bytes(request_delivery.encode(value))
+
+summary ∈ dict[str, object] ← read(diagnostic.joinpath("result.json"))
+if summary["status"] != "PASS" or summary["scope"] != "local-artifact-diagnostic":
+    raise ValueError("actual Kitchen diagnostic required")
+inputs ∈ dict[str, object] ← dict(summary["inputs"])
+filename ∈ str ← "transfer-" + str(inputs["repository"]) + "-from-" + str(inputs["source_owner"]) + "-to-" + str(inputs["destination_owner"]) + ".paste.grease"
+payload ∈ bytes ← diagnostic.joinpath(filename).read_bytes()
+request ∈ dict[str, object] ← {"schema_version": 1, "request_id": "oct08-supported-transfer", "pipeline": "kitchen-transfer-script", "inputs": inputs}
+request_bytes ∈ bytes ← request_delivery.encode(request)
+save(output.joinpath("request.json"), request)
+materials ∈ list[dict[str, object]] ← []
+material_roles ∈ dict[str, str] ← {}
+for entry in [("control", fp, "scripts/registered-execution.pi"), ("worker", fp, "scripts/registered-worker.pi"), ("watchdog", fp, "scripts/registered-watchdog.pi"), ("generator", kitchen, "tasks/github-repository-transfer/generate-transfer-github-repository-script.sh"), ("parent_probe", kitchen, "tests/transfer-parent.grease"), ("fixture_server", kitchen, "tasks/github-repository-transfer/fixture-api.pi"), ("api_validator", aici, "validators/kitchen-transfer-script.pi"), ("seal_validator", fp, "scripts/registered-worker.pi"), ("candidate", kitchen, "tasks/github-repository-transfer/10.grease"), ("compact_recipe", kitchen, "tasks/github-repository-transfer/transfer-github-repository.grease"), ("acquisition_probe", kitchen, "tasks/github-repository-transfer/fixture-acquisition.pi"), ("contract", fp, "registry/kitchen-transfer-script.contract.json")]:
+    role ∈ str ← entry[0]
+    checkout ∈ str ← entry[1]
+    relative ∈ str ← entry[2]
+    revision ∈ str ← request_delivery.git(checkout, ["rev-parse", "HEAD"]).decode().strip()
+    origin ∈ str ← request_delivery.git(checkout, ["config", "--local", "--get", "remote.origin.url"]).decode().strip()
+    blob ∈ bytes ← request_delivery.git(checkout, ["show", revision + ":" + relative])
+    material_path ∈ Path ← output.joinpath("release-" + role)
+    material_path.write_bytes(blob)
+    materials.append({"path": str(material_path), "checkout": checkout, "relative_path": relative, "commit": revision, "origin": origin, "published_ref": "HEAD", "sha256": request_delivery.digest(blob)})
+    material_roles[role] ← str(material_path)
+for relative in ["validators/kitchen_transfer.pi", "validators/acceptance_state.pi"]:
+    revision ← request_delivery.git(aici, ["rev-parse", "HEAD"]).decode().strip()
+    listing ∈ bytes ← request_delivery.git(aici, ["ls-tree", revision, "--", relative])
+    if listing != b"":
+        blob ← request_delivery.git(aici, ["show", revision + ":" + relative])
+        material_path ← output.joinpath(Path(relative).name)
+        material_path.write_bytes(blob)
+        origin ← request_delivery.git(aici, ["config", "--local", "--get", "remote.origin.url"]).decode().strip()
+        materials.append({"path": str(material_path), "checkout": aici, "relative_path": relative, "commit": revision, "origin": origin, "published_ref": "HEAD", "sha256": request_delivery.digest(blob)})
+# The seal role here is an inert placeholder for binding tests. It is not a
+# Cat Food seal execution or operational qualification.
+runtime_path ∈ Path ← output.joinpath("runtime-tool-fixture")
+runtime_path.write_bytes(b"disposable bound runtime identity\n")
+tools ∈ list[dict[str, object]] ← [{"path": str(runtime_path), "sha256": request_delivery.digest(runtime_path.read_bytes())}]
+contract_path ∈ Path ← Path(material_roles["contract"])
+contract_path.write_bytes(Path(fp + "/registry/kitchen-transfer-script.contract.json").read_bytes())
+contract ∈ dict[str, object] ← read(contract_path)
+config ∈ dict[str, object] ← {"operation": contract["operation"], "operation_version": contract["operation_version"], "registry_generation": 1, "qualified": True, "authority": "local-qualification", "required_checks": contract["required_checks"], "control_commit": request_delivery.git(fp, ["rev-parse", "HEAD"]).decode().strip(), "ithon": [str(runtime_path)], "grease": [str(runtime_path)], "fixture_bin": "inert-contract-fixture", "grease_environment": {"scope": "disposable-contract-fixture"}, "materials": materials, "tools": tools, "contract": str(contract_path), "contract_sha256": request_delivery.digest(contract_path.read_bytes()), "delivered_byte_contract": {"kind": "standalone-script-fixture", "operation": contract["operation"], "file_name": filename, "target_context": contract["target_context"], "effects": contract["effects"]}}
+for role in ["worker", "watchdog", "generator", "parent_probe", "fixture_server", "api_validator", "seal_validator", "acquisition_probe", "compact_recipe"]:
+    config[role] ← material_roles[role]
+operation ∈ dict[str, object] ← {}
+operation_fields ∈ list[str] ← request_delivery.operation_fields(config)
+for field in operation_fields:
+    operation[field] ← config[field]
+qualification ∈ dict[str, object] ← {"status": "PASS", "scope": "local-qualification", "materials_sha256": request_delivery.digest(request_delivery.encode(materials)), "tools_sha256": request_delivery.digest(request_delivery.encode(tools)), "environment_sha256": request_delivery.digest(request_delivery.encode(config["grease_environment"])), "operation_sha256": request_delivery.digest(request_delivery.encode(operation))}
+qualification_path ∈ Path ← output.joinpath("fixture-qualification.json")
+save(qualification_path, qualification)
+config["qualification"] ← str(qualification_path)
+config["qualification_sha256"] ← request_delivery.digest(qualification_path.read_bytes())
+release ∈ str ← request_delivery.release_identity(config)
+key ∈ str ← request_delivery.binding(config, request_bytes)
+checks ∈ list[dict[str, object]] ← []
+claims ∈ list[dict[str, object]] ← []
+required ∈ list[str] ← list(contract["required_checks"])
+for check_id in required:
+    checks.append({"check_id": check_id, "exit_code": 0, "skipped": 0, "completed": True, "binding_sha256": key, "observation_kind": "independent-postcondition"})
+    claims.append({"check_id": check_id, "required": True, "state": "PASS", "contract_sha256": config["contract_sha256"], "implementation_sha256": request_delivery.digest(Path(fp + "/scripts/registered-execution.pi").read_bytes())})
+generations ∈ list[dict[str, object]] ← []
+for index in range(2):
+    generation_path ∈ Path ← diagnostic.joinpath("generation space '" + str(index), filename)
+    generations.append({"inputs": inputs, "exit_code": 0, "binding_sha256": key, "payload_path": str(generation_path), "payload_sha256": request_delivery.digest(generation_path.read_bytes()), "home": str(diagnostic.joinpath('generation fresh home "' + str(index))), "cwd": str(generation_path.parent)})
+api_fixtures ∈ list[dict[str, object]] ← []
+for check_id in required:
+    if check_id.startswith("fixture-"):
+        mode ∈ str ← check_id[8:]
+        directory ∈ Path ← diagnostic.joinpath(mode)
+        api_fixtures.append({"binding_sha256": key, "config": read(directory.joinpath("fixture.json")), "observations": read(directory.joinpath("observations.json")), "execution": read(directory.joinpath("execution.json"))})
+paste_runs ∈ list[dict[str, object]] ← []
+for index in range(2):
+    parent_output ∈ bytes ← diagnostic.joinpath("personal", "stdout-" + str(index) + ".bin").read_bytes()
+    paste_runs.append({"binding_sha256": key, "payload_sha256": request_delivery.digest(payload), "exit_code": 0, "parent_survived": parent_output.endswith(b"PARENT_SURVIVED\n"), "fresh_home": True, "unrelated_cwd": True, "home": str(diagnostic.joinpath("personal", 'fresh home "' + str(index))), "cwd": str(diagnostic.joinpath("personal", "unrelated cwd '" + str(index)))})
+observed ∈ dict[str, object] ← {"binding_sha256": key, "release_sha256": release, "request_sha256": request_delivery.digest(request_bytes), "control_executable_sha256": request_delivery.digest(Path(fp + "/scripts/registered-execution.pi").read_bytes()), "control_repository_id": 1405888814, "checks": checks, "generations": generations, "api_fixtures": api_fixtures, "paste_runs": paste_runs, "artifact_sha256": request_delivery.digest(payload), "effects": contract["effects"], "unit_kind": "standalone-script-fixture", "evidence_class": "disposable-contract-fixture", "reuse": False}
+candidate ∈ dict[str, object] ← {"status": "PASS", "request_id": request["request_id"], "request_sha256": request_delivery.digest(request_bytes), "operation_id": config["operation"], "operation_version": config["operation_version"], "registry_generation": config["registry_generation"], "qualification_sha256": config["qualification_sha256"], "contract_sha256": config["contract_sha256"], "control": {"repository_id": 1405888814, "commit": config["control_commit"], "deployment_identity": config["authority"], "executable_sha256": observed["control_executable_sha256"]}, "source": materials, "dependencies": tools, "stages": claims, "artifacts": [{"name": filename, "sha256": request_delivery.digest(payload)}]}
+save(output.joinpath("approved-fixture.json"), config)
+save(output.joinpath("candidate.json"), candidate)
+save(output.joinpath("observed-fixture.json"), observed)
+
+def operation_case(variant ∈ str) → str:
+    approved ∈ dict[str, object] ← copy.deepcopy(config)
+    submitted ∈ bytes ← request_bytes
+    claim ∈ dict[str, object] ← copy.deepcopy(candidate)
+    capture ∈ dict[str, object] ← copy.deepcopy(observed)
+    delivered ∈ bytes ← payload
+    changed_path ∈ Path ← runtime_path
+    old_bytes ∈ bytes ← runtime_path.read_bytes()
+    changed ∈ bool ← False
+    try:
+        if variant == "reuse":
+            capture["reuse"] ← True
+        elif variant == "remove-check-and-declaration":
+            claim_stages ∈ list[dict[str, object]] ← list(claim["stages"])
+            claim["stages"] ← claim_stages[:-1]
+            capture["declared_required_checks"] ← required[:-1]
+        elif variant == "checker-under-same-head":
+            changed_path ← Path(str(approved["api_validator"]))
+            old_bytes ← changed_path.read_bytes()
+            changed_path.write_bytes(b"print('PASS')\n")
+            changed ← True
+        elif variant == "checker-import-omitted":
+            retained_materials ∈ list[dict[str, object]] ← []
+            approved_materials ∈ list[dict[str, object]] ← list(approved["materials"])
+            for material in approved_materials:
+                if material["relative_path"] != "validators/kitchen_transfer.pi":
+                    retained_materials.append(material)
+            approved["materials"] ← retained_materials
+        elif variant == "checker-import-replaced":
+            approved_materials ← list(approved["materials"])
+            for material in approved_materials:
+                if material["relative_path"] == "validators/kitchen_transfer.pi":
+                    changed_path ← Path(str(material["path"]))
+                    old_bytes ← changed_path.read_bytes()
+                    changed_path.write_bytes(b"checker helper replaced under unchanged HEAD\n")
+                    changed ← True
+        elif variant == "missing-source":
+            approved["materials"] ← []
+        elif variant == "mismatched-source":
+            altered_materials ∈ list[dict[str, object]] ← list(approved["materials"])
+            altered_materials[0]["commit"] ← ""
+            approved["materials"] ← altered_materials
+        elif variant == "branch-runner":
+            approved["worker"] ← "request-branch-runner"
+        elif variant == "branch-authority":
+            approved["authority"] ← "request-branch-approved"
+        elif variant == "wrong-operation" or variant == "wrong-owner" or variant == "wrong-repository" or variant == "wrong-id" or variant == "wrong-destination":
+            wrong ∈ dict[str, object] ← copy.deepcopy(request)
+            wrong_inputs ∈ dict[str, object] ← dict(wrong["inputs"])
+            if variant == "wrong-operation":
+                wrong["pipeline"] ← "fork-repository"
+            else:
+                field ∈ str ← "source_owner" if variant == "wrong-owner" else "repository" if variant == "wrong-repository" else "expected_repository_id" if variant == "wrong-id" else "destination_owner"
+                wrong_inputs[field] ← 124 if variant == "wrong-id" else "wrong"
+                wrong["inputs"] ← wrong_inputs
+            submitted ← request_delivery.encode(wrong)
+        elif variant == "post-verification-bytes":
+            delivered ← payload + b"changed\n"
+        elif variant == "stale-cache":
+            capture["binding_sha256"] ← "stale-binding"
+            capture["reuse"] ← True
+        elif variant == "unrelated-receipts":
+            capture["request_sha256"] ← request_delivery.digest(b"other request")
+        elif variant == "skipped-check" or variant == "fabricated-pass":
+            wrong_checks ∈ list[dict[str, object]] ← list(capture["checks"])
+            wrong_checks[0]["skipped"] ← 1 if variant == "skipped-check" else 0
+            wrong_checks[0]["observation_kind"] ← "child-stdout" if variant == "fabricated-pass" else "independent-postcondition"
+            capture["checks"] ← wrong_checks
+        elif variant == "runtime-changed":
+            runtime_path.write_bytes(b"new runtime under unchanged source revision\n")
+            changed ← True
+        elif variant == "context-changed":
+            approved["grease_environment"] ← {"scope": "other-context"}
+        elif variant == "empty-api":
+            capture["api_fixtures"] ← []
+        elif variant == "wrong-artifact-name":
+            claim["artifacts"] ← [{"name": "copied-repository.sh", "sha256": request_delivery.digest(payload)}]
+        elif variant == "unauthorized-effects":
+            capture["effects"] ← ["live-transfer"]
+        elif variant == "always-refuse":
+            claim["status"] ← "BLOCKED"
+        elif variant == "false-deployment":
+            capture["evidence_class"] ← "observed-supported-caller"
+        decision ∈ dict[str, object] ← request_delivery.check(approved, request_bytes, submitted, claim, capture, delivered)
+        return str(decision["status"])
+    except ValueError as failure:
+        return str(failure)
+    finally:
+        if changed:
+            changed_path.write_bytes(old_bytes)
+
+operation_cases ∈ list[tuple[str, str]] ← [("supported", "PASS"), ("reuse", "PASS"), ("remove-check-and-declaration", "FP-MISSING-CHECK"), ("checker-under-same-head", "FP-MATERIAL-BYTES"), ("missing-source", "FP-SOURCE-EVIDENCE"), ("mismatched-source", "FP-SOURCE-EVIDENCE"), ("branch-runner", "FP-UNBOUND-ENTRYPOINT"), ("branch-authority", "FP-QUALIFICATION-AUTHORITY"), ("wrong-operation", "FP-REQUEST-IDENTITY"), ("wrong-owner", "FP-REQUEST-IDENTITY"), ("wrong-repository", "FP-REQUEST-IDENTITY"), ("wrong-id", "FP-REQUEST-IDENTITY"), ("wrong-destination", "FP-REQUEST-IDENTITY"), ("post-verification-bytes", "FP-GENERATION-BYTES"), ("stale-cache", "FP-OBSERVATION-BINDING"), ("unrelated-receipts", "FP-REQUEST-IDENTITY"), ("skipped-check", "FP-INDEPENDENT-CHECK"), ("fabricated-pass", "FP-INDEPENDENT-CHECK"), ("runtime-changed", "FP-RUNTIME-BYTES"), ("context-changed", "FP-STALE-QUALIFICATION"), ("empty-api", "FP-MISSING-API-FIXTURE"), ("wrong-artifact-name", "FP-FINAL-BYTES"), ("unauthorized-effects", "FP-UNAUTHORIZED-EFFECTS"), ("always-refuse", "FP-RESULT-REQUEST"), ("false-deployment", "FP-DEPLOYMENT-INACTIVE")]
+for case in operation_cases:
+    report("operation-" + case[0], case[1], operation_case(case[0]), "disposable-contract-fixture")
+for case in [("checker-import-omitted", "FP-UNBOUND-CHECKER-IMPORT"), ("checker-import-replaced", "FP-MATERIAL-BYTES")]:
+    report("operation-" + case[0], case[1], operation_case(case[0]), "disposable-contract-fixture")
+
+personal ∈ dict[str, object] ← read(diagnostic.joinpath("personal", "observations.json"))
+personal_config ∈ dict[str, object] ← read(diagnostic.joinpath("personal", "fixture.json"))
+personal_execution ∈ dict[str, object] ← read(diagnostic.joinpath("personal", "execution.json"))
+
+def api_case(variant ∈ str) → str:
+    trace ∈ dict[str, object] ← copy.deepcopy(personal)
+    events ∈ list[dict[str, object]] ← list(trace["events"])
+    for event in events:
+        if event["method"] == "POST":
+            if variant == "wrong-endpoint":
+                event["endpoint"] ← "repos/source/other/transfer"
+            elif variant == "wrong-destination":
+                arguments ∈ list[str] ← list(event["argv"])
+                arguments[5] ← "new_owner=wrong"
+                event["argv"] ← arguments
+            elif variant == "wrong-operation":
+                event["method"] ← "DELETE"
+        elif variant == "fabricated-observation" and event["endpoint"] == "repositories/123":
+            event["code"] ← 1
+    if variant == "unobserved-first-attempt":
+        duplicate ∈ list[dict[str, object]] ← []
+        for event in events:
+            duplicate.append(event)
+            if event["method"] == "POST":
+                duplicate.append(copy.deepcopy(event))
+        events ← duplicate
+        trace["mutations"] ← 2
+        for index in range(len(events)):
+            events[index]["index"] ← index
+    trace["events"] ← events
+    try:
+        kitchen_transfer.check(personal_config, trace, personal_execution, payload)
+        return "PASS"
+    except ValueError as failure:
+        return str(failure)
+
+for case in [("positive", "PASS"), ("wrong-endpoint", "MUTATION_SCOPE"), ("wrong-destination", "MUTATION_SCOPE"), ("wrong-operation", "MUTATION_SCOPE"), ("unobserved-first-attempt", "MUTATION_REPEATED"), ("fabricated-observation", "MUTATION_WITHOUT_PREFLIGHT")]:
+    report("api-" + case[0], case[1], api_case(case[0]), "mutant-of-actual-api-trace")
+
+sink_variant ∈ str ← ""
+sink_capture ∈ Path ← output.joinpath("unset-capture")
+dispatch_count ∈ int ← 0
+
+def send(response ∈ bytes) → dict[str, object]:
+    actual ∈ bytes ← response
+    if sink_variant == "truncated":
+        actual ← response[:50]
+    elif sink_variant == "rewritten":
+        actual ← response.replace(b"destination", b"wrong")
+    elif sink_variant == "link-only":
+        actual ← b"https://github.com/isomorphisms/kitchen\n"
+    elif sink_variant == "partial-failure":
+        sink_capture.write_bytes(response[:50])
+        raise RuntimeError("fixture sink failed after a partial write")
+    sink_capture.write_bytes(actual)
+    return {"bytes": actual, "message_id": "disposable-sink-message", "surface": "disposable-supported-caller-sink"}
+
+def dispatch(delivered ∈ bytes, identity ∈ str) → dict[str, object]:
+    raise AssertionError("No dispatch or real transfer is authorized")
+
+human_request ∈ dict[str, object] ← {"id": "oct08-transfer", "text": "Give me the maintained transfer unit for destination"}
+prefix ∈ bytes ← Path(aici + "/tests/request-delivery/conversations/oct08-transfer.prefix.txt").read_bytes()
+later ∈ bytes ← Path(aici + "/tests/request-delivery/conversations/oct08-transfer.later.txt").read_bytes()
+human_request ← {"id": request["request_id"], "text": prefix.decode()}
+report("corrected-prefix-held-out-outcome", "False", str(prefix.__contains__(later)), "sanitized-decision-prefix-control-not-model-judgment")
+for variant in ["supported", "truncated", "rewritten", "link-only", "partial-failure", "refuse"]:
+    sink_variant ← variant
+    sink_capture ← output.joinpath("sink-" + variant + ".bin")
+    receipt ∈ Path ← output.joinpath("sink-" + variant + ".json")
+    save(receipt, {"status": "PASS", "scope": "stale-unrelated-attempt"})
+    stage ∈ dict[str, object] ← {"name": "transfer-artifact", "kind": "command", "exit_code": 0, "stdout_sha256": handoff.digest(payload)}
+    spec ∈ dict[str, object] ← {"audience": "human", "model": "recorded-fixture", "source_context": "oct08 technical paraphrase", "request": human_request}
+    stage ← handoff.compose(stage, payload, spec)
+    sink ∈ object ← SimpleNamespace(send=send)
+    dispatcher ∈ object ← SimpleNamespace(send=dispatch)
+    actual ∈ str ← ""
+    try:
+        if variant == "refuse":
+            stage_payload ∈ bytes ← b"I cannot help.\n"
+            job_delivery.deliver_checked(stage, stage_payload, sink, dispatcher, "", str(sink_capture), str(receipt))
+        else:
+            delivered_stage ∈ dict[str, object] ← job_delivery.deliver_checked(stage, payload, sink, dispatcher, "", str(sink_capture), str(receipt))
+            request_delivery.check_surface(delivered_stage, payload, sink_capture.read_bytes(), human_request)
+    except Exception:
+        pass
+    final ∈ dict[str, object] ← read(receipt)
+    actual ← str(final["delivery_state"])
+    expected ∈ str ← "VERIFIED" if variant == "supported" else "FAILED" if variant == "refuse" else "PARTIAL"
+    report("actual-fp-caller-sink-" + variant, expected, actual, "actual-handoff-caller-disposable-sink")
+    if variant != "supported" and final["status"] == "PASS":
+        raise AssertionError("failed sink exported PASS")
+
+# Execute both maintained CLIs, rather than only calling their inner functions.
+cli_payload ∈ Path ← output.joinpath("cli-payload.bin")
+cli_payload.write_bytes(payload)
+cli_response ∈ Path ← output.joinpath("cli-response.bin")
+response_bytes ∈ bytes ← handoff.render(payload, "")
+cli_response.write_bytes(response_bytes)
+save(output.joinpath("human-request.json"), human_request)
+cli_stage ∈ dict[str, object] ← {"name": "transfer", "kind": "command", "exit_code": 0, "stdout_sha256": handoff.digest(payload)}
+cli_spec ∈ dict[str, object] ← {"audience": "human", "model": "recorded-fixture", "source_context": "oct08 technical paraphrase", "request": human_request}
+cli_stage ← handoff.compose(cli_stage, payload, cli_spec)
+cli_record ∈ dict[str, object] ← dict(cli_stage["handoff"])
+cli_record["visible_state"] ← "OBSERVED"
+cli_record["events"] ← [{"kind": "visible", "sequence": 1, "payload_sha256": handoff.digest(payload), "response_sha256": handoff.digest(response_bytes), "response_text": response_bytes.decode(), "message_id": "independent-cli-fixture-capture", "surface": "disposable-cli-sink"}]
+cli_stage["handoff"] ← cli_record
+save(output.joinpath("cli-stage.json"), cli_stage)
+# The full maintained versioned result is still untrusted synthetic data. Its
+# output bytes and API traces come from the exact producer execution above.
+standalone_name ∈ str ← filename.replace(".paste.grease", ".sh")
+standalone ∈ bytes ← diagnostic.joinpath(standalone_name).read_bytes()
+all_artifacts ∈ dict[str, bytes] ← {standalone_name: standalone, filename: payload}
+for name in all_artifacts:
+    output.joinpath(name).write_bytes(all_artifacts[name])
+registered_candidate ∈ dict[str, object] ← copy.deepcopy(candidate)
+release_fields ∈ dict[str, object] ← dict(operation)
+for field in ["materials", "tools", "grease_environment", "qualification_sha256"]:
+    release_fields[field] ← config[field]
+registered_candidate["schema_version"] ← 2
+registered_candidate["release_sha256"] ← registered_delivery.digest(registered_delivery.encode(release_fields))
+registered_candidate["inputs"] ← inputs
+registered_candidate["request_bytes_base64"] ← base64.b64encode(request_bytes).decode()
+registered_candidate["request_source"] ← {}
+registered_candidate["route"] ← "workflow_dispatch"
+registered_candidate["first_failure"] ← None
+registered_candidate["blockers"] ← []
+registered_candidate["excluded_claims"] ← ["live-transfer"]
+registered_candidate["acceptance_scope"] ← "local-fixture-qualification"
+registered_candidate["promotion"] ← {"state": "candidate-verified", "trusted_identity": config["authority"], "decision_sha256": registered_delivery.digest(registered_delivery.encode(claims))}
+full_records ∈ list[dict[str, object]] ← []
+outputs ∈ list[dict[str, object]] ← list(contract["outputs"])
+for expected_output in outputs:
+    name ← filename.replace(".paste.grease", str(expected_output["suffix"]))
+    full_records.append({"name": name, "sha256": request_delivery.digest(all_artifacts[name]), "size": len(all_artifacts[name]), "role": expected_output["role"], "type": expected_output["type"], "state": "diagnostic"})
+registered_candidate["artifacts"] ← full_records
+submission ∈ dict[str, object] ← {"route": "workflow_dispatch", "envelope": {"request": request_bytes.decode(), "workflow_sha": config["control_commit"], "workflow_ref": "refs/heads/main", "repository_id": 1405888814}}
+save(output.joinpath("submission.json"), submission)
+for variant in ["supported", "reuse", "wrong-provenance", "changed-standalone", "missing-api", "link-only"]:
+    current_submission ∈ dict[str, object] ← copy.deepcopy(submission)
+    exported ∈ dict[str, bytes] ← dict(all_artifacts)
+    current_observed ∈ dict[str, object] ← copy.deepcopy(observed)
+    current_response ∈ bytes ← response_bytes
+    if variant == "reuse":
+        current_observed["reuse"] ← True
+    elif variant == "wrong-provenance":
+        envelope ∈ dict[str, object] ← dict(current_submission["envelope"])
+        envelope["workflow_ref"] ← "refs/heads/request-branch"
+        current_submission["envelope"] ← envelope
+    elif variant == "changed-standalone":
+        exported[standalone_name] ← standalone + b"edited after generation\n"
+    elif variant == "missing-api":
+        current_observed["api_fixtures"] ← []
+    elif variant == "link-only":
+        current_response ← b"See https://example.invalid/command\n"
+    actual ← "PASS"
+    try:
+        combined ∈ dict[str, object] ← request_delivery.check_registered(config, request_bytes, request_bytes, registered_candidate, current_observed, exported, cli_stage, current_response, human_request, current_submission)
+    except ValueError as failure:
+        actual ← str(failure)
+    expected ← "REGISTERED_REQUEST_SOURCE" if variant == "wrong-provenance" else "REGISTERED_OUTPUTS" if variant == "changed-standalone" else "FP-MISSING-API-FIXTURE" if variant == "missing-api" else "HANDOFF_VISIBLE_MISSING" if variant == "link-only" else "PASS"
+    report("combined-registered-" + variant, expected, actual, "disposable-contract-fixture-with-maintained-output-bytes")
+for variant in ["supported", "truncated", "missing-contract", "pending", "blocked", "failed", "partial"]:
+    receipt ← output.joinpath("cli-" + variant + ".json")
+    save(receipt, {"status": "PASS", "scope": "stale-unrelated-attempt"})
+    cli_candidate ∈ dict[str, object] ← copy.deepcopy(registered_candidate)
+    cli_config ∈ dict[str, object] ← copy.deepcopy(config)
+    cli_response.write_bytes(response_bytes[:30] if variant == "truncated" else response_bytes)
+    if variant == "missing-contract":
+        cli_config.pop("delivered_byte_contract")
+    if variant == "pending" or variant == "blocked" or variant == "failed" or variant == "partial":
+        no_artifacts ∈ list[dict[str, object]] ← []
+        cli_candidate["artifacts"] ← no_artifacts
+        cli_candidate["status"] ← variant.upper()
+    save(output.joinpath("cli-candidate.json"), cli_candidate)
+    save(output.joinpath("cli-config.json"), cli_config)
+    command ∈ list[str] ← [sys.executable, ithon + "/ithon_host.py", aici + "/validators/check-request-delivery.pi", str(output.joinpath("cli-config.json")), str(output.joinpath("request.json")), str(output.joinpath("request.json")), str(output.joinpath("cli-candidate.json")), str(output.joinpath("observed-fixture.json")), str(output.joinpath("cli-stage.json")), str(cli_payload), str(cli_response), str(output.joinpath("human-request.json")), str(receipt)]
+    command.extend([str(output), str(output.joinpath("submission.json"))])
+    child ∈ object ← subprocess.run(command, capture_output=True, timeout=30)
+    output.joinpath("cli-" + variant + ".stderr.bin").write_bytes(child.stderr)
+    final ← read(receipt)
+    actual ← str(final.get("delivery_state", "STALE_PASS"))
+    expected ← "VERIFIED" if variant == "supported" else "BLOCKED" if variant == "missing-contract" or variant == "blocked" else "PARTIAL" if variant == "truncated" or variant == "partial" else "PENDING" if variant == "pending" else "FAILED"
+    report("request-cli-" + variant, expected, actual, "actual-checked-cli")
+    code ∈ int ← child.returncode
+    if variant == "supported" and code != 0 or variant != "supported" and (code == 0 or final["status"] == "PASS"):
+        raise AssertionError("CLI exit/status disagreement: " + variant)
+cli_response.write_bytes(response_bytes[:30])
+receipt ← output.joinpath("job-cli-rejected.json")
+save(receipt, {"status": "PASS", "scope": "stale-unrelated-attempt"})
+command ← [sys.executable, ithon + "/ithon_host.py", aici + "/validators/check-job-delivery.pi", str(output.joinpath("cli-stage.json")), str(cli_payload), str(cli_response), str(receipt)]
+child ← subprocess.run(command, capture_output=True, timeout=30)
+output.joinpath("job-cli-rejected.stderr.bin").write_bytes(child.stderr)
+final ← read(receipt)
+report("job-cli-rejected-clears-old-pass", "PARTIAL", str(final.get("delivery_state", "STALE_PASS")), "actual-checked-cli")
+
+def eligible(workflow ∈ str) → bool:
+    return workflow.__contains__("\n  pull_request:") and workflow.__contains__("\n  push:") and not workflow.__contains__("paths:") and not workflow.__contains__("paths-ignore:") and workflow.__contains__("github.event.pull_request.head.sha || github.sha")
+
+workflow ∈ str ← Path(aici + "/.github/workflows/request-delivery.yml").read_text()
+report("workflow-all-material-inputs", "True", str(eligible(workflow)), "workflow-source-control")
+report("workflow-path-filter-mutant", "False", str(eligible(workflow + "\n  paths: [tests/request-delivery/**]\n")), "workflow-source-control")
+
+# The exact old corpus and actual supported exploratory runner are unchanged.
+legacy_command ∈ list[str] ← [sys.executable, fp + "/scripts/run-pipeline-legacy.py", "regression-history-smoke", "--runs-root", str(output.joinpath("unchanged-corpus"))]
+legacy ∈ object ← subprocess.run(legacy_command, capture_output=True, timeout=30)
+output.joinpath("unchanged-corpus.stdout.bin").write_bytes(legacy.stdout)
+output.joinpath("unchanged-corpus.stderr.bin").write_bytes(legacy.stderr)
+legacy_code ∈ int ← legacy.returncode
+report("unchanged-corpus-exploratory-caller", "0", str(legacy_code), "unchanged-corpus-schema-smoke-not-model-evaluation")
+history_digest ∈ str ← request_delivery.digest(Path(fp + "/regressions/history.json").read_bytes())
+output.joinpath("history.sha256").write_text(history_digest + "\n")
+model_calls ∈ list[object] ← []
+save(output.joinpath("recorded-replay.json"), {"evidence_class": "recorded-fixture-replay", "model_input_sha256": request_delivery.digest(prefix), "held_out_later_sha256": request_delivery.digest(later), "model_calls": model_calls, "outcome": "mechanical-caller-controls-only", "actual_supported_caller_model_replay": "PENDING"})
+save(output.joinpath("fresh-model.json"), {"evidence_class": "fresh-session-model-judgment", "status": "PENDING", "model": "UNKNOWN", "settings": "UNKNOWN", "available_instructions": "prefix files only; later files excluded", "calls": model_calls, "output": "NOT_RUN", "observed_outcomes": model_calls, "blocker": "No reachable supported model caller or platform sink adapter supplied by R"})
+head ∈ str ← request_delivery.git(aici, ["rev-parse", "HEAD"]).decode().strip()
+producer_head ∈ str ← request_delivery.git(fp, ["rev-parse", "HEAD"]).decode().strip()
+kitchen_head ∈ str ← str(summary["source_head"])
+matrix ∈ list[str] ← ["aici_head\tproducer_head\tboundary\timplemented\tfixture_tested\tmerged\tdeployed\treachable\tactually_demonstrated\tblocker", head + "\t" + producer_head + "\tindependent-contract-gate\tYES\tYES\tNO\tNO\tlocal-fixture\tcontract-controls\tactual-approved-release-pending", head + "\t" + kitchen_head + "\tK-maintained-compact-paste\tYES\tYES\tNO\tNO\tlocal-fixture\t18-api-scenarios-and-two-fresh-homes\tR-runtime-and-caller-qualification-pending", head + "\tf422a4568da709d7528e7177a791a5592bb38636\tFP-response-sink\tYES-adapter\tYES\tNO\tNO\tlocal-fixture\tactual-FP-handoff-with-disposable-sink\tactual-platform-sink-pending", head + "\t" + producer_head + "\tcombined-versioned-registered-gate\tYES\tYES\tNO\tNO\tlocal-fixture\tcurrent-contract-and-complete-output-pair-controls\tinstalled-approved-release-and-caller-pending", head + "\t" + producer_head + "\tR-actual-platform-caller\tUNKNOWN\tPENDING\tNO\tINACTIVE\tPENDING\tNOT_RUN\tapproved-registry-and-caller-not-supplied", head + "\t" + producer_head + "\tunchanged-model-replay\tUNKNOWN\tPENDING\tUNKNOWN\tUNKNOWN\tPENDING\tcorpus-schema-smoke-only\tactual-supported-model-caller-missing", head + "\t" + producer_head + "\tfresh-session-model\tUNKNOWN\tPENDING\tUNKNOWN\tUNKNOWN\tPENDING\tNOT_RUN\tmodel-settings-calls-and-sink-missing"]
+output.joinpath("acceptance-matrix.tsv").write_text(str("\n".join(matrix)) + "\n")
+print("request/delivery controls PASS: " + str(len(result_rows) - 1))

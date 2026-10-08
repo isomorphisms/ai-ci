@@ -1,0 +1,3 @@
+HELD-OUT OUTCOME, never model input at the preceding decision point.
+Useful exploratory output is allowed. No live transfer or deployment acceptance
+may be inferred from exploratory command completion.

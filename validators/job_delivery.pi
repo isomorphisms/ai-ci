@@ -8,8 +8,9 @@ import hashlib
 import json
 import sys
 import re
+import acceptance_state
 from pathlib import Path
-from builtins import dict, list, ValueError, Exception
+from builtins import dict, list, ValueError, Exception, FileNotFoundError, KeyError
 
 def check(stage ∈ dict[str, object], payload ∈ bytes, response ∈ bytes, complete ∈ bool) → None:
     record ∈ dict[str, object] ← handoff.identity(stage, payload)
@@ -146,13 +147,13 @@ def main() → None:
     args ∈ list[str] ← sys.argv
     if len(args) != 5:
         raise ValueError("usage: job_delivery.pi STAGE_JSON PAYLOAD RESPONSE RESULT")
-    output ∈ Path ← Path(args[4])
-    output.write_text(str(json.dumps({"status": "PENDING", "check_id": "job-delivery-v2"}, sort_keys=True)) + "\n")
+    acceptance_state.write(args[4], "PENDING", {"check_id": "job-delivery-v2"})
+    response ∈ bytes ← b""
     try:
-        stage_raw ∈ bytes ← Path(args[1]).read_bytes()
-        stage ∈ dict[str, object] ← json.loads(stage_raw)
+        stage_bytes ∈ bytes ← Path(args[1]).read_bytes()
+        stage ∈ dict[str, object] ← json.loads(stage_bytes)
         payload ∈ bytes ← Path(args[2]).read_bytes()
-        response ∈ bytes ← Path(args[3]).read_bytes()
+        response ← Path(args[3]).read_bytes()
         record ∈ dict[str, object] ← handoff.identity(stage, payload)
         if int(record["version"]) == 2:
             if response != b"":
@@ -160,8 +161,49 @@ def main() → None:
             check_attachment(stage, payload, True)
         else:
             check(stage, payload, response, True)
-        encoded ∈ str ← json.dumps({"status": "PASS", "check_id": "job-delivery-v2", "stage_sha256": handoff.digest(stage_raw), "payload_sha256": str(record["payload_sha256"]), "response_sha256": handoff.digest(response), "checker_sha256": handoff.digest(Path(__file__).read_bytes())}, sort_keys=True)
-        output.write_text(encoded + "\n")
-    except Exception as error:
-        output.write_text(str(json.dumps({"status": "FAIL", "check_id": "job-delivery-v2", "first_failure": str(error)}, sort_keys=True)) + "\n")
+        current_stage ∈ bytes ← Path(args[1]).read_bytes()
+        current_payload ∈ bytes ← Path(args[2]).read_bytes()
+        current_response ∈ bytes ← Path(args[3]).read_bytes()
+        if current_stage != stage_bytes or current_payload != payload or current_response != response:
+            raise ValueError("JOB-POST-VERIFICATION-EDIT")
+        acceptance_state.write(args[4], "VERIFIED", {"check_id": "job-delivery-v2", "stage_sha256": handoff.digest(stage_bytes), "payload_sha256": str(record["payload_sha256"]), "response_sha256": handoff.digest(response)})
+    except (FileNotFoundError, KeyError) as missing:
+        acceptance_state.write(args[4], "BLOCKED", {"check_id": "job-delivery-v2", "first_failure": str(missing)})
+        raise
+    except Exception as failure:
+        acceptance_state.write(args[4], "PARTIAL" if len(response) > 0 else "FAILED", {"check_id": "job-delivery-v2", "first_failure": str(failure)})
+        raise
+
+def deliver_checked(stage ∈ dict[str, object], payload ∈ bytes, sink ∈ object, dispatcher ∈ object, summary ∈ str, capture_path ∈ str, result_path ∈ str) → dict[str, object]:
+    """Wrap the real FP caller; the trusted sink independently retains captures.
+
+    The controller must allocate new capture paths per attempt. This adapter does
+    not identify or install a ChatGPT sink; unsupported platform access remains
+    pending. The wrapper prevents a failed attempt exporting an earlier PASS.
+    """
+    acceptance_state.write(result_path, "PENDING", {"check_id": "job-delivery-v2"})
+    try:
+        if Path(capture_path).exists():
+            raise ValueError("JOB-STALE-SINK-CAPTURE")
+        modules ∈ dict[str, object] ← sys.modules
+        gate ∈ object ← modules["job_delivery"]
+        delivered ∈ dict[str, object] ← handoff.deliver(stage, payload, sink, dispatcher, gate, summary)
+        record ∈ dict[str, object] ← handoff.identity(delivered, payload)
+        actual ∈ bytes ← b""
+        if str(record["delivery_mode"]) != "dispatch-only":
+            actual ← Path(capture_path).read_bytes()
+        if int(record["version"]) == 2:
+            check_attachment(delivered, payload, True)
+            materialized ∈ bytes ← handoff.materialize(delivered, payload)
+            if str(record["delivery_mode"]) != "dispatch-only" and actual != materialized:
+                raise ValueError("JOB-ATTACHMENT-SINK-CAPTURE")
+        else:
+            check(delivered, payload, actual, True)
+        acceptance_state.write(result_path, "VERIFIED", {"check_id": "job-delivery-v2", "payload_sha256": record["payload_sha256"], "response_sha256": handoff.digest(actual)})
+        return delivered
+    except Exception as failure:
+        exists ∈ bool ← Path(capture_path).exists()
+        size ∈ int ← Path(capture_path).stat().st_size if exists else 0
+        partial ∈ bool ← exists and size > 0
+        acceptance_state.write(result_path, "PARTIAL" if partial else "FAILED", {"check_id": "job-delivery-v2", "first_failure": str(failure)})
         raise

@@ -1,0 +1,17 @@
+"""Attempt-local output state. An old PASS must not survive a new rejection."""
+import json
+import os
+import uuid
+from pathlib import Path
+from builtins import dict, ValueError
+
+def write(path ∈ str, state ∈ str, fields ∈ dict[str, object]) → None:
+    if not ["PENDING", "PARTIAL", "FAILED", "BLOCKED", "VERIFIED"].__contains__(state):
+        raise ValueError("ACCEPTANCE-STATE")
+    record ∈ dict[str, object] ← dict(fields)
+    record["delivery_state"] ← state
+    record["status"] ← "PASS" if state == "VERIFIED" else "FAIL" if state == "FAILED" or state == "PARTIAL" else state
+    temporary ∈ Path ← Path(path + "." + str(uuid.uuid4()) + ".pending")
+    encoded ∈ str ← json.dumps(record, sort_keys=True)
+    temporary.write_text(encoded + "\n")
+    os.replace(str(temporary), path)

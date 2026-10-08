@@ -1,201 +1,26 @@
-"""Independent fixture observations; child stdout is never a receipt.
-
-The supervisor owns inputs and observations. Caller-authored captures do not
-attest a ChatGPT message, GitHub deployment, or a real repository transfer.
-"""
+"""Retained CLI; independent observations, never child PASS text, decide."""
 import sys
 import json
 import hashlib
+import kitchen_transfer
+import acceptance_state
 from pathlib import Path
-from builtins import dict, list, ValueError, Exception, isinstance
+from builtins import dict, list, ValueError, Exception
 
-MODES ∈ list[str] ← ["personal", "organization", "accepted-unverified", "accepted-still-pending", "visibility", "post-failure", "wrong-id", "collision", "authentication", "capability", "network", "destination-authentication", "destination-api", "wrong-login", "wrong-source", "wrong-repository", "wrong-destination", "organization-membership"]
-
-def repository(body ∈ dict[str, object], identity ∈ object, owner ∈ str, visibility ∈ str) → bool:
-    body_name ∈ str ← str(body["full_name"]).lower()
-    expected_name ∈ str ← owner.lower()
-    return body["id"] == identity and body_name == expected_name and body["visibility"] == visibility
-
-def check(config ∈ dict[str, object], observed ∈ dict[str, object], execution ∈ dict[str, object], artifact ∈ bytes) → dict[str, object]:
-    inputs ∈ dict[str, object] ← dict(config["inputs"])
-    events ∈ list[dict[str, object]] ← list(observed["events"])
-    mode ∈ str ← str(config["mode"])
-    if not MODES.__contains__(mode) or observed["mode"] != mode:
-        raise ValueError("OBSERVATION_MODE")
-    if len(events) == 0:
-        raise ValueError("OBSERVATION_MISSING")
-    if not set(execution).issubset(set(["first_exit", "second_exit", "second_state", "runs"])) or not set(["first_exit", "second_exit"]).issubset(set(execution)):
-        raise ValueError("EXECUTION_FIELDS")
-    if not execution.__contains__("runs"):
-        raise ValueError("EXECUTION_OBSERVATIONS_MISSING")
-    source ∈ str ← str(inputs["source_owner"]) + "/" + str(inputs["repository"])
-    destination ∈ str ← str(inputs["destination_owner"]) + "/" + str(inputs["repository"])
-    identity ∈ object ← inputs["expected_repository_id"]
-    numeric ∈ str ← "repositories/" + str(identity)
-    mutations ∈ int ← 0
-    last_mutation ∈ int ← -1
-    observations_after ∈ int ← 0
-    memberships ∈ int ← 0
-    auth ∈ bool ← False
-    login ∈ bool ← False
-    numeric_source ∈ bool ← False
-    canonical_source ∈ bool ← False
-    destination_known ∈ bool ← False
-    organization ∈ bool ← False
-    membership ∈ bool ← False
-    collision_absent ∈ bool ← False
-    verified_numeric ∈ bool ← False
-    verified_destination ∈ bool ← False
-    original_visibility ∈ str ← ""
-    for index in range(len(events)):
-        event ∈ dict[str, object] ← dict(events[index])
-        if event["index"] != index or event["repository_id"] != identity:
-            raise ValueError("OBSERVATION_IDENTITY")
-        method ∈ str ← str(event["method"])
-        endpoint ∈ str ← str(event["endpoint"])
-        args ∈ list[str] ← list(event["argv"])
-        good ∈ bool ← event["code"] == 0 and event["http_status"] == 200
-        body ∈ dict[str, object] ← dict(event["body"]) if isinstance(event["body"], dict) else {}
-        if method == "POST":
-            if endpoint != "repos/" + source + "/transfer" or args != ["api", "--method", "POST", endpoint, "-f", "new_owner=" + str(inputs["destination_owner"]), "--silent"]:
-                raise ValueError("MUTATION_SCOPE")
-            if not auth or not login or not numeric_source or not canonical_source or not destination_known or not collision_absent or organization and not membership:
-                raise ValueError("MUTATION_WITHOUT_PREFLIGHT")
-            mutations ← mutations + 1
-            last_mutation ← index
-            if mutations > 1:
-                raise ValueError("MUTATION_REPEATED")
-        elif method == "GET":
-            expected ∈ list[str] ← ["auth", "status", "--hostname", "github.com"] if endpoint == "auth" else ["api", endpoint]
-            if endpoint == "repos/" + destination and args == ["api", "--include", endpoint]:
-                expected ← args
-            if args != expected:
-                raise ValueError("OBSERVATION_COMMAND")
-            if endpoint == "auth":
-                auth ← good
-            elif endpoint == "user":
-                login ← good and body["login"] == inputs["expected_login"]
-            elif endpoint == numeric:
-                if last_mutation < 0:
-                    if good and original_visibility == "":
-                        original_visibility ← str(body["visibility"])
-                    numeric_source ← good and (original_visibility == "private" or original_visibility == "public" or original_visibility == "internal") and repository(body, identity, source, original_visibility)
-                else:
-                    actual_name ∈ str ← str(body["full_name"]).lower() if good else ""
-                    known_names ∈ list[str] ← [source.lower(), destination.lower()]
-                    if not good or body["id"] != identity or not known_names.__contains__(actual_name):
-                        raise ValueError("CANONICAL_OBSERVATION_INVALID")
-                    observations_after ← observations_after + 1
-                    verified_numeric ← repository(body, identity, destination, original_visibility)
-            elif endpoint == "repos/" + source:
-                permissions ∈ dict[str, object] ← dict(body["permissions"]) if good else {}
-                canonical_source ← good and repository(body, identity, source, original_visibility) and permissions["admin"] == True
-            elif endpoint == "users/" + str(inputs["destination_owner"]):
-                actual_login ∈ str ← str(body["login"]).lower() if good else ""
-                expected_login ∈ str ← str(inputs["destination_owner"]).lower()
-                destination_type ∈ str ← str(body["type"]) if good else ""
-                destination_known ← good and actual_login == expected_login and (destination_type == "User" or destination_type == "Organization")
-                organization ← good and body["type"] == "Organization"
-            elif endpoint == "user/memberships/orgs/" + str(inputs["destination_owner"]):
-                memberships ← memberships + 1
-                membership ← good and body["state"] == "active"
-            elif endpoint == "repos/" + destination:
-                if last_mutation < 0:
-                    collision_absent ← args == ["api", "--include", endpoint] and event["code"] == 1 and event["http_status"] == 404
-                else:
-                    verified_destination ← good and repository(body, identity, destination, original_visibility)
-            else:
-                raise ValueError("OBSERVATION_SCOPE")
-        else:
-            raise ValueError("MUTATION_SCOPE")
-    last ∈ dict[str, object] ← dict(events[-1])
-    if observed["mutations"] != mutations or observed["owner"] != last["owner"] or observed["visibility"] != last["visibility"] or observed["repository_id"] != identity:
-        raise ValueError("OBSERVATION_SUMMARY")
-    if mode == "personal" or mode == "organization":
-        if execution["first_exit"] != 0 or execution["second_exit"] != 0 or mutations != 1 or observed["owner"] != destination or observed["visibility"] != original_visibility or not verified_numeric or not verified_destination:
-            raise ValueError("TRANSFER_POSTCONDITION")
-        if mode == "personal" and memberships != 0 or mode == "organization" and memberships != 1:
-            raise ValueError("DESTINATION_PERMISSION_CHECK")
-    elif mode == "accepted-unverified":
-        if execution["first_exit"] == 0 or execution["second_exit"] != 0 or mutations != 1 or observed["owner"] != destination or not verified_numeric or not verified_destination:
-            raise ValueError("PENDING_RECONCILIATION")
-    elif mode == "accepted-still-pending":
-        if execution["first_exit"] == 0 or execution["second_exit"] == 0 or mutations != 1 or observed["owner"] != source:
-            raise ValueError("PENDING_RESUBMISSION")
-    elif mode == "visibility" or mode == "post-failure":
-        if execution["first_exit"] == 0 or mutations != 1:
-            raise ValueError("FAILED_MUTATION_ACCEPTED")
-    else:
-        if execution["first_exit"] == 0 or mutations != 0:
-            raise ValueError("NEGATIVE_ACCEPTED")
-    if mutations > 0 and observations_after < 1:
-        raise ValueError("CANONICAL_OBSERVATION_MISSING")
-    runs ∈ list[dict[str, object]] ← list(execution["runs"])
-    count ∈ int ← 2 if mode == "personal" or mode == "organization" or mode == "accepted-unverified" or mode == "accepted-still-pending" else 1
-    if len(runs) != count or count == 1 and execution["second_exit"] != -125:
-        raise ValueError("EXECUTION_RUN_COUNT")
-    boundary ∈ int ← 0
-    for run_index in range(len(runs)):
-        run ∈ dict[str, object] ← dict(runs[run_index])
-        begin ∈ int ← int(run["event_begin"])
-        end ∈ int ← int(run["event_end"])
-        code ∈ int ← int(run["exit"])
-        expected_exit ∈ int ← int(execution["first_exit"] if run_index == 0 else execution["second_exit"])
-        if set(run) != set(["exit", "event_begin", "event_end"]) or begin != boundary or end <= begin or end > len(events) or code != expected_exit:
-            raise ValueError("EXECUTION_OBSERVATION_RANGE")
-        boundary ← end
-        attempted ∈ int ← 0
-        run_auth ∈ bool ← False
-        run_login ∈ bool ← False
-        run_numeric ∈ bool ← False
-        run_destination ∈ bool ← False
-        for run_event in events[begin:end]:
-            if run_event["method"] == "POST":
-                attempted ← attempted + 1
-                if code == 0 and run_event["code"] != 0:
-                    raise ValueError("EXECUTION_FALSE_SUCCESS")
-            elif run_event["code"] == 0 and run_event["http_status"] == 200:
-                if run_event["endpoint"] == "auth":
-                    run_auth ← True
-                elif run_event["endpoint"] == "user":
-                    run_body ∈ dict[str, object] ← dict(run_event["body"])
-                    run_login ← run_body["login"] == inputs["expected_login"]
-                elif run_event["endpoint"] == numeric:
-                    run_body ← dict(run_event["body"])
-                    run_numeric ← repository(run_body, identity, destination, original_visibility)
-                elif run_event["endpoint"] == "repos/" + destination:
-                    run_body ← dict(run_event["body"])
-                    run_destination ← repository(run_body, identity, destination, original_visibility)
-        expected_attempts ∈ int ← 1 if run_index == 0 and (mode == "personal" or mode == "organization" or mode == "accepted-unverified" or mode == "accepted-still-pending" or mode == "visibility" or mode == "post-failure") else 0
-        if attempted != expected_attempts:
-            raise ValueError("EXECUTION_MUTATION_COUNT")
-        if code == 0 and (not run_auth or not run_login or not run_numeric or not run_destination):
-            raise ValueError("EXECUTION_POSTCONDITION")
-    if boundary != len(events):
-        raise ValueError("EXECUTION_OBSERVATION_RANGE")
-    digest ∈ str ← hashlib.sha256(artifact).hexdigest()
-    if digest != config["artifact_sha256"]:
-        raise ValueError("ARTIFACT_CHANGED")
-    return {"schema_version": 1, "check_id": "kitchen-api-observation", "status": "PASS", "artifact_sha256": digest, "mode": mode, "attempts": len(events), "mutations": mutations}
-
-def main() → None:
-    argv ∈ list[str] ← sys.argv
-    if len(argv) != 6:
-        raise ValueError("usage: kitchen-transfer-script.pi CONFIG OBSERVATIONS EXECUTION ARTIFACT RESULT")
-    output ∈ Path ← Path(argv[5])
-    output.write_text(str(json.dumps({"status": "PENDING", "check_id": "kitchen-api-observation"}, sort_keys=True)) + "\n")
-    try:
-        config_raw ∈ bytes ← Path(argv[1]).read_bytes()
-        observed_raw ∈ bytes ← Path(argv[2]).read_bytes()
-        execution_raw ∈ bytes ← Path(argv[3]).read_bytes()
-        decision ∈ dict[str, object] ← check(json.loads(config_raw), json.loads(observed_raw), json.loads(execution_raw), Path(argv[4]).read_bytes())
-        decision["observations_sha256"] ← hashlib.sha256(observed_raw).hexdigest()
-        decision["config_sha256"] ← hashlib.sha256(config_raw).hexdigest()
-        decision["execution_sha256"] ← hashlib.sha256(execution_raw).hexdigest()
-        decision["checker_sha256"] ← hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
-        output.write_text(str(json.dumps(decision, sort_keys=True)) + "\n")
-    except Exception as error:
-        output.write_text(str(json.dumps({"status": "FAIL", "check_id": "kitchen-api-observation", "first_failure": str(error)}, sort_keys=True)) + "\n")
-        raise
-
-main()
+argv ∈ list[str] ← sys.argv
+if len(argv) != 6:
+    raise ValueError("usage: kitchen-transfer-script.pi CONFIG OBSERVATIONS EXECUTION ARTIFACT RESULT")
+result ∈ str ← argv[5]
+acceptance_state.write(result, "PENDING", {"check_id": "kitchen-api-observation"})
+try:
+    config ∈ dict[str, object] ← json.loads(Path(argv[1]).read_bytes())
+    raw_observations ∈ bytes ← Path(argv[2]).read_bytes()
+    observed ∈ dict[str, object] ← json.loads(raw_observations)
+    execution ∈ dict[str, object] ← json.loads(Path(argv[3]).read_bytes())
+    artifact ∈ bytes ← Path(argv[4]).read_bytes()
+    decision ∈ dict[str, object] ← kitchen_transfer.check(config, observed, execution, artifact)
+    decision["observations_sha256"] ← hashlib.sha256(raw_observations).hexdigest()
+    acceptance_state.write(result, "VERIFIED", decision)
+except Exception as failure:
+    acceptance_state.write(result, "FAILED", {"check_id": "kitchen-api-observation", "first_failure": str(failure)})
+    raise

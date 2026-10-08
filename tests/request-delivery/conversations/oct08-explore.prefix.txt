@@ -1,0 +1,4 @@
+SANITIZED POSITIVE EXPLORATION CASE.
+USER: Explore possible implementations. I have not requested any repository mutation.
+CURRENT CAPABILITY: The maintained generic Flexible Pipes runner is available for
+bounded exploratory command execution; its receipts do not qualify registered operations.

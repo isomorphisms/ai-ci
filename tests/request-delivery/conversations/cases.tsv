@@ -1,0 +1,3 @@
+id	prefix	later	evidence
+oct08-transfer	oct08-transfer.prefix.txt	oct08-transfer.later.txt	sanitized-paraphrase-and-synthetic-source
+oct08-explore	oct08-explore.prefix.txt	oct08-explore.later.txt	synthetic-positive-twin

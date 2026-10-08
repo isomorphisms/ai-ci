@@ -1,0 +1,6 @@
+"""Check the full maintained module closure before starting fixtures."""
+import request_delivery
+import kitchen_transfer
+import acceptance_state
+import job_delivery
+print("checked request/delivery imports")

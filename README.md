@@ -6,6 +6,10 @@
 and first-class binary attachment identity, plus separately bound dispatch,
 using Flexible Pipes' existing stage artifact.
 
+[Request delivery](docs/request-delivery.md) independently binds registered
+operation results to the approved release, original request, executable bytes,
+raw API postconditions and complete captured output.
+
 Its rule is stricter than ordinary green CI:
 
 > A check must demonstrate the promised result, and it must prove that it

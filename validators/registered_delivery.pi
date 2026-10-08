@@ -10,9 +10,10 @@ import hashlib
 import base64
 import re
 from pathlib import Path
-from builtins import dict, list, ValueError, Exception, type
+from builtins import dict, list, ValueError, Exception, type, FileNotFoundError, KeyError
 import handoff
 import job_delivery
+import acceptance_state
 
 # The owner's versioned release-identity encoding, not a recipe registry.
 OPERATION_FIELDS ∈ list[str] ← ["operation", "operation_version", "registry_generation", "authority", "required_checks", "control_commit", "ithon", "grease", "worker", "watchdog", "generator", "parent_probe", "fixture_server", "fixture_bin", "api_validator", "seal_validator", "contract_sha256", "acquisition_probe", "compact_recipe"]
@@ -176,7 +177,8 @@ def main() → None:
     if len(args) != 9:
         raise ValueError("usage: registered_delivery.pi CONFIG REQUEST RESULT ARTIFACT_DIRECTORY STAGE RESPONSE SUBMISSION RECEIPT")
     output ∈ Path ← Path(args[8])
-    output.write_bytes(encode({"status": "PENDING", "check_id": "registered-delivery"}))
+    acceptance_state.write(str(output), "PENDING", {"check_id": "registered-delivery"})
+    response ∈ bytes ← b""
     try:
         config_raw ∈ bytes ← Path(args[1]).read_bytes()
         request_raw ∈ bytes ← Path(args[2]).read_bytes()
@@ -184,6 +186,13 @@ def main() → None:
         stage_raw ∈ bytes ← Path(args[5]).read_bytes()
         response ∈ bytes ← Path(args[6]).read_bytes()
         result ∈ dict[str, object] ← json.loads(result_raw)
+        if result["status"] != "PASS":
+            if len(list(result["artifacts"])) != 0:
+                raise ValueError("REGISTERED_STATUS")
+            status ∈ str ← str(result["status"])
+            state ∈ str ← "PENDING" if status == "PENDING" or status == "RUNNING" else "BLOCKED" if status == "BLOCKED" else "PARTIAL" if status == "PARTIAL" else "FAILED"
+            acceptance_state.write(str(output), state, {"check_id": "registered-delivery", "producer_status": status, "first_failure": str(result.get("first_failure", "No verified result available"))})
+            sys.exit(75)
         artifacts ∈ dict[str, bytes] ← {}
         exported ∈ list[dict[str, object]] ← list(result["artifacts"])
         for item in exported:
@@ -195,7 +204,26 @@ def main() → None:
         submission_raw ∈ bytes ← Path(args[7]).read_bytes()
         config ∈ dict[str, object] ← json.loads(config_raw)
         check(config, request_raw, result, artifacts, json.loads(stage_raw), response, json.loads(submission_raw))
-        output.write_bytes(encode({"status": "PASS", "check_id": "registered-delivery", "config_sha256": digest(config_raw), "request_sha256": digest(request_raw), "result_sha256": digest(result_raw), "stage_sha256": digest(stage_raw), "response_sha256": digest(response), "submission_sha256": digest(submission_raw), "checker_sha256": digest(Path(__file__).read_bytes()), "scope": "captured-registered-delivery", "authority": config["authority"], "operation": result["operation_id"], "result_scope": result["acceptance_scope"], "excluded_claims": ["live-transfer", "deployment", "actual-ChatGPT-surface", "fresh-model-judgment"]}))
+        # This legacy CLI proves captured delivery only. A trusted operation must
+        # use the supplemented gate with independently witnessed run evidence.
+        if config["authority"] == "deployed-trusted":
+            raise KeyError("Use check-request-delivery.pi with independent observations and registered exports")
+        for pair in [(args[1], config_raw), (args[2], request_raw), (args[3], result_raw), (args[5], stage_raw), (args[6], response), (args[7], submission_raw)]:
+            current ∈ bytes ← Path(pair[0]).read_bytes()
+            if current != pair[1]:
+                raise ValueError("REGISTERED_POST_VERIFICATION_EDIT")
+        for name in artifacts:
+            current ← Path(args[4]).joinpath(name).read_bytes()
+            if current != artifacts[name]:
+                raise ValueError("REGISTERED_POST_VERIFICATION_EDIT")
+        # Recheck runtime, material and qualification bytes immediately before
+        # publication; unchanged Git names do not freeze those files.
+        check(config, request_raw, result, artifacts, json.loads(stage_raw), response, json.loads(submission_raw))
+        checker_path ∈ str ← __file__
+        acceptance_state.write(str(output), "VERIFIED", {"check_id": "registered-delivery", "config_sha256": digest(config_raw), "request_sha256": digest(request_raw), "result_sha256": digest(result_raw), "stage_sha256": digest(stage_raw), "response_sha256": digest(response), "submission_sha256": digest(submission_raw), "checker_sha256": digest(Path(checker_path).read_bytes()), "scope": "captured-registered-delivery", "authority": config["authority"], "operation": result["operation_id"], "result_scope": result["acceptance_scope"], "excluded_claims": ["live-transfer", "deployment", "actual-ChatGPT-surface", "fresh-model-judgment"]})
+    except (FileNotFoundError, KeyError) as missing:
+        acceptance_state.write(str(output), "BLOCKED", {"check_id": "registered-delivery", "first_failure": str(missing)})
+        raise
     except Exception as error:
-        output.write_bytes(encode({"status": "FAIL", "check_id": "registered-delivery", "first_failure": str(error)}))
+        acceptance_state.write(str(output), "PARTIAL" if len(response) > 0 else "FAILED", {"check_id": "registered-delivery", "first_failure": str(error)})
         raise
