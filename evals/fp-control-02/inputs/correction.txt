@@ -1,0 +1,3 @@
+Please generate a GitHub repository ownership-transfer script for young-tableaux.
+
+Correction: the source repository is functorial-games/young-tableaux, and the destination owner is isomorphismes.

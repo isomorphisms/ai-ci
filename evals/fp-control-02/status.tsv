@@ -1,0 +1,6 @@
+evaluation	state	result	scope	required_next_evidence
+fresh-chatgpt-request	NOT_RUN	none	No reachable fresh ChatGPT adapter was exposed	Exact actual caller route; fresh raw session; independently captured sink and invocation
+fresh-chatgpt-correction	NOT_RUN	none	Synthetic correction prefix prepared; no fresh model invoked	Fresh session with this prefix; separate authoritative source packet; independent graded response
+fresh-chatgpt-unavailable	NOT_RUN	none	Supported unavailable-execution twin prepared; no fresh model invoked	Fresh session; maintained generation; exact sink bytes; zero transfer requests
+verbatim-october8-replay	NOT_RUN	none	Original complete user turns missing	Recovered original prefixes with provenance and later-answer exclusion
+deterministic-fixture-acceptance	SEPARATE	not graded here	Existing oracle/controller/result-to-sink tests are separate execution evidence	Exact-head receipts and independently observed effects; never relabel as fresh model judgment

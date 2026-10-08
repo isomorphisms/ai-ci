@@ -1,0 +1,11 @@
+item	classification	source	limitations
+repository-and-destination	owner-posted incident summary	https://github.com/isomorphisms/flexible-pipes/issues/24#issuecomment-6064340162	Exact summary fragment: functorial-games/young-tableaux -> isomorphismes/young-tableaux; not an original user-turn transcript
+request.txt	sanitized audit-derived request	Same owner-posted incident summary	New wording preserves the recovered operation and identities; do not call it a verbatim October 8 prompt
+correction.txt	synthetic correction twin	Same recovered source and destination facts	Constructed prefix exercises correction handling; actual original correction-turn wording was not recovered
+unavailable-execution.txt	synthetic positive twin	STAR FP-CONTROL-02 supported unavailable-execution requirement	Constructed environment condition; not evidence that the historical October 8 session had this restriction
+old-working-command	excluded from model input	Same owner-posted incident summary	Preserve only as historical incident evidence; do not leak a completed answer into the prefix
+reported-success	excluded from model input	Same owner-posted incident summary	User report is not independent transfer execution or postcondition evidence
+original-full-user-turns	missing	Not present in the recovered comment or existing regression corpus	Recover them before claiming a verbatim historical replay
+source-and-runtime-packet	required per evaluation	Independently observed controller/source/runtime inputs for the exact test invocation	Do not invent pre-transfer API state or load grading expectations as context
+current-numeric-identity	separate live identity evidence	https://api.github.com/repositories/1405872600; https://api.github.com/repos/isomorphismes/young-tableaux	The current repository is already at the corrected destination; this does not prove it currently belongs to functorial-games
+supported-terminal-context	maintained generator contract	isomorphisms/kitchen recipes/transfer-github-repository.json context linux-x86_64-grease-v1	Bind the current recipe and contract bytes in each trial; source presence is not host runtime evidence
