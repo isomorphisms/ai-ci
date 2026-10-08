@@ -14,6 +14,9 @@ The native scalar profile links against the Ubuntu 24.04 glibc and prebuilt
 GCC 13 startup/runtime objects. Their package versions and hashes are recorded
 in the stage directory. No host C frontend compiles consumer code. The ICK
 frontend and driver perform consumer compilation and linkage.
+The same declared host dependency includes AddressSanitizer and UndefinedBehaviorSanitizer
+runtime objects for consumers that require those checks. Instrumentation is
+produced by ICK; each consumer must still execute its sanitizer suite.
 
 Consumers pass the exported `link_flags`: `-fno-link-libatomic`. Automatic
 libatomic linkage and building the complete ICK native runtime are outside

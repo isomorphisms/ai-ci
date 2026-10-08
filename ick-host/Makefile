@@ -10,7 +10,7 @@ ICK_COMPILER = $(ICK_STAGE)/bin/gcc
 BUILD_JOBS ?= 2
 HOST_RUNTIME ?= /usr/lib/gcc/x86_64-linux-gnu/13
 RUNTIME_DEST = $(ICK_STAGE)/lib/gcc/x86_64-pc-linux-gnu/17.0.0
-RUNTIME_FILES = libgcc.a libgcc_eh.a libgcc_s.so crtbegin.o crtend.o crtbeginS.o crtendS.o
+RUNTIME_FILES = libgcc.a libgcc_eh.a libgcc_s.so crtbegin.o crtend.o crtbeginS.o crtendS.o libasan.a libasan.so libasan_preinit.o libubsan.a libubsan.so
 
 .PHONY: all
 all: $(ICK_COMPILER)
