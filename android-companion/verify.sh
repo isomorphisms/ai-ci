@@ -92,10 +92,14 @@ for target in phone c67; do
              -e "s/^application: label='\([^']*\)'.*/\1/p" | head -1)
     observed_launcher=$(printf '%s\n' "$badging" |
       sed -n "s/^launchable-activity: name='\([^']*\)'.*/\1/p" | head -1)
+    observed_launcher_label=$(printf '%s\n' "$badging" |
+      sed -n "s/^launchable-activity:.* label='\([^']*\)'.*/\1/p" | head -1)
     [[ "$observed_package" == "$package" ]] || fail "$target package changed"
     [[ "$observed_label" == "$label" ]] ||
         fail "$target launcher label changed: expected $label got $observed_label"
     [[ -n "$observed_launcher" ]] || fail "$target launcher activity is missing"
+    [[ "$observed_launcher_label" == "$label" ]] ||
+        fail "$target launcher activity label changed: expected $label got ${observed_launcher_label:-missing}"
     [[ "$version" =~ ^[0-9]+$ ]] || fail "$target versionCode missing"
     [[ "$observed_sdk" == "$min_sdk" ]] || fail "$target minSdk changed"
     "$apksigner" verify --verbose --print-certs "$apk" > "$tmp/signer-$target.txt" ||
