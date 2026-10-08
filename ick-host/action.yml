@@ -1,0 +1,35 @@
+name: Pinned native ICK compiler
+description: Bootstrap the exact ICK C frontend; no consumer compiler fallback.
+outputs:
+  compiler:
+    description: Absolute path to the qualified native ICK compiler.
+    value: ${{ steps.compiler.outputs.compiler }}
+  link_flags:
+    description: Native scalar profile excludes unqualified automatic libatomic linkage.
+    value: -fno-link-libatomic
+runs:
+  using: composite
+  steps:
+    - name: Check out the exact ICK source
+      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      with:
+        repository: dilapidated-shed/ick
+        ref: c5d28dde9cc333a562b907785d0370b725146cdf
+        path: .ick-host-source
+        submodules: true
+        persist-credentials: false
+    - name: Install compiler bootstrap dependencies
+      shell: bash
+      run: sudo apt-get update && sudo apt-get install -y build-essential flex bison texinfo libgmp-dev libmpfr-dev libmpc-dev
+    - name: Build ICK
+      shell: bash
+      run: make -f "${{ github.action_path }}/Makefile" ICK_SOURCE="$GITHUB_WORKSPACE/.ick-host-source" ICK_BUILD="$RUNNER_TEMP/ick-host-build" ICK_STAGE="$RUNNER_TEMP/ick-host-stage"
+    - name: Qualify the assignment frontend
+      shell: bash
+      run: |
+        "$RUNNER_TEMP/ick-host-stage/bin/gcc" -fno-link-libatomic -std=c17 -Wall -Wextra -Werror "${{ github.action_path }}/assignment-arrow.c" -o "$RUNNER_TEMP/assignment-arrow"
+        "$RUNNER_TEMP/assignment-arrow"
+    - name: Export compiler path
+      id: compiler
+      shell: bash
+      run: printf 'compiler=%s\n' "$RUNNER_TEMP/ick-host-stage/bin/gcc" >> "$GITHUB_OUTPUT"
