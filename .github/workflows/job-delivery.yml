@@ -1,0 +1,49 @@
+name: Human-visible job delivery
+on:
+  pull_request:
+  push:
+permissions:
+  contents: read
+jobs:
+  delivery:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out exact ai-ci source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Check out authoritative artifact contract
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: isomorphisms/flexible-pipes
+          ref: f422a4568da709d7528e7177a791a5592bb38636
+          path: _fp
+          persist-credentials: false
+      - name: Check out qualified checked Ithon interface
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: dilapidated-shed/ithon
+          ref: d6e83969f82512e920fb17b44326cb54f31d015c
+          path: _ithon
+          persist-credentials: false
+      - name: Independently reject hidden and mutated surfaces
+        env:
+          PYTHONPATH: ${{ github.workspace }}/_fp/scripts:${{ github.workspace }}/validators
+          ITHON_CHECK_RECEIPT: ${{ runner.temp }}/job-delivery-checked.jsonl
+        run: _ithon/ithon tests/job-delivery/check.pi "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/_fp" "$RUNNER_TEMP/job-delivery"
+      - name: Independently reject unobserved transfer claims
+        env:
+          ITHON_CHECK_RECEIPT: ${{ runner.temp }}/kitchen-observation-checked.jsonl
+        run: _ithon/ithon tests/kitchen-transfer-observation/check.pi "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/_ithon/ithon" "$RUNNER_TEMP/kitchen-observation"
+      - name: Retain exact checked inputs and case results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: job-delivery-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            ${{ runner.temp }}/job-delivery/
+            ${{ runner.temp }}/job-delivery-checked.jsonl
+            ${{ runner.temp }}/kitchen-observation/
+            ${{ runner.temp }}/kitchen-observation-checked.jsonl
+          if-no-files-found: error

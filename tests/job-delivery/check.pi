@@ -1,0 +1,211 @@
+"""Independent surface oracle: build captures without calling FP deliver()."""
+import sys
+import io
+import json
+import zipfile
+from pathlib import Path
+from builtins import dict, list, ValueError, Exception, AssertionError
+import handoff
+import job_delivery
+
+args ∈ list[str] ← sys.argv
+root ∈ str ← args[1]
+fp ∈ str ← args[2]
+output ∈ Path ← Path(args[3])
+output.mkdir(parents=True, exist_ok=False)
+
+def visible_event(payload ∈ bytes, response ∈ bytes, sequence ∈ int) → dict[str, object]:
+    return {"kind": "visible", "sequence": sequence, "payload_sha256": handoff.digest(payload), "response_sha256": handoff.digest(response), "response_text": response.decode(), "message_id": "fixture-visible-message", "surface": "fixture-visible-chat"}
+
+def dispatch_event(payload ∈ bytes, sequence ∈ int) → dict[str, object]:
+    return {"kind": "dispatch", "sequence": sequence, "payload_sha256": handoff.digest(payload), "dispatch_id": "fixture-dispatch"}
+
+def attachment_event(payload ∈ bytes, sequence ∈ int, name ∈ str, mime ∈ str) → dict[str, object]:
+    return {"kind": "attachment", "sequence": sequence, "payload_sha256": handoff.digest(payload), "payload_size": len(payload), "file_id": "fixture-file", "file_name": name, "mime_type": mime, "surface": "fixture-visible-chat"}
+
+def run_attachment_case(variant ∈ str) → str:
+    payload ∈ bytes ← b"PK\x03\x04fixture-signed-apk\x00\xff"
+    source ∈ bytes ← payload
+    source_name ∈ str ← "young-tableaux-arm64-v8a.apk"
+    attachment ∈ dict[str, object] ← {"file_name": "young-tableaux-arm64-v8a.apk", "mime_type": "application/vnd.android.package-archive", "sha256": handoff.digest(payload), "source_name": source_name, "source_sha256": handoff.digest(source), "provenance": {"provider": "github-actions", "resource": "functorial-games/young-tableaux", "revision": "20e075021b743909bc5c28764f787bae20381bc4", "reference": "artifact:11429847456"}}
+    if variant == "attachment-archive-member":
+        stream ∈ object ← io.BytesIO()
+        archive ∈ object ← zipfile.ZipFile(stream, "w", zipfile.ZIP_STORED)
+        archive.writestr("c67/young-tableaux-arm64-v8a.apk", payload)
+        archive.close()
+        source ← stream.getvalue()
+        attachment["source_name"] ← "young-tableaux-apk.zip"
+        attachment["source_sha256"] ← handoff.digest(source)
+        attachment["archive_member"] ← "c67/young-tableaux-arm64-v8a.apk"
+    request ∈ dict[str, object] ← {"id": "attachment-fixture", "text": "Give me the APK in here like normal"}
+    stage ∈ dict[str, object] ← {"name": "apk", "kind": "command", "exit_code": 0, "stdout_sha256": handoff.digest(source)}
+    spec ∈ dict[str, object] ← {"audience": "human", "model": "fixture", "source_context": "issue-39", "request": request, "attachment": attachment}
+    try:
+        stage ← handoff.compose(stage, source, spec)
+        record ∈ dict[str, object] ← dict(stage["handoff"])
+        events ∈ list[dict[str, object]] ← []
+        if variant != "attachment-link-only":
+            actual ∈ bytes ← payload + b"changed" if variant == "attachment-mutated" else payload
+            name ∈ str ← "wrong.apk" if variant == "attachment-wrong-name" else str(attachment["file_name"])
+            mime ∈ str ← "application/zip" if variant == "attachment-wrong-mime" else str(attachment["mime_type"])
+            events.append(attachment_event(actual, 1, name, mime))
+            if variant == "attachment-duplicate":
+                events.append(attachment_event(actual, 2, name, mime))
+            record["visible_state"] ← "OBSERVED"
+        record["events"] ← events
+        stage["handoff"] ← record
+        job_delivery.check_attachment(stage, source, True)
+        return "PASS"
+    except ValueError as error:
+        return str(error)
+
+def run_case(fixture ∈ str, variant ∈ str) → str:
+    if variant.startswith("attachment-"):
+        return run_attachment_case(variant)
+    payload ∈ bytes ← Path(fp + "/regressions/job-delivery/" + fixture + ".txt").read_bytes()
+    if variant == "nested-fence":
+        payload ← payload + b"\nKeep this embedded example:\n```text\nexample\n```\n"
+    request ∈ dict[str, object] ← {"id": fixture, "text": "Make a Sun job"}
+    dispatch_variants ∈ list[str] ← ["visible-dispatch", "dispatched-hidden", "changed-dispatch", "dispatch-first", "duplicate-dispatch", "incomplete-dispatch"]
+    if dispatch_variants.__contains__(variant):
+        request["delivery_mode"] ← "display-and-dispatch"
+        request["explicit_mode"] ← "display-and-dispatch"
+        request["source"] ← "human"
+    if variant == "dispatch-only" or variant == "implicit-dispatch" or variant == "fake-explicit-dispatch":
+        request["delivery_mode"] ← "dispatch-only"
+        if variant == "dispatch-only" or variant == "fake-explicit-dispatch":
+            request["explicit_mode"] ← "dispatch-only"
+            request["source"] ← "human"
+        if variant == "dispatch-only":
+            request["text"] ← "Dispatch only; execute directly."
+    if variant == "recovery-new":
+        request["text"] ← "Where’s the text?"
+    stage ∈ dict[str, object] ← {"name": "assignment", "kind": "command", "exit_code": 0, "stdout_sha256": handoff.digest(payload)}
+    spec ∈ dict[str, object] ← {"audience": "Sun", "model": "fixture-Sun", "source_context": "sanitized recurrence", "request": request}
+    try:
+        stage ← handoff.compose(stage, payload, spec)
+        record ∈ dict[str, object] ← dict(stage["handoff"])
+        response ∈ bytes ← handoff.render(payload, "")
+        events ∈ list[dict[str, object]] ← []
+        if variant == "hidden" or variant == "no-op":
+            response ← b""
+        elif variant == "github":
+            response ← b"The job exists; Sun Y2 is ready.\n"
+        elif variant == "dispatched-hidden":
+            response ← b"I recorded and dispatched the assignment.\n"
+            events.append(dispatch_event(payload, 1))
+            record["dispatch_state"] ← "ACCEPTED"
+        elif variant == "dispatch-only":
+            response ← b""
+            events.append(dispatch_event(payload, 1))
+            record["dispatch_state"] ← "ACCEPTED"
+        elif variant == "summary" or variant == "title" or variant == "link" or variant == "issue" or variant == "created":
+            response ← ("The assignment is " + variant + " only; see issue 35.\n").encode()
+        else:
+            actual ∈ bytes ← payload
+            if variant == "mutated":
+                actual ← payload.replace(b"Cat Food", b"leaf repo")
+            elif variant == "truncated":
+                actual ← payload[:45] + b"\n"
+            response ← handoff.render(actual, "Summary of the job." if variant == "summary-full" else "")
+            if variant == "missing-fence":
+                response ← response[:-4]
+            elif variant == "hidden-html":
+                response ← b"<!--\n" + response + b"-->\n"
+            elif variant == "quoted":
+                quoted ∈ bytes ← response.replace(b"\n", b"\n> ")
+                response ← b"> " + quoted
+            elif variant == "raw-full":
+                response ← payload
+            if variant == "dispatch-first":
+                events.append(dispatch_event(payload, 1))
+            events.append(visible_event(payload, response, len(events) + 1))
+            record["visible_state"] ← "OBSERVED"
+            if dispatch_variants.__contains__(variant) and variant != "incomplete-dispatch":
+                events.append(dispatch_event(payload + b"changed" if variant == "changed-dispatch" else payload, len(events) + 1))
+                record["dispatch_state"] ← "ACCEPTED"
+            if variant == "duplicate-dispatch":
+                events.append(dispatch_event(payload, len(events) + 1))
+        record["events"] ← events
+        if variant == "changed-model":
+            record["model"] ← "wrong-model"
+        elif variant == "changed-request":
+            record["request"] ← {"id": fixture, "text": "Dispatch without showing", "delivery_mode": "dispatch-only", "explicit_mode": "dispatch-only", "source": "human"}
+        stage["handoff"] ← record
+        if variant == "recovery-unhandled" or variant == "recovery-visible":
+            stage ← handoff.recover(stage, "Where’s the text?")
+            if variant == "recovery-visible":
+                record ← dict(stage["handoff"])
+                events ← list(record["events"])
+                response ← handoff.render(payload, "Recovered text follows.")
+                events.append(visible_event(payload, response, len(events) + 1))
+                record["visible_state"] ← "OBSERVED"
+                record["events"] ← events
+                stage["handoff"] ← record
+        if variant == "response-swapped":
+            response ← handoff.render(payload, "Changed surrounding response.")
+        job_delivery.check(stage, payload, response, True)
+        return "PASS"
+    except ValueError as error:
+        return str(error)
+
+lines ∈ list[str] ← Path(root + "/tests/job-delivery/cases.tsv").read_text().splitlines()
+if len(lines) < 2 or lines[0] != "id\tfixture\tvariant\texpected":
+    raise ValueError("invalid or empty case manifest")
+seen ∈ list[str] ← []
+results ∈ list[str] ← ["id\texpected\tactual\tresult"]
+for line in lines[1:]:
+    fields ∈ list[str] ← line.split("\t")
+    if len(fields) != 4 or seen.__contains__(fields[0]):
+        raise ValueError("invalid/duplicate case")
+    seen.append(fields[0])
+    actual ∈ str ← run_case(fields[1], fields[2])
+    results.append(fields[0] + "\t" + fields[3] + "\t" + actual + "\t" + ("PASS" if actual == fields[3] else "FAIL"))
+    if actual != fields[3]:
+        output.joinpath("results.tsv").write_text(str("\n".join(results)) + "\n")
+        raise AssertionError(fields[0] + ": expected " + fields[3] + ", got " + actual)
+    print("PASS " + fields[0] + " -> " + actual)
+output.joinpath("results.tsv").write_text(str("\n".join(results)) + "\n")
+print("independent delivery cases PASS: " + str(len(seen)))
+
+# The CLI must invalidate a previous acceptance before reading fresh captures.
+payload ∈ bytes ← b"Complete maintained assignment\n"
+request ∈ dict[str, object] ← {"id": "receipt-reuse", "text": "Make a Sun job"}
+stage ∈ dict[str, object] ← {"name": "assignment", "kind": "command", "exit_code": 0, "stdout_sha256": handoff.digest(payload)}
+stage ← handoff.compose(stage, payload, {"audience": "Sun", "model": "fixture-Sun", "source_context": "receipt regression", "request": request})
+response ∈ bytes ← handoff.render(payload, "")
+record ∈ dict[str, object] ← dict(stage["handoff"])
+record["events"] ← [visible_event(payload, response, 1)]
+record["visible_state"] ← "OBSERVED"
+stage["handoff"] ← record
+output.joinpath("stage.json").write_text(json.dumps(stage))
+output.joinpath("payload.bin").write_bytes(payload)
+output.joinpath("response.bin").write_bytes(response)
+saved ∈ list[str] ← list(sys.argv)
+sys.__setattr__("argv", ["job_delivery.pi", str(output.joinpath("stage.json")), str(output.joinpath("payload.bin")), str(output.joinpath("response.bin")), str(output.joinpath("receipt.json"))])
+try:
+    job_delivery.main()
+    accepted ∈ dict[str, object] ← json.loads(output.joinpath("receipt.json").read_bytes())
+    if accepted["status"] != "PASS":
+        raise AssertionError("valid CLI delivery did not pass")
+    output.joinpath("response.bin").write_bytes(b"See the link instead.\n")
+    try:
+        job_delivery.main()
+        raise AssertionError("link-only CLI delivery passed")
+    except ValueError as error:
+        if str(error) != "HANDOFF_VISIBLE_MISSING":
+            raise
+    rejected ∈ dict[str, object] ← json.loads(output.joinpath("receipt.json").read_bytes())
+    if rejected["status"] != "FAIL":
+        raise AssertionError("failed repeat preserved an accepted CLI receipt")
+    output.joinpath("stage.json").write_bytes(b"not JSON")
+    try:
+        job_delivery.main()
+        raise AssertionError("malformed CLI stage passed")
+    except ValueError:
+        rejected ← json.loads(output.joinpath("receipt.json").read_bytes())
+        if rejected["status"] != "FAIL":
+            raise AssertionError("failed stage loading preserved an accepted CLI receipt")
+finally:
+    sys.__setattr__("argv", saved)
+print("CLI acceptance survives only successful complete delivery")

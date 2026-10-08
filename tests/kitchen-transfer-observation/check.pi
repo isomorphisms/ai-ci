@@ -1,0 +1,148 @@
+"""Oracle controls, distinct from executing Kitchen or a real transfer."""
+import sys
+import json
+import hashlib
+import subprocess
+from pathlib import Path
+from builtins import dict, list, ValueError, AssertionError
+
+args ∈ list[str] ← sys.argv
+root ∈ str ← args[1]
+ithon ∈ str ← args[2]
+output ∈ Path ← Path(args[3])
+output.mkdir(parents=True, exist_ok=False)
+artifact ∈ bytes ← b"independent-oracle-fixture-script\n"
+inputs ∈ dict[str, object] ← {"source_owner": "source", "repository": "sample", "destination_owner": "destination", "expected_login": "login", "expected_repository_id": 123, "target_context": "linux-x86_64-grease-v1"}
+results ∈ list[dict[str, object]] ← []
+
+def repo(owner ∈ str, visibility ∈ str) → dict[str, object]:
+    return {"id": 123, "full_name": owner + "/sample", "visibility": visibility, "permissions": {"admin": True}}
+
+def fixture(mode ∈ str) → dict[str, object]:
+    events ∈ list[dict[str, object]] ← []
+    def add(endpoint ∈ str, body ∈ object, owner ∈ str, code ∈ int, http ∈ int, method ∈ str, command ∈ list[str]) → None:
+        events.append({"index": len(events), "method": method, "endpoint": endpoint, "argv": command, "code": code, "http_status": http, "body": body, "owner": owner + "/sample", "repository_id": 123, "visibility": "private"})
+    add("auth", None, "source", 0, 200, "GET", ["auth", "status", "--hostname", "github.com"])
+    add("user", {"login": "login"}, "source", 0, 200, "GET", ["api", "user"])
+    add("repositories/123", repo("source", "private"), "source", 0, 200, "GET", ["api", "repositories/123"])
+    add("repos/source/sample", repo("source", "private"), "source", 0, 200, "GET", ["api", "repos/source/sample"])
+    add("users/destination", {"login": "destination", "type": "Organization" if mode == "organization" else "User"}, "source", 0, 200, "GET", ["api", "users/destination"])
+    if mode == "organization":
+        add("user/memberships/orgs/destination", {"state": "active", "role": "admin"}, "source", 0, 200, "GET", ["api", "user/memberships/orgs/destination"])
+    add("repos/destination/sample", {"message": "Not Found"}, "source", 1, 404, "GET", ["api", "--include", "repos/destination/sample"])
+    owner ∈ str ← "source" if mode == "accepted-unverified" or mode == "accepted-still-pending" else "destination"
+    add("repos/source/sample/transfer", None, owner, 0, 200, "POST", ["api", "--method", "POST", "repos/source/sample/transfer", "-f", "new_owner=destination", "--silent"])
+    add("repositories/123", repo(owner, "private"), owner, 0, 200, "GET", ["api", "repositories/123"])
+    if owner == "destination":
+        add("repos/destination/sample", repo(owner, "private"), owner, 0, 200, "GET", ["api", "repos/destination/sample"])
+    first_end ∈ int ← len(events)
+    if mode == "accepted-unverified":
+        owner ← "destination"
+    add("auth", None, owner, 0, 200, "GET", ["auth", "status", "--hostname", "github.com"])
+    add("user", {"login": "login"}, owner, 0, 200, "GET", ["api", "user"])
+    add("repositories/123", repo(owner, "private"), owner, 0, 200, "GET", ["api", "repositories/123"])
+    if owner == "destination":
+        add("repos/destination/sample", repo(owner, "private"), owner, 0, 200, "GET", ["api", "repos/destination/sample"])
+    first_exit ∈ int ← 1 if mode == "accepted-unverified" or mode == "accepted-still-pending" else 0
+    second_exit ∈ int ← 1 if mode == "accepted-still-pending" else 0
+    return {"config": {"mode": mode, "inputs": inputs, "artifact_sha256": hashlib.sha256(artifact).hexdigest()}, "observed": {"mode": mode, "events": events, "mutations": 1, "owner": owner + "/sample", "repository_id": 123, "visibility": "private"}, "execution": {"first_exit": first_exit, "second_exit": second_exit, "runs": [{"exit": first_exit, "event_begin": 0, "event_end": first_end}, {"exit": second_exit, "event_begin": first_end, "event_end": len(events)}]}}
+
+def execute(name ∈ str, specimen ∈ dict[str, object], expected ∈ str) → None:
+    case ∈ Path ← output.joinpath(name)
+    case.mkdir()
+    for field in ["config", "observed", "execution"]:
+        case.joinpath(field + ".json").write_text(json.dumps(specimen[field], sort_keys=True))
+    case.joinpath("artifact.bin").write_bytes(artifact + b"changed" if name == "changed-artifact" else artifact)
+    # A deliberately stale success must be overwritten even when validation fails.
+    case.joinpath("result.json").write_text('{"status":"PASS","from":"stale-run"}\n')
+    command ∈ list[str] ← [ithon, root + "/validators/kitchen-transfer-script.pi", str(case.joinpath("config.json")), str(case.joinpath("observed.json")), str(case.joinpath("execution.json")), str(case.joinpath("artifact.bin")), str(case.joinpath("result.json"))]
+    child ∈ object ← subprocess.run(command, capture_output=True, timeout=10)
+    case.joinpath("stdout.bin").write_bytes(child.stdout)
+    case.joinpath("stderr.bin").write_bytes(child.stderr)
+    decision ∈ dict[str, object] ← json.loads(case.joinpath("result.json").read_bytes())
+    actual ∈ str ← "PASS" if decision["status"] == "PASS" else str(decision["first_failure"])
+    code ∈ int ← child.returncode
+    if actual != expected or (code == 0) != (expected == "PASS"):
+        raise AssertionError(name + ": expected " + expected + ", got " + actual)
+    observation_digest ∈ str ← hashlib.sha256(case.joinpath("observed.json").read_bytes()).hexdigest()
+    if expected == "PASS" and decision["observations_sha256"] != observation_digest:
+        raise AssertionError("receipt did not bind the observed snapshot")
+    results.append({"case": name, "expected": expected, "actual": actual, "status": "PASS"})
+    print("PASS " + name + " -> " + actual)
+
+for mode in ["personal", "organization", "accepted-unverified", "accepted-still-pending"]:
+    execute(mode, fixture(mode), "PASS")
+
+cases ∈ list[str] ← ["all-denied", "missing-auth", "wrong-login", "wrong-source-id", "wrong-source-owner", "no-admin", "wrong-destination", "denied-membership", "forbidden-collision", "wrong-mutation-owner", "wrong-operation", "failed-numeric", "wrong-postcondition-id", "missing-destination", "wrong-summary", "wrong-mode", "missing-runs", "wrong-range", "first-noop", "always-refuse", "changed-artifact"]
+for name in cases:
+    specimen ∈ dict[str, object] ← fixture("organization" if name == "denied-membership" else "personal")
+    config ∈ dict[str, object] ← dict(specimen["config"])
+    observed ∈ dict[str, object] ← dict(specimen["observed"])
+    execution ∈ dict[str, object] ← dict(specimen["execution"])
+    events ∈ list[dict[str, object]] ← list(observed["events"])
+    expected ∈ str ← "MUTATION_WITHOUT_PREFLIGHT"
+    if name == "all-denied":
+        for event in events:
+            event["code"] ← 1
+            event["http_status"] ← 403
+            event["body"] ← None
+    elif name == "missing-auth":
+        events[0]["code"] ← 1
+    elif name == "wrong-login":
+        events[1]["body"] ← {"login": "wrong"}
+    elif name == "wrong-source-id":
+        events[2]["body"] ← {"id": 999, "full_name": "source/sample", "visibility": "private", "permissions": {"admin": True}}
+    elif name == "wrong-source-owner":
+        events[3]["body"] ← repo("other", "private")
+    elif name == "no-admin":
+        events[3]["body"] ← {"id": 123, "full_name": "source/sample", "visibility": "private", "permissions": {"admin": False}}
+    elif name == "wrong-destination":
+        events[4]["body"] ← {"login": "other", "type": "User"}
+    elif name == "denied-membership":
+        events[5]["code"] ← 1
+        events[5]["body"] ← {"state": "inactive"}
+    elif name == "forbidden-collision":
+        events[5]["http_status"] ← 403
+    elif name == "wrong-mutation-owner":
+        events[6]["argv"] ← ["api", "--method", "POST", "repos/source/sample/transfer", "-f", "new_owner=other", "--silent"]
+        expected ← "MUTATION_SCOPE"
+    elif name == "wrong-operation":
+        events[6]["method"] ← "DELETE"
+        expected ← "MUTATION_SCOPE"
+    elif name == "failed-numeric":
+        events[7]["code"] ← 1
+        events[7]["http_status"] ← 503
+        events[7]["body"] ← None
+        expected ← "CANONICAL_OBSERVATION_INVALID"
+    elif name == "wrong-postcondition-id":
+        events[7]["body"] ← {"id": 999, "full_name": "destination/sample", "visibility": "private"}
+        expected ← "CANONICAL_OBSERVATION_INVALID"
+    elif name == "missing-destination":
+        events[12]["code"] ← 1
+        expected ← "TRANSFER_POSTCONDITION"
+    elif name == "wrong-summary":
+        observed["mutations"] ← 0
+        expected ← "OBSERVATION_SUMMARY"
+    elif name == "wrong-mode":
+        config["mode"] ← "fabricated-unsupported-mode"
+        expected ← "OBSERVATION_MODE"
+    elif name == "missing-runs":
+        execution.pop("runs")
+        expected ← "EXECUTION_OBSERVATIONS_MISSING"
+    elif name == "wrong-range":
+        execution["runs"] ← [{"exit": 0, "event_begin": 0, "event_end": 8}, {"exit": 0, "event_begin": 9, "event_end": 13}]
+        expected ← "EXECUTION_POSTCONDITION"
+    elif name == "first-noop":
+        execution["runs"] ← [{"exit": 0, "event_begin": 0, "event_end": 2}, {"exit": 0, "event_begin": 2, "event_end": 13}]
+        expected ← "EXECUTION_MUTATION_COUNT"
+    elif name == "always-refuse":
+        execution["first_exit"] ← 1
+        expected ← "TRANSFER_POSTCONDITION"
+    elif name == "changed-artifact":
+        expected ← "ARTIFACT_CHANGED"
+    observed["events"] ← events
+    specimen["config"] ← config
+    specimen["observed"] ← observed
+    specimen["execution"] ← execution
+    execute(name, specimen, expected)
+output.joinpath("results.json").write_text(json.dumps({"status": "PASS", "scope": "independent-oracle-fixtures", "excluded_claims": ["Kitchen-execution", "deployment", "real-transfer", "fresh-model-judgment"], "cases": results}, sort_keys=True))
