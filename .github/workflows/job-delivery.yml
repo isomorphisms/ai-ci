@@ -36,6 +36,11 @@ jobs:
         env:
           ITHON_CHECK_RECEIPT: ${{ runner.temp }}/kitchen-observation-checked.jsonl
         run: _ithon/ithon tests/kitchen-transfer-observation/check.pi "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/_ithon/ithon" "$RUNNER_TEMP/kitchen-observation"
+      - name: Bind registered result and captured paste
+        env:
+          PYTHONPATH: ${{ github.workspace }}/_fp/scripts:${{ github.workspace }}/validators
+          ITHON_CHECK_RECEIPT: ${{ runner.temp }}/registered-delivery-checked.jsonl
+        run: _ithon/ithon tests/registered-delivery/check.pi "$RUNNER_TEMP/registered-delivery"
       - name: Retain exact checked inputs and case results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -46,4 +51,6 @@ jobs:
             ${{ runner.temp }}/job-delivery-checked.jsonl
             ${{ runner.temp }}/kitchen-observation/
             ${{ runner.temp }}/kitchen-observation-checked.jsonl
+            ${{ runner.temp }}/registered-delivery/
+            ${{ runner.temp }}/registered-delivery-checked.jsonl
           if-no-files-found: error

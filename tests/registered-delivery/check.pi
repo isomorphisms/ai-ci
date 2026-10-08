@@ -1,0 +1,309 @@
+"""Independent fixture for registered generation and exact visible delivery.
+
+The protected fixture documents represent an authority input to this oracle.
+They do not prove deployment, Git publication, or execution of Kitchen recipes.
+"""
+import sys
+import json
+import hashlib
+import base64
+from pathlib import Path
+from builtins import dict, list, ValueError, AssertionError
+import handoff
+import registered_delivery
+
+args ∈ list[str] ← sys.argv
+output ∈ Path ← Path(args[1])
+output.mkdir(mode=448, parents=True, exist_ok=False)
+REQUIRED ∈ list[str] ← ["prepare", "generate-a", "generate-b", "determinism", "seal", "fixture-personal", "fixture-organization", "fixture-accepted-unverified", "fixture-accepted-still-pending", "fixture-visibility", "fixture-post-failure", "fixture-wrong-id", "fixture-collision", "fixture-authentication", "fixture-capability", "fixture-network", "fixture-destination-authentication", "fixture-destination-api", "fixture-wrong-login", "fixture-wrong-source", "fixture-wrong-repository", "fixture-wrong-destination", "fixture-organization-membership", "publish"]
+OPERATION_FIELDS ∈ list[str] ← ["operation", "operation_version", "registry_generation", "authority", "required_checks", "control_commit", "ithon", "grease", "worker", "watchdog", "generator", "parent_probe", "fixture_server", "fixture_bin", "api_validator", "seal_validator", "contract_sha256", "acquisition_probe", "compact_recipe"]
+OUTPUTS ∈ list[dict[str, str]] ← [{"role": "standalone-transfer-script", "type": "grease-script", "suffix": ".sh"}, {"role": "human-transfer-paste", "type": "grease-paste", "suffix": ".paste.grease"}]
+CONTROL_COMMIT ∈ str ← "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+MATERIAL_COMMIT ∈ str ← "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+OTHER_COMMIT ∈ str ← "cccccccccccccccccccccccccccccccccccccccc"
+REQUEST_COMMIT ∈ str ← "dddddddddddddddddddddddddddddddddddddddd"
+OTHER_REQUEST_COMMIT ∈ str ← "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+ZERO_SHA256 ∈ str ← "0000000000000000000000000000000000000000000000000000000000000000"
+ZERO_SHA1 ∈ str ← "0000000000000000000000000000000000000000"
+
+def encode(value ∈ object) → bytes:
+    return str(json.dumps(value, sort_keys=True, separators=(",", ":"))).encode()
+
+def sha(value ∈ bytes) → str:
+    return hashlib.sha256(value).hexdigest()
+
+def qualify(config ∈ dict[str, object]) → None:
+    operation ∈ dict[str, object] ← {}
+    for field in OPERATION_FIELDS:
+        operation[field] ← config[field]
+    qualification ∈ dict[str, object] ← {"status": "PASS", "scope": config["authority"], "materials_sha256": sha(encode(config["materials"])), "tools_sha256": sha(encode(config["tools"])), "environment_sha256": sha(encode(config["grease_environment"])), "operation_sha256": sha(encode(operation))}
+    raw ∈ bytes ← encode(qualification)
+    Path(str(config["qualification"])).write_bytes(raw)
+    config["qualification_sha256"] ← sha(raw)
+
+def release(config ∈ dict[str, object]) → str:
+    selected ∈ dict[str, object] ← {}
+    for field in OPERATION_FIELDS:
+        selected[field] ← config[field]
+    for field in ["materials", "tools", "grease_environment", "qualification_sha256"]:
+        selected[field] ← config[field]
+    return sha(encode(selected))
+
+def fixture(name ∈ str) → dict[str, object]:
+    directory ∈ Path ← output.joinpath(name)
+    directory.mkdir(mode=448)
+    roles ∈ list[str] ← ["worker", "watchdog", "generator", "parent_probe", "fixture_server", "api_validator", "seal_validator", "acquisition_probe", "compact_recipe"]
+    config ∈ dict[str, object] ← {"schema_version": 1, "operation": "kitchen-transfer-script", "operation_version": 5, "registry_generation": 5, "authority": "local-qualification", "qualified": True, "required_checks": list(REQUIRED), "control_commit": CONTROL_COMMIT, "fixture_bin": str(directory.joinpath("fixture-bin")), "grease_environment": {"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8"}}
+    materials ∈ list[dict[str, object]] ← []
+    engine ∈ Path ← directory.joinpath("registered-execution.pi")
+    engine.write_bytes(b'"""Protected controller identity fixture; never executed."""\n')
+    materials.append({"path": str(engine), "sha256": sha(engine.read_bytes()), "checkout": str(directory), "commit": config["control_commit"], "relative_path": "scripts/registered-execution.pi", "origin": "https://github.com/isomorphisms/flexible-pipes.git", "published_ref": "fixture-approved-ref"})
+    for role in roles:
+        selected ∈ Path ← directory.joinpath(role + ".pi")
+        selected.write_bytes(('"""Protected ' + role + ' identity fixture; never executed."""\n').encode())
+        config[role] ← str(selected)
+        materials.append({"path": str(selected), "sha256": sha(selected.read_bytes()), "checkout": str(directory), "commit": MATERIAL_COMMIT, "relative_path": role + ".pi", "origin": "https://github.com/isomorphisms/kitchen.git" if role == "generator" or role == "compact_recipe" else "https://github.com/isomorphisms/ai-ci.git", "published_ref": "fixture-approved-ref"})
+    config["materials"] ← materials
+    tools ∈ list[dict[str, object]] ← []
+    for runtime in ["ithon", "grease"]:
+        executable ∈ Path ← directory.joinpath(runtime + "-runtime")
+        executable.write_bytes((runtime + " protected runtime identity fixture\n").encode())
+        tools.append({"path": str(executable), "sha256": sha(executable.read_bytes())})
+        config[runtime] ← [str(executable)]
+    config["tools"] ← tools
+    contract ∈ Path ← directory.joinpath("contract.json")
+    contract.write_bytes(encode({"operation": "kitchen-transfer-script", "operation_version": 5, "target_context": "linux-x86_64-grease-v1", "required_checks": REQUIRED, "outputs": OUTPUTS, "excluded_effects": ["live-transfer"], "artifact_bytes": 262144}))
+    materials.append({"path": str(contract), "sha256": sha(contract.read_bytes()), "checkout": str(directory), "commit": CONTROL_COMMIT, "relative_path": "registry/contracts/kitchen-transfer-script.json", "origin": "https://github.com/isomorphisms/flexible-pipes.git", "published_ref": "fixture-approved-ref"})
+    config["contract"] ← str(contract)
+    config["contract_sha256"] ← sha(contract.read_bytes())
+    config["qualification"] ← str(directory.joinpath("qualification.json"))
+    qualify(config)
+    inputs ∈ dict[str, object] ← {"source_owner": "source", "repository": "sample", "destination_owner": "destination", "expected_login": "operator", "expected_repository_id": 123, "target_context": "linux-x86_64-grease-v1"}
+    request ∈ dict[str, object] ← {"schema_version": 1, "request_id": "registered-fixture", "pipeline": "kitchen-transfer-script", "inputs": inputs}
+    raw ∈ bytes ← encode(request)
+    standalone ∈ bytes ← b"# Protected standalone identity fixture, never executed.\ngh api --method POST repos/source/sample/transfer -f new_owner=destination\n"
+    paste ∈ bytes ← b"# Protected compact identity fixture, never executed.\ngh api --method POST repos/source/sample/transfer -f new_owner=destination\n"
+    artifacts ∈ dict[str, bytes] ← {"transfer-sample-from-source-to-destination.sh": standalone, "transfer-sample-from-source-to-destination.paste.grease": paste}
+    records ∈ list[dict[str, object]] ← []
+    for index in range(len(OUTPUTS)):
+        selected_output ∈ dict[str, str] ← OUTPUTS[index]
+        filename ∈ str ← "transfer-sample-from-source-to-destination" + selected_output["suffix"]
+        artifact ∈ bytes ← artifacts[filename]
+        records.append({"name": filename, "type": selected_output["type"], "role": selected_output["role"], "size": len(artifact), "sha256": sha(artifact), "scope": "generated-script-fixtures", "state": "diagnostic", "retrieval_locator": str(directory.joinpath(filename))})
+    stages ∈ list[dict[str, object]] ← []
+    for check_id in REQUIRED:
+        stages.append({"check_id": check_id, "required": True, "state": "PASS", "implementation_sha256": sha(engine.read_bytes()), "contract_sha256": config["contract_sha256"]})
+    result ∈ dict[str, object] ← {"schema_version": 2, "request_id": request["request_id"], "request_sha256": sha(raw), "request_bytes_base64": base64.b64encode(raw).decode(), "request_source": {}, "route": "workflow_dispatch", "inputs": inputs, "operation_id": "kitchen-transfer-script", "operation_version": config["operation_version"], "registry_generation": config["registry_generation"], "release_sha256": release(config), "control": {"repository_id": 1405888814, "commit": config["control_commit"], "executable_sha256": sha(engine.read_bytes()), "deployment_identity": config["authority"]}, "qualification_sha256": config["qualification_sha256"], "contract_sha256": config["contract_sha256"], "source": materials, "dependencies": tools, "stages": stages, "status": "PASS", "first_failure": None, "blockers": [], "acceptance_scope": "local-fixture-qualification", "excluded_claims": ["live-transfer", "physical-device", "deployed-trusted-execution"], "promotion": {"state": "candidate-verified", "trusted_identity": config["authority"], "decision_sha256": sha(encode(stages))}, "artifacts": records}
+    stage ∈ dict[str, object] ← {"name": "human-transfer-paste", "kind": "command", "exit_code": 0, "stdout_sha256": sha(paste)}
+    stage ← handoff.compose(stage, paste, {"audience": "human", "model": "fixture-observer", "source_context": "registered fixture, no model evaluation", "request": {"id": request["request_id"], "text": "Generate the transfer script for source/sample to destination."}})
+    response ∈ bytes ← handoff.render(paste, "Generated terminal handoff.")
+    record ∈ dict[str, object] ← dict(stage["handoff"])
+    record["visible_state"] ← "OBSERVED"
+    record["events"] ← [{"kind": "visible", "sequence": 1, "payload_sha256": sha(paste), "response_sha256": sha(response), "response_text": response.decode(), "message_id": "independent-fixture-message", "surface": "captured-fixture-surface"}]
+    stage["handoff"] ← record
+    submission ∈ dict[str, object] ← {"route": "workflow_dispatch", "envelope": {"request": raw.decode(), "workflow_ref": "refs/heads/main", "workflow_sha": config["control_commit"], "repository_id": 1405888814}}
+    return {"config": config, "request": raw, "result": result, "artifacts": artifacts, "stage": stage, "response": response, "submission": submission}
+
+def branch_fixture(case ∈ dict[str, object]) → None:
+    raw ∈ bytes ← bytes(case["request"])
+    request_commit ∈ str ← REQUEST_COMMIT
+    header ∈ bytes ← ("blob " + str(len(raw)) + "\x00").encode()
+    blob ∈ bytes ← header + raw
+    result ∈ dict[str, object] ← dict(case["result"])
+    result["route"] ← "pipeline-requests"
+    result["request_commit"] ← request_commit
+    result["request_source"] ← {"repository_id": 1405888814, "commit": request_commit, "path": "requests/fixture.json", "blob_sha1": hashlib.sha1(blob).hexdigest(), "request_sha256": sha(raw)}
+    case["submission"] ← {"route": "pipeline-requests", "envelope": {"request_commit": request_commit}}
+    case["result"] ← result
+
+def mutate(case ∈ dict[str, object], variant ∈ str) → None:
+    config ∈ dict[str, object] ← dict(case["config"])
+    result ∈ dict[str, object] ← dict(case["result"])
+    artifacts ∈ dict[str, bytes] ← dict(case["artifacts"])
+    stage ∈ dict[str, object] ← dict(case["stage"])
+    record ∈ dict[str, object] ← dict(stage["handoff"])
+    raw ∈ bytes ← bytes(case["request"])
+    request ∈ dict[str, object] ← json.loads(raw)
+    if variant == "branch-valid" or variant.startswith("branch-wrong-"):
+        branch_fixture(case)
+        result ← dict(case["result"])
+    if variant == "missing-source":
+        Path(str(config["generator"])).unlink()
+    elif variant == "changed-source":
+        Path(str(config["generator"])).write_bytes(b"Changed generator bytes under the same recorded commit.\n")
+    elif variant == "dirty-checker-same-head":
+        Path(str(config["api_validator"])).write_bytes(b"Changed checker bytes under the same recorded commit.\n")
+    elif variant == "missing-runtime":
+        tools ∈ list[dict[str, object]] ← list(config["tools"])
+        Path(str(tools[0]["path"])).unlink()
+    elif variant == "changed-runtime":
+        tools ← list(config["tools"])
+        Path(str(tools[1]["path"])).write_bytes(b"Changed runtime bytes.\n")
+    elif variant == "wrong-operation":
+        result["operation_id"] ← "github-repository-fork"
+    elif variant == "wrong-owner" or variant == "wrong-destination" or variant == "wrong-repository" or variant == "wrong-repository-id":
+        changed ∈ dict[str, object] ← dict(request["inputs"])
+        if variant == "wrong-owner":
+            changed["source_owner"] ← "unrelated"
+        elif variant == "wrong-destination":
+            changed["destination_owner"] ← "unrelated"
+        elif variant == "wrong-repository":
+            changed["repository"] ← "unrelated"
+        else:
+            changed["expected_repository_id"] ← 124
+        request["inputs"] ← changed
+        case["request"] ← encode(request)
+    elif variant == "unrelated-request":
+        result["request_sha256"] ← ZERO_SHA256
+    elif variant.startswith("branch-wrong-"):
+        source ∈ dict[str, object] ← dict(result["request_source"])
+        if variant == "branch-wrong-commit":
+            source["commit"] ← OTHER_REQUEST_COMMIT
+        elif variant == "branch-wrong-path":
+            source["path"] ← "scripts/registered-execution.pi"
+        elif variant == "branch-wrong-blob":
+            source["blob_sha1"] ← ZERO_SHA1
+        elif variant == "branch-wrong-digest":
+            source["request_sha256"] ← ZERO_SHA256
+        result["request_source"] ← source
+    elif variant == "wrong-control":
+        control ∈ dict[str, object] ← dict(result["control"])
+        control["commit"] ← OTHER_COMMIT
+        result["control"] ← control
+    elif variant == "mismatched-evidence":
+        result["source"] ← []
+    elif variant == "stale-qualification":
+        qualification ∈ dict[str, object] ← json.loads(Path(str(config["qualification"])).read_bytes())
+        qualification["status"] ← "FAIL"
+        Path(str(config["qualification"])).write_bytes(encode(qualification))
+    elif variant == "stale-release":
+        result["release_sha256"] ← ZERO_SHA256
+    elif variant == "skipped-check" or variant == "removed-check":
+        stages ∈ list[dict[str, object]] ← list(result["stages"])
+        if variant == "skipped-check":
+            stages[4]["state"] ← "NOT_RUN"
+        else:
+            stages.pop(4)
+        result["stages"] ← stages
+        promotion ∈ dict[str, object] ← dict(result["promotion"])
+        promotion["decision_sha256"] ← sha(encode(stages))
+        result["promotion"] ← promotion
+    elif variant == "removed-check-and-declaration":
+        declarations ∈ list[str] ← list(config["required_checks"])
+        declarations.pop(4)
+        contract ∈ dict[str, object] ← json.loads(Path(str(config["contract"])).read_bytes())
+        contract["required_checks"] ← declarations
+        Path(str(config["contract"])).write_bytes(encode(contract))
+        stages ← list(result["stages"])
+        stages.pop(4)
+        result["stages"] ← stages
+        promotion ← dict(result["promotion"])
+        promotion["decision_sha256"] ← sha(encode(stages))
+        result["promotion"] ← promotion
+    elif variant == "fabricated-promotion":
+        promotion ← dict(result["promotion"])
+        promotion["decision_sha256"] ← ZERO_SHA256
+        result["promotion"] ← promotion
+    elif variant == "missing-output":
+        artifacts.pop("transfer-sample-from-source-to-destination.paste.grease")
+    elif variant == "changed-output":
+        artifacts["transfer-sample-from-source-to-destination.paste.grease"] ← b"Manually rewritten after verification.\n"
+    elif variant == "wrong-output-role":
+        records ∈ list[dict[str, object]] ← list(result["artifacts"])
+        records[1]["role"] ← "unrelated"
+        result["artifacts"] ← records
+    elif variant == "changed-visible" or variant == "truncated-visible" or variant == "link-only" or variant == "no-op-visible":
+        response ∈ bytes ← bytes(case["response"])
+        if variant == "changed-visible":
+            response ← response.replace(b"new_owner=destination", b"new_owner=unrelated")
+        elif variant == "truncated-visible":
+            response ← response[:-4]
+        elif variant == "link-only":
+            response ← b"Get the generated command at https://example.invalid/command\n"
+        else:
+            response ← b""
+            record ← dict(stage["handoff"])
+            record["events"] ← []
+            record["visible_state"] ← "PENDING"
+            stage["handoff"] ← record
+        case["response"] ← response
+    elif variant == "wrong-delivery-request":
+        record ← dict(stage["handoff"])
+        delivered_request ∈ dict[str, object] ← dict(record["request"])
+        delivered_request["id"] ← "unrelated"
+        record["request"] ← delivered_request
+        record["contract_sha256"] ← sha(handoff.contract(record))
+        record["id"] ← sha((str(record["contract_sha256"]) + "\n" + str(record["payload_sha256"])).encode())
+        stage["handoff"] ← record
+    elif variant == "always-refuse":
+        result["status"] ← "BLOCKED"
+        result["artifacts"] ← []
+    case["config"] ← config
+    case["result"] ← result
+    case["artifacts"] ← artifacts
+    case["stage"] ← stage
+
+cases ∈ list[tuple[str, str]] ← [("valid", "PASS"), ("valid-repeat", "PASS"), ("branch-valid", "PASS"), ("branch-wrong-commit", "REGISTERED_REQUEST_SOURCE"), ("branch-wrong-path", "REGISTERED_REQUEST_SOURCE"), ("branch-wrong-blob", "REGISTERED_REQUEST_SOURCE"), ("branch-wrong-digest", "REGISTERED_REQUEST_SOURCE"), ("missing-source", "REGISTERED_SOURCE_BYTES"), ("changed-source", "REGISTERED_SOURCE_BYTES"), ("dirty-checker-same-head", "REGISTERED_SOURCE_BYTES"), ("missing-runtime", "REGISTERED_RUNTIME_BYTES"), ("changed-runtime", "REGISTERED_RUNTIME_BYTES"), ("wrong-operation", "REGISTERED_REQUEST"), ("wrong-owner", "REGISTERED_REQUEST"), ("wrong-destination", "REGISTERED_REQUEST"), ("wrong-repository", "REGISTERED_REQUEST"), ("wrong-repository-id", "REGISTERED_REQUEST"), ("unrelated-request", "REGISTERED_REQUEST"), ("wrong-control", "REGISTERED_CONTROL"), ("mismatched-evidence", "REGISTERED_EVIDENCE"), ("stale-qualification", "REGISTERED_QUALIFICATION"), ("stale-release", "REGISTERED_RELEASE"), ("skipped-check", "REGISTERED_CHECKS"), ("removed-check", "REGISTERED_CHECKS"), ("removed-check-and-declaration", "REGISTERED_QUALIFICATION"), ("fabricated-promotion", "REGISTERED_PROMOTION"), ("missing-output", "REGISTERED_OUTPUTS"), ("changed-output", "REGISTERED_OUTPUTS"), ("wrong-output-role", "REGISTERED_OUTPUTS"), ("changed-visible", "JOB-VISIBLE-IDENTITY"), ("truncated-visible", "HANDOFF_RESPONSE_TRUNCATED"), ("link-only", "HANDOFF_VISIBLE_MISSING"), ("no-op-visible", "JOB-VISIBLE-MISSING"), ("wrong-delivery-request", "REGISTERED_DELIVERY"), ("always-refuse", "REGISTERED_STATUS")]
+results ∈ list[dict[str, object]] ← []
+for specification in cases:
+    name ∈ str ← specification[0]
+    expected ∈ str ← specification[1]
+    case ∈ dict[str, object] ← fixture(name)
+    mutate(case, name)
+    actual ∈ str ← "PASS"
+    try:
+        registered_delivery.check(dict(case["config"]), bytes(case["request"]), dict(case["result"]), dict(case["artifacts"]), dict(case["stage"]), bytes(case["response"]), dict(case["submission"]))
+        if name == "valid-repeat":
+            registered_delivery.check(dict(case["config"]), bytes(case["request"]), dict(case["result"]), dict(case["artifacts"]), dict(case["stage"]), bytes(case["response"]), dict(case["submission"]))
+    except ValueError as error:
+        actual ← str(error)
+    results.append({"case": name, "expected": expected, "actual": actual, "status": "PASS" if actual == expected else "FAIL"})
+    output.joinpath("result.json").write_bytes(encode({"status": "PENDING" if actual == expected else "FAIL", "scope": "independent-registered-delivery-fixtures", "excluded_claims": ["recipe-execution", "Git-publication", "deployment", "actual-ChatGPT-surface", "model-judgment", "live-transfer"], "cases": results}))
+    if actual != expected:
+        raise AssertionError(name + ": expected " + expected + ", got " + actual)
+    print("PASS " + name + " -> " + actual)
+
+# A previously accepted CLI receipt must be invalidated before loading new data.
+cli ∈ dict[str, object] ← fixture("cli-repeated-receipt")
+cli_directory ∈ Path ← output.joinpath("cli-repeated-receipt")
+cli_directory.joinpath("config.json").write_bytes(encode(cli["config"]))
+cli_directory.joinpath("request.json").write_bytes(bytes(cli["request"]))
+cli_directory.joinpath("result.json").write_bytes(encode(cli["result"]))
+cli_directory.joinpath("stage.json").write_bytes(encode(cli["stage"]))
+cli_directory.joinpath("response.bin").write_bytes(bytes(cli["response"]))
+cli_directory.joinpath("submission.json").write_bytes(encode(cli["submission"]))
+cli_artifacts ∈ dict[str, bytes] ← dict(cli["artifacts"])
+for filename in cli_artifacts:
+    cli_directory.joinpath(filename).write_bytes(cli_artifacts[filename])
+saved ∈ list[str] ← list(sys.argv)
+sys.__setattr__("argv", ["registered_delivery.pi", str(cli_directory.joinpath("config.json")), str(cli_directory.joinpath("request.json")), str(cli_directory.joinpath("result.json")), str(cli_directory), str(cli_directory.joinpath("stage.json")), str(cli_directory.joinpath("response.bin")), str(cli_directory.joinpath("submission.json")), str(cli_directory.joinpath("receipt.json"))])
+try:
+    registered_delivery.main()
+    receipt ∈ dict[str, object] ← json.loads(cli_directory.joinpath("receipt.json").read_bytes())
+    if receipt["status"] != "PASS":
+        raise AssertionError("valid CLI registered delivery failed")
+    results.append({"case": "cli-valid", "expected": "PASS", "actual": "PASS", "status": "PASS"})
+    cli_directory.joinpath("response.bin").write_bytes(b"See the link instead.\n")
+    try:
+        registered_delivery.main()
+        raise AssertionError("link-only repeated CLI delivery passed")
+    except ValueError as error:
+        if str(error) != "HANDOFF_VISIBLE_MISSING":
+            raise
+    receipt ← json.loads(cli_directory.joinpath("receipt.json").read_bytes())
+    if receipt["status"] != "FAIL" or receipt["first_failure"] != "HANDOFF_VISIBLE_MISSING":
+        raise AssertionError("link-only repeated CLI delivery left accepted receipt")
+    results.append({"case": "cli-link-repeat", "expected": "FAIL:HANDOFF_VISIBLE_MISSING", "actual": "FAIL:HANDOFF_VISIBLE_MISSING", "status": "PASS"})
+    cli_directory.joinpath("request.json").write_bytes(b"not JSON")
+    try:
+        registered_delivery.main()
+        raise AssertionError("malformed repeated CLI request passed")
+    except ValueError:
+        receipt ← json.loads(cli_directory.joinpath("receipt.json").read_bytes())
+        if receipt["status"] != "FAIL":
+            raise AssertionError("malformed repeated CLI request left accepted receipt")
+    results.append({"case": "cli-malformed-repeat", "expected": "FAIL", "actual": "FAIL", "status": "PASS"})
+finally:
+    sys.__setattr__("argv", saved)
+output.joinpath("result.json").write_bytes(encode({"status": "PASS", "scope": "independent-registered-delivery-fixtures", "excluded_claims": ["recipe-execution", "Git-publication", "deployment", "actual-ChatGPT-surface", "model-judgment", "live-transfer"], "cases": results}))
+print("registered delivery fixture cases PASS: " + str(len(results)))

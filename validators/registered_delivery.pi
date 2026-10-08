@@ -1,0 +1,201 @@
+"""Accept the existing registered result only with its exact captured paste.
+
+Configuration and observations belong to the trusted controller. This gate
+does not promote caller-authored configuration or attest a ChatGPT surface.
+Flexible Pipes owns the registry, admission, and release promotion.
+"""
+import sys
+import json
+import hashlib
+import base64
+import re
+from pathlib import Path
+from builtins import dict, list, ValueError, Exception, type
+import handoff
+import job_delivery
+
+# The owner's versioned release-identity encoding, not a recipe registry.
+OPERATION_FIELDS ∈ list[str] ← ["operation", "operation_version", "registry_generation", "authority", "required_checks", "control_commit", "ithon", "grease", "worker", "watchdog", "generator", "parent_probe", "fixture_server", "fixture_bin", "api_validator", "seal_validator", "contract_sha256", "acquisition_probe", "compact_recipe"]
+INPUT_FIELDS ∈ list[str] ← ["source_owner", "repository", "destination_owner", "expected_login", "expected_repository_id", "target_context"]
+
+def encode(value ∈ object) → bytes:
+    return str(json.dumps(value, sort_keys=True, separators=(",", ":"))).encode()
+
+def digest(value ∈ bytes) → str:
+    return hashlib.sha256(value).hexdigest()
+
+def file_digest(path ∈ str, failure ∈ str) → str:
+    try:
+        return digest(Path(path).read_bytes())
+    except Exception:
+        raise ValueError(failure)
+
+def unique_object(pairs ∈ list[tuple[str, object]]) → dict[str, object]:
+    result ∈ dict[str, object] ← {}
+    for pair in pairs:
+        if result.__contains__(pair[0]):
+            raise ValueError("REGISTERED_REQUEST")
+        result[pair[0]] ← pair[1]
+    return result
+
+def check(config ∈ dict[str, object], request_raw ∈ bytes, result ∈ dict[str, object], artifacts ∈ dict[str, bytes], stage ∈ dict[str, object], response ∈ bytes, submission ∈ dict[str, object]) → None:
+    if result["status"] != "PASS" or result["schema_version"] != 2 or result["first_failure"] != None or len(list(result["blockers"])) != 0:
+        raise ValueError("REGISTERED_STATUS")
+    request ∈ dict[str, object] ← json.loads(request_raw, object_pairs_hook=unique_object)
+    inputs ∈ dict[str, object] ← dict(request["inputs"])
+    if len(request_raw) > 16384 or set(request) != set(["schema_version", "request_id", "pipeline", "inputs"]) or type(request["schema_version"]) != int or request["schema_version"] != 1 or request["pipeline"] != "kitchen-transfer-script" or set(inputs) != set(INPUT_FIELDS):
+        raise ValueError("REGISTERED_REQUEST")
+    for field in ["source_owner", "repository", "destination_owner", "expected_login"]:
+        match ∈ object ← re.fullmatch("[A-Za-z0-9][A-Za-z0-9_.-]{0,99}", str(inputs[field]))
+        if type(inputs[field]) != str or match == None:
+            raise ValueError("REGISTERED_REQUEST")
+    if type(inputs["expected_repository_id"]) != int or int(inputs["expected_repository_id"]) <= 0 or inputs["source_owner"] == inputs["destination_owner"]:
+        raise ValueError("REGISTERED_REQUEST")
+    if result["request_id"] != request["request_id"] or result["request_sha256"] != digest(request_raw) or result["inputs"] != inputs or result["operation_id"] != request["pipeline"]:
+        raise ValueError("REGISTERED_REQUEST")
+    returned_request ∈ bytes ← base64.b64decode(str(result["request_bytes_base64"]), validate=True)
+    if returned_request != request_raw:
+        raise ValueError("REGISTERED_REQUEST")
+    route ∈ str ← str(submission["route"])
+    envelope ∈ dict[str, object] ← dict(submission["envelope"])
+    source ∈ dict[str, object] ← dict(result["request_source"])
+    if result["route"] != route:
+        raise ValueError("REGISTERED_REQUEST_SOURCE")
+    if route == "workflow_dispatch":
+        submitted ∈ bytes ← str(envelope["request"]).encode()
+        if submitted != request_raw or envelope["workflow_sha"] != config["control_commit"] or envelope["workflow_ref"] != "refs/heads/main" or envelope["repository_id"] != 1405888814 or len(source) != 0:
+            raise ValueError("REGISTERED_REQUEST_SOURCE")
+    elif route == "pipeline-requests":
+        commit ∈ str ← str(envelope["request_commit"])
+        match ∈ object ← re.fullmatch("[a-f0-9]{40}", commit)
+        path ∈ str ← str(source["path"])
+        blob_header ∈ bytes ← ("blob " + str(len(request_raw)) + "\x00").encode()
+        blob ∈ bytes ← blob_header + request_raw
+        blob_digest ∈ str ← hashlib.sha1(blob).hexdigest()
+        separators ∈ int ← path.count("/")
+        if match == None or result["request_commit"] != commit or source["commit"] != commit or source["repository_id"] != 1405888814 or not path.startswith("requests/") or not path.endswith(".json") or separators != 1 or source["blob_sha1"] != blob_digest or source["request_sha256"] != digest(request_raw):
+            raise ValueError("REGISTERED_REQUEST_SOURCE")
+    else:
+        raise ValueError("REGISTERED_REQUEST_SOURCE")
+    contract_raw ∈ bytes ← Path(str(config["contract"])).read_bytes()
+    contract ∈ dict[str, object] ← json.loads(contract_raw)
+    if type(config["qualified"]) != bool or config["qualified"] != True or config["operation"] != request["pipeline"] or contract["operation"] != request["pipeline"] or contract["operation_version"] != config["operation_version"] or digest(contract_raw) != config["contract_sha256"] or contract["required_checks"] != config["required_checks"] or inputs["target_context"] != contract["target_context"]:
+        raise ValueError("REGISTERED_QUALIFICATION")
+    authority ∈ str ← str(config["authority"])
+    if authority != "local-qualification" and authority != "deployed-trusted":
+        raise ValueError("REGISTERED_QUALIFICATION")
+    if not list(contract["excluded_effects"]).__contains__("live-transfer") or not list(result["excluded_claims"]).__contains__("live-transfer"):
+        raise ValueError("REGISTERED_QUALIFICATION")
+    materials ∈ list[dict[str, object]] ← list(config["materials"])
+    bound ∈ list[str] ← []
+    engine_digest ∈ str ← ""
+    for material in materials:
+        path ∈ str ← str(material["path"])
+        if file_digest(path, "REGISTERED_SOURCE_BYTES") != material["sha256"]:
+            raise ValueError("REGISTERED_SOURCE_BYTES")
+        bound.append(path)
+        if material["relative_path"] == "scripts/registered-execution.pi" and material["commit"] == config["control_commit"]:
+            engine_digest ← str(material["sha256"])
+    for role in ["worker", "watchdog", "generator", "parent_probe", "fixture_server", "api_validator", "seal_validator", "acquisition_probe", "compact_recipe"]:
+        if not bound.__contains__(str(config[role])):
+            raise ValueError("REGISTERED_EVIDENCE")
+    if engine_digest == "" or not bound.__contains__(str(config["contract"])):
+        raise ValueError("REGISTERED_EVIDENCE")
+    tools ∈ list[dict[str, object]] ← list(config["tools"])
+    runtime_paths ∈ list[str] ← list(bound)
+    for tool in tools:
+        path ← str(tool["path"])
+        if file_digest(path, "REGISTERED_RUNTIME_BYTES") != tool["sha256"]:
+            raise ValueError("REGISTERED_RUNTIME_BYTES")
+        runtime_paths.append(path)
+    runtime ∈ list[str] ← list(config["ithon"])
+    grease ∈ list[str] ← list(config["grease"])
+    runtime.extend(grease[:2])
+    for executable in runtime:
+        if not runtime_paths.__contains__(executable):
+            raise ValueError("REGISTERED_EVIDENCE")
+    operation ∈ dict[str, object] ← {}
+    for field in OPERATION_FIELDS:
+        operation[field] ← config[field]
+    qualification_raw ∈ bytes ← Path(str(config["qualification"])).read_bytes()
+    qualification ∈ dict[str, object] ← json.loads(qualification_raw)
+    if digest(qualification_raw) != config["qualification_sha256"] or qualification["status"] != "PASS" or qualification["scope"] != authority or qualification["materials_sha256"] != digest(encode(materials)) or qualification["tools_sha256"] != digest(encode(tools)) or qualification["environment_sha256"] != digest(encode(config["grease_environment"])) or qualification["operation_sha256"] != digest(encode(operation)):
+        raise ValueError("REGISTERED_QUALIFICATION")
+    release ∈ dict[str, object] ← dict(operation)
+    for field in ["materials", "tools", "grease_environment", "qualification_sha256"]:
+        release[field] ← config[field]
+    if result["release_sha256"] != digest(encode(release)):
+        raise ValueError("REGISTERED_RELEASE")
+    control ∈ dict[str, object] ← dict(result["control"])
+    if control["repository_id"] != 1405888814 or control["commit"] != config["control_commit"] or control["deployment_identity"] != authority or control["executable_sha256"] != engine_digest:
+        raise ValueError("REGISTERED_CONTROL")
+    if result["operation_version"] != config["operation_version"] or type(result["registry_generation"]) != int or result["registry_generation"] != config["registry_generation"] or result["source"] != materials or result["dependencies"] != tools or result["qualification_sha256"] != config["qualification_sha256"] or result["contract_sha256"] != config["contract_sha256"]:
+        raise ValueError("REGISTERED_EVIDENCE")
+    stages ∈ list[dict[str, object]] ← list(result["stages"])
+    names ∈ list[str] ← []
+    for observed in stages:
+        name ∈ str ← str(observed["check_id"])
+        if names.__contains__(name) or type(observed["required"]) != bool or observed["required"] != True or observed["state"] != "PASS" or observed["contract_sha256"] != config["contract_sha256"] or observed["implementation_sha256"] != engine_digest:
+            raise ValueError("REGISTERED_CHECKS")
+        names.append(name)
+    if names != contract["required_checks"]:
+        raise ValueError("REGISTERED_CHECKS")
+    promotion ∈ dict[str, object] ← dict(result["promotion"])
+    trusted ∈ bool ← authority == "deployed-trusted"
+    if result["acceptance_scope"] != ("generated-script" if trusted else "local-fixture-qualification") or promotion["state"] != ("accepted" if trusted else "candidate-verified") or promotion["trusted_identity"] != authority or promotion["decision_sha256"] != digest(encode(stages)):
+        raise ValueError("REGISTERED_PROMOTION")
+    outputs ∈ list[dict[str, object]] ← list(contract["outputs"])
+    produced ∈ list[dict[str, object]] ← list(result["artifacts"])
+    basename ∈ str ← "transfer-" + str(inputs["repository"]) + "-from-" + str(inputs["source_owner"]) + "-to-" + str(inputs["destination_owner"])
+    if len(outputs) != len(produced) or len(artifacts) != len(produced) or len(produced) == 0:
+        raise ValueError("REGISTERED_OUTPUTS")
+    expected_names ∈ list[str] ← []
+    paste ∈ bytes ← b""
+    for index in range(len(outputs)):
+        expected ∈ dict[str, object] ← dict(outputs[index])
+        actual ∈ dict[str, object] ← dict(produced[index])
+        name ← basename + str(expected["suffix"])
+        if expected_names.__contains__(name) or not artifacts.__contains__(name):
+            raise ValueError("REGISTERED_OUTPUTS")
+        expected_names.append(name)
+        payload ∈ bytes ← artifacts[name]
+        if actual["name"] != name or actual["role"] != expected["role"] or actual["type"] != expected["type"] or actual["state"] != ("accepted" if trusted else "diagnostic") or actual["sha256"] != digest(payload) or type(actual["size"]) != int or actual["size"] != len(payload) or len(payload) == 0 or len(payload) > int(contract["artifact_bytes"]):
+            raise ValueError("REGISTERED_OUTPUTS")
+        if actual["role"] == "human-transfer-paste":
+            paste ← payload
+    if set(expected_names) != set(artifacts) or paste == b"":
+        raise ValueError("REGISTERED_OUTPUTS")
+    record ∈ dict[str, object] ← handoff.identity(stage, paste)
+    human_request ∈ dict[str, object] ← dict(record["request"])
+    if human_request["id"] != request["request_id"]:
+        raise ValueError("REGISTERED_DELIVERY")
+    job_delivery.check(stage, paste, response, True)
+
+def main() → None:
+    args ∈ list[str] ← sys.argv
+    if len(args) != 9:
+        raise ValueError("usage: registered_delivery.pi CONFIG REQUEST RESULT ARTIFACT_DIRECTORY STAGE RESPONSE SUBMISSION RECEIPT")
+    output ∈ Path ← Path(args[8])
+    output.write_bytes(encode({"status": "PENDING", "check_id": "registered-delivery"}))
+    try:
+        config_raw ∈ bytes ← Path(args[1]).read_bytes()
+        request_raw ∈ bytes ← Path(args[2]).read_bytes()
+        result_raw ∈ bytes ← Path(args[3]).read_bytes()
+        stage_raw ∈ bytes ← Path(args[5]).read_bytes()
+        response ∈ bytes ← Path(args[6]).read_bytes()
+        result ∈ dict[str, object] ← json.loads(result_raw)
+        artifacts ∈ dict[str, bytes] ← {}
+        exported ∈ list[dict[str, object]] ← list(result["artifacts"])
+        for item in exported:
+            artifact ∈ dict[str, object] ← dict(item)
+            name ∈ str ← str(artifact["name"])
+            if name == "" or name.__contains__("/") or name.__contains__("\\") or name == "." or name == ".." or artifacts.__contains__(name):
+                raise ValueError("REGISTERED_OUTPUTS")
+            artifacts[name] ← Path(args[4]).joinpath(name).read_bytes()
+        submission_raw ∈ bytes ← Path(args[7]).read_bytes()
+        config ∈ dict[str, object] ← json.loads(config_raw)
+        check(config, request_raw, result, artifacts, json.loads(stage_raw), response, json.loads(submission_raw))
+        output.write_bytes(encode({"status": "PASS", "check_id": "registered-delivery", "config_sha256": digest(config_raw), "request_sha256": digest(request_raw), "result_sha256": digest(result_raw), "stage_sha256": digest(stage_raw), "response_sha256": digest(response), "submission_sha256": digest(submission_raw), "checker_sha256": digest(Path(__file__).read_bytes()), "scope": "captured-registered-delivery", "authority": config["authority"], "operation": result["operation_id"], "result_scope": result["acceptance_scope"], "excluded_claims": ["live-transfer", "deployment", "actual-ChatGPT-surface", "fresh-model-judgment"]}))
+    except Exception as error:
+        output.write_bytes(encode({"status": "FAIL", "check_id": "registered-delivery", "first_failure": str(error)}))
+        raise

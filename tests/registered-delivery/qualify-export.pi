@@ -1,0 +1,105 @@
+"""Capture supplied registered client exports with the maintained handoff.
+
+This disposable sink is deterministic fixture evidence, not ChatGPT delivery
+or fresh model judgment. No mutation request is sent by this verifier.
+"""
+import sys
+import json
+from pathlib import Path
+from types import SimpleNamespace
+from builtins import dict, list, ValueError, RuntimeError, AssertionError, Exception
+import handoff
+import job_delivery
+import registered_delivery
+
+args ∈ list[str] ← sys.argv
+workspace ∈ str ← args[1]
+config_raw ∈ bytes ← Path(args[2]).read_bytes()
+request_raw ∈ bytes ← Path(args[3]).read_bytes()
+result_raw ∈ bytes ← Path(args[4]).read_bytes()
+directory ∈ Path ← Path(args[5])
+submission_raw ∈ bytes ← Path(args[6]).read_bytes()
+output ∈ Path ← Path(args[7])
+output.mkdir(mode=448, parents=True, exist_ok=False)
+result ∈ dict[str, object] ← json.loads(result_raw)
+request ∈ dict[str, object] ← json.loads(request_raw)
+artifacts ∈ dict[str, bytes] ← {}
+payload ∈ bytes ← b""
+records ∈ list[dict[str, object]] ← list(result["artifacts"])
+for record in records:
+    name ∈ str ← str(record["name"])
+    if name == "" or name.__contains__("/") or name.__contains__("\\") or name == "." or name == ".." or artifacts.__contains__(name):
+        raise ValueError("REGISTERED_OUTPUTS")
+    artifacts[name] ← directory.joinpath(name).read_bytes()
+    if record["role"] == "human-transfer-paste":
+        payload ← artifacts[name]
+if payload == b"":
+    raise ValueError("REGISTERED_OUTPUTS")
+captures ∈ list[bytes] ← []
+variant ∈ str ← "valid"
+
+def capture(response ∈ bytes) → dict[str, object]:
+    actual ∈ bytes ← response
+    if variant == "changed-visible":
+        actual ← handoff.render(b"changed after verification\n" + payload, "Generated terminal handoff.")
+    elif variant == "truncated":
+        actual ← response[:-4]
+    elif variant == "link-only":
+        actual ← b"See https://example.invalid/command\n"
+    elif variant == "partial-failure":
+        captures.append(response[:21])
+        raise RuntimeError("FIXTURE_PARTIAL_DELIVERY")
+    captures.append(actual)
+    return {"bytes": actual, "message_id": "disposable-captured-message", "surface": "disposable-captured-sink"}
+
+sink ∈ object ← SimpleNamespace(send=capture)
+gate ∈ object ← SimpleNamespace(check=job_delivery.check, check_attachment=job_delivery.check_attachment)
+tests ∈ list[tuple[str, str]] ← [("valid", "PASS"), ("valid-repeat", "PASS"), ("unrelated-request", "REGISTERED_REQUEST"), ("stale-release", "REGISTERED_RELEASE"), ("changed-output", "REGISTERED_OUTPUTS"), ("skipped-check", "REGISTERED_CHECKS"), ("changed-visible", "JOB-EVENT-IDENTITY"), ("truncated", "HANDOFF_RESPONSE_TRUNCATED"), ("link-only", "HANDOFF_VISIBLE_MISSING"), ("partial-failure", "FIXTURE_PARTIAL_DELIVERY")]
+results ∈ list[dict[str, object]] ← []
+for specification in tests:
+    variant ← specification[0]
+    expected ∈ str ← specification[1]
+    case ∈ Path ← output.joinpath(variant)
+    case.mkdir(mode=448)
+    captures.clear()
+    # Invalidate a stale export before attempting either delivery or validation.
+    receipt ∈ Path ← case.joinpath("receipt.json")
+    receipt.write_bytes(registered_delivery.encode({"status": "PASS", "from": "stale-run"}))
+    receipt.write_bytes(registered_delivery.encode({"status": "PENDING"}))
+    current ∈ dict[str, object] ← json.loads(result_raw)
+    exported ∈ dict[str, bytes] ← dict(artifacts)
+    stage ∈ dict[str, object] ← {"name": "human-transfer-paste", "kind": "command", "exit_code": 0, "stdout_sha256": handoff.digest(payload)}
+    stage ← handoff.compose(stage, payload, {"audience": "human", "model": "deterministic-captured-fixture", "source_context": "exact TLS client exports; no model evaluation", "request": {"id": request["request_id"], "text": "Generate the maintained repository ownership-transfer handoff."}})
+    actual ∈ str ← "PASS"
+    try:
+        stage ← handoff.deliver(stage, payload, sink, None, gate, "Generated terminal handoff.")
+        if len(captures) != 1:
+            raise AssertionError("fixture did not observe exactly one sink call")
+        response ∈ bytes ← captures[0]
+        if variant == "unrelated-request":
+            current["request_id"] ← "unrelated"
+        elif variant == "stale-release":
+            current["release_sha256"] ← "0000000000000000000000000000000000000000000000000000000000000000"
+        elif variant == "changed-output":
+            for record in records:
+                if record["role"] == "human-transfer-paste":
+                    exported[str(record["name"])] ← payload + b"changed\n"
+        elif variant == "skipped-check":
+            stages ∈ list[dict[str, object]] ← list(current["stages"])
+            stages[0]["state"] ← "SKIPPED"
+            current["stages"] ← stages
+        registered_delivery.check(json.loads(config_raw), request_raw, current, exported, stage, response, json.loads(submission_raw))
+        if variant == "valid-repeat":
+            registered_delivery.check(json.loads(config_raw), request_raw, current, exported, stage, response, json.loads(submission_raw))
+        receipt.write_bytes(registered_delivery.encode({"status": "PASS", "scope": "captured-client-export"}))
+    except Exception as error:
+        actual ← str(error)
+        receipt.write_bytes(registered_delivery.encode({"status": "FAIL", "first_failure": actual}))
+    case.joinpath("stage.json").write_bytes(registered_delivery.encode(stage))
+    case.joinpath("response.bin").write_bytes(captures[0] if len(captures) > 0 else b"")
+    saved ∈ dict[str, object] ← json.loads(receipt.read_bytes())
+    if actual != expected or saved["status"] != ("PASS" if expected == "PASS" else "FAIL"):
+        raise AssertionError(variant + ": expected " + expected + ", got " + actual)
+    results.append({"case": variant, "expected": expected, "actual": actual, "status": "PASS"})
+    print("PASS captured export " + variant + " -> " + actual)
+output.joinpath("result.json").write_bytes(registered_delivery.encode({"status": "PASS", "scope": "supplied-client-exports-and-disposable-captured-sink", "request_sha256": handoff.digest(request_raw), "result_sha256": handoff.digest(result_raw), "payload_sha256": handoff.digest(payload), "config_sha256": handoff.digest(config_raw), "submission_sha256": handoff.digest(submission_raw), "cases": results, "excluded_claims": ["actual-ChatGPT-surface", "fresh-model-judgment", "deployment", "live-transfer"]}))

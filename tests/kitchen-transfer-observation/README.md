@@ -3,8 +3,9 @@
 `check.pi ROOT ITHON OUTPUT` executes the checked maintained validator against
 four passing semantic specimens and twenty-one targeted broken specimens.
 These are oracle fixtures, not a substitute for executing Kitchen's generated
-script or a transfer against GitHub. The full producer qualification separately
-executes the thirteen Kitchen API scenarios against the exact recipe bytes.
+script or a transfer against GitHub. The producer qualification separately
+executes Kitchen API scenarios against the exact recipe bytes; the expanded
+corpus retains the original thirteen and adds five identity/permission negatives.
 
 The supervisor supplies the trusted configuration and records API observations
 outside the candidate UID. Successful HTTP responses and their bodies must

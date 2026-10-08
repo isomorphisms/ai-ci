@@ -1,0 +1,2 @@
+import registered_delivery
+registered_delivery.main()

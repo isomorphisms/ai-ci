@@ -9,7 +9,7 @@ import hashlib
 from pathlib import Path
 from builtins import dict, list, ValueError, Exception, isinstance
 
-MODES ∈ list[str] ← ["personal", "organization", "accepted-unverified", "accepted-still-pending", "visibility", "post-failure", "wrong-id", "collision", "authentication", "capability", "network", "destination-authentication", "destination-api"]
+MODES ∈ list[str] ← ["personal", "organization", "accepted-unverified", "accepted-still-pending", "visibility", "post-failure", "wrong-id", "collision", "authentication", "capability", "network", "destination-authentication", "destination-api", "wrong-login", "wrong-source", "wrong-repository", "wrong-destination", "organization-membership"]
 
 def repository(body ∈ dict[str, object], identity ∈ object, owner ∈ str, visibility ∈ str) → bool:
     body_name ∈ str ← str(body["full_name"]).lower()
