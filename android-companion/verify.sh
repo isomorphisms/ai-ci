@@ -98,8 +98,9 @@ for target in phone c67; do
     [[ "$observed_label" == "$label" ]] ||
         fail "$target launcher label changed: expected $label got $observed_label"
     [[ -n "$observed_launcher" ]] || fail "$target launcher activity is missing"
-    [[ "$observed_launcher_label" == "$label" ]] ||
-        fail "$target launcher activity label changed: expected $label got ${observed_launcher_label:-missing}"
+    # aapt2 emits label='' when the launcher inherits the application label.
+    [[ -z "$observed_launcher_label" || "$observed_launcher_label" == "$label" ]] ||
+        fail "$target launcher activity label changed: expected $label got $observed_launcher_label"
     [[ "$version" =~ ^[0-9]+$ ]] || fail "$target versionCode missing"
     [[ "$observed_sdk" == "$min_sdk" ]] || fail "$target minSdk changed"
     "$apksigner" verify --verbose --print-certs "$apk" > "$tmp/signer-$target.txt" ||
