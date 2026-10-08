@@ -1,0 +1,37 @@
+name: Division glyph audit self-test
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/audit_division_glyph.py'
+      - 'tests/division_glyph/**'
+      - '.github/workflows/division-glyph-source-audit.yml'
+  push:
+    paths:
+      - 'scripts/audit_division_glyph.py'
+      - 'tests/division_glyph/**'
+      - '.github/workflows/division-glyph-source-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scanner:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out exact head
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Run lexical classifier regression
+        run: python3 -m unittest discover -s tests/division_glyph -p 'test_*.py' -v
+      - name: Produce self-repo read-only report
+        run: |
+          python3 scripts/audit_division_glyph.py . > /tmp/division-glyph.json
+          python3 -m json.tool /tmp/division-glyph.json >/dev/null
+      - name: Preserve scanner smoke receipt
+        run: |
+          printf '%s\n' 'PASS: source scanner self-tests and JSON' >> "$GITHUB_STEP_SUMMARY"
+          printf '%s\n' 'NOT VERIFIED: fleet-wide source migration, compiler or device execution' >> "$GITHUB_STEP_SUMMARY"
