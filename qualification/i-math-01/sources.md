@@ -70,3 +70,18 @@ Do not treat Freely readable as Redistributable. Each later acquisition needs
 an item URL, edition, author, rights statement, hash and exact use. Existing
 references are linked; no Morishita, Milnor, Mumford, Taimiņa, Sprott software,
 Diproton video, IFF photo or unlicensed repository was silently mirrored.
+
+## Six additional repositories from the closing scope refresh
+
+These are recovered repository references and prepared fixtures, not newly
+executed application tests or new rights clearances. No additional full text
+was downloaded or mirrored.
+
+| Repository | Existing source record | Next independently checkable boundary |
+| --- | --- | --- |
+| beauty | [anatomy/sources.tsv](https://github.com/isomorphismes/beauty/blob/34d0b6e04023c8ca4e7dd25b2381a2128f12c03a/anatomy/sources.tsv), retained FaceField Idriç attempt | Zero activation preserves the neutral point; bounded activation yields finite contraction coordinates with explicit millimetres. Approximate fields are not measured anatomy. |
+| flower | [retained Net → Skin → Mesh model](https://github.com/isomorphismes/flower/blob/aa74149c17e1154c54b8db7d7ef3ef441614f37c/docs/net-model.md), existing GT3M notes | Coincident folded points do not gain graph adjacency; changing display density leaves material state unchanged; release freezes full state. Retain existing mutants. |
+| crystal | [retained material/net model](https://github.com/isomorphismes/crystal/blob/63cfefc9c98eb3c10a0c797c788ee50678e75db2/docs/net-model.md) and material crystallographic references | Halite has 8 vertices, 6 quadrilateral facets and 12 boundary edges; preserve incidence, not counts alone. A static polyhedron is not a tested growth law. |
+| young-tableaux | [existing Fulton/Sagan/Stanley/Macdonald shelf](https://github.com/isomorphismes/young-tableaux/blob/f16ca4008a0959753a50067281f869e34bab94cd/books/README.md), active independent audit | Preserve all ten existing UI/validation/overflow counterexamples and independent finite-range algebraic oracles. Publisher/author links do not grant scan redistribution. |
+| mock-theta | [algebraic Tetris derivation](https://github.com/isomorphismes/mock-theta/blob/fa30b9a240838dfee3255f5003417901d5f94513/docs/algebraic-tetris.md), existing Duke/Zwegers/Zagier catalog | Compare exact signed expansion of (1−qⁿ)Bₙ and the five-panel coefficient vector; finite agreement is not mock modularity. Retain existing compiled proofs and gesture mutants. |
+| pigeonhole | [consolidated author/Sullivan/Vakil/Hatcher bibliography](https://github.com/isomorphismes/pigeonhole/blob/aeec21f370a8677ef8b1b9bb8c84e8ec3bdf4b8c/books/BIBLIOGRAPHY.md) | A map from three elements into two supplies a collision; quotient by equal image maps bijectively to the image, not necessarily the entire codomain. Empty-fiber and injectivity cases stay explicit. |

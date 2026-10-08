@@ -84,3 +84,16 @@ isomorphismes/seifert	2	pull_request	Source-style pass: compositional ICKY C and
 isomorphismes/seifert	1	pull_request	Three orthant blocks, attached L-shaped ribbons and broader sticky touch	https://github.com/isomorphismes/seifert/pull/1
 isomorphismes/mostow	2	issue	SUN I-MATH-01-S2: requalify existing Mostow sheet after merged signer fix	https://github.com/isomorphismes/mostow/issues/2
 isomorphismes/mostow	1	pull_request	Living hyperbolic sheet with bounded motion and paired Android builds	https://github.com/isomorphismes/mostow/pull/1
+isomorphismes/flower	2	issue	Use Crystal's geometric net work to sharpen Flower's topology/geometry boundary	https://github.com/isomorphismes/flower/issues/2
+isomorphismes/crystal	9	issue	Make zoom and wireframe failures observable and reproducible on the identified MIRO APK	https://github.com/isomorphismes/crystal/issues/9
+isomorphismes/crystal	8	issue	Repair MIRO APK build policy and Android update identity after PR #7	https://github.com/isomorphismes/crystal/issues/8
+isomorphismes/crystal	6	issue	MIRO crystal APK: Pyrite cube/pyritohedron/octahedron competition	https://github.com/isomorphismes/crystal/issues/6
+isomorphismes/crystal	5	issue	MIRO crystal APK: Bismuth A7 net with hopper terraces	https://github.com/isomorphismes/crystal/issues/5
+isomorphismes/crystal	4	issue	MIRO crystal APK: chiral alpha Quartz	https://github.com/isomorphismes/crystal/issues/4
+isomorphismes/crystal	3	issue	MIRO vertical slice: Halite fixed-net APK	https://github.com/isomorphismes/crystal/issues/3
+isomorphismes/crystal	2	issue	Build the shared fixed-net crystal engine and MIRO per-material APK harness	https://github.com/isomorphismes/crystal/issues/2
+isomorphismes/young-tableaux	18	PR	Qualify existing embedded Icky Lua and pin verified runtime	https://github.com/isomorphismes/young-tableaux/pull/18
+isomorphismes/young-tableaux	17	PR	Independently audit all 44 Young Tableaux operations	https://github.com/isomorphismes/young-tableaux/pull/17
+isomorphismes/young-tableaux	7	issue	Explore Pauli visualization for Schur-Weyl and quantum spin sectors	https://github.com/isomorphismes/young-tableaux/issues/7
+isomorphismes/young-tableaux	4	issue	Delete stale merged branches	https://github.com/isomorphismes/young-tableaux/issues/4
+isomorphismes/mock-theta	3	PR	Qualify whole-panel interaction and prepare maintained-build handoff	https://github.com/isomorphismes/mock-theta/pull/3

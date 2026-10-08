@@ -6,8 +6,11 @@ snapshot, not a second live PR queue. Refresh mutable GitHub state before use.
 
 ## Complete scope and preparation result
 
-All **43** repositories returned by the live `isomorphismes` inventory are
-accounted for: **16 READY**, **11 BLOCKED**, **16 NO_ACTION_WITH_REASON**.
+All **49** repositories returned by the final live `isomorphismes` inventory are
+accounted for: **18 READY**, **15 BLOCKED**, **16 NO_ACTION_WITH_REASON**.
+The initial response contained 43; the closing refresh returned six additional
+identities. [scope-refresh.md](scope-refresh.md) records their actual existing
+history and dispositions; they are not assumed to have been newly created.
 READY means a bounded next mathematical or qualification task is ready; it does
 not mean every application is buildable, installed, or accepted.
 
@@ -16,23 +19,24 @@ not mean every application is buildable, installed, or accepted.
   latest observed workflow and per-repository disposition.
 - [dispositions.tsv](dispositions.tsv): recovered intent, mathematical boundary,
   implementation status and cheapest next action for every repository.
-- [branches.tsv](branches.tsv): all **385** observed branch heads.
-- [closed-pulls.tsv](closed-pulls.tsv): all **257** observed closed PRs, preserving
+- [branches.tsv](branches.tsv): all **412** observed branch heads.
+- [closed-pulls.tsv](closed-pulls.tsv): all **272** observed closed PRs, preserving
   merged versus closed-unmerged status and dependent bases.
 - [open-items.tsv](open-items.tsv): current issue/PR titles and source links.
-- [recent-workflows.tsv](recent-workflows.tsv): **115** runs, at most the five
+- [recent-workflows.tsv](recent-workflows.tsv): **138** runs, at most the five
   most recent per repository. This is explicitly not an exhaustive Actions log.
 - [sources.md](sources.md): source rights, acquired literature, and concrete
   theorem/definition-to-fixture mappings.
 - [next-jobs.md](next-jobs.md): five bounded Sun investigations, each responsible
   for an exact Earth/Moon handoff after resolving its named uncertainty.
 
-Observation window: 8 October 2026, approximately 16:00–16:45 UTC. Repository
+Initial observation window: 8 October 2026, approximately 16:00–16:45 UTC;
+closing scope refresh and six-repository inspection: approximately 17:05–17:08 UTC. Repository
 and branch collections fit in one 100-item page per requested scope; no
 recursive tree was truncated. The face and voice repositories are empty,
 not fetch failures masquerading as empty implementations. Default-source
 columns are qualified explicitly: absence there does not imply absence on
-the 385 historical/working branches. The two executed leaves are updated
+the 412 historical/working branches. The two executed leaves are updated
 below; other snapshot heads remain the initial reconnaissance heads.
 
 ## Executed Seifert work
@@ -125,3 +129,21 @@ workflow. The explicit local receipts are the evidence for this pass. A later
 CI change must provision the named compiler/Grease runtime, pin exact heads,
 and cover every material source path without promoting an unavailable tool to
 PASS. These PRs are not described as ready for automatic merge.
+
+## Final publication verification
+
+Published application qualification trees were fetched and compared with the
+reviewed local trees: Mostow `5c5d9b612e909efebbd735ad66eddfbbdbd64244`,
+Seifert source-style/evidence `420630cbcbf26925f1c73c2f936b2cc56a039195`, and
+Seifert Idriç `fd718e5de9b3a579338098c387ecaccc9fc16f19`; every comparison
+was identical. The ribbon parent has three passing hosted checks; the final
+source-style head has all three passing; the Idriç head has the inherited
+geometry check passing. These hosted results retain the compiler/coverage
+limits above. Mostow has no hosted checks.
+
+The unmerged Seifert signer-registration head
+`20f9d3f4a4ee13dc552135c35f459059d40680fe` has 31 passing checks. It remains a
+candidate policy, so Seifert's merged-policy producer disposition is still
+BLOCKED. The original 43-repository ledger head
+`558a7a670d5e80b8032816b90ffed1b9544f70ae` has 30 passing checks; later scope
+updates must be checked at their own heads.

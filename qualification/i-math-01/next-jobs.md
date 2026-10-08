@@ -123,7 +123,7 @@ recovered construction intent; Earth for narrow kernels/tests; Moon after proof
 of the selected boundary.
 
 **Targets:** spinor, hopf_fibration, ortho, pauli, knot-complement and
-Byrnes-Euclid. Reference-only klein-quartic/byrne-euclid remain attributed
+Byrnes-Euclid and pigeonhole. Reference-only klein-quartic/byrne-euclid remain attributed
 sources. Refresh existing branches and issue histories. I-MATH-01 has already
 repaired Seifert and requalified Mostow; do not repeat those jobs or redesign
 their visuals.
@@ -134,7 +134,11 @@ from coordinate samples, orbital state rotations from camera motion, quotient
 gluing from a displayed knot, and a chosen Euclidean proposition from a later
 unmerged experiment. Byrnes-Euclid main says I.11, while closed branches cover
 III.1/I.47; recover the authoritative user choice rather than choosing by code
-volume. Knot-complement's first target is an inside view of m004.
+volume. Knot-complement's first target is an inside view of m004. Pigeonhole starts
+from finite maps and their equal-image partition: do not promote that structure
+to group quotients, rank-nullity or spectral sequences without the extra data.
+Read its existing author-source and Sullivan/Vakil/Hatcher shelf; its interaction
+is explicitly undecided and must stay so in the headless slice.
 
 **Acceptance boundary:** existing deterministic geometry tests, lift/fiber
 identities, explicit orbital normalization/actions, valid gluing transitions,
@@ -175,3 +179,20 @@ new Sun design problem. After its merge, producer reruns are bounded Earth work.
 Once compiler/runtime provisioning is pinned, wiring the existing Seifert
 readout and Mostow checks into exact-head CI is likewise Earth work; those
 workflows must cover all material sources and fail closed on missing tools.
+
+## Closing scope refresh: existing owners, not duplicate jobs
+
+The six additional identities and exact existing owners are in
+[scope-refresh.md](scope-refresh.md). Pigeonhole's finite-map contract joins S7.
+Beauty's first next task is a bounded Earth compiler check of the preserved
+`FaceField.idric` attempt and neutral/contraction fixtures using the now-built
+current compiler; a browser/Float32 bridge is a separate capability question.
+No new Sun architecture decision is needed just to attempt that check.
+
+Young Tableaux already has an independent mathematical audit and concurrent
+runtime-admission PR. Continue those exact review surfaces and preserve their
+ten actual failure cases. Flower and Crystal have retained, deliberately parked
+implementation branches and issue-owned policy/physical blockers. Mock Theta
+already has the whole-panel acceptance PR and shared paired-build dependency.
+Do not issue fresh implementations or reopen these parked PRs merely because
+this coverage pass rediscovered them.
