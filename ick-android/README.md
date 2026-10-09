@@ -164,3 +164,14 @@ The cache key binds the source, host architecture, ABI and build recipe version.
 Increment its recipe version if compiler configuration changes. It contains
 only the installed compiler; every invocation recompiles and inspects the
 qualification products with the supplied NDK.
+
+The Android build fixes the GCC configure cache value `gcc_cv_as_base64=no`
+through both configure stages. Debian trixie's GNU binutils 2.44 accepts
+`.base64`, but the declared NDK r29 assembler rejects it. Target GNU as still
+supplies configure probes; it cannot enable that directive in NDK-bound output.
+This preserves the literal UTF-8 glyph fixture and lets GCC use its ordinary
+string byte encoding. Recipe version 2 excludes compilers cached under the
+older capability policy. A retained object tree with `HAVE_GAS_BASE64` enabled
+is rejected; use a fresh `ICK_BUILD` and `ICK_STAGE` for that configuration.
+Installed stages still undergo the unchanged NDK glyph qualification without
+requiring their original object tree.

@@ -41,6 +41,11 @@ EXPECTED_TARGET ?= $(GNU_TARGET)
 BUILD_JOBS ?= 2
 BOOTSTRAP_CFLAGS ?= -O2 -g0
 BOOTSTRAP_CXXFLAGS ?= -O2 -g0
+# Target GNU as supplies configure probes; the NDK assembles C output.
+# NDK r29 rejects .base64. Export the supported configure cache value through
+# both top-level configure and the later gcc/configure under recursive make.
+# A caller's environment or make command line must not enable this capability.
+override export gcc_cv_as_base64 := no
 NDK ?=
 FORTIFY_SOURCE ?=
 ifneq ($(FORTIFY_SOURCE),)
@@ -76,7 +81,7 @@ QUALIFY_ARTIFACTS += $(COMPLEX_ARTIFACTS)
 QUALIFY_ASSEMBLY += $(addsuffix .s,$(COMPLEX_ARTIFACTS))
 QUALIFY_ELF_CHECKS = $(addsuffix .elf,$(QUALIFY_ARTIFACTS))
 
-.PHONY: all validate check-compiler check-qualification qualify reject-api25 outputs FORCE
+.PHONY: all validate check-build-assembler check-compiler check-qualification qualify reject-api25 outputs FORCE
 .SECONDARY:
 all: $(ICK_COMPILER)
 
@@ -84,6 +89,9 @@ FORCE:
 
 validate:
 	@test "$(ABI)" = "$(strip $(ABI))"
+
+check-build-assembler:
+	test ! -f "$(ICK_BUILD)/objects/gcc/auto-host.h" || grep -Fx '/* #undef HAVE_GAS_BASE64 */' "$(ICK_BUILD)/objects/gcc/auto-host.h"
 
 ifeq ($(filter outputs archive-stage restore-stage,$(MAKECMDGOALS)),)
 $(ICK_BUILD)/source/.materialized:
@@ -97,9 +105,10 @@ $(ICK_BUILD)/objects/Makefile: $(ICK_BUILD)/source/.materialized
 	mkdir -p "$(ICK_BUILD)/objects"
 	cd "$(ICK_BUILD)/objects" && CFLAGS="$(BOOTSTRAP_CFLAGS)" CXXFLAGS="$(BOOTSTRAP_CXXFLAGS)" "$(ICK_MATERIALIZED)/configure" --target="$(GNU_TARGET)" --prefix="$(ICK_STAGE)" --with-as="/usr/bin/$(GNU_TARGET)-as" --with-ld="/usr/bin/$(GNU_TARGET)-ld" --enable-languages=c --disable-bootstrap --disable-multilib --disable-nls --disable-shared --disable-threads --without-headers --disable-libatomic --disable-libgomp --disable-libquadmath --disable-libssp --disable-libvtv --without-isl --without-zstd
 
-$(ICK_COMPILER): $(ICK_BUILD)/objects/Makefile
-	$(MAKE) -C "$(ICK_BUILD)/objects" -j$(BUILD_JOBS) all-gcc
-	$(MAKE) -C "$(ICK_BUILD)/objects" install-gcc
+$(ICK_COMPILER): $(ICK_BUILD)/objects/Makefile | check-build-assembler
+	$(MAKE) -C "$(ICK_BUILD)/objects" -j$(BUILD_JOBS) gcc_cv_as_base64=no all-gcc
+	grep -Fx '/* #undef HAVE_GAS_BASE64 */' "$(ICK_BUILD)/objects/gcc/auto-host.h"
+	$(MAKE) -C "$(ICK_BUILD)/objects" gcc_cv_as_base64=no install-gcc
 	test "$$("$(ICK_COMPILER)" -dumpmachine)" = "$(GNU_TARGET)"
 	test -x "$$("$(ICK_COMPILER)" -print-prog-name=cc1)"
 
