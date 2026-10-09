@@ -40,9 +40,9 @@ def completion_prompt(messages ∈ list[dict[str, str]]) → str:
 def body_for(payload ∈ dict[str, object], interface ∈ str, served_model ∈ str) → dict[str, object]:
     body ∈ dict[str, object] ← {"model": served_model, "temperature": payload["temperature"], "max_tokens": payload["max_tokens"], "seed": payload["seed"], "stream": False}
     if interface == "chat":
-        body["messages"] ← payload["messages"]
+        body.update({"messages": payload["messages"]})
     elif interface == "completion":
-        body["prompt"] ← completion_prompt(payload["messages"])
+        body.update({"prompt": completion_prompt(payload["messages"])})
     else:
         raise ValueError("unsupported inference interface")
     return body
@@ -69,7 +69,7 @@ def infer(output ∈ str) → int:
     token ∈ str ← os.environ.get("MODEL_EVAL_API_KEY", "")
     headers ∈ dict[str, str] ← {"Content-Type": "application/json"}
     if token:
-        headers["Authorization"] ← "Bearer " + token
+        headers.update({"Authorization": "Bearer " + token})
     interface ∈ str ← profile["interface"]
     suffix ∈ str ← "/chat/completions"
     if interface == "completion":
@@ -94,12 +94,12 @@ def infer(output ∈ str) → int:
             if len(raw) > 1048576:
                 raise ValueError("inference response exceeds one MiB")
             Path(output + "/raw/" + job["id"] + ".response.bin").write_bytes(raw)
-            result["http_status"] ← response.status
+            result.update({"http_status": response.status})
             if response.status != 200:
                 raise ValueError("inference HTTP status is not 200; redirects are not followed")
             decoded ∈ dict[str, object] ← json.loads(raw)
             if decoded.get("model") != served:
-                raise ValueError("response model name does not match the explicitly selected served model")
+                raise ValueError("response model does not match explicitly selected served model")
             choices ∈ list[dict[str, object]] ← decoded["choices"]
             if len(choices) != 1 or choices[0].get("finish_reason") != "stop":
                 raise ValueError("response missing, truncated or not normally finished")
@@ -113,18 +113,14 @@ def infer(output ∈ str) → int:
                 text ← choices[0].get("text")
             if not isinstance(text, str) or not text:
                 raise ValueError("empty model final response")
-            result["status"] ← "EXECUTED"
-            result["text"] ← text
-            result["raw_sha256"] ← hashlib.sha256(raw).hexdigest()
-            result["usage"] ← decoded.get("usage")
-            result["system_fingerprint"] ← decoded.get("system_fingerprint")
+            result.update({"status": "EXECUTED", "text": text, "raw_sha256": hashlib.sha256(raw).hexdigest(), "usage": decoded.get("usage"), "system_fingerprint": decoded.get("system_fingerprint")})
         except Exception as error:
             failures ← failures + 1
-            result["error"] ← type(error).__name__
+            result.update({"error": type(error).__name__})
         finally:
             if connection is not None:
                 connection.close()
-        result["seconds"] ← time.monotonic() - started
+        result.update({"seconds": time.monotonic() - started})
         save(output + "/responses/" + job["id"] + ".json", result)
     save(output + "/inference.json", {"status": "EXECUTED", "requests_attempted": len(jobs), "transport_or_format_failures": failures, "weight_identity": "UNVERIFIED_REMOTE_WEIGHTS", "live_transfer": "NOT_RUN"})
     print("Actual HTTP requests: " + str(len(jobs)) + "; transport/format failures: " + str(failures))
