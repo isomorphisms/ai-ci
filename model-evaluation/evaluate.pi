@@ -1,0 +1,515 @@
+"""Prompt matrices and independent grading. Never executes model-produced code."""
+import sys
+import json
+import hashlib
+import tomllib
+import re
+import tempfile
+from pathlib import Path
+from builtins import ValueError, Exception, globals, isinstance, dict, list, all
+from typing import Any
+from operator import contains
+
+
+def encoded(value ∈ Any) → str:
+    text ∈ str ← json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return text
+
+
+def digest(text ∈ str) → str:
+    result ∈ str ← hashlib.sha256(text.encode("utf-8")).hexdigest()
+    return result
+
+
+def load(path ∈ str) → Any:
+    value ∈ Any ← json.loads(Path(path).read_text(encoding="utf-8"))
+    return value
+
+
+def save(path ∈ str, value ∈ Any) → None:
+    with Path(path).open("x", encoding="utf-8") as stream:
+        stream.write(encoded(value) + "\n")
+
+
+def unique_object(pairs ∈ list[tuple[str, Any]]) → dict[str, Any]:
+    result ∈ dict[str, Any] ← {}
+    for pair in pairs:
+        key ∈ str ← pair[0]
+        value ∈ Any ← pair[1]
+        if contains(result, key):
+            raise ValueError("duplicate JSON key")
+        result.update({key: value})
+    return result
+
+
+def grade_text(text ∈ str, expected ∈ dict[str, Any]) → dict[str, Any]:
+    answer ∈ dict[str, Any] ← dict()
+    try:
+        answer ← json.loads(text, object_pairs_hook=unique_object)
+    except Exception:
+        return {"pass": False, "parse": False, "fields": dict()}
+    if not isinstance(answer, dict) or set(answer) != set(expected):
+        return {"pass": False, "parse": False, "fields": dict()}
+    fields ∈ dict[str, bool] ← {}
+    for key in expected:
+        actual ∈ Any ← answer[key]
+        wanted ∈ Any ← expected[key]
+        if type(actual) != type(wanted):
+            fields.update({key: False})
+        elif contains(["source", "destination"], key) and isinstance(actual, str):
+            fields.update({key: str(actual.lower()) == str(wanted.lower())})
+        else:
+            fields.update({key: actual == wanted})
+    return {"pass": all(fields.values()), "parse": True, "fields": fields}
+
+
+def http_provenance_error(job ∈ dict[str, Any], response ∈ dict[str, Any], model ∈ dict[str, Any], manifest ∈ dict[str, Any], identity ∈ dict[str, Any], inference ∈ dict[str, Any], request ∈ dict[str, Any], raw ∈ bytes) → str:
+    """Validate retained adapter evidence independently of its completion label."""
+    if digest(encoded(model)) != manifest["model_sha256"]:
+        return "model-profile-changed"
+    profile ∈ dict[str, Any] ← model["profile"]
+    if identity["backend"] != "openai-compatible-http":
+        return "unsupported-live-provenance-backend"
+    if identity["requested_model"] != profile["hf_repo"] or identity["requested_revision"] != profile["revision"] or identity["format"] != profile["interface"]:
+        return "wrong-model-identity"
+    if identity["weight_identity"] != "UNVERIFIED_REMOTE_WEIGHTS":
+        return "unattested-remote-weight-identity"
+    for record in [identity, inference]:
+        if record["requests_sha256"] != manifest["requests_sha256"] or record["model_sha256"] != manifest["model_sha256"]:
+            return "wrong-inference-run-binding"
+    if inference["status"] != "EXECUTED" or inference["requests_attempted"] != manifest["count"]:
+        return "incomplete-inference-run"
+    payload ∈ dict[str, Any] ← job["payload"]
+    if digest(encoded(payload)) != job["request_sha256"] or response["request_sha256"] != job["request_sha256"] or response["id"] != job["id"]:
+        return "wrong-request-binding"
+    if payload["model"] != profile["hf_repo"]:
+        return "wrong-worker-model"
+    served ∈ str ← identity["served_model"]
+    if not isinstance(served, str) or not served:
+        return "missing-served-model"
+    expected_request ∈ dict[str, Any] ← {"model": served, "temperature": payload["temperature"], "max_tokens": payload["max_tokens"], "seed": payload["seed"], "stream": False}
+    if contains(profile, "reasoning_effort"):
+        expected_request.update({"reasoning_effort": profile["reasoning_effort"]})
+    if profile["interface"] == "chat":
+        expected_request.update({"messages": payload["messages"]})
+    elif profile["interface"] == "completion":
+        parts ∈ list[str] ← []
+        messages ∈ list[dict[str, str]] ← payload["messages"]
+        for message in messages:
+            parts.append(str(message["role"].capitalize()) + ":\n" + message["content"])
+        expected_request.update({"prompt": str("\n\n".join(parts)) + "\n\nAssistant:\n"})
+    else:
+        return "unsupported-worker-interface"
+    if encoded(request) != encoded(expected_request):
+        return "raw-request-does-not-match-frozen-payload"
+    if response["raw_request_sha256"] != digest(encoded(request)):
+        return "raw-request-digest-mismatch"
+    if response["raw_sha256"] != str(hashlib.sha256(raw).hexdigest()):
+        return "raw-response-digest-mismatch"
+    if response["http_status"] != 200:
+        return "unsuccessful-http-response"
+    decoded ∈ dict[str, Any] ← json.loads(raw, object_pairs_hook=unique_object)
+    if decoded["model"] != served:
+        return "wrong-response-model"
+    choices ∈ list[dict[str, Any]] ← decoded["choices"]
+    if len(choices) != 1 or str(choices[0].get("finish_reason")) != "stop":
+        return "unfinished-model-response"
+    final_text ∈ Any ← None
+    if profile["interface"] == "chat":
+        final_message ∈ dict[str, Any] ← choices[0]["message"]
+        if final_message.get("tool_calls"):
+            return "unexpected-model-tool-call"
+        final_text ← final_message.get("content")
+    else:
+        final_text ← choices[0].get("text")
+    if not isinstance(final_text, str) or not final_text or final_text != response["text"]:
+        return "response-text-does-not-match-raw-response"
+    if encoded(decoded.get("usage")) != encoded(response.get("usage")) or encoded(decoded.get("system_fingerprint")) != encoded(response.get("system_fingerprint")):
+        return "response-metadata-does-not-match-raw-response"
+    return ""
+
+
+def local_provenance_error(output ∈ str, model ∈ dict[str, Any], manifest ∈ dict[str, Any]) → str:
+    profile ∈ dict[str, Any] ← model["profile"]
+    if not contains(profile, "ollama_digest"):
+        return ""
+    marker_path ∈ str ← output + "/local-execution.json"
+    if not Path(marker_path).is_file():
+        return "missing-local-execution-marker"
+    marker ∈ dict[str, Any] ← load(marker_path)
+    expected ∈ dict[str, Any] ← {"status": "EXECUTED", "requests_sha256": manifest["requests_sha256"], "model_sha256": manifest["model_sha256"], "runtime": profile["ollama_version"], "model_digest": profile["ollama_digest"], "weight_identity": "LOCAL_RUNTIME_REPORTED_DIGEST", "hf_weight_equivalence": "NOT_ATTESTED"}
+    for field in expected:
+        if encoded(marker.get(field)) != encoded(expected[field]):
+            return "local-execution-marker-mismatch"
+    pid ∈ Any ← marker.get("owned_server_pid")
+    if type(pid) != int or int(pid) <= 0:
+        return "missing-owned-server-process"
+    for name in ["local-model-before.json", "local-model-after.json"]:
+        if not Path(output + "/" + name).is_file():
+            return "missing-local-model-observation"
+        observation ∈ dict[str, Any] ← load(output + "/" + name)
+        runtime ∈ dict[str, Any] ← observation["runtime"]
+        observed_model ∈ dict[str, Any] ← observation["model"]
+        if runtime["version"] != profile["ollama_version"] or observed_model["name"] != profile["ollama_model"] or observed_model["digest"] != profile["ollama_digest"]:
+            return "local-model-observation-mismatch"
+        if observation["claim"] != "LOCAL_RUNTIME_REPORTED_DIGEST" or observation["hf_weight_equivalence"] != "NOT_ATTESTED":
+            return "unattested-local-weight-equivalence"
+    return ""
+
+
+def live_provenance_error(output ∈ str, job ∈ dict[str, Any], response ∈ dict[str, Any], manifest ∈ dict[str, Any]) → str:
+    try:
+        model ∈ dict[str, Any] ← load(output + "/model.json")
+        identity ∈ dict[str, Any] ← load(output + "/identity.json")
+        inference ∈ dict[str, Any] ← load(output + "/inference.json")
+        request_path ∈ str ← output + "/raw/" + str(job["id"]) + ".request.json"
+        request ∈ dict[str, Any] ← json.loads(Path(request_path).read_text(), object_pairs_hook=unique_object)
+        raw ∈ bytes ← Path(output + "/raw/" + str(job["id"]) + ".response.bin").read_bytes()
+        http_error ∈ str ← http_provenance_error(job, response, model, manifest, identity, inference, request, raw)
+        if http_error:
+            return http_error
+        return local_provenance_error(output, model, manifest)
+    except Exception:
+        return "missing-or-invalid-live-provenance"
+
+
+def validate(suite ∈ dict[str, Any]) → None:
+    if suite["schema_version"] != 1:
+        raise ValueError("suite schema_version must be 1")
+    cases ∈ list[dict[str, Any]] ← suite["cases"]
+    conditions ∈ list[dict[str, str]] ← suite["conditions"]
+    seeds ∈ list[int] ← suite["seeds"]
+    if len(cases) == 0 or len(conditions) == 0 or len(seeds) < 3:
+        raise ValueError("nonempty cases/conditions and at least three trials required")
+    if len(set(seeds)) != len(seeds):
+        raise ValueError("trial seeds must be unique")
+    for seed in seeds:
+        if type(seed) != int:
+            raise ValueError("trial seeds must be integers")
+    if len(cases) * len(conditions) * len(seeds) > 500:
+        raise ValueError("matrix exceeds 500-request budget")
+    names ∈ list[str] ← []
+    for case in cases:
+        name ∈ str ← case["id"]
+        if not re.fullmatch("[a-z0-9-]+", name) or contains(names, name):
+            raise ValueError("unsafe or duplicate case ID")
+        names.append(name)
+        if not contains(["development", "evaluation"], case["split"]) or not case["origin"]:
+            raise ValueError("case split and provenance required")
+        if not case["messages"] or not isinstance(case["expected"], dict) or not case["expected"]:
+            raise ValueError("messages and nonempty independent oracle required")
+        messages ∈ list[dict[str, str]] ← case["messages"]
+        for message in messages:
+            if not contains(["user", "assistant"], message["role"]) or not isinstance(message["content"], str):
+                raise ValueError("case messages must be user or assistant text")
+    condition_names ∈ list[str] ← []
+    for condition in conditions:
+        if not re.fullmatch("[a-z0-9-]+", condition["id"]) or contains(condition_names, condition["id"]):
+            raise ValueError("unsafe or duplicate condition ID")
+        condition_names.append(condition["id"])
+    if not isinstance(suite["instruction"], str) or not suite["instruction"]:
+        raise ValueError("common output contract required")
+
+
+def prepare(suite_path ∈ str, catalog_path ∈ str, model_key ∈ str, output ∈ str, condition_id ∈ str) → None:
+    suite ∈ dict[str, Any] ← load(suite_path)
+    validate(suite)
+    parent_suite ∈ dict[str, Any] ← json.loads(encoded(suite))
+    parent_count ∈ int ← len(suite["cases"]) * len(suite["conditions"]) * len(suite["seeds"])
+    if condition_id:
+        selected ∈ list[dict[str, str]] ← []
+        available_conditions ∈ list[dict[str, str]] ← suite["conditions"]
+        for available in available_conditions:
+            if available["id"] == condition_id:
+                selected.append(available)
+        if len(selected) != 1:
+            raise ValueError("condition selection must name exactly one existing condition")
+        suite.update({"conditions": selected})
+    catalog ∈ dict[str, Any] ← tomllib.loads(Path(catalog_path).read_text())
+    models ∈ dict[str, dict[str, Any]] ← catalog["models"]
+    profile ∈ dict[str, Any] ← models[model_key]
+    if not contains(["chat", "completion"], profile["interface"]):
+        raise ValueError("unsupported model interface")
+    Path(output).mkdir(mode=0o700)
+    Path(output + "/responses").mkdir(mode=0o700)
+    Path(output + "/raw").mkdir(mode=0o700)
+    save(output + "/suite.json", suite)
+    save(output + "/suite.parent.json", parent_suite)
+    model_record ∈ dict[str, Any] ← {"key": model_key, "profile": profile, "catalog_sha256": digest(Path(catalog_path).read_text()), "revision_kind": "requested; backend must resolve or label unverified"}
+    save(output + "/model.json", model_record)
+    jobs ∈ list[dict[str, Any]] ← []
+    cases ∈ list[dict[str, Any]] ← suite["cases"]
+    conditions ∈ list[dict[str, str]] ← suite["conditions"]
+    seeds ∈ list[int] ← suite["seeds"]
+    for case in cases:
+        for condition in conditions:
+            for seed in seeds:
+                messages ∈ list[dict[str, str]] ← [{"role": "system", "content": str(suite["instruction"]) + "\n\n" + condition["instruction"]}]
+                messages.extend(case["messages"])
+                payload ∈ dict[str, Any] ← {"model": profile["hf_repo"], "messages": messages, "seed": seed, "temperature": suite["temperature"], "max_tokens": suite["max_tokens"]}
+                payload_hash ∈ str ← digest(encoded(payload))
+                identifier ∈ str ← digest(str(case["id"]) + ":" + condition["id"] + ":" + str(seed) + ":" + payload_hash)
+                jobs.append({"id": identifier, "case_id": case["id"], "condition": condition["id"], "seed": seed, "request_sha256": payload_hash, "payload": payload})
+    save(output + "/requests.json", jobs)
+    namespace ∈ dict[str, Any] ← globals()
+    source_path ∈ str ← namespace.get("__file__", "")
+    save(output + "/manifest.json", {"count": len(jobs), "suite_sha256": digest(encoded(suite)), "parent_suite_sha256": digest(encoded(parent_suite)), "parent_count": parent_count, "condition_selection": condition_id, "requests_sha256": digest(encoded(jobs)), "model_sha256": digest(encoded(model_record)), "evaluator_sha256": digest(Path(source_path).read_text()), "model_key": model_key, "live_transfer": "NOT_RUN", "model_inference": "NOT_RUN"})
+    print("Prepared " + str(len(jobs)) + " requests; inference and transfer NOT_RUN")
+
+
+def grade(output ∈ str, evidence ∈ str) → int:
+    if not contains(["live", "fixture"], evidence):
+        raise ValueError("evidence must be live or fixture")
+    suite ∈ dict[str, Any] ← load(output + "/suite.json")
+    jobs ∈ list[dict[str, Any]] ← load(output + "/requests.json")
+    manifest ∈ dict[str, Any] ← load(output + "/manifest.json")
+    if digest(encoded(suite)) != manifest["suite_sha256"] or digest(encoded(jobs)) != manifest["requests_sha256"] or len(jobs) != manifest["count"]:
+        raise ValueError("prepared suite or requests changed")
+    parent_suite ∈ dict[str, Any] ← load(output + "/suite.parent.json")
+    if digest(encoded(parent_suite)) != manifest["parent_suite_sha256"]:
+        raise ValueError("prepared parent suite changed")
+    expected ∈ dict[str, Any] ← {}
+    cases ∈ list[dict[str, Any]] ← suite["cases"]
+    for case in cases:
+        expected.update({case["id"]: case["expected"]})
+    verdicts ∈ list[dict[str, Any]] ← []
+    passed ∈ int ← 0
+    responded ∈ int ← 0
+    for job in jobs:
+        result ∈ dict[str, Any] ← {"pass": False, "parse": False, "fields": dict(), "error": "missing-response"}
+        response_path ∈ str ← output + "/responses/" + str(job["id"]) + ".json"
+        if Path(response_path).is_file():
+            response ∈ dict[str, Any] ← load(response_path)
+            responded ← responded + 1
+            if response["request_sha256"] != job["request_sha256"] or response["id"] != job["id"]:
+                result.update({"error": "wrong-request-binding"})
+            elif response["evidence"] != evidence:
+                result.update({"error": "evidence-class-mismatch"})
+            elif response["status"] != "EXECUTED":
+                result.update({"error": response.get("error", "inference-failed")})
+            else:
+                provenance_error ∈ str ← ""
+                if evidence == "live":
+                    provenance_error ← live_provenance_error(output, job, response, manifest)
+                if provenance_error:
+                    result.update({"error": provenance_error})
+                else:
+                    result ← grade_text(response["text"], expected[job["case_id"]])
+        if result["pass"]:
+            passed ← passed + 1
+        verdicts.append({"id": job["id"], "case_id": job["case_id"], "condition": job["condition"], "seed": job["seed"], "result": result})
+    actual_files ∈ list[Any] ← list(Path(output + "/responses").glob("*.json"))
+    complete ∈ bool ← len(actual_files) == len(jobs) and responded == len(jobs)
+    state ∈ str ← "FAIL"
+    if complete and passed == len(jobs):
+        state ← "PASS"
+    if evidence == "fixture":
+        state ← "HARNESS_ONLY_" + state
+    save(output + "/summary.json", {"status": state, "evidence": evidence, "expected_trials": len(jobs), "parent_trials": manifest["parent_count"], "condition_selection": manifest["condition_selection"], "parent_suite_sha256": manifest["parent_suite_sha256"], "model_sha256": manifest["model_sha256"], "responses": responded, "passed": passed, "all_trials_pass": complete and passed == len(jobs), "live_transfer": "NOT_RUN", "kitchen_execution": "NOT_RUN", "verdicts": verdicts})
+    print(encoded({"status": state, "expected_trials": len(jobs), "responses": responded, "passed": passed, "live_transfer": "NOT_RUN"}))
+    if complete and passed == len(jobs):
+        return 0
+    return 1
+
+
+def exercise(output ∈ str, mutation ∈ str) → int:
+    """Explicit synthetic control, never model evidence."""
+    suite ∈ dict[str, Any] ← load(output + "/suite.json")
+    jobs ∈ list[dict[str, Any]] ← load(output + "/requests.json")
+    expected ∈ dict[str, Any] ← {}
+    cases ∈ list[dict[str, Any]] ← suite["cases"]
+    for case in cases:
+        expected.update({case["id"]: case["expected"]})
+    for job in jobs:
+        answer ∈ Any ← expected[job["case_id"]]
+        if mutation == "constant":
+            answer ← expected[jobs[0]["case_id"]]
+        response ∈ dict[str, Any] ← {"id": job["id"], "request_sha256": job["request_sha256"], "evidence": "fixture", "status": "EXECUTED", "text": encoded(answer)}
+        if mutation == "stale":
+            response.update({"request_sha256": "0000000000000000000000000000000000000000000000000000000000000000"})
+        if mutation == "false-live":
+            response.update({"evidence": "live"})
+        if mutation != "missing":
+            save(output + "/responses/" + str(job["id"]) + ".json", response)
+    return grade(output, "fixture")
+
+
+def provenance_self_test() → None:
+    """Synthetic transport records test the verifier, never model accuracy."""
+    expected ∈ dict[str, Any] ← {"decision": "other", "source": None, "destination": None, "pipeline": None, "runtime": None, "status": "not_executed"}
+    suite ∈ dict[str, Any] ← {"schema_version": 1, "instruction": "Synthetic verifier fixture only.", "temperature": 0.2, "max_tokens": 128, "seeds": [17, 29, 43], "conditions": [{"id": "first", "instruction": "First condition."}, {"id": "second", "instruction": "Second condition."}, {"id": "third", "instruction": "Third condition."}], "cases": [{"id": "fixture", "split": "development", "origin": "Synthetic verifier test; not a model result", "messages": [{"role": "user", "content": "Fixture input."}], "expected": expected}]}
+    with tempfile.TemporaryDirectory(prefix="aici-model-provenance-") as temporary:
+        root ∈ str ← str(temporary)
+        suite_path ∈ str ← root + "/suite.json"
+        catalog_path ∈ str ← root + "/catalog.toml"
+        save(suite_path, suite)
+        Path(catalog_path).write_text('[models.fixture]\nhf_repo = "harness-only/fixture"\nrevision = "synthetic"\ninterface = "chat"\nreasoning_effort = "low"\n')
+        full ∈ str ← root + "/full"
+        prepare(suite_path, catalog_path, "fixture", full, "")
+        jobs ∈ list[dict[str, Any]] ← load(full + "/requests.json")
+        manifest ∈ dict[str, Any] ← load(full + "/manifest.json")
+        selected_ids ∈ list[str] ← []
+        for condition in ["first", "second", "third"]:
+            shard ∈ str ← root + "/" + condition
+            prepare(suite_path, catalog_path, "fixture", shard, condition)
+            shard_jobs ∈ list[dict[str, Any]] ← load(shard + "/requests.json")
+            shard_manifest ∈ dict[str, Any] ← load(shard + "/manifest.json")
+            if len(shard_jobs) != 3 or shard_manifest["parent_suite_sha256"] != manifest["parent_suite_sha256"] or shard_manifest["parent_count"] != 9:
+                raise ValueError("condition shard changed parent binding or trial count")
+            for shard_job in shard_jobs:
+                if not contains(jobs, shard_job) or contains(selected_ids, shard_job["id"]):
+                    raise ValueError("condition shard changed or duplicated a frozen request")
+                selected_ids.append(shard_job["id"])
+        if len(selected_ids) != len(jobs):
+            raise ValueError("condition shards did not cover the full matrix")
+        rejected ∈ bool ← False
+        try:
+            prepare(suite_path, catalog_path, "fixture", root + "/unknown", "unknown")
+        except ValueError:
+            rejected ← True
+        if not rejected or Path(root + "/unknown").exists():
+            raise ValueError("unknown condition was admitted or created output")
+        for job in jobs:
+            forged ∈ dict[str, Any] ← {"id": job["id"], "request_sha256": job["request_sha256"], "evidence": "live", "status": "EXECUTED", "text": encoded(expected)}
+            save(full + "/responses/" + str(job["id"]) + ".json", forged)
+        if grade(full, "live") != 1:
+            raise ValueError("fixture relabeled live was accepted without raw inference evidence")
+        summary ∈ dict[str, Any] ← load(full + "/summary.json")
+        if summary["passed"] != 0:
+            raise ValueError("some relabeled fixture received a live pass")
+        model ∈ dict[str, Any] ← load(full + "/model.json")
+        example_job ∈ dict[str, Any] ← jobs[0]
+        payload ∈ dict[str, Any] ← example_job["payload"]
+        identity ∈ dict[str, Any] ← {"backend": "openai-compatible-http", "requested_model": "harness-only/fixture", "requested_revision": "synthetic", "format": "chat", "served_model": "harness-only-fixture", "weight_identity": "UNVERIFIED_REMOTE_WEIGHTS", "requests_sha256": manifest["requests_sha256"], "model_sha256": manifest["model_sha256"]}
+        inference ∈ dict[str, Any] ← {"status": "EXECUTED", "requests_attempted": len(jobs), "requests_sha256": manifest["requests_sha256"], "model_sha256": manifest["model_sha256"]}
+        request ∈ dict[str, Any] ← {"model": "harness-only-fixture", "messages": payload["messages"], "temperature": 0.2, "max_tokens": 128, "seed": 17, "stream": False, "reasoning_effort": "low"}
+        decoded ∈ dict[str, Any] ← {"model": "harness-only-fixture", "choices": [{"finish_reason": "stop", "message": {"content": encoded(expected)}}]}
+        response ∈ dict[str, Any] ← {"id": example_job["id"], "request_sha256": example_job["request_sha256"], "evidence": "live", "status": "EXECUTED", "text": encoded(expected), "http_status": 200, "raw_request_sha256": digest(encoded(request)), "raw_sha256": digest(encoded(decoded))}
+        fixture ∈ str ← encoded({"model": model, "identity": identity, "inference": inference, "request": request, "decoded": decoded, "response": response})
+        diagnostics ∈ dict[str, str] ← {"positive": "", "raw-response": "raw-response-digest-mismatch", "response-text": "response-text-does-not-match-raw-response", "request-input": "raw-request-does-not-match-frozen-payload", "request-digest": "raw-request-digest-mismatch", "request-id": "wrong-request-binding", "model-profile": "model-profile-changed", "model-identity": "wrong-model-identity", "identity-run": "wrong-inference-run-binding", "incomplete": "incomplete-inference-run", "model-name": "wrong-response-model", "finish": "unfinished-model-response", "weight-claim": "unattested-remote-weight-identity", "missing-raw": "missing-or-invalid-live-provenance"}
+        for mutation in diagnostics:
+            packet ∈ dict[str, Any] ← json.loads(fixture)
+            current_model ∈ dict[str, Any] ← packet["model"]
+            current_identity ∈ dict[str, Any] ← packet["identity"]
+            current_inference ∈ dict[str, Any] ← packet["inference"]
+            current_request ∈ dict[str, Any] ← packet["request"]
+            current_decoded ∈ dict[str, Any] ← packet["decoded"]
+            current_response ∈ dict[str, Any] ← packet["response"]
+            if mutation == "response-text":
+                current_response.update({"text": "Substituted final answer."})
+            if mutation == "request-input":
+                current_request.update({"messages": [{"role": "user", "content": "Different input."}]})
+                current_response.update({"raw_request_sha256": digest(encoded(current_request))})
+            if mutation == "request-digest":
+                current_response.update({"raw_request_sha256": "changed"})
+            if mutation == "request-id":
+                current_response.update({"id": "another-job"})
+            if mutation == "model-profile":
+                current_model.update({"key": "another-model"})
+            if mutation == "model-identity":
+                current_identity.update({"requested_revision": "another-revision"})
+            if mutation == "identity-run":
+                current_identity.update({"requests_sha256": "another-run"})
+            if mutation == "incomplete":
+                current_inference.update({"requests_attempted": 0})
+            if mutation == "model-name":
+                current_decoded.update({"model": "another-model"})
+                current_response.update({"raw_sha256": digest(encoded(current_decoded))})
+            if mutation == "finish":
+                current_decoded.update({"choices": [{"finish_reason": "length", "message": {"content": encoded(expected)}}]})
+                current_response.update({"raw_sha256": digest(encoded(current_decoded))})
+            if mutation == "weight-claim":
+                current_identity.update({"weight_identity": "VERIFIED"})
+            raw ∈ bytes ← encoded(current_decoded).encode()
+            if mutation == "raw-response":
+                raw ← raw + b" "
+            directory ∈ str ← root + "/transport-" + mutation
+            Path(directory).mkdir()
+            Path(directory + "/raw").mkdir()
+            save(directory + "/model.json", current_model)
+            save(directory + "/identity.json", current_identity)
+            save(directory + "/inference.json", current_inference)
+            save(directory + "/raw/" + str(example_job["id"]) + ".request.json", current_request)
+            if mutation != "missing-raw":
+                Path(directory + "/raw/" + str(example_job["id"]) + ".response.bin").write_bytes(raw)
+            diagnostic ∈ str ← live_provenance_error(directory, example_job, current_response, manifest)
+            if diagnostic != diagnostics[mutation]:
+                raise ValueError("provenance control " + mutation + " produced " + diagnostic + ", expected " + diagnostics[mutation])
+        local_model ∈ dict[str, Any] ← json.loads(encoded(model))
+        local_profile ∈ dict[str, Any] ← local_model["profile"]
+        local_profile.update({"ollama_version": "synthetic-runtime", "ollama_model": "harness-only-fixture", "ollama_digest": "synthetic-model-digest"})
+        local_manifest ∈ dict[str, Any] ← dict(manifest)
+        local_manifest.update({"model_sha256": digest(encoded(local_model))})
+        local_identity ∈ dict[str, Any] ← dict(identity)
+        local_identity.update({"model_sha256": local_manifest["model_sha256"]})
+        local_inference ∈ dict[str, Any] ← dict(inference)
+        local_inference.update({"model_sha256": local_manifest["model_sha256"]})
+        observation ∈ dict[str, Any] ← {"runtime": {"version": "synthetic-runtime"}, "model": {"name": "harness-only-fixture", "digest": "synthetic-model-digest"}, "claim": "LOCAL_RUNTIME_REPORTED_DIGEST", "hf_weight_equivalence": "NOT_ATTESTED"}
+        local_diagnostics ∈ dict[str, str] ← {"positive": "", "missing-marker": "missing-local-execution-marker", "wrong-final-marker": "local-execution-marker-mismatch", "wrong-final-model": "local-model-observation-mismatch", "missing-owned-process": "missing-owned-server-process"}
+        for local_mutation in local_diagnostics:
+            marker ∈ dict[str, Any] ← {"status": "EXECUTED", "requests_sha256": local_manifest["requests_sha256"], "model_sha256": local_manifest["model_sha256"], "owned_server_pid": 1234, "runtime": "synthetic-runtime", "model_digest": "synthetic-model-digest", "weight_identity": "LOCAL_RUNTIME_REPORTED_DIGEST", "hf_weight_equivalence": "NOT_ATTESTED"}
+            after ∈ dict[str, Any] ← json.loads(encoded(observation))
+            if local_mutation == "wrong-final-marker":
+                marker.update({"status": "INCOMPLETE"})
+            if local_mutation == "wrong-final-model":
+                after.update({"model": {"name": "harness-only-fixture", "digest": "different-final-digest"}})
+            if local_mutation == "missing-owned-process":
+                marker.update({"owned_server_pid": 0})
+            local_directory ∈ str ← root + "/local-" + local_mutation
+            Path(local_directory).mkdir()
+            Path(local_directory + "/raw").mkdir()
+            save(local_directory + "/model.json", local_model)
+            save(local_directory + "/identity.json", local_identity)
+            save(local_directory + "/inference.json", local_inference)
+            save(local_directory + "/raw/" + str(example_job["id"]) + ".request.json", request)
+            Path(local_directory + "/raw/" + str(example_job["id"]) + ".response.bin").write_bytes(encoded(decoded).encode())
+            save(local_directory + "/local-model-before.json", observation)
+            save(local_directory + "/local-model-after.json", after)
+            if local_mutation != "missing-marker":
+                save(local_directory + "/local-execution.json", marker)
+            local_diagnostic ∈ str ← live_provenance_error(local_directory, example_job, response, local_manifest)
+            if local_diagnostic != local_diagnostics[local_mutation]:
+                raise ValueError("local provenance control " + local_mutation + " produced " + local_diagnostic + ", expected " + local_diagnostics[local_mutation])
+    print("HARNESS_ONLY_PASS: relabeled fixtures rejected; two valid synthetic transport records, seventeen provenance mutants, and complete condition-shard coverage checked; actual model calls ZERO")
+
+
+def self_test() → None:
+    good ∈ dict[str, Any] ← {"decision": "transfer", "source": "owner/repo", "destination": "org", "runtime": "grease", "status": "not_executed"}
+    if not grade_text(encoded(good), good)["pass"]:
+        raise ValueError("positive parser control failed")
+    bad ∈ list[str] ← ["", "done", "```json\n" + encoded(good) + "\n```", "{}", encoded({"decision": "fork"}), encoded(good).replace("org", "wrong-org"), encoded(good).replace("not_executed", "completed"), encoded(good).replace("grease", "bash"), encoded(good)[:-1] + ',"decision":"transfer"}', encoded(good)[:-1] + ',"extra":"unexpected-field"}']
+    for text in bad:
+        if grade_text(text, good)["pass"]:
+            raise ValueError("known-bad response accepted")
+    print("PASS one positive and ten parser/oracle mutants; model inference NOT_RUN")
+    provenance_self_test()
+
+
+def main() → int:
+    raw_arguments ∈ list[str] ← sys.argv
+    arguments ∈ list[str] ← raw_arguments[1:]
+    if arguments == ["self-test"]:
+        self_test()
+        return 0
+    if len(arguments) == 5 and arguments[0] == "prepare":
+        prepare(arguments[1], arguments[2], arguments[3], arguments[4], "")
+        return 0
+    if len(arguments) == 6 and arguments[0] == "prepare":
+        prepare(arguments[1], arguments[2], arguments[3], arguments[4], arguments[5])
+        return 0
+    if len(arguments) == 3 and arguments[0] == "grade":
+        return grade(arguments[1], arguments[2])
+    if len(arguments) == 3 and arguments[0] == "exercise":
+        if not contains(["good", "constant", "stale", "false-live", "missing"], arguments[2]):
+            raise ValueError("unknown synthetic control")
+        return exercise(arguments[1], arguments[2])
+    if len(arguments) == 2 and arguments[0] == "check-suite":
+        validate(load(arguments[1]))
+        print("Suite contract valid; inference NOT_RUN")
+        return 0
+    raise ValueError("usage: self-test | check-suite SUITE | prepare SUITE CATALOG MODEL OUTPUT [CONDITION] | grade OUTPUT live|fixture | exercise OUTPUT good|constant|stale|false-live|missing")
+
+namespace ∈ dict[str, Any] ← globals()
+module_name ∈ str ← namespace.get("__name__", "")
+if module_name == "__main__":
+    sys.exit(main())

@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "catalog_owner": "isomorphisms/flexible-pipes",
+  "catalog_path": "models/catalog.toml",
+  "models": {
+    "gpt-oss-20b": {"adapter": "infer-http.pi", "interface": "chat", "source": "sources/gpt-oss", "runtime": "checksum-pinned local Ollama CPU pilot; distinct from GPT-OSS-120B"},
+    "gpt-oss-120b": {"adapter": "infer-http.pi", "interface": "chat", "source": "sources/gpt-oss"},
+    "pythia-12b": {"adapters": ["infer-http.pi", "infer-pythia.pi"], "interface": "completion"},
+    "pythia-6_9b": {"adapters": ["infer-http.pi", "infer-pythia.pi"], "interface": "completion"}
+  },
+  "pythia_implementation_sources": {
+    "transformers": {"path": "sources/transformers", "revision": "90ef040d400e94c771edb8b806c9c294e1b6a13f", "runtime_status": "adapter frontend tested; model inference NOT_RUN"},
+    "gpt-neox": {"path": "sources/gpt-neox", "revision": "cf40e42142694e40aab158b6c81ff3f1d4fc921a", "runtime_status": "source pinned for later independent implementation comparison; NOT_RUN"}
+  },
+  "weights_in_git": false,
+  "source_materialization": "git submodule update --init; CI does not download weights",
+  "model_accuracy": "NOT_MEASURED"
+}
