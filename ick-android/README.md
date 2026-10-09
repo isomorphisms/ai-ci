@@ -1,7 +1,7 @@
 # Pinned ICK compiler for Android C
 
 This action builds the C-only ICK compiler at
-`c61e448251744a2f40ad743ebef1a027bdcd2f9d`, using its immutable GCC reference
+`fbe86e23d55cfec2000c08e61deea2a407fd7175`, using its immutable GCC reference
 `6294f1d9e7536e5ffcde09d1528c918d63abfef5`. Host GCC/G++ bootstrap ICK.
 Maintained consumer C is compiled by the resulting ICK compiler. The action
 supports `armeabi-v7a`, `arm64-v8a`, and `x86_64`; call it once per ABI.
@@ -129,6 +129,19 @@ O0/O2 through the exact compiler resource headers. The x86_64 Bionic executables
 run on Linux and check initialization, lock freedom, ordered load/store,
 read-modify-write, compare/exchange and flags. This is a scalar atomic profile,
 not acceptance of arbitrary sizes, out-of-line libatomic, or concurrent app behavior.
+
+The exact compiler revision includes the extraction-only lowering repair in
+[ICK PR #85](https://github.com/dilapidated-shed/ick/pull/85). All ABIs compile,
+assemble, and statically link its independent Cartesian-component regression
+at O0/O1/O2/O3/Os. The x86_64 Bionic executables run directly on Linux; the
+other two qualification receipts explicitly record execution as not run.
+The fixture checks member, index, argument, inline, and direct-language paths
+while retaining physical polar bytes. Consumers still test their actual
+renderer and foreign boundaries. The earlier dated qualification TSV records
+the historical c61 builds; the [extraction repair receipt](../ick-host/qualification/complex-extraction-2026-10-09.tsv)
+distinguishes the new local x86 frontend check from fresh hosted cross builds.
+The shared source-boundary workflow retains each successful compiler stage
+alongside its source, NDK, ELF, and runtime qualification evidence.
 
 When Fortify 2 is selected, every ABI also compiles and statically links the
 actual Bionic overflow fixture at O1, O2, O3 and Os. On an x86_64 Linux runner,

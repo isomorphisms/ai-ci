@@ -31,7 +31,7 @@ ELF_MACHINE = $(ELF_MACHINE_$(ABI))
 ICK_SOURCE ?= $(CURDIR)/.ick-android-$(ABI)-source
 ICK_BUILD ?= $(CURDIR)/.ick-android-$(ABI)-build
 ICK_STAGE ?= $(CURDIR)/.ick-android-$(ABI)-stage
-ICK_REVISION = c61e448251744a2f40ad743ebef1a027bdcd2f9d
+ICK_REVISION = fbe86e23d55cfec2000c08e61deea2a407fd7175
 GCC_REVISION = 6294f1d9e7536e5ffcde09d1528c918d63abfef5
 ICK_MATERIALIZED = $(ICK_BUILD)/source
 ICK_COMPILER ?= $(ICK_STAGE)/bin/$(GNU_TARGET)-gcc
@@ -66,9 +66,14 @@ include $(QUALIFY_ROOT)fortify/Makefile
 endif
 endif
 GLYPH_SOURCE = $(QUALIFY_ROOT)../ick-host/assignment-arrow.c
+COMPLEX_SOURCE = $(ICK_SOURCE)/ick/source/gcc/testsuite/gcc.dg/ick-complex-extraction-only.c
+COMPLEX_LEVELS = 0 1 2 3 s
+COMPLEX_ARTIFACTS = $(addprefix $(QUALIFY_BUILD)/complex-O,$(COMPLEX_LEVELS))
 BIONIC_SOURCE = $(ICK_SOURCE)/qualification/android-boundary
 QUALIFY_ARTIFACTS = $(QUALIFY_BUILD)/glyphs-O0 $(QUALIFY_BUILD)/glyphs-O2 $(QUALIFY_BUILD)/atomics-O0 $(QUALIFY_BUILD)/atomics-O2 $(QUALIFY_BUILD)/libbionic-headers.so $(QUALIFY_BUILD)/bionic-nullability.o $(QUALIFY_BUILD)/bionic-availability.o $(FORTIFY_ARTIFACTS)
 QUALIFY_ASSEMBLY = $(addprefix $(QUALIFY_BUILD)/,glyphs-O0.s glyphs-O2.s atomics-O0.s atomics-O2.s bionic-headers.s bionic-nullability.s bionic-availability.s)
+QUALIFY_ARTIFACTS += $(COMPLEX_ARTIFACTS)
+QUALIFY_ASSEMBLY += $(addsuffix .s,$(COMPLEX_ARTIFACTS))
 QUALIFY_ELF_CHECKS = $(addsuffix .elf,$(QUALIFY_ARTIFACTS))
 
 .PHONY: all validate check-compiler check-qualification qualify reject-api25 outputs FORCE
@@ -131,6 +136,29 @@ $(QUALIFY_BUILD)/atomics-O%.o: $(QUALIFY_BUILD)/atomics-O%.s
 $(QUALIFY_BUILD)/atomics-O%: $(QUALIFY_BUILD)/atomics-O%.o
 	"$(NDK_CC)" $(TARGET_FLAGS) -static -Wl,--no-undefined "$<" -o "$@"
 
+$(QUALIFY_BUILD)/complex-O%.s: $(COMPLEX_SOURCE) FORCE | check-qualification
+	"$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) $(ICK_NDK_FLAGS) -D__ANDROID_API__=26 -D__ANDROID_MIN_SDK_VERSION__=26 -std=c17 -O$* $(ICK_DEBUG_FLAGS) -fPIC -Wall -Wextra -Werror -S "$<" -o "$@"
+
+$(QUALIFY_BUILD)/complex-O%.o: $(QUALIFY_BUILD)/complex-O%.s
+	"$(NDK_CC)" $(TARGET_FLAGS) -c "$<" -o "$@"
+
+$(QUALIFY_BUILD)/complex-O%: $(QUALIFY_BUILD)/complex-O%.o
+	"$(NDK_CC)" $(TARGET_FLAGS) -static -Wl,--no-undefined "$<" -lm -o "$@"
+
+.PHONY: qualify-complex-runtime
+ifeq ($(ABI),x86_64)
+qualify-complex-runtime: $(COMPLEX_ARTIFACTS)
+	"$(QUALIFY_BUILD)/complex-O0"
+	"$(QUALIFY_BUILD)/complex-O1"
+	"$(QUALIFY_BUILD)/complex-O2"
+	"$(QUALIFY_BUILD)/complex-O3"
+	"$(QUALIFY_BUILD)/complex-Os"
+	printf 'floating_complex_extraction_bionic_static_on_linux_x86_64\tPASS\nlevels\tO0 O1 O2 O3 Os\n' > "$(QUALIFY_BUILD)/complex-runtime.tsv"
+else
+qualify-complex-runtime: $(COMPLEX_ARTIFACTS)
+	printf 'floating_complex_extraction_compile_link\tPASS\nlevels\tO0 O1 O2 O3 Os\nexecution\tNOT_RUN\n' > "$(QUALIFY_BUILD)/complex-runtime.tsv"
+endif
+
 .PHONY: qualify-atomics-runtime
 ifeq ($(ABI),x86_64)
 qualify-atomics-runtime: $(QUALIFY_BUILD)/atomics-O0 $(QUALIFY_BUILD)/atomics-O2
@@ -176,7 +204,7 @@ reject-api25: check-qualification
 	grep -Eqi 'requires Android API 26' "$(QUALIFY_BUILD)/bionic-availability-api25.log"
 	test ! -e "$(QUALIFY_BUILD)/bionic-availability-api25.s"
 
-qualify: $(QUALIFY_ASSEMBLY) $(QUALIFY_ELF_CHECKS) reject-api25 $(FORTIFY_QUALIFY) qualify-atomics-runtime reject-copy-relocation
+qualify: $(QUALIFY_ASSEMBLY) $(QUALIFY_ELF_CHECKS) reject-api25 $(FORTIFY_QUALIFY) qualify-atomics-runtime qualify-complex-runtime reject-copy-relocation
 	sha256sum "$(ICK_COMPILER)" "$$("$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) -print-prog-name=cc1)" > "$(QUALIFY_BUILD)/compiler.sha256"
 	sha256sum "$(NDK)/source.properties" "$(NDK_BIN)/clang" "$(NDK_READELF)" > "$(QUALIFY_BUILD)/ndk.sha256"
 	sha256sum $(QUALIFY_ARTIFACTS) > "$(QUALIFY_BUILD)/artifacts.sha256"

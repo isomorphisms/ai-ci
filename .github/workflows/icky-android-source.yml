@@ -35,6 +35,18 @@ jobs:
           abi: ${{ matrix.abi }}
           ndk: ${{ env.ANDROID_HOME }}/ndk/27.2.12479018
           fortify-source: '2'
+      - name: Archive the qualified exact-source compiler stage
+        run: >-
+          make -f ick-android/Makefile archive-stage
+          ABI='${{ matrix.abi }}'
+          ICK_STAGE="$RUNNER_TEMP/ick-android-${{ matrix.abi }}-stage"
+          ICK_ARCHIVE="$RUNNER_TEMP/ick-android-${{ matrix.abi }}-stage.tar.gz"
+      - name: Retain the qualified compiler for exact consumer reproduction
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ick-android-compiler-${{ matrix.abi }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/ick-android-${{ matrix.abi }}-stage.tar.gz
+          if-no-files-found: error
       - name: Retain source, compiler, NDK and ELF evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:

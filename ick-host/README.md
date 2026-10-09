@@ -1,9 +1,11 @@
 # Native ICK producer
 
-This action builds ICK `c61e448251744a2f40ad743ebef1a027bdcd2f9d`
+This action builds ICK `fbe86e23d55cfec2000c08e61deea2a407fd7175`
 over GCC `6294f1d9e7536e5ffcde09d1528c918d63abfef5` and executes
 literal `←`, `×` and `÷` before exporting the compiler. The pinned source
 contains [dilapidated-shed/ick PR #84, “Recognize ÷ division in Icky C”](https://github.com/dilapidated-shed/ick/pull/84).
+It also contains [ICK PR #85, “Lower Cartesian component reads in polar
+extraction-only functions”](https://github.com/dilapidated-shed/ick/pull/85).
 Consumers compile and link their C tests with that compiler. A stock compiler
 is used only to bootstrap ICK; it is never an acceptance substitute.
 
@@ -16,8 +18,18 @@ accepts the glyph cannot pass with the wrong arithmetic result.
 An ordinary `sizeof(array) ÷ sizeof(array[0])` macro is exercised separately
 from the intentionally unsupported `#if 8 ÷ 2` preprocessor expression.
 
+Every build and cache restore also executes the pinned compiler source's
+complex extraction, polar layout, and rounding fixtures at O0/O1/O2/O3/Os.
+The extraction fixture requires independent Cartesian coordinates from functions
+containing no other complex arithmetic and separately checks physical polar
+storage. This prevents the earlier extraction-only pass-gating defect from
+being hidden by an arithmetic-heavy consumer test. Existing Float16 compilation
+and object-byte constant folding are checked by the same fixed Make interface.
+
 [The dated native receipt](qualification/2026-10-09.tsv) records the exact
-compiler and fixture identities used for local execution. Each consumer still
+historical c61 compiler and fixture identities used for local execution.
+[The extraction repair receipt](qualification/complex-extraction-2026-10-09.tsv)
+records the new source and its explicitly bounded local validation. Each consumer still
 runs the action and its own tests on its current pinned source.
 
 This is binary C division after preprocessing. C++/Objective-C, preprocessor

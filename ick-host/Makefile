@@ -3,7 +3,7 @@
 ICK_SOURCE ?= $(CURDIR)/.ick-host-source
 ICK_BUILD ?= $(CURDIR)/.ick-host-build
 ICK_STAGE ?= $(CURDIR)/.ick-host-stage
-ICK_REVISION = c61e448251744a2f40ad743ebef1a027bdcd2f9d
+ICK_REVISION = fbe86e23d55cfec2000c08e61deea2a407fd7175
 GCC_REVISION = 6294f1d9e7536e5ffcde09d1528c918d63abfef5
 ICK_MATERIALIZED = $(ICK_BUILD)/source
 ICK_COMPILER = $(ICK_STAGE)/bin/gcc
@@ -15,10 +15,10 @@ HOST_RUNTIME ?= /usr/lib/gcc/x86_64-linux-gnu/13
 RUNTIME_DEST = $(ICK_STAGE)/lib/gcc/x86_64-pc-linux-gnu/17.0.0
 RUNTIME_FILES = libgcc.a libgcc_eh.a libgcc_s.so crtbegin.o crtbeginT.o crtend.o crtbeginS.o crtendS.o libasan.a libasan.so libasan_preinit.o libubsan.a libubsan.so
 
-.PHONY: all qualify cache-key
+.PHONY: all qualify qualify-complex cache-key
 all: $(ICK_COMPILER)
 
-qualify:
+qualify: qualify-complex
 	mkdir -p "$(ICK_QUALIFY_BUILD)"
 	"$(ICK_COMPILER)" $(ICK_LINK_FLAGS) -std=c17 -O0 -Wall -Wextra -Werror "$(ICK_QUALIFY_SOURCE)" -o "$(ICK_QUALIFY_BUILD)/glyphs-O0"
 	"$(ICK_QUALIFY_BUILD)/glyphs-O0"
@@ -33,6 +33,10 @@ qualify:
 	! "$(ICK_COMPILER)" -std=c17 -DICK_HOST_REJECT_PP_DIVISION -c "$(ICK_QUALIFY_SOURCE)" -o "$(ICK_QUALIFY_BUILD)/preprocessor-division.o" > "$(ICK_QUALIFY_BUILD)/preprocessor-division.log" 2>&1
 	grep -F 'not valid in preprocessor expressions' "$(ICK_QUALIFY_BUILD)/preprocessor-division.log"
 	test ! -e "$(ICK_QUALIFY_BUILD)/preprocessor-division.o"
+
+qualify-complex:
+	test "$$(git -C "$(ICK_SOURCE)" rev-parse HEAD)" = "$(ICK_REVISION)"
+	$(MAKE) -f "$(ICK_SOURCE)/qualification/complex-extraction/Makefile" all ICK="$(ICK_COMPILER)" ICK_LINK_FLAGS="$(ICK_LINK_FLAGS)" BUILD="$(ICK_QUALIFY_BUILD)/complex-extraction"
 
 cache-key:
 	@mkdir -p "$(ICK_BUILD)"
