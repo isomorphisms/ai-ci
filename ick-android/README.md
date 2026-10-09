@@ -7,7 +7,10 @@ Maintained consumer C is compiled by the resulting ICK compiler. The action
 supports `armeabi-v7a`, `arm64-v8a`, and `x86_64`; call it once per ABI.
 
 Inputs are `abi` and `ndk`, the absolute path to the consumer's installed NDK.
-Outputs are `compiler`, `target_flags`, `header_target`, and `gnu_target`.
+Outputs are `compiler`, `target_flags`, `header_target`, `gnu_target`, and
+`header_overlay`, and `builtin_include`. The compiler is the raw GNU-target ICK driver; it is also
+usable with an explicitly declared GNU/Linux header, runtime and linker
+profile. Android headers are selected by the consumer's source-stage flags.
 The application retains its NDK revision and minimum API decision. Qualification
 uses API 26 and also requires strict API-26 declarations to fail from API 25.
 If the existing application defines `_FORTIFY_SOURCE`, also supply that level
@@ -16,11 +19,15 @@ applied to the real Bionic-header qualification and must pass before the action
 exports a compiler. The default leaves the macro undefined, and the receipt
 records the tested setting.
 
-**Current fortified-header blocker:** with this exact ICK pin and NDK r27c,
-`_FORTIFY_SOURCE=2` fails on Bionic's Clang `overloadable`, `pass_object_size`
-and diagnostic constructs. The unfortified-header pass does not resolve that
-consumer requirement. Keep existing hardening flags and the failed gate;
-do not undefine Fortify or erase header annotations to make a consumer pass.
+For `_FORTIFY_SOURCE=2`, API 26 or later, the action selects the bounded
+[Bionic Fortify adapter](fortify/README.md). Add `-I<header_overlay>` before
+the NDK include directories. The adapter keeps the original public Bionic
+headers and checked runtime ABI, supplies eight GCC-compatible fortified
+functions, and rejects the other forty fortified public functions. It keeps
+the original macro value and object-size checks. Unsupported APIs, functions
+or Fortify levels fail; the producer does not undefine hardening or erase
+Clang attributes to make a consumer pass. With no requested Fortify setting,
+`header_overlay` is empty and the original NDK headers are used directly.
 
 | Android ABI | ICK GNU target | NDK header directory | Baseline flags |
 | --- | --- | --- | --- |
@@ -39,15 +46,25 @@ For the ICK source stage, combine `target_flags` with the application's flags
 and include paths, `-S`, and these explicit platform arguments:
 
 * `--sysroot=<ndk>/toolchains/llvm/prebuilt/linux-x86_64/sysroot`
+* `-nostdinc -isystem <builtin_include>`
 * `-isystem <sysroot>/usr/include`
 * `-isystem <sysroot>/usr/include/<header_target>`
 * `-D__ANDROID__ -D__ANDROID_API__=<application minimum API>`
 * `-DBIONIC_IOCTL_NO_SIGNEDNESS_OVERLOAD`
 
+The ICK resource headers must precede the NDK directories. In particular,
+GCC's `stdatomic.h` supplies this compiler's atomic builtins; selecting Bionic's
+Clang-only atomic implementation is a producer error. `-nostdinc` also prevents
+implicit host-header discovery. CMake resolves this directory from the exact
+driver and checks its `stdatomic.h` and `stddef.h` before compiling.
+
 Keep normal optimization, warnings, PIC, stack protection and API requirements
 from the consumer's existing build. NDK assembly consumes the emitted `.s`
 file with the matching target driver and flags. NDK linking consumes objects;
 it does not recompile the owned C source.
+For debug-enabled source, use `-gdwarf-4 -gno-variable-location-views` while
+retaining the original `-g`. This selects a debug encoding accepted by the
+NDK assembler; the qualifier exercises it on all three ABIs.
 
 ## CMake consumers
 
@@ -57,13 +74,19 @@ Android NDK CMake toolchain and supply `ICK_COMPILER`, `ICK_TARGET_FLAGS`, and
 `ICK_HEADER_TARGET` from the action. `ICK_COMPILER_OPTIONS` supports an explicit
 compiler search prefix for local qualification. It checks the selected ABI,
 GNU compiler target, NDK sysroot and numeric API floor before generating rules.
+Pass the optional `ICK_HEADER_OVERLAY` output when Fortify 2 was selected.
+An installed stage can be loaded through
+`ick_android_stage(ROOT "/absolute/stage" FORTIFY_SOURCE 2)`; omit the final
+argument only if the consumer does not request this Fortify profile.
 
 Add the returned external objects to the existing library, and keep upstream
 NDK glue in its ordinary source list. Pass the original target's owned-source
 options and definitions to this call. The helper retains directory, source,
 global CMake and build-type flags, including Fortify, and generates ordinary
-header dependencies. It disables GNU variable-location view directives because
-the NDK assembler does not accept them; normal DWARF/debug information remains.
+header dependencies. It uses DWARF 4 and disables GNU variable-location view
+directives because the NDK assembler does not accept the default encoding;
+normal debug information remains. Clang's `-fno-limit-debug-info` is mapped
+to GNU's `-fno-eliminate-unused-debug-types`, preserving complete type data.
 Unsupported compiler flags or hardened headers fail the source stage.
 
 The underlying `Makefile` also runs outside GitHub Actions: `all` uses `ABI`,
@@ -72,6 +95,9 @@ and the consumer's optional `FORTIFY_SOURCE`. The source checkout must include
 the exact GCC submodule. Bootstrap packages are the C/C++ build tools, flex,
 bison, texinfo, GMP/MPFR/MPC development libraries, and GNU binutils for the
 selected target. The consumer still uses ICK and NDK for its declared stages.
+The `archive-stage` and `restore-stage` targets take `ABI`, `ICK_STAGE` and
+`ICK_ARCHIVE` for workflow artifact transfer. Restore checks the executable
+and exact target; callers still run qualification for their NDK profile.
 
 ## Qualification
 
@@ -84,9 +110,24 @@ Strict API-26 availability must be rejected at API 25 at the intended
 diagnostic. Compiler, NDK and artifact hashes are retained in
 `<stage>/qualification/`, alongside an explicit `android_execution NOT_RUN`.
 The native `ick-host` producer separately executes the semantic fixture and its
-deliberately wrong division control.
+deliberately wrong division control, including a `sizeof` quotient macro and
+a separate intended rejection of `#if` division.
+All ABIs also compile and statically link an atomic-int/atomic-flag fixture at
+O0/O2 through the exact compiler resource headers. The x86_64 Bionic executables
+run on Linux and check initialization, lock freedom, ordered load/store,
+read-modify-write, compare/exchange and flags. This is a scalar atomic profile,
+not acceptance of arbitrary sizes, out-of-line libatomic, or concurrent app behavior.
 
-These are source, object and link qualifications. Android execution, app
+When Fortify 2 is selected, every ABI also compiles and statically links the
+actual Bionic overflow fixture at O1, O2, O3 and Os. On an x86_64 Linux runner,
+the x86_64 Bionic executables run directly: each requires sixteen child
+overflows to terminate with SIGABRT, including pointer argument side effects.
+A deliberately unfortified read control must fail with exit 55. Every ABI
+also requires all forty unsupported fortified functions and the API-25
+profile to fail at their intended diagnostics. These runtime results use
+actual Bionic on a Linux host; they do not imply Android device acceptance.
+
+Android execution, app
 behavior, packaging and physical-device acceptance remain consumer checks.
 The glyph contract remains C-only, after preprocessing: binary ÷ aliases `/`;
 `÷=` and preprocessor arithmetic are outside that contract. C++ and Objective-C

@@ -6,6 +6,11 @@
 #endif
 #define STRINGIFY_INNER(value) #value
 #define STRINGIFY(value) STRINGIFY_INNER(value)
+#define COUNT_OF(values) (sizeof(values) ÷ sizeof((values)[0]))
+#if defined(ICK_HOST_REJECT_PP_DIVISION)
+#if 8 ÷ 2
+#endif
+#endif
 
 static int same_bytes(const char *left, const char *right)
 {
@@ -43,5 +48,7 @@ int main(void)
     if (!same_bytes(STRINGIFY(÷), "\xc3\xb7")) return 9;
     /* Compatibility slash retains ordinary C division. */
     if (value / 2 != 3) return 10;
+    const int samples[3] ← {1, 2, 3};
+    if (COUNT_OF(samples) != 3) return 11;
     return 0;
 }

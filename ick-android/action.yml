@@ -24,6 +24,12 @@ outputs:
   gnu_target:
     description: Exact GNU target reported by the ICK compiler.
     value: ${{ steps.compiler.outputs.gnu_target }}
+  header_overlay:
+    description: Explicit bounded Bionic Fortify include directory, or empty when Fortify was not requested.
+    value: ${{ steps.compiler.outputs.header_overlay }}
+  builtin_include:
+    description: Exact ICK resource headers; put before NDK directories with -nostdinc.
+    value: ${{ steps.compiler.outputs.builtin_include }}
 runs:
   using: composite
   steps:
@@ -55,7 +61,7 @@ runs:
       env:
         ICK_ANDROID_ABI: ${{ inputs.abi }}
       run: make -f "${{ github.action_path }}/Makefile" ABI="$ICK_ANDROID_ABI" ICK_SOURCE="$GITHUB_WORKSPACE/.ick-android-$ICK_ANDROID_ABI-source" ICK_BUILD="$RUNNER_TEMP/ick-android-$ICK_ANDROID_ABI-build" ICK_STAGE="$RUNNER_TEMP/ick-android-$ICK_ANDROID_ABI-stage"
-    - name: Qualify literal glyphs and the unmodified Bionic headers
+    - name: Qualify literal glyphs and the selected Bionic boundary
       shell: bash
       env:
         ICK_ANDROID_ABI: ${{ inputs.abi }}
@@ -67,4 +73,5 @@ runs:
       shell: bash
       env:
         ICK_ANDROID_ABI: ${{ inputs.abi }}
-      run: make -f "${{ github.action_path }}/Makefile" outputs ABI="$ICK_ANDROID_ABI" ICK_STAGE="$RUNNER_TEMP/ick-android-$ICK_ANDROID_ABI-stage" >> "$GITHUB_OUTPUT"
+        ICK_ANDROID_FORTIFY_SOURCE: ${{ inputs.fortify-source }}
+      run: make -f "${{ github.action_path }}/Makefile" outputs ABI="$ICK_ANDROID_ABI" FORTIFY_SOURCE="$ICK_ANDROID_FORTIFY_SOURCE" ICK_STAGE="$RUNNER_TEMP/ick-android-$ICK_ANDROID_ABI-stage" >> "$GITHUB_OUTPUT"

@@ -1,5 +1,6 @@
 # Fixed make command interface. Host gcc/g++ only bootstrap ICK.
 # ICK compiles all qualification C; NDK tools assemble, link and inspect it.
+.DEFAULT_GOAL := all
 ABI ?=
 GNU_TARGET_armeabi-v7a = arm-linux-gnueabi
 GNU_TARGET_arm64-v8a = aarch64-linux-gnu
@@ -35,6 +36,7 @@ GCC_REVISION = 6294f1d9e7536e5ffcde09d1528c918d63abfef5
 ICK_MATERIALIZED = $(ICK_BUILD)/source
 ICK_COMPILER ?= $(ICK_STAGE)/bin/$(GNU_TARGET)-gcc
 ICK_EXTRA_FLAGS ?=
+ICK_BUILTIN_INCLUDE ?= $(shell "$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) -print-file-name=include)
 EXPECTED_TARGET ?= $(GNU_TARGET)
 BUILD_JOBS ?= 2
 BOOTSTRAP_CFLAGS ?= -O2 -g0
@@ -42,8 +44,8 @@ BOOTSTRAP_CXXFLAGS ?= -O2 -g0
 NDK ?=
 FORTIFY_SOURCE ?=
 ifneq ($(FORTIFY_SOURCE),)
-ifeq ($(filter $(FORTIFY_SOURCE),1 2),)
-$(error FORTIFY_SOURCE must be empty, 1, or 2)
+ifneq ($(FORTIFY_SOURCE),2)
+$(error FORTIFY_SOURCE must be empty or 2; other profiles are not qualified)
 endif
 FORTIFY_FLAGS = -D_FORTIFY_SOURCE=$(FORTIFY_SOURCE)
 endif
@@ -51,13 +53,22 @@ NDK_BIN = $(NDK)/toolchains/llvm/prebuilt/linux-x86_64/bin
 NDK_SYSROOT = $(NDK)/toolchains/llvm/prebuilt/linux-x86_64/sysroot
 NDK_CC = $(NDK_BIN)/$(NDK_TARGET_$(ABI))26-clang
 NDK_READELF = $(NDK_BIN)/llvm-readelf
-ICK_NDK_FLAGS = $(TARGET_FLAGS) --sysroot="$(NDK_SYSROOT)" -isystem "$(NDK_SYSROOT)/usr/include" -isystem "$(NDK_SYSROOT)/usr/include/$(HEADER_TARGET)" -D__ANDROID__ -DBIONIC_IOCTL_NO_SIGNEDNESS_OVERLOAD $(FORTIFY_FLAGS)
+ICK_NDK_BASE_FLAGS = $(TARGET_FLAGS) --sysroot="$(NDK_SYSROOT)" -nostdinc -isystem "$(ICK_BUILTIN_INCLUDE)" -isystem "$(NDK_SYSROOT)/usr/include" -isystem "$(NDK_SYSROOT)/usr/include/$(HEADER_TARGET)" -D__ANDROID__ -DBIONIC_IOCTL_NO_SIGNEDNESS_OVERLOAD
+ICK_NDK_FLAGS = $(HEADER_OVERLAY_FLAGS) $(ICK_NDK_BASE_FLAGS) $(FORTIFY_FLAGS)
+ICK_DEBUG_FLAGS = -g -gdwarf-4 -gno-variable-location-views
 QUALIFY_ROOT := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 QUALIFY_BUILD ?= $(ICK_STAGE)/qualification
+ifeq ($(FORTIFY_SOURCE),2)
+HEADER_OVERLAY = $(QUALIFY_ROOT)fortify/include
+HEADER_OVERLAY_FLAGS = -I"$(HEADER_OVERLAY)"
+ifeq ($(filter outputs archive-stage restore-stage,$(MAKECMDGOALS)),)
+include $(QUALIFY_ROOT)fortify/Makefile
+endif
+endif
 GLYPH_SOURCE = $(QUALIFY_ROOT)../ick-host/assignment-arrow.c
 BIONIC_SOURCE = $(ICK_SOURCE)/qualification/android-boundary
-QUALIFY_ARTIFACTS = $(QUALIFY_BUILD)/glyphs-O0 $(QUALIFY_BUILD)/glyphs-O2 $(QUALIFY_BUILD)/libbionic-headers.so $(QUALIFY_BUILD)/bionic-nullability.o $(QUALIFY_BUILD)/bionic-availability.o
-QUALIFY_ASSEMBLY = $(addprefix $(QUALIFY_BUILD)/,glyphs-O0.s glyphs-O2.s bionic-headers.s bionic-nullability.s bionic-availability.s)
+QUALIFY_ARTIFACTS = $(QUALIFY_BUILD)/glyphs-O0 $(QUALIFY_BUILD)/glyphs-O2 $(QUALIFY_BUILD)/atomics-O0 $(QUALIFY_BUILD)/atomics-O2 $(QUALIFY_BUILD)/libbionic-headers.so $(QUALIFY_BUILD)/bionic-nullability.o $(QUALIFY_BUILD)/bionic-availability.o $(FORTIFY_ARTIFACTS)
+QUALIFY_ASSEMBLY = $(addprefix $(QUALIFY_BUILD)/,glyphs-O0.s glyphs-O2.s atomics-O0.s atomics-O2.s bionic-headers.s bionic-nullability.s bionic-availability.s)
 QUALIFY_ELF_CHECKS = $(addsuffix .elf,$(QUALIFY_ARTIFACTS))
 
 .PHONY: all validate check-compiler check-qualification qualify reject-api25 outputs FORCE
@@ -69,6 +80,7 @@ FORCE:
 validate:
 	@test "$(ABI)" = "$(strip $(ABI))"
 
+ifeq ($(filter outputs archive-stage restore-stage,$(MAKECMDGOALS)),)
 $(ICK_BUILD)/source/.materialized:
 	test "$$(git -C "$(ICK_SOURCE)" rev-parse HEAD)" = "$(ICK_REVISION)"
 	test "$$(git -C "$(ICK_SOURCE)/gcc" rev-parse HEAD)" = "$(GCC_REVISION)"
@@ -83,14 +95,16 @@ $(ICK_BUILD)/objects/Makefile: $(ICK_BUILD)/source/.materialized
 $(ICK_COMPILER): $(ICK_BUILD)/objects/Makefile
 	$(MAKE) -C "$(ICK_BUILD)/objects" -j$(BUILD_JOBS) all-gcc
 	$(MAKE) -C "$(ICK_BUILD)/objects" install-gcc
-	test "$$($(ICK_COMPILER) -dumpmachine)" = "$(GNU_TARGET)"
-	test -x "$$($(ICK_COMPILER) -print-prog-name=cc1)"
+	test "$$("$(ICK_COMPILER)" -dumpmachine)" = "$(GNU_TARGET)"
+	test -x "$$("$(ICK_COMPILER)" -print-prog-name=cc1)"
 
 check-compiler:
 	test "$$(git -C "$(ICK_SOURCE)" rev-parse HEAD)" = "$(ICK_REVISION)"
 	test -x "$(ICK_COMPILER)"
-	test "$$($(ICK_COMPILER) $(ICK_EXTRA_FLAGS) -dumpmachine)" = "$(EXPECTED_TARGET)"
-	test -x "$$($(ICK_COMPILER) $(ICK_EXTRA_FLAGS) -print-prog-name=cc1)"
+	test "$$("$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) -dumpmachine)" = "$(EXPECTED_TARGET)"
+	test -x "$$("$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) -print-prog-name=cc1)"
+	test -f "$(ICK_BUILTIN_INCLUDE)/stdatomic.h"
+	test -f "$(ICK_BUILTIN_INCLUDE)/stddef.h"
 
 check-qualification: check-compiler
 	test -x "$(NDK_CC)"
@@ -100,7 +114,7 @@ check-qualification: check-compiler
 	rm -f "$(QUALIFY_BUILD)/receipt.tsv"
 
 $(QUALIFY_BUILD)/glyphs-O%.s: $(GLYPH_SOURCE) FORCE | check-qualification
-	"$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) $(ICK_NDK_FLAGS) -D__ANDROID_API__=26 -std=c17 -O$* -fPIE -Wall -Wextra -Werror -S "$<" -o "$@"
+	"$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) $(ICK_NDK_FLAGS) -D__ANDROID_API__=26 -std=c17 -O$* $(ICK_DEBUG_FLAGS) -fPIE -Wall -Wextra -Werror -S "$<" -o "$@"
 
 $(QUALIFY_BUILD)/glyphs-O%.o: $(QUALIFY_BUILD)/glyphs-O%.s
 	"$(NDK_CC)" $(TARGET_FLAGS) -c "$<" -o "$@"
@@ -108,8 +122,28 @@ $(QUALIFY_BUILD)/glyphs-O%.o: $(QUALIFY_BUILD)/glyphs-O%.s
 $(QUALIFY_BUILD)/glyphs-O%: $(QUALIFY_BUILD)/glyphs-O%.o
 	"$(NDK_CC)" $(TARGET_FLAGS) -fPIE -pie -Wl,--no-undefined -Wl,-z,max-page-size=16384 "$<" -o "$@"
 
+$(QUALIFY_BUILD)/atomics-O%.s: $(QUALIFY_ROOT)atomics.c FORCE | check-qualification
+	"$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) $(ICK_NDK_FLAGS) -D__ANDROID_API__=26 -std=c17 -O$* $(ICK_DEBUG_FLAGS) -fPIC -Wall -Wextra -Werror -S "$<" -o "$@"
+
+$(QUALIFY_BUILD)/atomics-O%.o: $(QUALIFY_BUILD)/atomics-O%.s
+	"$(NDK_CC)" $(TARGET_FLAGS) -c "$<" -o "$@"
+
+$(QUALIFY_BUILD)/atomics-O%: $(QUALIFY_BUILD)/atomics-O%.o
+	"$(NDK_CC)" $(TARGET_FLAGS) -static -Wl,--no-undefined "$<" -o "$@"
+
+.PHONY: qualify-atomics-runtime
+ifeq ($(ABI),x86_64)
+qualify-atomics-runtime: $(QUALIFY_BUILD)/atomics-O0 $(QUALIFY_BUILD)/atomics-O2
+	"$(QUALIFY_BUILD)/atomics-O0"
+	"$(QUALIFY_BUILD)/atomics-O2"
+	printf 'atomic_int_and_flag_bionic_static_on_linux_x86_64\tPASS\n' > "$(QUALIFY_BUILD)/atomics-runtime.tsv"
+else
+qualify-atomics-runtime: $(QUALIFY_BUILD)/atomics-O0 $(QUALIFY_BUILD)/atomics-O2
+	printf 'atomic_int_and_flag_compile_link\tPASS\nexecution\tNOT_RUN\n' > "$(QUALIFY_BUILD)/atomics-runtime.tsv"
+endif
+
 $(QUALIFY_BUILD)/bionic-%.s: $(BIONIC_SOURCE)/bionic-%.c FORCE | check-qualification
-	"$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) $(ICK_NDK_FLAGS) -D__ANDROID_API__=26 -std=c17 -O2 -fPIC -Wall -Wextra -Werror -S "$<" -o "$@"
+	"$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) $(ICK_NDK_FLAGS) -D__ANDROID_API__=26 -std=c17 -O2 $(ICK_DEBUG_FLAGS) -fPIC -Wall -Wextra -Werror -S "$<" -o "$@"
 
 $(QUALIFY_BUILD)/bionic-%.o: $(QUALIFY_BUILD)/bionic-%.s
 	"$(NDK_CC)" $(TARGET_FLAGS) -c "$<" -o "$@"
@@ -124,15 +158,31 @@ $(QUALIFY_ELF_CHECKS): %.elf: %
 
 reject-api25: check-qualification
 	rm -f "$(QUALIFY_BUILD)/bionic-availability-api25.s"
-	! "$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) $(ICK_NDK_FLAGS) -D__ANDROID_API__=25 -std=c17 -O2 -fPIC -Wall -Wextra -Werror -S "$(BIONIC_SOURCE)/bionic-availability.c" -o "$(QUALIFY_BUILD)/bionic-availability-api25.s" > "$(QUALIFY_BUILD)/bionic-availability-api25.log" 2>&1
+	! "$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) $(ICK_NDK_BASE_FLAGS) -D__ANDROID_API__=25 -std=c17 -O2 -fPIC -Wall -Wextra -Werror -S "$(BIONIC_SOURCE)/bionic-availability.c" -o "$(QUALIFY_BUILD)/bionic-availability-api25.s" > "$(QUALIFY_BUILD)/bionic-availability-api25.log" 2>&1
 	grep -Eqi 'requires Android API 26' "$(QUALIFY_BUILD)/bionic-availability-api25.log"
 	test ! -e "$(QUALIFY_BUILD)/bionic-availability-api25.s"
 
-qualify: $(QUALIFY_ASSEMBLY) $(QUALIFY_ELF_CHECKS) reject-api25
-	sha256sum "$(ICK_COMPILER)" "$$($(ICK_COMPILER) $(ICK_EXTRA_FLAGS) -print-prog-name=cc1)" > "$(QUALIFY_BUILD)/compiler.sha256"
+qualify: $(QUALIFY_ASSEMBLY) $(QUALIFY_ELF_CHECKS) reject-api25 $(FORTIFY_QUALIFY) qualify-atomics-runtime
+	sha256sum "$(ICK_COMPILER)" "$$("$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) -print-prog-name=cc1)" > "$(QUALIFY_BUILD)/compiler.sha256"
 	sha256sum "$(NDK)/source.properties" "$(NDK_BIN)/clang" "$(NDK_READELF)" > "$(QUALIFY_BUILD)/ndk.sha256"
 	sha256sum $(QUALIFY_ARTIFACTS) > "$(QUALIFY_BUILD)/artifacts.sha256"
 	printf 'source\t%s\ngcc_reference\t%s\nabi\t%s\nobserved_target\t%s\napi\t26\nfortify_source\t%s\nc_frontend\tick\nassembler\tndk\nlinker\tndk\nglyph_and_bionic_compile_link\tPASS\nstrict_api25_rejection\tPASS\nandroid_execution\tNOT_RUN\n' "$(ICK_REVISION)" "$(GCC_REVISION)" "$(ABI)" "$(EXPECTED_TARGET)" "$(if $(FORTIFY_SOURCE),$(FORTIFY_SOURCE),undefined)" > "$(QUALIFY_BUILD)/receipt.tsv"
+endif
 
 outputs:
-	@printf 'compiler=%s\ntarget_flags=%s\nheader_target=%s\ngnu_target=%s\n' "$(ICK_COMPILER)" "$(TARGET_FLAGS)" "$(HEADER_TARGET)" "$(GNU_TARGET)"
+	@printf 'compiler=%s\ntarget_flags=%s\nheader_target=%s\ngnu_target=%s\nheader_overlay=%s\nbuiltin_include=%s\n' "$(ICK_COMPILER)" "$(TARGET_FLAGS)" "$(HEADER_TARGET)" "$(GNU_TARGET)" "$(HEADER_OVERLAY)" "$(ICK_BUILTIN_INCLUDE)"
+
+.PHONY: archive-stage restore-stage
+archive-stage:
+	test -n "$(ICK_ARCHIVE)"
+	test -x "$(ICK_COMPILER)"
+	mkdir -p "$$(dirname "$(ICK_ARCHIVE)")"
+	tar -C "$(ICK_STAGE)" -czf "$(ICK_ARCHIVE)" .
+
+restore-stage:
+	test -f "$(ICK_ARCHIVE)"
+	mkdir -p "$(ICK_STAGE)"
+	tar -C "$(ICK_STAGE)" -xzf "$(ICK_ARCHIVE)"
+	test -x "$(ICK_COMPILER)"
+	test "$$("$(ICK_COMPILER)" -dumpmachine)" = "$(GNU_TARGET)"
+	test -x "$$("$(ICK_COMPILER)" -print-prog-name=cc1)"

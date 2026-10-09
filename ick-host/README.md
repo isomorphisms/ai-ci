@@ -13,6 +13,8 @@ single macro-operand evaluation, pointers, retained ASCII slash, literal bytes
 and macro stringification. A separately compiled control replaces the quotient
 macro with multiplication and must exit exactly 2. A compiler that merely
 accepts the glyph cannot pass with the wrong arithmetic result.
+An ordinary `sizeof(array) ÷ sizeof(array[0])` macro is exercised separately
+from the intentionally unsupported `#if 8 ÷ 2` preprocessor expression.
 
 [The dated native receipt](qualification/2026-10-09.tsv) records the exact
 compiler and fixture identities used for local execution. Each consumer still
@@ -30,6 +32,9 @@ The native scalar profile links against the Ubuntu 24.04 glibc and prebuilt
 GCC 13 startup/runtime objects. Their package versions and hashes are recorded
 in the stage directory. No host C frontend compiles consumer code. The ICK
 frontend and driver perform consumer compilation and linkage.
+The installed-stage cache is bound to the exact source, host platform,
+runtime package versions and hashes of every declared startup/runtime file.
+The semantic qualifier and negative controls execute on every cache restore.
 The same declared host dependency includes AddressSanitizer and UndefinedBehaviorSanitizer
 runtime objects for consumers that require those checks. Instrumentation is
 produced by ICK; each consumer must still execute its sanitizer suite.

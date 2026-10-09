@@ -12,6 +12,8 @@ on:
       - '.github/workflows/icky-android-source.yml'
 permissions:
   contents: read
+env:
+  ANDROID_HOME: /usr/local/lib/android/sdk
 jobs:
   boundary:
     runs-on: ubuntu-24.04
@@ -26,12 +28,13 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - name: Install the exact qualification NDK
-        run: sdkmanager 'ndk;27.2.12479018'
+        run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;27.2.12479018"'
       - name: Build and qualify the ICK C to NDK boundary
         uses: ./ick-android
         with:
           abi: ${{ matrix.abi }}
           ndk: ${{ env.ANDROID_HOME }}/ndk/27.2.12479018
+          fortify-source: '2'
       - name: Retain source, compiler, NDK and ELF evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
