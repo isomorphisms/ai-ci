@@ -65,6 +65,10 @@ PLATFORM_COMPILER = $(NDK_BIN)/$(NDK_TRIPLE_$(TARGET))24-clang
 BUILTIN_INCLUDE = $(shell $(ICK) $(ICK_EXTRA_FLAGS) -print-file-name=include)
 
 ifneq ($(TARGET),host)
+# Bionic rejects COPY relocations. GCC PIE can emit them for libc data such as
+# stderr; compile Android sources as PIC while retaining the PIE executable link.
+SOURCE_FLAGS = -fPIC
+LINK_FLAGS += -Wl,-z,text,-z,nocopyreloc
 CFLAGS += $(TARGET_FLAGS) --sysroot="$(NDK_SYSROOT)" -nostdinc -isystem "$(BUILTIN_INCLUDE)" -isystem "$(NDK_SYSROOT)/usr/include/$(HEADER_TRIPLE_$(TARGET))" -isystem "$(NDK_SYSROOT)/usr/include" -D__ANDROID__ -D__ANDROID_API__=24 -D__ANDROID_MIN_SDK_VERSION__=24 -DBIONIC_IOCTL_NO_SIGNEDNESS_OVERLOAD -DAICI_REQUIRE_BIONIC=1 -DAICI_EXPECT_POINTER_SIZE=$(POINTER_WIDTH_$(TARGET))
 ifneq ($(TARGET),armv7a)
 LINK_FLAGS += -Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=16384
