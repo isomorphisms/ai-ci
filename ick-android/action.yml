@@ -1,0 +1,70 @@
+name: Pinned Android ICK compiler
+description: Build the exact ICK C frontend for one Android ABI and qualify its NDK boundary.
+inputs:
+  abi:
+    description: Android ABI, one of armeabi-v7a, arm64-v8a, or x86_64.
+    required: true
+  ndk:
+    description: Absolute path to the consumer's installed Android NDK.
+    required: true
+  fortify-source:
+    description: Existing consumer _FORTIFY_SOURCE level, if defined; qualification must support the same level.
+    required: false
+    default: ''
+outputs:
+  compiler:
+    description: Absolute ICK compiler path; use for C compilation, with the NDK as assembler and linker.
+    value: ${{ steps.compiler.outputs.compiler }}
+  target_flags:
+    description: Qualified baseline target flags for this ABI.
+    value: ${{ steps.compiler.outputs.target_flags }}
+  header_target:
+    description: ABI directory under the NDK sysroot usr/include directory.
+    value: ${{ steps.compiler.outputs.header_target }}
+  gnu_target:
+    description: Exact GNU target reported by the ICK compiler.
+    value: ${{ steps.compiler.outputs.gnu_target }}
+runs:
+  using: composite
+  steps:
+    - name: Validate the requested ABI
+      shell: bash
+      env:
+        ICK_ANDROID_ABI: ${{ inputs.abi }}
+      run: make -f "${{ github.action_path }}/Makefile" validate ABI="$ICK_ANDROID_ABI"
+    - name: Check out the exact ICK source
+      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      with:
+        repository: dilapidated-shed/ick
+        ref: c61e448251744a2f40ad743ebef1a027bdcd2f9d
+        path: .ick-android-${{ inputs.abi }}-source
+        submodules: true
+        persist-credentials: false
+    - name: Restore the exact compiler build
+      id: cache
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+      with:
+        path: ${{ runner.temp }}/ick-android-${{ inputs.abi }}-stage
+        key: ick-android-v1-${{ runner.os }}-${{ runner.arch }}-${{ inputs.abi }}-c61e448251744a2f40ad743ebef1a027bdcd2f9d
+    - name: Install compiler bootstrap dependencies
+      shell: bash
+      run: sudo apt-get update && sudo apt-get install -y build-essential flex bison texinfo libgmp-dev libmpfr-dev libmpc-dev binutils-aarch64-linux-gnu binutils-arm-linux-gnueabi binutils-x86-64-linux-gnu
+    - name: Build ICK
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        ICK_ANDROID_ABI: ${{ inputs.abi }}
+      run: make -f "${{ github.action_path }}/Makefile" ABI="$ICK_ANDROID_ABI" ICK_SOURCE="$GITHUB_WORKSPACE/.ick-android-$ICK_ANDROID_ABI-source" ICK_BUILD="$RUNNER_TEMP/ick-android-$ICK_ANDROID_ABI-build" ICK_STAGE="$RUNNER_TEMP/ick-android-$ICK_ANDROID_ABI-stage"
+    - name: Qualify literal glyphs and the unmodified Bionic headers
+      shell: bash
+      env:
+        ICK_ANDROID_ABI: ${{ inputs.abi }}
+        ICK_ANDROID_NDK: ${{ inputs.ndk }}
+        ICK_ANDROID_FORTIFY_SOURCE: ${{ inputs.fortify-source }}
+      run: make -f "${{ github.action_path }}/Makefile" qualify ABI="$ICK_ANDROID_ABI" NDK="$ICK_ANDROID_NDK" FORTIFY_SOURCE="$ICK_ANDROID_FORTIFY_SOURCE" ICK_SOURCE="$GITHUB_WORKSPACE/.ick-android-$ICK_ANDROID_ABI-source" ICK_STAGE="$RUNNER_TEMP/ick-android-$ICK_ANDROID_ABI-stage"
+    - name: Export the qualified compiler
+      id: compiler
+      shell: bash
+      env:
+        ICK_ANDROID_ABI: ${{ inputs.abi }}
+      run: make -f "${{ github.action_path }}/Makefile" outputs ABI="$ICK_ANDROID_ABI" ICK_STAGE="$RUNNER_TEMP/ick-android-$ICK_ANDROID_ABI-stage" >> "$GITHUB_OUTPUT"
