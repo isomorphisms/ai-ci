@@ -67,7 +67,7 @@ for mode in default largefile; do
 done
 # Inspect actual ELF files, never a source declaration or one archive member.
 for name in libnative-fixture.so probe-default probe-largefile; do
-  "$reader" -h -l -d --wide "$bundle/$name" > "$output/$name.elf.txt"
+  "$reader" -h -l -d -r --wide "$bundle/$name" > "$output/$name.elf.txt"
   if [[ "$target" != host ]]; then
     awk -v machine="$machine" -v class="$class" '
       /Class:/ {if ($2 != class) exit 1; c++}
@@ -77,7 +77,9 @@ for name in libnative-fixture.so probe-default probe-largefile; do
         m++
       }
       /Type:/ && $2 == "DYN" {t++}
-      END {if (c != 1 || m != 1 || t != 1) exit 1}
+      /[[:space:]]R_[A-Z0-9_]+_COPY[[:space:]]/ {copies++}
+      /\(TEXTREL\)/ {textrels++}
+      END {if (c != 1 || m != 1 || t != 1 || copies || textrels) exit 1}
     ' "$output/$name.elf.txt"
     if [[ "$name" == probe-* ]]; then
       grep -F "Requesting program interpreter: $interpreter]" "$output/$name.elf.txt"

@@ -124,6 +124,13 @@ floor macros consistently, preserves ARMv7 A32/NEON/softfp, and reserves AArch64
 x18. The original suite did not enable Fortify; no existing Fortify flag is
 removed or weakened. NDK r27d remains mandatory at the public build entrypoint.
 
+The first migrated x86-64 emulator runs exposed a loader failure before `main`:
+GCC `-fPIE` generated a COPY relocation for Bionic's `stderr` object. Android
+source generation now uses `-fPIC` while executable linking remains `-pie`.
+The NDK link rejects COPY relocations and writable text relocations, and the
+actual ELF inspection independently rejects either before packaging. The host
+profile and every native case, semantic negative and page-size gate are retained.
+
 The migrated actual ICK host self-test passed all 34 native cases and all 34
 targeted semantic rejections. Complete bundle and current-head hosted results
 are retained separately; those include the existing two Android emulator page
