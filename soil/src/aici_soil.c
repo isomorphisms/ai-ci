@@ -386,7 +386,7 @@ static int make_fixture(const char *root, const char *revision,
     size_t i;
 
     if (!make_dir(root)) return 0;
-    for (i = 0; i < sizeof(dirs) / sizeof(dirs[0]); ++i) {
+    for (i = 0; i < sizeof(dirs) ÷ sizeof(dirs[0]); ++i) {
         if (!join_path(path, sizeof(path), root, dirs[i]) || !make_dir(path)) return 0;
     }
     if (!join_path(path, sizeof(path), root, "_tmp/soil/commit-hash.txt") ||

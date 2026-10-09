@@ -14,6 +14,14 @@ storage, successful dispatch without requested display, title/summary/link-only
 replies, mutation/truncation, forged mode changes, dispatcher-first ordering,
 duplicate dispatch and unreconciled “where’s the text?” recovery.
 
+Version 2 handoffs carry first-class binary attachments. The independent gate
+requires an observed attachment event with the authoritative payload digest and
+size, declared filename and MIME type, trusted surface and nonempty file ID. It
+rejects link-only responses, missing files, changed bytes, renames and MIME
+substitution. Flexible Pipes owns bounded direct-file and ZIP-member
+materialization; ai-ci recomputes the materialized identity from the captured
+source before accepting the event.
+
 Deterministic rejection occurs before downstream dispatch and before final
 semantic review. Explicit human dispatch-only remains supported. Summary plus
 the full assignment succeeds. A recovered handoff preserves original identity
@@ -38,6 +46,7 @@ positive twins. `tests/job-delivery/check.pi` builds its own capture evidence
 without calling the producer's `deliver()`; expected outcomes and diagnostics
 are in `cases.tsv`. FP's separate suite executes effects and the real runner.
 
-Trackers: [#219](https://github.com/isomorphisms/ai-ci/issues/219),
+Trackers: [FP #39](https://github.com/isomorphisms/flexible-pipes/issues/39),
+[#219](https://github.com/isomorphisms/ai-ci/issues/219),
 [FP #35](https://github.com/isomorphisms/flexible-pipes/issues/35),
 [FP final review #17](https://github.com/isomorphisms/flexible-pipes/issues/17).
