@@ -18,7 +18,7 @@ concurrency:
 jobs:
   android-emulator:
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 150
     strategy:
       fail-fast: false
       matrix:
@@ -54,8 +54,17 @@ jobs:
           grep -F 'Pkg.Revision = 27.3.13750724' "$RUNNER_TEMP/android-ndk-r27d/source.properties"
           printf 'ANDROID_NDK_HOME=%s/android-ndk-r27d\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
 
+      - name: Qualify the pinned x86-64 ICK compiler
+        uses: isomorphisms/ai-ci/ick-android@903b2cb27ea572c9c6cb2ffa9f39e0fbf06ec9f8
+        id: android-ick
+        with:
+          abi: x86_64
+          ndk: ${{ env.ANDROID_NDK_HOME }}
+
       - name: Build exact-source Android x86-64 bundle
         shell: bash
+        env:
+          ICK: ${{ steps.android-ick.outputs.compiler }}
         run: |
           set -eux
           bash native-boundary/build.sh android-x86_64 "$OUTPUT"

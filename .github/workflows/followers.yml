@@ -17,7 +17,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - name: Select the qualified ICK C compiler
-        uses: isomorphisms/ai-ci/ick-host@afabdf042609b59c949ab1eb06feeb380bdbe409
+        uses: isomorphisms/ai-ci/ick-host@903b2cb27ea572c9c6cb2ffa9f39e0fbf06ec9f8
         id: ick
       - name: Prove exact follower-ledger checkout
         shell: sh

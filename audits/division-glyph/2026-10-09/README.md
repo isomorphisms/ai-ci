@@ -122,7 +122,7 @@ The audit repository's own native verifiers and fixture generators are also
 consumers. Thirty-six binary divisions in twelve C files were migrated with
 their actual CI producers and all six affected reusable actions. These stages
 select the shared `ick-host` action at
-`afabdf042609b59c949ab1eb06feeb380bdbe409`, which builds exact ICK `c61e448`.
+`903b2cb27ea572c9c6cb2ffa9f39e0fbf06ec9f8`, which builds exact ICK `c61e448`.
 All twelve programs compile with that frontend. Local execution passes the
 14 compatibility cases, 12 Soil cases, six build-preflight cases, canonical
 Ike receipt and follower-ledger tests, nine real-video fixture cases, all 45
@@ -135,19 +135,33 @@ sources without division are not asserted to have changed compiler ownership.
 The Python-source gate runs before the ICK upstream checkout is materialized;
 its exact four-file allowlist remains unchanged. This distinguishes imported
 compiler substrate from first-party source without expanding Python debt.
-The remaining three divisions in `native-boundary/probe.c` share the separate
-NDK r27d/API 24 and native-host producer contract and are not covered by the
-twelve-verifier result. Historical compiler-comparison controls are preserved.
+The three divisions in `native-boundary/probe.c` are now migrated through their
+separate NDK r27d/API 24 and native-host producer contract. The source stage is
+actual ICK, with the NDK retaining Android assembly and linkage. Its 34 native
+cases and 34 targeted semantic rejections pass locally. Exact-head Android
+builds and both existing emulator page-size lanes remain independent hosted
+checks; the twelve-verifier result does not substitute for them. Historical
+compiler-comparison controls are preserved.
 
 ## Remaining acceptance boundaries
 
-Android NDK r27c CMake enables `_FORTIFY_SOURCE=2` even when a project does not
-spell the flag in its own CMake file. Its fortified headers use Clang overload
-and object-size features that the current ICK frontend does not implement.
-An ordinary Bionic-header compile without that flag does not qualify an
-application that previously required it. The migration must preserve those
-checks or provide an independently qualified, bounded equivalent; removing
-hardening to obtain a green build is not accepted.
+Android NDK CMake enables `_FORTIFY_SOURCE=2` even when a project does not
+spell the flag in its own CMake file. The shared producer now supplies a bounded
+GNU-inline adapter for the actual Bionic checking entrypoints. It retains the
+existing Fortify level and rejects unsupported fortified calls. All three ABI
+qualifiers compile and link, and actual x86-64 static Bionic execution checks
+valid calls, 16 ordinary/side-effect overflow cases at four optimization levels,
+and a control that detects an unfortified bypass. Forty unsupported-call
+diagnostics, API-floor controls, and C atomics are also checked. These qualify
+that bounded header boundary; each consumer still needs its own source build,
+APK and runtime evidence. Removing hardening is not a migration technique.
+
+Fourier now has no remaining arithmetic slash in its 60 C/header source files;
+all remaining directive slashes are header-name paths. Its full owned Android
+C builds pass on all three ABIs, including its two specialized ARM voice
+variants. Its actual ARMv7 numeric benchmark also runs on Cortex-A7 and
+Cortex-A15 QEMU with the declared GNU Linux runtime. The four producer workflows
+retain their package, precision, sanitizer, media and device obligations.
 
 The remaining C ledger also distinguishes frozen numerical comparison controls,
 kernel/upstream substrate, pseudocode and broken copied snippets, generated C,
