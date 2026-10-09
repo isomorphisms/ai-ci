@@ -5,10 +5,12 @@ import hashlib
 import tomllib
 import re
 from pathlib import Path
-from builtins import ValueError, Exception, globals
+from builtins import ValueError, Exception, globals, isinstance, dict, list, all
+from typing import Any
+from operator import contains
 
 
-def encoded(value ∈ object) → str:
+def encoded(value ∈ Any) → str:
     text ∈ str ← json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return text
 
@@ -18,52 +20,52 @@ def digest(text ∈ str) → str:
     return result
 
 
-def load(path ∈ str) → object:
-    value ∈ object ← json.loads(Path(path).read_text(encoding="utf-8"))
+def load(path ∈ str) → Any:
+    value ∈ Any ← json.loads(Path(path).read_text(encoding="utf-8"))
     return value
 
 
-def save(path ∈ str, value ∈ object) → None:
+def save(path ∈ str, value ∈ Any) → None:
     with Path(path).open("x", encoding="utf-8") as stream:
         stream.write(encoded(value) + "\n")
 
 
-def unique_object(pairs ∈ list[tuple[str, object]]) → dict[str, object]:
-    result ∈ dict[str, object] ← {}
+def unique_object(pairs ∈ list[tuple[str, Any]]) → dict[str, Any]:
+    result ∈ dict[str, Any] ← {}
     for pair in pairs:
         key ∈ str ← pair[0]
-        value ∈ object ← pair[1]
-        if key in result:
+        value ∈ Any ← pair[1]
+        if contains(result, key):
             raise ValueError("duplicate JSON key")
         result.update({key: value})
     return result
 
 
-def grade_text(text ∈ str, expected ∈ dict[str, object]) → dict[str, object]:
-    answer ∈ object ← None
+def grade_text(text ∈ str, expected ∈ dict[str, Any]) → dict[str, Any]:
+    answer ∈ dict[str, Any] ← dict()
     try:
         answer ← json.loads(text, object_pairs_hook=unique_object)
     except Exception:
-        return {"pass": False, "parse": False, "fields": {}}
+        return {"pass": False, "parse": False, "fields": dict()}
     if not isinstance(answer, dict) or set(answer) != set(expected):
-        return {"pass": False, "parse": False, "fields": {}}
+        return {"pass": False, "parse": False, "fields": dict()}
     fields ∈ dict[str, bool] ← {}
     for key in expected:
-        actual ∈ object ← answer[key]
-        wanted ∈ object ← expected[key]
+        actual ∈ Any ← answer[key]
+        wanted ∈ Any ← expected[key]
         if type(actual) != type(wanted):
             fields.update({key: False})
-        elif key in ["source", "destination"] and isinstance(actual, str):
-            fields.update({key: actual.lower() == wanted.lower()})
+        elif contains(["source", "destination"], key) and isinstance(actual, str):
+            fields.update({key: str(actual.lower()) == str(wanted.lower())})
         else:
             fields.update({key: actual == wanted})
     return {"pass": all(fields.values()), "parse": True, "fields": fields}
 
 
-def validate(suite ∈ dict[str, object]) → None:
-    if suite.get("schema_version") != 1:
+def validate(suite ∈ dict[str, Any]) → None:
+    if suite["schema_version"] != 1:
         raise ValueError("suite schema_version must be 1")
-    cases ∈ list[dict[str, object]] ← suite["cases"]
+    cases ∈ list[dict[str, Any]] ← suite["cases"]
     conditions ∈ list[dict[str, str]] ← suite["conditions"]
     seeds ∈ list[int] ← suite["seeds"]
     if len(cases) == 0 or len(conditions) == 0 or len(seeds) < 3:
@@ -78,19 +80,20 @@ def validate(suite ∈ dict[str, object]) → None:
     names ∈ list[str] ← []
     for case in cases:
         name ∈ str ← case["id"]
-        if not re.fullmatch("[a-z0-9-]+", name) or name in names:
+        if not re.fullmatch("[a-z0-9-]+", name) or contains(names, name):
             raise ValueError("unsafe or duplicate case ID")
         names.append(name)
-        if case["split"] not in ["development", "evaluation"] or not case["origin"]:
+        if not contains(["development", "evaluation"], case["split"]) or not case["origin"]:
             raise ValueError("case split and provenance required")
         if not case["messages"] or not isinstance(case["expected"], dict) or not case["expected"]:
             raise ValueError("messages and nonempty independent oracle required")
-        for message in case["messages"]:
-            if message["role"] not in ["user", "assistant"] or not isinstance(message["content"], str):
+        messages ∈ list[dict[str, str]] ← case["messages"]
+        for message in messages:
+            if not contains(["user", "assistant"], message["role"]) or not isinstance(message["content"], str):
                 raise ValueError("case messages must be user or assistant text")
     condition_names ∈ list[str] ← []
     for condition in conditions:
-        if not re.fullmatch("[a-z0-9-]+", condition["id"]) or condition["id"] in condition_names:
+        if not re.fullmatch("[a-z0-9-]+", condition["id"]) or contains(condition_names, condition["id"]):
             raise ValueError("unsafe or duplicate condition ID")
         condition_names.append(condition["id"])
     if not isinstance(suite["instruction"], str) or not suite["instruction"]:
@@ -98,66 +101,71 @@ def validate(suite ∈ dict[str, object]) → None:
 
 
 def prepare(suite_path ∈ str, catalog_path ∈ str, model_key ∈ str, output ∈ str) → None:
-    suite ∈ dict[str, object] ← load(suite_path)
+    suite ∈ dict[str, Any] ← load(suite_path)
     validate(suite)
-    catalog ∈ dict[str, object] ← tomllib.loads(Path(catalog_path).read_text())
-    profile ∈ dict[str, object] ← catalog["models"][model_key]
-    if profile["interface"] not in ["chat", "completion"]:
+    catalog ∈ dict[str, Any] ← tomllib.loads(Path(catalog_path).read_text())
+    models ∈ dict[str, dict[str, Any]] ← catalog["models"]
+    profile ∈ dict[str, Any] ← models[model_key]
+    if not contains(["chat", "completion"], profile["interface"]):
         raise ValueError("unsupported model interface")
     Path(output).mkdir(mode=0o700)
     Path(output + "/responses").mkdir(mode=0o700)
     Path(output + "/raw").mkdir(mode=0o700)
     save(output + "/suite.json", suite)
     save(output + "/model.json", {"key": model_key, "profile": profile, "catalog_sha256": digest(Path(catalog_path).read_text()), "revision_kind": "requested; backend must resolve or label unverified"})
-    jobs ∈ list[dict[str, object]] ← []
-    for case in suite["cases"]:
-        for condition in suite["conditions"]:
-            for seed in suite["seeds"]:
-                messages ∈ list[dict[str, str]] ← [{"role": "system", "content": suite["instruction"] + "\n\n" + condition["instruction"]}]
+    jobs ∈ list[dict[str, Any]] ← []
+    cases ∈ list[dict[str, Any]] ← suite["cases"]
+    conditions ∈ list[dict[str, str]] ← suite["conditions"]
+    seeds ∈ list[int] ← suite["seeds"]
+    for case in cases:
+        for condition in conditions:
+            for seed in seeds:
+                messages ∈ list[dict[str, str]] ← [{"role": "system", "content": str(suite["instruction"]) + "\n\n" + condition["instruction"]}]
                 messages.extend(case["messages"])
-                payload ∈ dict[str, object] ← {"model": profile["hf_repo"], "messages": messages, "seed": seed, "temperature": suite["temperature"], "max_tokens": suite["max_tokens"]}
+                payload ∈ dict[str, Any] ← {"model": profile["hf_repo"], "messages": messages, "seed": seed, "temperature": suite["temperature"], "max_tokens": suite["max_tokens"]}
                 payload_hash ∈ str ← digest(encoded(payload))
-                identifier ∈ str ← digest(case["id"] + ":" + condition["id"] + ":" + str(seed) + ":" + payload_hash)
+                identifier ∈ str ← digest(str(case["id"]) + ":" + condition["id"] + ":" + str(seed) + ":" + payload_hash)
                 jobs.append({"id": identifier, "case_id": case["id"], "condition": condition["id"], "seed": seed, "request_sha256": payload_hash, "payload": payload})
     save(output + "/requests.json", jobs)
-    namespace ∈ dict[str, object] ← globals()
+    namespace ∈ dict[str, Any] ← globals()
     source_path ∈ str ← namespace.get("__file__", "")
     save(output + "/manifest.json", {"count": len(jobs), "suite_sha256": digest(encoded(suite)), "requests_sha256": digest(encoded(jobs)), "evaluator_sha256": digest(Path(source_path).read_text()), "model_key": model_key, "live_transfer": "NOT_RUN", "model_inference": "NOT_RUN"})
     print("Prepared " + str(len(jobs)) + " requests; inference and transfer NOT_RUN")
 
 
 def grade(output ∈ str, evidence ∈ str) → int:
-    if evidence not in ["live", "fixture"]:
+    if not contains(["live", "fixture"], evidence):
         raise ValueError("evidence must be live or fixture")
-    suite ∈ dict[str, object] ← load(output + "/suite.json")
-    jobs ∈ list[dict[str, object]] ← load(output + "/requests.json")
-    manifest ∈ dict[str, object] ← load(output + "/manifest.json")
+    suite ∈ dict[str, Any] ← load(output + "/suite.json")
+    jobs ∈ list[dict[str, Any]] ← load(output + "/requests.json")
+    manifest ∈ dict[str, Any] ← load(output + "/manifest.json")
     if digest(encoded(suite)) != manifest["suite_sha256"] or digest(encoded(jobs)) != manifest["requests_sha256"] or len(jobs) != manifest["count"]:
         raise ValueError("prepared suite or requests changed")
-    expected ∈ dict[str, object] ← {}
-    for case in suite["cases"]:
+    expected ∈ dict[str, Any] ← {}
+    cases ∈ list[dict[str, Any]] ← suite["cases"]
+    for case in cases:
         expected.update({case["id"]: case["expected"]})
-    verdicts ∈ list[dict[str, object]] ← []
+    verdicts ∈ list[dict[str, Any]] ← []
     passed ∈ int ← 0
     responded ∈ int ← 0
     for job in jobs:
-        result ∈ dict[str, object] ← {"pass": False, "parse": False, "fields": {}, "error": "missing-response"}
-        response_path ∈ str ← output + "/responses/" + job["id"] + ".json"
+        result ∈ dict[str, Any] ← {"pass": False, "parse": False, "fields": dict(), "error": "missing-response"}
+        response_path ∈ str ← output + "/responses/" + str(job["id"]) + ".json"
         if Path(response_path).is_file():
-            response ∈ dict[str, object] ← load(response_path)
+            response ∈ dict[str, Any] ← load(response_path)
             responded ← responded + 1
-            if response.get("request_sha256") != job["request_sha256"] or response.get("id") != job["id"]:
+            if response["request_sha256"] != job["request_sha256"] or response["id"] != job["id"]:
                 result.update({"error": "wrong-request-binding"})
-            elif response.get("evidence") != evidence:
+            elif response["evidence"] != evidence:
                 result.update({"error": "evidence-class-mismatch"})
-            elif response.get("status") != "EXECUTED":
+            elif response["status"] != "EXECUTED":
                 result.update({"error": response.get("error", "inference-failed")})
             else:
                 result ← grade_text(response["text"], expected[job["case_id"]])
         if result["pass"]:
             passed ← passed + 1
         verdicts.append({"id": job["id"], "case_id": job["case_id"], "condition": job["condition"], "seed": job["seed"], "result": result})
-    actual_files ∈ list[object] ← list(Path(output + "/responses").glob("*.json"))
+    actual_files ∈ list[Any] ← list(Path(output + "/responses").glob("*.json"))
     complete ∈ bool ← len(actual_files) == len(jobs) and responded == len(jobs)
     state ∈ str ← "FAIL"
     if complete and passed == len(jobs):
@@ -173,27 +181,28 @@ def grade(output ∈ str, evidence ∈ str) → int:
 
 def exercise(output ∈ str, mutation ∈ str) → int:
     """Explicit synthetic control, never model evidence."""
-    suite ∈ dict[str, object] ← load(output + "/suite.json")
-    jobs ∈ list[dict[str, object]] ← load(output + "/requests.json")
-    expected ∈ dict[str, object] ← {}
-    for case in suite["cases"]:
+    suite ∈ dict[str, Any] ← load(output + "/suite.json")
+    jobs ∈ list[dict[str, Any]] ← load(output + "/requests.json")
+    expected ∈ dict[str, Any] ← {}
+    cases ∈ list[dict[str, Any]] ← suite["cases"]
+    for case in cases:
         expected.update({case["id"]: case["expected"]})
     for job in jobs:
-        answer ∈ object ← expected[job["case_id"]]
+        answer ∈ Any ← expected[job["case_id"]]
         if mutation == "constant":
             answer ← expected[jobs[0]["case_id"]]
-        response ∈ dict[str, object] ← {"id": job["id"], "request_sha256": job["request_sha256"], "evidence": "fixture", "status": "EXECUTED", "text": encoded(answer)}
+        response ∈ dict[str, Any] ← {"id": job["id"], "request_sha256": job["request_sha256"], "evidence": "fixture", "status": "EXECUTED", "text": encoded(answer)}
         if mutation == "stale":
-            response.update({"request_sha256": "0" * 64})
+            response.update({"request_sha256": "0000000000000000000000000000000000000000000000000000000000000000"})
         if mutation == "false-live":
             response.update({"evidence": "live"})
         if mutation != "missing":
-            save(output + "/responses/" + job["id"] + ".json", response)
+            save(output + "/responses/" + str(job["id"]) + ".json", response)
     return grade(output, "fixture")
 
 
 def self_test() → None:
-    good ∈ dict[str, object] ← {"decision": "transfer", "source": "owner/repo", "destination": "org", "runtime": "grease", "status": "not_executed"}
+    good ∈ dict[str, Any] ← {"decision": "transfer", "source": "owner/repo", "destination": "org", "runtime": "grease", "status": "not_executed"}
     if not grade_text(encoded(good), good)["pass"]:
         raise ValueError("positive parser control failed")
     bad ∈ list[str] ← ["", "done", "```json\n" + encoded(good) + "\n```", "{}", encoded({"decision": "fork"}), encoded(good).replace("org", "wrong-org"), encoded(good).replace("not_executed", "completed"), encoded(good).replace("grease", "bash"), encoded(good)[:-1] + ',"decision":"transfer"}', encoded(good)[:-1] + ',"extra":"unexpected-field"}']
@@ -204,7 +213,8 @@ def self_test() → None:
 
 
 def main() → int:
-    arguments ∈ list[str] ← sys.argv[1:]
+    raw_arguments ∈ list[str] ← sys.argv
+    arguments ∈ list[str] ← raw_arguments[1:]
     if arguments == ["self-test"]:
         self_test()
         return 0
@@ -214,7 +224,7 @@ def main() → int:
     if len(arguments) == 3 and arguments[0] == "grade":
         return grade(arguments[1], arguments[2])
     if len(arguments) == 3 and arguments[0] == "exercise":
-        if arguments[2] not in ["good", "constant", "stale", "false-live", "missing"]:
+        if not contains(["good", "constant", "stale", "false-live", "missing"], arguments[2]):
             raise ValueError("unknown synthetic control")
         return exercise(arguments[1], arguments[2])
     if len(arguments) == 2 and arguments[0] == "check-suite":
@@ -223,6 +233,7 @@ def main() → int:
         return 0
     raise ValueError("usage: self-test | check-suite SUITE | prepare SUITE CATALOG MODEL OUTPUT | grade OUTPUT live|fixture | exercise OUTPUT good|constant|stale|false-live|missing")
 
-namespace ∈ dict[str, object] ← globals()
-if namespace.get("__name__", "") == "__main__":
+namespace ∈ dict[str, Any] ← globals()
+module_name ∈ str ← namespace.get("__name__", "")
+if module_name == "__main__":
     sys.exit(main())
