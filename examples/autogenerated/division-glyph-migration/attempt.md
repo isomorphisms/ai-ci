@@ -42,8 +42,11 @@ interface. Source findings are report data, not a fleet-compliance exit code.
 The implementation uses current Idriç `Text`, `Number`, Unicode arrows, and
 decidable equality. `System.File` is the explicit host filesystem boundary.
 The IO entrypoint is `covering` because inherited file operations have that
-contract; the pure lexers remain total. Natural-number delimiter depths use
-`Data.Nat.pred` when consuming a previously established positive depth.
+contract; the pure lexers remain total. Lua delimiter levels count equals signs
+with `Number` and consume them by structural pattern matching. Idriç comment
+nesting has its own `CommentDepth` type: closing an outer comment returns to
+program text, while closing a nested comment restores the enclosing depth.
+Neither operation requires subtraction or a natural-number module import.
 
 Built and executed on 2026-10-09 with Idriç
 `94dfd99bd3e376507fedc8611053b7173b2519f0`, version `0.8.0-94dfd99bd`.
@@ -65,12 +68,15 @@ silently copied as an ownership rule. Re-running all 190 Git-verified C/header
 blobs in 28 source profiles with the extended scanner produced exactly the
 same findings as the qualified C-only version.
 
-Two implementation attempts needed correction. `--exec main` does not forward
+Three implementation attempts needed correction. `--exec main` does not forward
 program arguments; compiling an executable resolved that invocation error.
 Using subtraction for the natural-number delimiter depth was rejected because
-`Number` has no `Neg` instance; `pred` expresses the required operation and the
-program then compiled and passed. Neither problem required another language
-or compiler. No Python, Node, stock Idris, or RefC implementation was substituted.
+`Number` has no `Neg` instance. A predecessor import compiled, but the repository's
+style gate correctly rejected the newly introduced natural-number module name.
+Structural delimiter consumption and the semantic comment-depth type now express
+the operation directly. The checker and its source-language rules are unchanged.
+These corrections required neither another language nor another compiler.
+No Python, Node, stock Idris, or RefC implementation was substituted.
 
 ## Boundaries and further language work
 

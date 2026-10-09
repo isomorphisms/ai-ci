@@ -1,7 +1,6 @@
 module Main
 
 import Data.List
-import Data.Nat
 import Data.Text
 import System
 import System.File
@@ -26,8 +25,10 @@ data LuaRegion = LuaProgram | LuaLineComment | LuaQuoted Char |
                  LuaLongString Number | LuaLongComment Number |
                  LuaClosing Number
 
+data CommentDepth = OuterComment | NestedComment CommentDepth
+
 data IdricRegion = IdricProgram | IdricLineComment | IdricQuoted Char |
-                   IdricBlockComment Number | IdricMultiline
+                   IdricBlockComment CommentDepth | IdricMultiline
 
 mark_plain_characters : Number → Number → Number → List Char → List SourceCharacter
 mark_plain_characters offset line column [] = []
@@ -60,10 +61,9 @@ lua_long_level (here :: rest) =
 
 lua_closing_matches : Number → List SourceCharacter → Bool
 lua_closing_matches level [] = False
-lua_closing_matches level (here :: rest) =
-  if level ≟ 0
-    then here.character ≟ ']'
-    else here.character ≟ '=' && lua_closing_matches (pred level) rest
+lua_closing_matches Z (here :: rest) = here.character ≟ ']'
+lua_closing_matches (S remaining_equals) (here :: rest) =
+  here.character ≟ '=' && lua_closing_matches remaining_equals rest
 
 
 mark_characters : Number → Number → Number → List Char → List SourceCharacter
@@ -164,14 +164,17 @@ scan_lua (LuaQuoted quote) (here :: rest) =
       else scan_lua (LuaQuoted quote) rest
 scan_lua (LuaLongString level) (here :: rest) =
   if here.character ≟ ']' && lua_closing_matches level rest
-    then scan_lua (LuaClosing (level + 1)) rest
+    then scan_lua (LuaClosing level) rest
     else scan_lua (LuaLongString level) rest
 scan_lua (LuaLongComment level) (here :: rest) =
   if here.character ≟ ']' && lua_closing_matches level rest
-    then scan_lua (LuaClosing (level + 1)) rest
+    then scan_lua (LuaClosing level) rest
     else scan_lua (LuaLongComment level) rest
-scan_lua (LuaClosing count) (here :: rest) =
-  if count ≟ 1 then scan_lua LuaProgram rest else scan_lua (LuaClosing (pred count)) rest
+-- The matching lookahead has established the closing delimiter. Consume its
+-- remaining equals signs, then its final bracket.
+scan_lua (LuaClosing Z) (here :: rest) = scan_lua LuaProgram rest
+scan_lua (LuaClosing (S remaining_equals)) (here :: rest) =
+  scan_lua (LuaClosing remaining_equals) rest
 scan_lua LuaProgram (here :: rest) =
   if here.character ≟ '-' then
     case rest of
@@ -214,11 +217,11 @@ scan_idric (IdricBlockComment depth) identifier (here :: rest) =
   case rest of
     next :: remaining ⇒
       if here.character ≟ '{' && next.character ≟ '-'
-        then scan_idric (IdricBlockComment (depth + 1)) False remaining
+        then scan_idric (IdricBlockComment (NestedComment depth)) False remaining
       else if here.character ≟ '-' && next.character ≟ '}'
-        then if depth ≟ 1
-          then scan_idric IdricProgram False remaining
-          else scan_idric (IdricBlockComment (pred depth)) False remaining
+        then case depth of
+          OuterComment ⇒ scan_idric IdricProgram False remaining
+          NestedComment outer ⇒ scan_idric (IdricBlockComment outer) False remaining
         else scan_idric (IdricBlockComment depth) False rest
     [] ⇒ scan_idric (IdricBlockComment depth) False rest
 scan_idric (IdricQuoted quote) identifier (here :: rest) =
@@ -266,7 +269,7 @@ scan_idric IdricProgram identifier (here :: rest) =
     case rest of
       next :: remaining ⇒
         if next.character ≟ '-'
-          then scan_idric (IdricBlockComment 1) False remaining
+          then scan_idric (IdricBlockComment OuterComment) False remaining
           else scan_idric IdricProgram False rest
       [] ⇒ []
   else if here.character ≟ '÷'
@@ -291,6 +294,7 @@ lua_checks =
   map kind (audit_text LuaSource "local x = 12 / 3; local y = 12 // 3\n-- / ÷\nlocal z = [=[ / ÷ ]=]\n--[=[ / ÷ ]=]\nreturn 12 ÷ 3\n") ≟
     ["ascii_division", "lua_floor_division", "division_glyph"] &&
   map kind (audit_text LuaSource "local x = [==[ ]=] / ÷ ]==]; return 4 / 2") ≟ ["ascii_division"] &&
+  map kind (audit_text LuaSource "local x = [[ / ÷ ]]; --[[ / ÷ ]]\nreturn 8 / 2") ≟ ["ascii_division"] &&
   map kind (audit_text LuaSource "local x = '-- /'; local y = \"/ ÷\"; return 8 / 2") ≟ ["ascii_division"] &&
   map kind (audit_text LuaSource "--[=[ incomplete") ≟ ["unterminated_lua_long_comment"]
 
