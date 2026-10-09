@@ -1,0 +1,47 @@
+name: Pinned native ICK compiler
+description: Bootstrap the exact ICK C frontend; no consumer compiler fallback.
+outputs:
+  compiler:
+    description: Absolute path to the qualified native ICK compiler.
+    value: ${{ steps.compiler.outputs.compiler }}
+  link_flags:
+    description: Native scalar profile excludes unqualified automatic libatomic linkage.
+    value: -fno-link-libatomic
+  static_runtime_flags:
+    description: Append after static consumer objects for the declared glibc and GCC unwind runtime.
+    value: -Wl,--start-group -lc -lgcc_eh -Wl,--end-group
+runs:
+  using: composite
+  steps:
+    - name: Check out the exact ICK source
+      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      with:
+        repository: dilapidated-shed/ick
+        ref: fbe86e23d55cfec2000c08e61deea2a407fd7175
+        path: .ick-host-source
+        submodules: true
+        persist-credentials: false
+    - name: Install compiler bootstrap dependencies
+      shell: bash
+      run: sudo apt-get update && sudo apt-get install -y build-essential flex bison texinfo libgmp-dev libmpfr-dev libmpc-dev
+    - name: Identify the declared native runtime
+      id: runtime
+      shell: bash
+      run: make -f "${{ github.action_path }}/Makefile" cache-key ICK_BUILD="$RUNNER_TEMP/ick-host-build" >> "$GITHUB_OUTPUT"
+    - name: Restore the exact compiler and native runtime
+      id: cache
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+      with:
+        path: ${{ runner.temp }}/ick-host-stage
+        key: ick-host-v1-${{ runner.os }}-${{ runner.arch }}-fbe86e23d55cfec2000c08e61deea2a407fd7175-${{ steps.runtime.outputs.runtime_key }}
+    - name: Build ICK
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: make -f "${{ github.action_path }}/Makefile" ICK_SOURCE="$GITHUB_WORKSPACE/.ick-host-source" ICK_BUILD="$RUNNER_TEMP/ick-host-build" ICK_STAGE="$RUNNER_TEMP/ick-host-stage"
+    - name: Qualify assignment, multiplication and division
+      shell: bash
+      run: make -f "${{ github.action_path }}/Makefile" qualify ICK_STAGE="$RUNNER_TEMP/ick-host-stage"
+    - name: Export compiler path
+      id: compiler
+      shell: bash
+      run: printf 'compiler=%s\n' "$RUNNER_TEMP/ick-host-stage/bin/gcc" >> "$GITHUB_OUTPUT"

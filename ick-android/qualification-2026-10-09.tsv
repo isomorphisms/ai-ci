@@ -1,0 +1,33 @@
+key	value
+ick_revision	c61e448251744a2f40ad743ebef1a027bdcd2f9d
+gcc_reference	6294f1d9e7536e5ffcde09d1528c918d63abfef5
+ndk_primary	27.2.12479018 (r27c)
+api	26
+fortify_source	2, preserved
+debug	-g -gdwarf-4 -gno-variable-location-views; debug information retained
+armv7_frontend_sha256	f5f27bfbe5953a013487d2e7e964a58be24a9617ea4f7372656dd23bb65e4d0e
+armv7_source_identity	PR84 e3a797c9a302adbc87828b53e8082e604ac3e2ce hosted artifact; compiler layer identical to c61e448
+armv7_compile_assemble_link_elf	PASS; glyphs O0/O2; Bionic headers/nullability/availability; Fortify O1/O2/O3/Os and control
+aarch64_driver_sha256	5759045b634cdae272cd91bb4d0d8260a8ec7bbf1402c5047701d8e38d404de2
+aarch64_frontend_sha256	5b542d32dd271b6723102d61f4f6683d3774cfc446a0ca647c5b9851bef8f411
+aarch64_build	materialized exact c61e448 source, GNU binutils 2.42, C-only all-gcc and install-gcc; compiler self-tests PASS
+aarch64_compile_assemble_link_elf	PASS; glyphs O0/O2; Bionic headers/nullability/availability; Fortify O1/O2/O3/Os and control
+x86_64_frontend_sha256	a181082f120a906c86ebd8c7a2378bcc83d9694a8c533438536768f180ad1b17
+x86_64_observed_target	x86_64-pc-linux-gnu, explicit local native ICK source stage with Android headers
+x86_64_compile_assemble_link_elf	PASS; glyphs O0/O2; Bionic headers/nullability/availability; Fortify O1/O2/O3/Os and control
+x86_64_actual_static_bionic_on_linux	PASS; positive calls and 22 required SIGABRT overflow cases at each optimization
+ndk_r29_x86_64_full_qualifier	PASS; same positive, overflow, control, header, ELF and rejection gates against exact r29 headers/runtime
+installed_stage_archive_restore	PASS; full AArch64 stage archived and relocated to a path containing spaces; driver/cc1 executable checks and byte-identical frontend verified
+side_effect_bounds_regression	initial direct macro failed exit58; GNU always-inline repair passes all 8 side-effect cases
+unfortified_read_negative_control	PASS; exact exit55
+forbidden_fortified_functions	37 independently rejected at intended poisoned-identifier diagnostic for each ABI
+api25_availability	PASS; original header declaration rejected independently of adapter
+api25_fortify_profile	PASS; profile rejected at intended API26-floor diagnostic
+sizeof_quotient_macro	PASS; native O0/O2 runtime; binary divide token in ordinary expanded C
+preprocessor_division	REJECTED; intended token-not-valid-in-preprocessor-expressions diagnostic
+resource_header_order	-nostdinc; exact ICK built-in headers before explicit NDK headers; no implicit host-header search
+api_floor_macros	__ANDROID_API__ and __ANDROID_MIN_SDK_VERSION__ both equal26; r29 API26 availability guard explicitly asserted
+scalar_atomics_all_abis	PASS; atomic_int/atomic_flag O0/O2 compile, NDK assembly and static link
+scalar_atomics_x86_64	PASS; actual Bionic static runtime on Linux for O0/O2 operations and lock-freedom checks
+android_os_or_device_execution	NOT_RUN
+hosted_head_qualification	separate workflow evidence; this file records local qualification only

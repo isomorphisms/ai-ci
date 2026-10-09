@@ -1,0 +1,55 @@
+name: Icky Android source boundary
+on:
+  push:
+    paths:
+      - 'ick-android/**'
+      - 'ick-host/assignment-arrow.c'
+      - '.github/workflows/icky-android-source.yml'
+  pull_request:
+    paths:
+      - 'ick-android/**'
+      - 'ick-host/assignment-arrow.c'
+      - '.github/workflows/icky-android-source.yml'
+permissions:
+  contents: read
+env:
+  ANDROID_HOME: /usr/local/lib/android/sdk
+jobs:
+  boundary:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        abi: [armeabi-v7a, arm64-v8a, x86_64]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Install the exact qualification NDK
+        run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;27.2.12479018"'
+      - name: Build and qualify the ICK C to NDK boundary
+        uses: ./ick-android
+        with:
+          abi: ${{ matrix.abi }}
+          ndk: ${{ env.ANDROID_HOME }}/ndk/27.2.12479018
+          fortify-source: '2'
+      - name: Archive the qualified exact-source compiler stage
+        run: >-
+          make -f ick-android/Makefile archive-stage
+          ABI='${{ matrix.abi }}'
+          ICK_STAGE="$RUNNER_TEMP/ick-android-${{ matrix.abi }}-stage"
+          ICK_ARCHIVE="$RUNNER_TEMP/ick-android-${{ matrix.abi }}-stage.tar.gz"
+      - name: Retain the qualified compiler for exact consumer reproduction
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ick-android-compiler-${{ matrix.abi }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/ick-android-${{ matrix.abi }}-stage.tar.gz
+          if-no-files-found: error
+      - name: Retain source, compiler, NDK and ELF evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ick-android-${{ matrix.abi }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/ick-android-${{ matrix.abi }}-stage/qualification/
+          if-no-files-found: error

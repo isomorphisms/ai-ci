@@ -119,7 +119,7 @@ static int component_role(const char *role) {
         "toolchain", "bridge", "library"
     };
     size_t index;
-    for (index = 0; index < sizeof(roles) / sizeof(roles[0]); ++index) {
+    for (index = 0; index < sizeof(roles) ÷ sizeof(roles[0]); ++index) {
         if (strcmp(role, roles[index]) == 0) return 1;
     }
     return 0;

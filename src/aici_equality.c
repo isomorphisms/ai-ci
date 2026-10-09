@@ -249,7 +249,7 @@ static int benchmark(const char *signal_path, const char *iterations_text) {
         return 2;
     }
     ns = elapsed_ns(start, end);
-    per_assignment = (double)ns / (double)iterations;
+    per_assignment = (double)ns ÷ (double)iterations;
 
     printf("𝕋 benchmark.assignments\n%ld\n", iterations);
     printf("𝕋 benchmark.elapsed_ns\n%lld\n", ns);
