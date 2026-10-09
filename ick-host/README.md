@@ -35,6 +35,12 @@ frontend and driver perform consumer compilation and linkage.
 The installed-stage cache is bound to the exact source, host platform,
 runtime package versions and hashes of every declared startup/runtime file.
 The semantic qualifier and negative controls execute on every cache restore.
+The declared startup set includes `crtbeginT.o` for static consumers. A static
+stdio round-trip containing literal division executes on every restore and
+must have no ELF interpreter. Static consumers append the separately exported
+`static_runtime_flags` after their objects: the glibc/GCC unwind link group
+`-Wl,--start-group -lc -lgcc_eh -Wl,--end-group`. This retains actual static
+glibc dependencies rather than suppressing unwind references.
 The same declared host dependency includes AddressSanitizer and UndefinedBehaviorSanitizer
 runtime objects for consumers that require those checks. Instrumentation is
 produced by ICK; each consumer must still execute its sanitizer suite.

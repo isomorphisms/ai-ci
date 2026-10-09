@@ -13,7 +13,7 @@ ICK_QUALIFY_BUILD ?= $(ICK_STAGE)/qualification
 BUILD_JOBS ?= 2
 HOST_RUNTIME ?= /usr/lib/gcc/x86_64-linux-gnu/13
 RUNTIME_DEST = $(ICK_STAGE)/lib/gcc/x86_64-pc-linux-gnu/17.0.0
-RUNTIME_FILES = libgcc.a libgcc_eh.a libgcc_s.so crtbegin.o crtend.o crtbeginS.o crtendS.o libasan.a libasan.so libasan_preinit.o libubsan.a libubsan.so
+RUNTIME_FILES = libgcc.a libgcc_eh.a libgcc_s.so crtbegin.o crtbeginT.o crtend.o crtbeginS.o crtendS.o libasan.a libasan.so libasan_preinit.o libubsan.a libubsan.so
 
 .PHONY: all qualify cache-key
 all: $(ICK_COMPILER)
@@ -24,6 +24,9 @@ qualify:
 	"$(ICK_QUALIFY_BUILD)/glyphs-O0"
 	"$(ICK_COMPILER)" $(ICK_LINK_FLAGS) -std=c17 -O2 -Wall -Wextra -Werror "$(ICK_QUALIFY_SOURCE)" -o "$(ICK_QUALIFY_BUILD)/glyphs-O2"
 	"$(ICK_QUALIFY_BUILD)/glyphs-O2"
+	"$(ICK_COMPILER)" $(ICK_LINK_FLAGS) -std=c17 -O2 -Wall -Wextra -Werror -static "$(dir $(ICK_QUALIFY_SOURCE))static-stdio.c" -Wl,--start-group -lc -lgcc_eh -Wl,--end-group -o "$(ICK_QUALIFY_BUILD)/static-stdio"
+	"$(ICK_QUALIFY_BUILD)/static-stdio"
+	! readelf -l "$(ICK_QUALIFY_BUILD)/static-stdio" | grep -F INTERP
 	"$(ICK_COMPILER)" $(ICK_LINK_FLAGS) -std=c17 -O2 -Wall -Wextra -Werror -DICK_HOST_WRONG_DIVISION "$(ICK_QUALIFY_SOURCE)" -o "$(ICK_QUALIFY_BUILD)/wrong-division"
 	"$(ICK_QUALIFY_BUILD)/wrong-division"; test "$$?" = 2
 	rm -f "$(ICK_QUALIFY_BUILD)/preprocessor-division.o"

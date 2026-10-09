@@ -7,6 +7,9 @@ outputs:
   link_flags:
     description: Native scalar profile excludes unqualified automatic libatomic linkage.
     value: -fno-link-libatomic
+  static_runtime_flags:
+    description: Append after static consumer objects for the declared glibc and GCC unwind runtime.
+    value: -Wl,--start-group -lc -lgcc_eh -Wl,--end-group
 runs:
   using: composite
   steps:
