@@ -1,4 +1,7 @@
 /* A stock compiler cannot produce this executable. */
+#if defined(ICK_ANDROID_EXTERNAL_DATA)
+#include <stdio.h>
+#endif
 #if defined(ICK_HOST_WRONG_DIVISION)
 #define QUOTIENT(left, right) ((left) × (right))
 #else
@@ -50,5 +53,8 @@ int main(void)
     if (value / 2 != 3) return 10;
     const int samples[3] ← {1, 2, 3};
     if (COUNT_OF(samples) != 3) return 11;
+#if defined(ICK_ANDROID_EXTERNAL_DATA)
+    if (stdin == NULL || stdout == NULL || stderr == NULL) return 12;
+#endif
     return 0;
 }

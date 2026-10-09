@@ -66,7 +66,11 @@ that API26 declarations are exposed and keeps both API25 negative controls.
 Keep normal optimization, warnings, PIC, stack protection and API requirements
 from the consumer's existing build. NDK assembly consumes the emitted `.s`
 file with the matching target driver and flags. NDK linking consumes objects;
-it does not recompile the owned C source.
+it does not recompile the owned C source. For dynamic Android executables,
+compile C with `-fPIC` and retain `-pie` at link time. GNU `-fPIE` can emit
+COPY relocations for external data such as `stderr`; Android's linker rejects
+those relocations before `main`. Inspect final executables with NDK
+`llvm-readelf -r` and reject every `R_*_COPY` relocation.
 For debug-enabled source, use `-gdwarf-4 -gno-variable-location-views` while
 retaining the original `-g`. This selects a debug encoding accepted by the
 NDK assembler; the qualifier exercises it on all three ABIs.
@@ -110,7 +114,10 @@ The action requalifies cache hits. Its Makefile compiles the shared native
 `assignment-arrow.c` fixture at O0 and O2, including literal ←, × and ÷, and
 produces Android executables with the NDK. It also compiles ICK's pinned
 nullability, availability and real Bionic-header fixtures, links the header
-fixture as an Android shared library, and checks every output's ELF target.
+fixture as an Android shared library, and checks every output's ELF target and absence of COPY relocations.
+The Android glyph fixture reads all three standard-stream pointers. An x86_64
+negative control uses the former `-fPIE` source flags and must actually produce
+`R_X86_64_COPY`, proving that the inspected boundary catches this failure.
 Strict API-26 availability must be rejected at API 25 at the intended
 diagnostic. Compiler, NDK and artifact hashes are retained in
 `<stage>/qualification/`, alongside an explicit `android_execution NOT_RUN`.

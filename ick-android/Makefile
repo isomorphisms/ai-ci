@@ -114,13 +114,13 @@ check-qualification: check-compiler
 	rm -f "$(QUALIFY_BUILD)/receipt.tsv"
 
 $(QUALIFY_BUILD)/glyphs-O%.s: $(GLYPH_SOURCE) FORCE | check-qualification
-	"$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) $(ICK_NDK_FLAGS) -D__ANDROID_API__=26 -D__ANDROID_MIN_SDK_VERSION__=26 -std=c17 -O$* $(ICK_DEBUG_FLAGS) -fPIE -Wall -Wextra -Werror -S "$<" -o "$@"
+	"$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) $(ICK_NDK_FLAGS) -D__ANDROID_API__=26 -D__ANDROID_MIN_SDK_VERSION__=26 -DICK_ANDROID_EXTERNAL_DATA -std=c17 -O$* $(ICK_DEBUG_FLAGS) -fPIC -Wall -Wextra -Werror -S "$<" -o "$@"
 
 $(QUALIFY_BUILD)/glyphs-O%.o: $(QUALIFY_BUILD)/glyphs-O%.s
 	"$(NDK_CC)" $(TARGET_FLAGS) -c "$<" -o "$@"
 
 $(QUALIFY_BUILD)/glyphs-O%: $(QUALIFY_BUILD)/glyphs-O%.o
-	"$(NDK_CC)" $(TARGET_FLAGS) -fPIE -pie -Wl,--no-undefined -Wl,-z,max-page-size=16384 "$<" -o "$@"
+	"$(NDK_CC)" $(TARGET_FLAGS) -pie -Wl,--no-undefined -Wl,-z,max-page-size=16384 "$<" -o "$@"
 
 $(QUALIFY_BUILD)/atomics-O%.s: $(QUALIFY_ROOT)atomics.c FORCE | check-qualification
 	"$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) $(ICK_NDK_FLAGS) -D__ANDROID_API__=26 -D__ANDROID_MIN_SDK_VERSION__=26 -std=c17 -O$* $(ICK_DEBUG_FLAGS) -fPIC -Wall -Wextra -Werror -S "$<" -o "$@"
@@ -152,9 +152,23 @@ $(QUALIFY_BUILD)/libbionic-headers.so: $(QUALIFY_BUILD)/bionic-headers.o
 	"$(NDK_CC)" $(TARGET_FLAGS) -shared -Wl,--no-undefined -Wl,-z,max-page-size=16384 "$<" -o "$@"
 
 $(QUALIFY_ELF_CHECKS): %.elf: %
-	"$(NDK_READELF)" -h "$<" > "$@"
+	"$(NDK_READELF)" -h -r "$<" > "$@"
 	grep -Eq 'Class:.*$(ELF_CLASS)' "$@"
 	grep -Eq 'Machine:.*$(ELF_MACHINE)' "$@"
+	! grep -Eq 'R_[A-Z0-9_]+_COPY' "$@"
+
+.PHONY: reject-copy-relocation
+ifeq ($(ABI),x86_64)
+reject-copy-relocation: check-qualification
+	"$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) $(ICK_NDK_FLAGS) -D__ANDROID_API__=26 -D__ANDROID_MIN_SDK_VERSION__=26 -DICK_ANDROID_EXTERNAL_DATA -std=c17 -O2 $(ICK_DEBUG_FLAGS) -fPIE -Wall -Wextra -Werror -S "$(GLYPH_SOURCE)" -o "$(QUALIFY_BUILD)/copy-negative.s"
+	"$(NDK_CC)" $(TARGET_FLAGS) -c "$(QUALIFY_BUILD)/copy-negative.s" -o "$(QUALIFY_BUILD)/copy-negative.o"
+	"$(NDK_CC)" $(TARGET_FLAGS) -pie -Wl,--no-undefined "$(QUALIFY_BUILD)/copy-negative.o" -o "$(QUALIFY_BUILD)/copy-negative"
+	"$(NDK_READELF)" -r "$(QUALIFY_BUILD)/copy-negative" > "$(QUALIFY_BUILD)/copy-negative.elf"
+	grep -Eq 'R_X86_64_COPY' "$(QUALIFY_BUILD)/copy-negative.elf"
+	printf 'old_fPIE_external_data_COPY_rejected\tPASS\n' > "$(QUALIFY_BUILD)/copy-negative.tsv"
+else
+reject-copy-relocation:
+endif
 
 reject-api25: check-qualification
 	rm -f "$(QUALIFY_BUILD)/bionic-availability-api25.s"
@@ -162,7 +176,7 @@ reject-api25: check-qualification
 	grep -Eqi 'requires Android API 26' "$(QUALIFY_BUILD)/bionic-availability-api25.log"
 	test ! -e "$(QUALIFY_BUILD)/bionic-availability-api25.s"
 
-qualify: $(QUALIFY_ASSEMBLY) $(QUALIFY_ELF_CHECKS) reject-api25 $(FORTIFY_QUALIFY) qualify-atomics-runtime
+qualify: $(QUALIFY_ASSEMBLY) $(QUALIFY_ELF_CHECKS) reject-api25 $(FORTIFY_QUALIFY) qualify-atomics-runtime reject-copy-relocation
 	sha256sum "$(ICK_COMPILER)" "$$("$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) -print-prog-name=cc1)" > "$(QUALIFY_BUILD)/compiler.sha256"
 	sha256sum "$(NDK)/source.properties" "$(NDK_BIN)/clang" "$(NDK_READELF)" > "$(QUALIFY_BUILD)/ndk.sha256"
 	sha256sum $(QUALIFY_ARTIFACTS) > "$(QUALIFY_BUILD)/artifacts.sha256"
