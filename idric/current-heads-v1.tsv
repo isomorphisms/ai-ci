@@ -9,3 +9,4 @@ sms	dilapidated-shed/Idric	Idriç	compiler	isomorphisms/ai-ci
 sms	dilapidated-shed/Idric-Net	sms-server-foundation	parser	isomorphisms/ai-ci
 sms	dilapidated-shed/grease	sms-server-filesystem-foundation	service	isomorphisms/ai-ci
 sms	isomorphisms/ai-ci	sms-cross-repository-receipt	acceptance	isomorphisms/ai-ci
+shader	isomorphisms/idris-shader-backend	soap-f16-mode	backend	isomorphisms/idris-shader-backend

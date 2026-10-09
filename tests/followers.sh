@@ -6,7 +6,9 @@ tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT HUP INT TERM
 mkdir -p "$tmp/jobs" "$tmp/receipts"
 
-cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 \
+ick=${ICK:-ick}
+ick_link_flags=${ICK_LINK_FLAGS:--fno-link-libatomic}
+"$ick" $ick_link_flags -std=c17 -Wall -Wextra -Werror -pedantic -O2 \
     -o "$tmp/aici-followers" "$root/src/aici_followers.c"
 binary=$tmp/aici-followers
 sha=0123456789abcdef0123456789abcdef01234567

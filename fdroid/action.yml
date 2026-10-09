@@ -14,12 +14,16 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Select the qualified ICK C compiler
+      uses: isomorphisms/ai-ci/ick-host@903b2cb27ea572c9c6cb2ffa9f39e0fbf06ec9f8
+      id: ick
     - name: Require artifact probes
       shell: sh
       run: command -v sha256sum >/dev/null && command -v unzip >/dev/null
     - name: Compile F-Droid receipt verifier
       shell: sh
-      run: cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o "$RUNNER_TEMP/aici-fdroid" "$GITHUB_ACTION_PATH/../src/aici_fdroid.c"
+      run: >-
+        "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o "$RUNNER_TEMP/aici-fdroid" "$GITHUB_ACTION_PATH/../src/aici_fdroid.c"
     - name: Verify F-Droid release evidence and APK bytes
       shell: sh
       env:
