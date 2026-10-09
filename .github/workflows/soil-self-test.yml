@@ -16,11 +16,14 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+      - name: Select the qualified ICK C compiler
+        uses: isomorphisms/ai-ci/ick-host@903b2cb27ea572c9c6cb2ffa9f39e0fbf06ec9f8
+        id: ick
 
       - name: Compile Soil verifier
         shell: sh
         run: |
-          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 \
+          "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2 \
             -o /tmp/aici-soil soil/src/aici_soil.c
 
       - name: Prove targeted bad Soil receipts are rejected

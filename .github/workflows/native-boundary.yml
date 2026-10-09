@@ -13,11 +13,16 @@ permissions:
 jobs:
   native-boundary:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 150
     strategy:
       fail-fast: false
       matrix:
-        target: [host, armv7a, aarch64]
+        include:
+          - target: host
+          - target: armv7a
+            abi: armeabi-v7a
+          - target: aarch64
+            abi: arm64-v8a
     env:
       NDK_ARCHIVE_SHA1: 22105e410cf29afcf163760cc95522b9fb981121
     steps:
@@ -53,11 +58,24 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+      - name: Qualify the pinned native ICK compiler
+        if: matrix.target == 'host'
+        uses: isomorphisms/ai-ci/ick-host@903b2cb27ea572c9c6cb2ffa9f39e0fbf06ec9f8
+        id: host-ick
+      - name: Qualify the pinned Android ICK compiler
+        if: matrix.target != 'host'
+        uses: isomorphisms/ai-ci/ick-android@903b2cb27ea572c9c6cb2ffa9f39e0fbf06ec9f8
+        id: android-ick
+        with:
+          abi: ${{ matrix.abi }}
+          ndk: ${{ env.ANDROID_NDK_HOME }}
       - name: Build native probes and run available host checks
         shell: bash
         env:
           TARGET: ${{ matrix.target }}
           OUTPUT: ${{ runner.temp }}/native-boundary-${{ matrix.target }}-${{ github.run_id }}-${{ github.run_attempt }}
+          ICK: ${{ steps.host-ick.outputs.compiler || steps.android-ick.outputs.compiler }}
+          ICK_LINK_FLAGS: ${{ steps.host-ick.outputs.link_flags }}
         run: bash native-boundary/build.sh "$TARGET" "$OUTPUT"
       - name: Retain exact-source bundle, ELF inspection and available receipts
         if: always()
