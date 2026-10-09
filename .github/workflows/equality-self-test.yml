@@ -16,6 +16,9 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+      - name: Select the qualified ICK C compiler
+        uses: isomorphisms/ai-ci/ick-host@afabdf042609b59c949ab1eb06feeb380bdbe409
+        id: ick
       - name: Check out pinned equality mock provider
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -27,7 +30,8 @@ jobs:
           sparse-checkout-cone-mode: false
       - name: Compile equality assignment observer
         shell: sh
-        run: cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-equality src/aici_equality.c -lm
+        run: >-
+          "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-equality src/aici_equality.c -lm
       - name: Generate both deliberately dishonest provider signals
         shell: sh
         run: |

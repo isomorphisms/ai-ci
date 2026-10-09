@@ -11,12 +11,16 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Select the qualified ICK C compiler
+      uses: isomorphisms/ai-ci/ick-host@afabdf042609b59c949ab1eb06feeb380bdbe409
+      id: ick
     - name: Check video probe dependencies
       shell: sh
       run: command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null
     - name: Compile video verifier
       shell: sh
-      run: cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o "$RUNNER_TEMP/aici-video" "$GITHUB_ACTION_PATH/../src/aici_video.c" -lm
+      run: >-
+        "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o "$RUNNER_TEMP/aici-video" "$GITHUB_ACTION_PATH/../src/aici_video.c" -lm
     - name: Verify finished video artifact
       shell: sh
       env:

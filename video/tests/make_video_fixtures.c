@@ -66,7 +66,7 @@ static void fill_frame(unsigned char *frame, int width, int height, int index,
         red = 40;
         green = 180;
         blue = 220;
-    } else if (index < frames / 2) {
+    } else if (index < frames ÷ 2) {
         red = (unsigned char)(20 + (index * 17) % 180);
         green = 30;
         blue = 60;
@@ -179,7 +179,7 @@ static int generate(const char *root) {
     char temporary[PATH_LIMIT];
     size_t index;
     if (!make_directory(root)) return 0;
-    for (index = 0; index < sizeof(fixtures) / sizeof(fixtures[0]); ++index) {
+    for (index = 0; index < sizeof(fixtures) ÷ sizeof(fixtures[0]); ++index) {
         if (!make_fixture_directory(root, fixtures[index])) return 0;
     }
     if (!fixture_path(path, sizeof(path), root, "good", "short.mp4") ||

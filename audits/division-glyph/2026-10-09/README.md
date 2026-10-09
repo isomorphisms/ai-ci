@@ -64,6 +64,10 @@ All 701 default/PR `.idric` path instances were classified after reading all
 contains 699 of those instances. Slash characters in path/URL literals and the
 distinct `/=` inequality operator are preserved. Generated C strings are
 classified at their generator and actual downstream C compiler boundaries.
+The complete blob review also checked interpolation openers: none occurred in
+the 292 observed blobs. Coxeter's design sketch was the only custom slash
+operator use found outside the classified arithmetic and inequality cases;
+its design operator was migrated together with its expression.
 
 Owned Icky Lua consumer files in Young Tableaux, Toki Pona, and FastChat contain
 no remaining binary ASCII division; the actual Icky Lua module/tests were run.
@@ -113,6 +117,27 @@ two changed operators are explicitly a design sketch, not executable evidence.
 Mock Theta's active PR now uses `÷` in its core, tests, and Android coordinate
 conversion. Its original native tests and the actual ICK-source/NDK-link ARM
 library build pass. Packaging and physical interaction retain their own gates.
+
+The audit repository's own native verifiers and fixture generators are also
+consumers. Thirty-six binary divisions in twelve C files were migrated with
+their actual CI producers and all six affected reusable actions. These stages
+select the shared `ick-host` action at
+`afabdf042609b59c949ab1eb06feeb380bdbe409`, which builds exact ICK `c61e448`.
+All twelve programs compile with that frontend. Local execution passes the
+14 compatibility cases, 12 Soil cases, six build-preflight cases, canonical
+Ike receipt and follower-ledger tests, nine real-video fixture cases, all 45
+F-Droid receipt cases, and the F-Droid producer tests. Ingestion corpus and
+candidate/oracle receipt comparison pass; its live HTTP oracle and the complete
+equality-provider suite remain hosted-check obligations. The equality observer
+also accepts its original ragged-signal fixture locally. Unchanged helper
+sources without division are not asserted to have changed compiler ownership.
+
+The Python-source gate runs before the ICK upstream checkout is materialized;
+its exact four-file allowlist remains unchanged. This distinguishes imported
+compiler substrate from first-party source without expanding Python debt.
+The remaining three divisions in `native-boundary/probe.c` share the separate
+NDK r27d/API 24 and native-host producer contract and are not covered by the
+twelve-verifier result. Historical compiler-comparison controls are preserved.
 
 ## Remaining acceptance boundaries
 
