@@ -1,0 +1,17 @@
+collection	observed_UTC	count	evidence_or_boundary
+affiliated_repositories	2026-10-09 06:37-06:40	384	Five paginated pages: 100,100,100,84,0; unique repository set unchanged; private identities excluded from public rows.
+nonempty_nonarchived_default_heads	2026-10-09 06:37-06:40	359	All exact default heads rechecked; zero changed versus original and earlier live snapshot.
+excluded_empty_repository_metadata	2026-10-09 06:37-06:40	19	18 API-empty plus one separately confirmed Git409 empty; metadata unchanged.
+archived_repository_metadata	2026-10-09 06:37-06:40	6	Archived metadata unchanged; no active owned migration inferred.
+frozen_active_PR_roles	earlier immutable live refresh	94	All 94 heads receive explicit role classification, including unchanged inherited heads; 92 public rows, 2 private rows retained internally.
+all_repository_open_PR_listing	2026-10-09 06:37-06:40	95	Queried all384 repositories; every listing below100, no additional page; 28 changed heads and one new Young20 since frozen94.
+full_current_trees_at_listing	2026-10-09 06:37-06:40	95	29 complete untruncated trees freshly fetched; 66 reused from same immutable heads; zero errors.
+later_publications_and_head_reconfirmation	2026-10-09 06:54:24	100	All100 known current PRs re-read; five additional publications: Knot11, AlgebraicVariety28, Econometrician88, Coursera1, RHS17. Not another account listing.
+complete_current_PR_trees	2026-10-09 06:54:24	100	21 changed/new trees freshly fetched after95-tree listing;79 reused immutable trees. 98 public current rows;2 private rows retained internally.
+frozen_compiled_include_instances	earlier immutable live refresh	22	14 distinct inc/def blobs explicitly classified, including five actual Young test quotients subsequently migrated.
+frozen_C_template_instances	earlier immutable live refresh	4	Two upstream CPython configuration template blobs across Ithon14/15.
+FastChat_default_reconfirmation	2026-10-09 06:40	1	main ff84af404be34c4a8369de549bf8b32429445c19 is identical in original and every refresh; older PR base metadata was stale ancestry.
+scope_boundary	2026-10-09 06:54:24	1	Source migration publication is separate from hosted acceptance, signed packaging, physical-device acceptance and default-branch merge. Every known maintained quotient has a published migration or explicit source-role boundary; this is not a default-merge or complete-hosted-acceptance claim.
+supplementary_current_head_reconfirmation	2026-10-09 06:59-07:00	2	ai-ci231 f1c24ab67e0e93f7606aae88d7a6d123a3898288 now includes41 inherited/owned quotients; Econometrician88 68090423e3088334edcdd3f76db1295036cf3e6e pins producer actions. Exact PR metadata and both complete untruncated trees re-read; total known PR count remains100.
+workflow_repair_head_supplement	2026-10-09 07:07:42	9	Seifert1/2/5, Toki12, FastChat8/9, Young19/20 and Utilities81 current metadata and complete trees re-read after bounded producer/policy repairs. Same100 known PRs; mathematical source classification unchanged. Current-head rows are a dated snapshot, not perpetual CI surveillance.
+historical_default_pending_dispositions	2026-10-09 07:07:42	39	Every original public default-source-trees-public.tsv REVIEW_PENDING row mapped in historical-pending-default-dispositions-public.tsv to explicit public ownership, producer, migration or reference evidence. Defaults remain unchanged until merge.
