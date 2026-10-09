@@ -3,6 +3,7 @@
   "catalog_owner": "isomorphisms/flexible-pipes",
   "catalog_path": "models/catalog.toml",
   "models": {
+    "gpt-oss-20b": {"adapter": "infer-http.pi", "interface": "chat", "source": "sources/gpt-oss", "runtime": "checksum-pinned local Ollama CPU pilot; distinct from GPT-OSS-120B"},
     "gpt-oss-120b": {"adapter": "infer-http.pi", "interface": "chat", "source": "sources/gpt-oss"},
     "pythia-12b": {"adapters": ["infer-http.pi", "infer-pythia.pi"], "interface": "completion"},
     "pythia-6_9b": {"adapters": ["infer-http.pi", "infer-pythia.pi"], "interface": "completion"}

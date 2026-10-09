@@ -5,9 +5,13 @@ import json
 import hashlib
 import time
 import http.client
+import subprocess
+import platform
+import shutil
+import socket
 from urllib.parse import urlsplit
 from pathlib import Path
-from builtins import ValueError, Exception, globals, isinstance, dict, list, all
+from builtins import ValueError, Exception, OSError, globals, isinstance, dict, list, all
 from typing import Any
 from operator import contains, getitem
 
@@ -39,7 +43,7 @@ def completion_prompt(messages ∈ list[dict[str, str]]) → str:
     return str("\n\n".join(parts)) + "\n\nAssistant:\n"
 
 
-def body_for(payload ∈ dict[str, Any], interface ∈ str, served_model ∈ str) → dict[str, Any]:
+def body_for(payload ∈ dict[str, Any], interface ∈ str, served_model ∈ str, reasoning ∈ str) → dict[str, Any]:
     body ∈ dict[str, Any] ← {"model": served_model, "temperature": payload["temperature"], "max_tokens": payload["max_tokens"], "seed": payload["seed"], "stream": False}
     if interface == "chat":
         body.update({"messages": payload["messages"]})
@@ -47,6 +51,10 @@ def body_for(payload ∈ dict[str, Any], interface ∈ str, served_model ∈ str
         body.update({"prompt": completion_prompt(payload["messages"])})
     else:
         raise ValueError("unsupported inference interface")
+    if reasoning:
+        if interface != "chat" or not contains(["low", "medium", "high"], reasoning):
+            raise ValueError("unsupported explicit reasoning effort")
+        body.update({"reasoning_effort": reasoning})
     return body
 
 
@@ -56,6 +64,8 @@ def infer(output ∈ str) → int:
     if digest(encoded(jobs)) != manifest["requests_sha256"] or len(jobs) != manifest["count"] or len(jobs) > 500:
         raise ValueError("request manifest changed or exceeds budget")
     model_record ∈ dict[str, Any] ← load(output + "/model.json")
+    if digest(encoded(model_record)) != manifest["model_sha256"]:
+        raise ValueError("prepared model profile changed")
     profile ∈ dict[str, Any] ← model_record["profile"]
     base ∈ str ← os.environ.get("MODEL_EVAL_BASE_URL", "")
     if not base:
@@ -77,28 +87,32 @@ def infer(output ∈ str) → int:
     if interface == "completion":
         suffix ← "/completions"
     endpoint ∈ str ← str(address.path.rstrip("/")) + suffix
-    save(output + "/identity.json", {"backend": "openai-compatible-http", "requested_model": profile["hf_repo"], "served_model": served, "requested_revision": profile["revision"], "weight_identity": "UNVERIFIED_REMOTE_WEIGHTS", "format": interface, "seed_support": "requested; server enforcement not attested", "automatic_retries": 0, "model_tools": list(), "live_transfer": "NOT_RUN"})
+    save(output + "/identity.json", {"backend": "openai-compatible-http", "requested_model": profile["hf_repo"], "served_model": served, "requested_revision": profile["revision"], "weight_identity": "UNVERIFIED_REMOTE_WEIGHTS", "format": interface, "requests_sha256": manifest["requests_sha256"], "model_sha256": manifest["model_sha256"], "reasoning_effort": profile.get("reasoning_effort", "server-default"), "seed_support": "requested; server enforcement not attested", "automatic_retries": 0, "model_tools": list(), "live_transfer": "NOT_RUN"})
     failures ∈ int ← 0
+    attempted ∈ int ← 0
     for job in jobs:
         started ∈ float ← time.monotonic()
-        body ∈ dict[str, Any] ← body_for(job["payload"], interface, served)
+        body ∈ dict[str, Any] ← body_for(job["payload"], interface, served, str(profile.get("reasoning_effort", "")))
         save(output + "/raw/" + str(job["id"]) + ".request.json", body)
-        result ∈ dict[str, Any] ← {"id": job["id"], "request_sha256": job["request_sha256"], "evidence": "live", "status": "FAILED", "text": ""}
+        result ∈ dict[str, Any] ← {"id": job["id"], "request_sha256": job["request_sha256"], "raw_request_sha256": digest(encoded(body)), "evidence": "live", "status": "FAILED", "text": ""}
         connection ∈ Any ← None
+        transport_complete ∈ bool ← False
+        attempted ← attempted + 1
         try:
             if str(address.scheme) == "https":
-                connection ← http.client.HTTPSConnection(address.hostname, address.port, timeout=120)
+                connection ← http.client.HTTPSConnection(address.hostname, address.port, timeout=300)
             else:
-                connection ← http.client.HTTPConnection(address.hostname, address.port, timeout=120)
+                connection ← http.client.HTTPConnection(address.hostname, address.port, timeout=300)
             connection.request("POST", endpoint, body=encoded(body).encode(), headers=headers)
             response ∈ Any ← connection.getresponse()
             raw ∈ bytes ← response.read(1048577)
             if len(raw) > 1048576:
                 raise ValueError("inference response exceeds one MiB")
             Path(output + "/raw/" + str(job["id"]) + ".response.bin").write_bytes(raw)
-            result.update({"http_status": response.status})
+            result.update({"http_status": response.status, "raw_sha256": hashlib.sha256(raw).hexdigest()})
             if int(response.status) != 200:
                 raise ValueError("inference HTTP status is not 200; redirects are not followed")
+            transport_complete ← True
             decoded ∈ dict[str, Any] ← json.loads(raw)
             if str(decoded.get("model")) != served:
                 raise ValueError("response model name does not match the explicitly selected served model")
@@ -128,9 +142,117 @@ def infer(output ∈ str) → int:
                 connection.close()
         result.update({"seconds": float(time.monotonic()) - started})
         save(output + "/responses/" + str(job["id"]) + ".json", result)
-    save(output + "/inference.json", {"status": "EXECUTED", "requests_attempted": len(jobs), "transport_or_format_failures": failures, "weight_identity": "UNVERIFIED_REMOTE_WEIGHTS", "live_transfer": "NOT_RUN"})
-    print("Actual HTTP requests: " + str(len(jobs)) + "; transport/format failures: " + str(failures))
+        print("Request " + str(attempted) + "/" + str(len(jobs)) + ": " + str(result["status"]) + "; seconds=" + str(result["seconds"]), flush=True)
+        if not transport_complete:
+            break
+    state ∈ str ← "EXECUTED"
+    if attempted != len(jobs):
+        state ← "INCOMPLETE"
+    save(output + "/inference.json", {"status": state, "requests_attempted": attempted, "transport_or_format_failures": failures, "requests_sha256": manifest["requests_sha256"], "model_sha256": manifest["model_sha256"], "weight_identity": "UNVERIFIED_REMOTE_WEIGHTS", "live_transfer": "NOT_RUN"})
+    print("Actual HTTP requests: " + str(attempted) + "; transport/format failures: " + str(failures))
+    if state != "EXECUTED":
+        return 3
     return 0
+
+
+def local_json(path ∈ str) → dict[str, Any]:
+    connection ∈ Any ← http.client.HTTPConnection("127.0.0.1", 11434, timeout=10)
+    try:
+        connection.request("GET", path)
+        response ∈ Any ← connection.getresponse()
+        raw ∈ bytes ← response.read(1048577)
+        if int(response.status) != 200 or len(raw) > 1048576:
+            raise ValueError("local runtime metadata request failed")
+        result ∈ dict[str, Any] ← json.loads(raw)
+        return result
+    finally:
+        connection.close()
+
+
+def checked_model(profile ∈ dict[str, Any]) → dict[str, Any]:
+    version ∈ dict[str, Any] ← local_json("/api/version")
+    if str(version.get("version")) != str(profile["ollama_version"]):
+        raise ValueError("Ollama runtime version differs from the frozen profile")
+    tags ∈ dict[str, Any] ← local_json("/api/tags")
+    models ∈ list[dict[str, Any]] ← tags["models"]
+    selected ∈ list[dict[str, Any]] ← []
+    for model in models:
+        if str(model.get("name")) == str(profile["ollama_model"]):
+            selected.append(model)
+    if len(selected) != 1 or str(selected[0].get("digest")) != str(profile["ollama_digest"]):
+        raise ValueError("Ollama model digest differs from the retained GPT-OSS pilot")
+    return {"runtime": version, "model": selected[0], "claim": "LOCAL_RUNTIME_REPORTED_DIGEST", "hf_weight_equivalence": "NOT_ATTESTED"}
+
+
+def ollama(output ∈ str, executable ∈ str) → int:
+    model_record ∈ dict[str, Any] ← load(output + "/model.json")
+    profile ∈ dict[str, Any] ← model_record["profile"]
+    binary ∈ Any ← Path(executable)
+    if not binary.is_absolute() or not binary.is_file() or not os.access(executable, os.X_OK):
+        raise ValueError("an existing absolute Ollama executable is required")
+    if str(platform.system()) != "Linux" or str(platform.machine()) != "x86_64":
+        raise ValueError("this retained CPU pilot is qualified only for Linux x86_64")
+    if str(profile.get("hf_repo")) != "openai/gpt-oss-20b" or str(profile.get("ollama_model")) != "gpt-oss:20b":
+        raise ValueError("local pilot requires the distinct GPT-OSS-20B profile")
+    cache ∈ str ← os.environ.get("OLLAMA_MODELS", "")
+    if not cache or not Path(cache).is_absolute():
+        raise ValueError("explicit absolute temporary OLLAMA_MODELS cache is required")
+    Path(cache).mkdir(parents=True, exist_ok=True)
+    if int(shutil.disk_usage(cache).free) < 16000000000:
+        raise ValueError("fewer than 16 GB free for the explicitly requested model download")
+    environment ∈ dict[str, str] ← dict(os.environ)
+    for key in ["GH_TOKEN", "GITHUB_TOKEN", "MODEL_EVAL_API_KEY", "OLLAMA_API_KEY"]:
+        environment.pop(key, None)
+    environment.update({"OLLAMA_HOST": "127.0.0.1:11434", "OLLAMA_NUM_PARALLEL": "1", "OLLAMA_MAX_LOADED_MODELS": "1", "OLLAMA_CONTEXT_LENGTH": "8192", "OLLAMA_KEEP_ALIVE": "60m", "OLLAMA_NO_CLOUD": "1"})
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        probe.bind(("127.0.0.1", 11434))
+    save(output + "/host.json", {"system": platform.system(), "machine": platform.machine(), "release": platform.release(), "cpu_count": os.cpu_count(), "free_bytes_before_pull": shutil.disk_usage(cache).free, "context_tokens": 8192, "ollama_executable_sha256": hashlib.sha256(binary.read_bytes()).hexdigest()})
+    print("Starting isolated loopback Ollama; then downloading the declared GPT-OSS-20B weights to the temporary cache.", flush=True)
+    with Path(output + "/ollama.log").open("x") as server_log:
+        process ∈ Any ← subprocess.Popen([executable, "serve"], env=environment, stdout=server_log, stderr=subprocess.STDOUT)
+        try:
+            ready ∈ bool ← False
+            for attempt in range(30):
+                process_status ∈ Any ← process.poll()
+                if process_status != None:
+                    raise ValueError("the owned Ollama process exited before readiness")
+                try:
+                    runtime ∈ dict[str, Any] ← local_json("/api/version")
+                    if str(runtime.get("version")) != str(profile["ollama_version"]):
+                        raise ValueError("unexpected loopback runtime version")
+                    ready ← True
+                    break
+                except OSError:
+                    time.sleep(1)
+            if not ready:
+                raise ValueError("owned Ollama process did not become ready")
+            with Path(output + "/model-pull.log").open("x") as pull_log:
+                pulled ∈ Any ← subprocess.run([executable, "pull", profile["ollama_model"]], env=environment, stdout=pull_log, stderr=subprocess.STDOUT, timeout=600)
+            process_status ← process.poll()
+            if int(pulled.returncode) != 0 or process_status != None:
+                raise ValueError("declared model download or owned server failed")
+            save(output + "/local-model-before.json", checked_model(profile))
+            os.environ.update({"MODEL_EVAL_BASE_URL": "http://127.0.0.1:11434/v1", "MODEL_EVAL_SERVED_MODEL": profile["ollama_model"]})
+            os.environ.pop("MODEL_EVAL_API_KEY", None)
+            print("Pinned model ready; starting frozen requests.", flush=True)
+            code ∈ int ← infer(output)
+            process_status ← process.poll()
+            if process_status != None:
+                raise ValueError("owned Ollama server exited during inference")
+            save(output + "/local-model-after.json", checked_model(profile))
+            manifest ∈ dict[str, Any] ← load(output + "/manifest.json")
+            state ∈ str ← "EXECUTED"
+            if code != 0:
+                state ← "INCOMPLETE"
+            save(output + "/local-execution.json", {"status": state, "requests_sha256": manifest["requests_sha256"], "model_sha256": manifest["model_sha256"], "owned_server_pid": int(process.pid), "runtime": profile["ollama_version"], "model_digest": profile["ollama_digest"], "weight_identity": "LOCAL_RUNTIME_REPORTED_DIGEST", "hf_weight_equivalence": "NOT_ATTESTED"})
+            return code
+        finally:
+            process.terminate()
+            try:
+                process.wait(timeout=15)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=15)
 
 
 def main() → int:
@@ -138,15 +260,17 @@ def main() → int:
     args ∈ list[str] ← raw_arguments[1:]
     if args == ["check"]:
         payload ∈ dict[str, Any] ← {"messages": [{"role": "user", "content": "move repository"}], "temperature": 0.2, "seed": 17, "max_tokens": 256}
-        chat ∈ dict[str, Any] ← body_for(payload, "chat", "openai/gpt-oss-120b")
-        completion ∈ dict[str, Any] ← body_for(payload, "completion", "EleutherAI/pythia-12b-deduped")
+        chat ∈ dict[str, Any] ← body_for(payload, "chat", "openai/gpt-oss-120b", "low")
+        completion ∈ dict[str, Any] ← body_for(payload, "completion", "EleutherAI/pythia-12b-deduped", "")
         if contains(chat, "prompt") or contains(completion, "messages") or contains(encoded(chat), "expected"):
             raise ValueError("chat/completion separation or oracle exclusion failed")
         print("PASS GPT-OSS chat/Pythia completion request construction; inference NOT_RUN")
         return 0
     if len(args) == 2 and args[0] == "run":
         return infer(args[1])
-    raise ValueError("usage: infer-http.pi check | run PREPARED_DIRECTORY")
+    if len(args) == 3 and args[0] == "ollama":
+        return ollama(args[1], args[2])
+    raise ValueError("usage: infer-http.pi check | run PREPARED_DIRECTORY | ollama PREPARED_DIRECTORY ABSOLUTE_OLLAMA_EXECUTABLE")
 
 namespace ∈ dict[str, Any] ← globals()
 module_name ∈ str ← namespace.get("__name__", "")

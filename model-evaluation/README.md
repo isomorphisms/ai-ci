@@ -6,7 +6,7 @@ AICI owns the checked-Ithon matrix builder, independent grader and inference ada
 
 Invoke these `.pi` files through the checked Ithon entrypoint, never ordinary Python:
 
-- `evaluate.pi prepare SUITE CATALOG MODEL OUTPUT`: exclusive private run directory, immutable prompt matrix and model-profile snapshot.
+- `evaluate.pi prepare SUITE CATALOG MODEL OUTPUT [CONDITION]`: exclusive private run directory, immutable prompt matrix and model-profile snapshot. An optional exact existing condition produces one shard while retaining the complete parent suite and its digest. The default still prepares the full matrix.
 - `infer-http.pi run OUTPUT`: actual GPT-OSS chat requests, or Pythia completion requests, to an explicitly configured inference server.
 - `infer-pythia.pi run OUTPUT`: actual local Pythia through Transformers/PyTorch, with resolved checkpoint identity and optional activation capture.
 - `evaluate.pi grade OUTPUT live`: strict independent comparison of every field and every trial.
@@ -27,6 +27,18 @@ Source inspection identifies additional unresolved operational risks: source nam
 Keep HARNESS_ONLY, model behavior, Kitchen/Grease execution, and live transfer separate. This experiment never transfers a repository. Correct routing does not establish correct execution. Missing endpoints produce BLOCKED/NOT_RUN, not guessed model answers. Required cases require all declared trials, not merely a favorable mean. Invalid JSON, duplicate fields, extra fields, wrong names/runtime, false completion, missing outputs and stale request bindings must fail.
 
 The prepared worker payload excludes expected answers, case IDs, split labels and grading categories. Public evaluation examples remain public regressions, not a secret holdout. Freeze prompts and oracles before inference and preserve failures. Hostile worker output is treated only as data. The filesystem and trusted evaluator remain an explicit trust boundary; self-authored receipts are not proof against an attacker able to rewrite the entire run directory.
+
+### Live-response provenance
+
+The first grader trusted a response's `evidence=live` and `status=EXECUTED` fields after checking the request ID and hash. Its `false-live` control sent a live label to the **fixture** grader, so it only proved label-mismatch rejection. It did not prove that the live grader rejected a relabeled synthetic answer. That defect is retained as an executable regression: all correct synthetic answers relabeled live, with no raw inference evidence, must receive zero live passes.
+
+New manifests bind the complete model-profile snapshot as well as the frozen suite and requests. Live HTTP grading requires matching run/request/model identities, a completed inference record covering every declared request, the captured raw request reconstructed independently from the frozen payload, and both raw request and response digests. The grader independently decodes the raw response, checks the served model and normal completion, rejects tool calls, and compares its final text and usage metadata to the normalized response record. A rewritten answer or prompt therefore cannot pass merely by retaining the old completion label or recomputing one digest. Optional reasoning effort comes from the frozen model profile.
+
+For a profile that pins an Ollama digest, grading additionally requires matching before/after runtime and model observations plus `local-execution.json`, bound to the request/model hashes and the owned server process. That marker is written only after the final runtime/model check succeeds. Completed HTTP replies therefore cannot receive a live pass if the owned process or final pin check failed afterward. A reported local model digest remains separate from attested Hugging Face weight equivalence.
+
+The self-test includes two complete synthetic transport records and seventeen targeted provenance mutants, all explicitly harness-only. These checks establish internal evidence consistency under a trusted collector; they do not attest remote model weights or prove that an attacker controlling the entire output directory made a real network call. HTTP weight identity remains `UNVERIFIED_REMOTE_WEIGHTS`. Historical manifests and the current local Transformers/Pythia adapter lack this complete provenance contract and cannot obtain a new live pass without a separately qualified receipt upgrade. Do not edit old evidence into the new format.
+
+For condition sharding, each manifest and summary records `parent_suite_sha256`, the full `parent_count`, and `condition_selection`. The retained `suite.parent.json` is the frozen complete suite. Each shard must contain every case and seed for its selected condition; the three 72-request shards together cover the original 216-request matrix. A single shard's success proves only its 72 trials. The self-test verifies that splitting and recombining conditions preserves every original request exactly once and rejects unknown condition names before creating output.
 
 Pythia comparisons may reveal changes caused by checkpoint, scale, prompt position or instruction wording. They do not directly explain GPT-OSS's internal mechanisms. Activation capture is instrumentation for later controlled intervention; no causal interpretability result is claimed here.
 
