@@ -1,0 +1,223 @@
+"""Prompt matrices and independent grading. Never executes model-produced code."""
+import sys
+import json
+import hashlib
+import tomllib
+import re
+from pathlib import Path
+from builtins import ValueError, Exception, globals
+
+
+def encoded(value ∈ object) → str:
+    text ∈ str ← json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return text
+
+
+def digest(text ∈ str) → str:
+    result ∈ str ← hashlib.sha256(text.encode("utf-8")).hexdigest()
+    return result
+
+
+def load(path ∈ str) → object:
+    value ∈ object ← json.loads(Path(path).read_text(encoding="utf-8"))
+    return value
+
+
+def save(path ∈ str, value ∈ object) → None:
+    with Path(path).open("x", encoding="utf-8") as stream:
+        stream.write(encoded(value) + "\n")
+
+
+def unique_object(pairs ∈ list[tuple[str, object]]) → dict[str, object]:
+    result ∈ dict[str, object] ← {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate JSON key")
+        result[key] ← value
+    return result
+
+
+def grade_text(text ∈ str, expected ∈ dict[str, object]) → dict[str, object]:
+    answer ∈ object ← None
+    try:
+        answer ← json.loads(text, object_pairs_hook=unique_object)
+    except Exception:
+        return {"pass": False, "parse": False, "fields": {}}
+    if not isinstance(answer, dict) or set(answer) != set(expected):
+        return {"pass": False, "parse": False, "fields": {}}
+    fields ∈ dict[str, bool] ← {}
+    for key in expected:
+        actual ∈ object ← answer[key]
+        wanted ∈ object ← expected[key]
+        if type(actual) != type(wanted):
+            fields[key] ← False
+        elif key in ["source", "destination"] and isinstance(actual, str):
+            fields[key] ← actual.lower() == wanted.lower()
+        else:
+            fields[key] ← actual == wanted
+    return {"pass": all(fields.values()), "parse": True, "fields": fields}
+
+
+def validate(suite ∈ dict[str, object]) → None:
+    if suite.get("schema_version") != 1:
+        raise ValueError("suite schema_version must be 1")
+    cases ∈ list[dict[str, object]] ← suite["cases"]
+    conditions ∈ list[dict[str, str]] ← suite["conditions"]
+    seeds ∈ list[int] ← suite["seeds"]
+    if len(cases) == 0 or len(conditions) == 0 or len(seeds) < 3:
+        raise ValueError("nonempty cases/conditions and at least three trials required")
+    if len(set(seeds)) != len(seeds) or not all(type(seed) == int for seed in seeds):
+        raise ValueError("trial seeds must be unique integers")
+    if len(cases) * len(conditions) * len(seeds) > 500:
+        raise ValueError("matrix exceeds 500-request budget")
+    names ∈ list[str] ← []
+    for case in cases:
+        name ∈ str ← case["id"]
+        if not re.fullmatch("[a-z0-9-]+", name) or name in names:
+            raise ValueError("unsafe or duplicate case ID")
+        names.append(name)
+        if case["split"] not in ["development", "evaluation"] or not case["origin"]:
+            raise ValueError("case split and provenance required")
+        if not case["messages"] or not isinstance(case["expected"], dict) or not case["expected"]:
+            raise ValueError("messages and nonempty independent oracle required")
+        for message in case["messages"]:
+            if message["role"] not in ["user", "assistant"] or not isinstance(message["content"], str):
+                raise ValueError("case messages must be user or assistant text")
+    condition_names ∈ list[str] ← []
+    for condition in conditions:
+        if not re.fullmatch("[a-z0-9-]+", condition["id"]) or condition["id"] in condition_names:
+            raise ValueError("unsafe or duplicate condition ID")
+        condition_names.append(condition["id"])
+    if not isinstance(suite["instruction"], str) or not suite["instruction"]:
+        raise ValueError("common output contract required")
+
+
+def prepare(suite_path ∈ str, catalog_path ∈ str, model_key ∈ str, output ∈ str) → None:
+    suite ∈ dict[str, object] ← load(suite_path)
+    validate(suite)
+    catalog ∈ dict[str, object] ← tomllib.loads(Path(catalog_path).read_text())
+    profile ∈ dict[str, object] ← catalog["models"][model_key]
+    if profile["interface"] not in ["chat", "completion"]:
+        raise ValueError("unsupported model interface")
+    Path(output).mkdir(mode=0o700)
+    Path(output + "/responses").mkdir(mode=0o700)
+    Path(output + "/raw").mkdir(mode=0o700)
+    save(output + "/suite.json", suite)
+    save(output + "/model.json", {"key": model_key, "profile": profile, "catalog_sha256": digest(Path(catalog_path).read_text()), "revision_kind": "requested; backend must resolve or label unverified"})
+    jobs ∈ list[dict[str, object]] ← []
+    for case in suite["cases"]:
+        for condition in suite["conditions"]:
+            for seed in suite["seeds"]:
+                messages ∈ list[dict[str, str]] ← [{"role": "system", "content": suite["instruction"] + "\n\n" + condition["instruction"]}]
+                messages.extend(case["messages"])
+                payload ∈ dict[str, object] ← {"model": profile["hf_repo"], "messages": messages, "seed": seed, "temperature": suite["temperature"], "max_tokens": suite["max_tokens"]}
+                payload_hash ∈ str ← digest(encoded(payload))
+                identifier ∈ str ← digest(case["id"] + ":" + condition["id"] + ":" + str(seed) + ":" + payload_hash)
+                jobs.append({"id": identifier, "case_id": case["id"], "condition": condition["id"], "seed": seed, "request_sha256": payload_hash, "payload": payload})
+    save(output + "/requests.json", jobs)
+    namespace ∈ dict[str, object] ← globals()
+    source_path ∈ str ← namespace.get("__file__", "")
+    save(output + "/manifest.json", {"count": len(jobs), "suite_sha256": digest(encoded(suite)), "requests_sha256": digest(encoded(jobs)), "evaluator_sha256": digest(Path(source_path).read_text()), "model_key": model_key, "live_transfer": "NOT_RUN", "model_inference": "NOT_RUN"})
+    print("Prepared " + str(len(jobs)) + " requests; inference and transfer NOT_RUN")
+
+
+def grade(output ∈ str, evidence ∈ str) → int:
+    if evidence not in ["live", "fixture"]:
+        raise ValueError("evidence must be live or fixture")
+    suite ∈ dict[str, object] ← load(output + "/suite.json")
+    jobs ∈ list[dict[str, object]] ← load(output + "/requests.json")
+    manifest ∈ dict[str, object] ← load(output + "/manifest.json")
+    if digest(encoded(suite)) != manifest["suite_sha256"] or digest(encoded(jobs)) != manifest["requests_sha256"] or len(jobs) != manifest["count"]:
+        raise ValueError("prepared suite or requests changed")
+    expected ∈ dict[str, object] ← {}
+    for case in suite["cases"]:
+        expected[case["id"]] ← case["expected"]
+    verdicts ∈ list[dict[str, object]] ← []
+    passed ∈ int ← 0
+    responded ∈ int ← 0
+    for job in jobs:
+        result ∈ dict[str, object] ← {"pass": False, "parse": False, "fields": {}, "error": "missing-response"}
+        response_path ∈ str ← output + "/responses/" + job["id"] + ".json"
+        if Path(response_path).is_file():
+            response ∈ dict[str, object] ← load(response_path)
+            responded ← responded + 1
+            if response.get("request_sha256") != job["request_sha256"] or response.get("id") != job["id"]:
+                result["error"] ← "wrong-request-binding"
+            elif response.get("evidence") != evidence:
+                result["error"] ← "evidence-class-mismatch"
+            elif response.get("status") != "EXECUTED":
+                result["error"] ← response.get("error", "inference-failed")
+            else:
+                result ← grade_text(response["text"], expected[job["case_id"]])
+        if result["pass"]:
+            passed ← passed + 1
+        verdicts.append({"id": job["id"], "case_id": job["case_id"], "condition": job["condition"], "seed": job["seed"], "result": result})
+    actual_files ∈ list[object] ← list(Path(output + "/responses").glob("*.json"))
+    complete ∈ bool ← len(actual_files) == len(jobs) and responded == len(jobs)
+    state ∈ str ← "FAIL"
+    if complete and passed == len(jobs):
+        state ← "PASS"
+    if evidence == "fixture":
+        state ← "HARNESS_ONLY_" + state
+    save(output + "/summary.json", {"status": state, "evidence": evidence, "expected_trials": len(jobs), "responses": responded, "passed": passed, "all_trials_pass": complete and passed == len(jobs), "live_transfer": "NOT_RUN", "kitchen_execution": "NOT_RUN", "verdicts": verdicts})
+    print(encoded({"status": state, "expected_trials": len(jobs), "responses": responded, "passed": passed, "live_transfer": "NOT_RUN"}))
+    if complete and passed == len(jobs):
+        return 0
+    return 1
+
+
+def exercise(output ∈ str, mutation ∈ str) → int:
+    """Explicit synthetic control, never model evidence."""
+    suite ∈ dict[str, object] ← load(output + "/suite.json")
+    jobs ∈ list[dict[str, object]] ← load(output + "/requests.json")
+    expected ∈ dict[str, object] ← {}
+    for case in suite["cases"]:
+        expected[case["id"]] ← case["expected"]
+    for job in jobs:
+        answer ∈ object ← expected[job["case_id"]]
+        if mutation == "constant":
+            answer ← expected[jobs[0]["case_id"]]
+        response ∈ dict[str, object] ← {"id": job["id"], "request_sha256": job["request_sha256"], "evidence": "fixture", "status": "EXECUTED", "text": encoded(answer)}
+        if mutation == "stale":
+            response["request_sha256"] ← "0" * 64
+        if mutation == "false-live":
+            response["evidence"] ← "live"
+        if mutation != "missing":
+            save(output + "/responses/" + job["id"] + ".json", response)
+    return grade(output, "fixture")
+
+
+def self_test() → None:
+    good ∈ dict[str, object] ← {"decision": "transfer", "source": "owner/repo", "destination": "org", "runtime": "grease", "status": "not_executed"}
+    if not grade_text(encoded(good), good)["pass"]:
+        raise ValueError("positive parser control failed")
+    bad ∈ list[str] ← ["", "done", "```json\n" + encoded(good) + "\n```", "{}", encoded({"decision": "fork"}), encoded(good).replace("org", "wrong-org"), encoded(good).replace("not_executed", "completed"), encoded(good).replace("grease", "bash"), encoded(good)[:-1] + ',"decision":"transfer"}', encoded(good)[:-1] + ',"extra":"unexpected-field"}']
+    for text in bad:
+        if grade_text(text, good)["pass"]:
+            raise ValueError("known-bad response accepted")
+    print("PASS one positive and ten parser/oracle mutants; model inference NOT_RUN")
+
+
+def main() → int:
+    arguments ∈ list[str] ← sys.argv[1:]
+    if arguments == ["self-test"]:
+        self_test()
+        return 0
+    if len(arguments) == 5 and arguments[0] == "prepare":
+        prepare(arguments[1], arguments[2], arguments[3], arguments[4])
+        return 0
+    if len(arguments) == 3 and arguments[0] == "grade":
+        return grade(arguments[1], arguments[2])
+    if len(arguments) == 3 and arguments[0] == "exercise":
+        if arguments[2] not in ["good", "constant", "stale", "false-live", "missing"]:
+            raise ValueError("unknown synthetic control")
+        return exercise(arguments[1], arguments[2])
+    if len(arguments) == 2 and arguments[0] == "check-suite":
+        validate(load(arguments[1]))
+        print("Suite contract valid; inference NOT_RUN")
+        return 0
+    raise ValueError("usage: self-test | check-suite SUITE | prepare SUITE CATALOG MODEL OUTPUT | grade OUTPUT live|fixture | exercise OUTPUT good|constant|stale|false-live|missing")
+
+namespace ∈ dict[str, object] ← globals()
+if namespace.get("__name__", "") == "__main__":
+    sys.exit(main())
