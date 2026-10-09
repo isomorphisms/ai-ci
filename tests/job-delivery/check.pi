@@ -1,6 +1,8 @@
 """Independent surface oracle: build captures without calling FP deliver()."""
 import sys
+import io
 import json
+import zipfile
 from pathlib import Path
 from builtins import dict, list, ValueError, Exception, AssertionError
 import handoff
@@ -18,7 +20,48 @@ def visible_event(payload ∈ bytes, response ∈ bytes, sequence ∈ int) → d
 def dispatch_event(payload ∈ bytes, sequence ∈ int) → dict[str, object]:
     return {"kind": "dispatch", "sequence": sequence, "payload_sha256": handoff.digest(payload), "dispatch_id": "fixture-dispatch"}
 
+def attachment_event(payload ∈ bytes, sequence ∈ int, name ∈ str, mime ∈ str) → dict[str, object]:
+    return {"kind": "attachment", "sequence": sequence, "payload_sha256": handoff.digest(payload), "payload_size": len(payload), "file_id": "fixture-file", "file_name": name, "mime_type": mime, "surface": "fixture-visible-chat"}
+
+def run_attachment_case(variant ∈ str) → str:
+    payload ∈ bytes ← b"PK\x03\x04fixture-signed-apk\x00\xff"
+    source ∈ bytes ← payload
+    source_name ∈ str ← "young-tableaux-arm64-v8a.apk"
+    attachment ∈ dict[str, object] ← {"file_name": "young-tableaux-arm64-v8a.apk", "mime_type": "application/vnd.android.package-archive", "sha256": handoff.digest(payload), "source_name": source_name, "source_sha256": handoff.digest(source), "provenance": {"provider": "github-actions", "resource": "functorial-games/young-tableaux", "revision": "20e075021b743909bc5c28764f787bae20381bc4", "reference": "artifact:11429847456"}}
+    if variant == "attachment-archive-member":
+        stream ∈ object ← io.BytesIO()
+        archive ∈ object ← zipfile.ZipFile(stream, "w", zipfile.ZIP_STORED)
+        archive.writestr("c67/young-tableaux-arm64-v8a.apk", payload)
+        archive.close()
+        source ← stream.getvalue()
+        attachment["source_name"] ← "young-tableaux-apk.zip"
+        attachment["source_sha256"] ← handoff.digest(source)
+        attachment["archive_member"] ← "c67/young-tableaux-arm64-v8a.apk"
+    request ∈ dict[str, object] ← {"id": "attachment-fixture", "text": "Give me the APK in here like normal"}
+    stage ∈ dict[str, object] ← {"name": "apk", "kind": "command", "exit_code": 0, "stdout_sha256": handoff.digest(source)}
+    spec ∈ dict[str, object] ← {"audience": "human", "model": "fixture", "source_context": "issue-39", "request": request, "attachment": attachment}
+    try:
+        stage ← handoff.compose(stage, source, spec)
+        record ∈ dict[str, object] ← dict(stage["handoff"])
+        events ∈ list[dict[str, object]] ← []
+        if variant != "attachment-link-only":
+            actual ∈ bytes ← payload + b"changed" if variant == "attachment-mutated" else payload
+            name ∈ str ← "wrong.apk" if variant == "attachment-wrong-name" else str(attachment["file_name"])
+            mime ∈ str ← "application/zip" if variant == "attachment-wrong-mime" else str(attachment["mime_type"])
+            events.append(attachment_event(actual, 1, name, mime))
+            if variant == "attachment-duplicate":
+                events.append(attachment_event(actual, 2, name, mime))
+            record["visible_state"] ← "OBSERVED"
+        record["events"] ← events
+        stage["handoff"] ← record
+        job_delivery.check_attachment(stage, source, True)
+        return "PASS"
+    except ValueError as error:
+        return str(error)
+
 def run_case(fixture ∈ str, variant ∈ str) → str:
+    if variant.startswith("attachment-"):
+        return run_attachment_case(variant)
     payload ∈ bytes ← Path(fp + "/regressions/job-delivery/" + fixture + ".txt").read_bytes()
     if variant == "nested-fence":
         payload ← payload + b"\nKeep this embedded example:\n```text\nexample\n```\n"

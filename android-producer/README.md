@@ -30,3 +30,12 @@ as replacement-install acceptance.
 
 This gate does not prove physical-device launch, visual correctness, touch
 behavior, or other runtime semantics.
+
+The authority self-test distinguishes event roles: a pull-request run rejects
+its exact unmerged head, while a main-push run accepts its exact merged SHA
+through the authority stage. Both events reject the branch name `main` and
+exercise a fixed known merged SHA. Accepted authority is witnessed only by the
+deliberate later failure `unsupported packager receipt schema: bogus`; every
+fixture must still fail the producer gate and produce no approval receipt.
+The workflow logs each reference and its expected diagnostic. It proves no
+APK build, install, launch, ABI, physical-device, or runtime acceptance.

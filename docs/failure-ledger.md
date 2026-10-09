@@ -9,7 +9,7 @@ filled with a plausible story.
 
 | Failure | What went wrong | Enforcement state |
 | --- | --- | --- |
-| Hidden job delivery | October 6 Young Tableau/Sun Y2 and A1/C67 assignments were composed/stored/dispatched while their authoritative text was omitted from chat. | Checked-Ithon job-delivery gate rejects missing/changed visible bytes and dispatch-first ordering; owner fixtures retain both recurrences and complete positive twins. Trusted ChatGPT sink deployment remains unverified. |
+| Hidden job or attachment delivery | October 6 Young Tableau/Sun Y2 and A1/C67 assignments were composed/stored/dispatched while their authoritative text was omitted from chat; the later Young Tableaux APK handoff exposed a temporary archive URL and device-side extraction instead of the requested direct attachment. | Checked-Ithon job-delivery gate rejects missing/changed visible text, dispatch-first ordering, and link-only, renamed, retyped or mutated binary attachments; owner fixtures retain positive twins and targeted failures. Trusted ChatGPT sink deployment remains unverified. |
 | Invented continuity | Answered as if an unavailable earlier thread or decision had been recovered. | Semantic case planned: incomplete evidence must yield `missing_evidence`; an answerable twin prevents blanket refusal. |
 | Confident false completion | Reported work as done from narration or tool activity instead of independently observed state. | Revision, artifact-hash, install/launch, and decode probes are planned. A worker cannot grant its own pass. |
 | Narrow green test | Tested a helper or source file while skipping the actual release, composition, install, or render path. | v0 rejects empty suites and missing assertions. End-to-end artifact probes are planned. |

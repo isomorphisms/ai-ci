@@ -31,10 +31,13 @@ jobs:
       - name: Exercise policy-authority boundary
         shell: bash
         env:
-          PR_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          RUN_SHA: ${{ github.sha }}
           MERGED_BASE: 6a87f20b39a71bd9e875061874c841f68c9db888
         run: |
           set -Eeuo pipefail
+          test "$(git rev-parse HEAD)" = "${PR_HEAD:-$RUN_SHA}"
           work="$RUNNER_TEMP/android-producer-authority"
           mkdir -p "$work/app/ci" "$work/packager/apk"
           : > "$work/candidate.apk"
@@ -57,14 +60,30 @@ jobs:
               echo "unexpected producer-gate success for $ref" >&2
               exit 1
             fi
+            cat "$log"
             grep -Fq "$needle" "$log"
+            test ! -e "$AICI_RECEIPT_OUTPUT"
+            printf 'AUTHORITY_FIXTURE\tPASS\tref=%s\texpected=%s\n' "$ref" "$needle"
           }
 
           expect_failure main             "AICI policy must be pinned by full commit SHA"             "$work/non-sha.log"
 
-          if [ "$PR_HEAD" != "$MERGED_BASE" ]; then
-            expect_failure "$PR_HEAD"               "AICI policy commit is not merged into isomorphisms/ai-ci main"               "$work/unmerged.log"
-          fi
+          case "$EVENT_NAME" in
+            pull_request)
+              # Exercise the real PR head, never a malformed stand-in.
+              expect_failure "$PR_HEAD" \
+                "AICI policy commit is not merged into isomorphisms/ai-ci main" \
+                "$work/unmerged.log"
+              ;;
+            push)
+              # This workflow only runs pushes to main: the exact run SHA is
+              # merged authority and must reach the later schema check.
+              expect_failure "$RUN_SHA" \
+                "unsupported packager receipt schema: bogus" \
+                "$work/main-push.log"
+              ;;
+            *) echo "unsupported self-test event: $EVENT_NAME" >&2; exit 1 ;;
+          esac
 
           # A known merged SHA must pass the authority check and fail later on
           # the deliberately invalid packager-receipt schema.

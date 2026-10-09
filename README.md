@@ -3,7 +3,8 @@
 `ai-ci` is a shared contract test suite for AI-authored project work.
 
 [Job delivery](docs/job-delivery.md) checks complete visible assignment bytes
-and separately bound dispatch using Flexible Pipes' existing stage artifact.
+and first-class binary attachment identity, plus separately bound dispatch,
+using Flexible Pipes' existing stage artifact.
 
 Its rule is stricter than ordinary green CI:
 
@@ -231,18 +232,24 @@ promotion, inherited scope, and rebuild fallback. See
 
 ## Run locally
 
+The video and F-Droid sources use `÷`. Their commands below require `ICK` to
+name the qualified native ICK compiler at
+`c61e448251744a2f40ad743ebef1a027bdcd2f9d`; the maintained `ick-host` action
+exports that executable and its native scalar runtime flag. Keep that declared
+runtime boundary when reproducing the commands locally.
+
 ```text
 cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici src/aici.c
 /tmp/aici self-test tests/cases.tsv
 /tmp/aici suite tests/good-suite.tsv .
 
-cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-video src/aici_video.c -lm
-cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-video-fixtures video/tests/make_video_fixtures.c
+"$ICK" -fno-link-libatomic -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-video src/aici_video.c -lm
+"$ICK" -fno-link-libatomic -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-video-fixtures video/tests/make_video_fixtures.c
 /tmp/aici-video-fixtures /tmp/aici-video-test-data
 /tmp/aici-video self-test video/tests/cases.tsv /tmp/aici-video-test-data
 
-cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-fdroid src/aici_fdroid.c
-cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-fdroid-fixtures fdroid/tests/make_receipt_fixtures.c
+"$ICK" -fno-link-libatomic -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-fdroid src/aici_fdroid.c
+"$ICK" -fno-link-libatomic -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-fdroid-fixtures fdroid/tests/make_receipt_fixtures.c
 /tmp/aici-fdroid-fixtures fdroid/contracts/native-upstream-v1.example.tsv /tmp/aici-fdroid-test-data
 /tmp/aici-fdroid self-test /tmp/aici-fdroid-test-data/cases.tsv
 ```
