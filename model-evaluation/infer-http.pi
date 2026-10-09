@@ -7,10 +7,12 @@ import time
 import http.client
 from urllib.parse import urlsplit
 from pathlib import Path
-from builtins import ValueError, Exception, globals
+from builtins import ValueError, Exception, globals, isinstance, dict, list, all
+from typing import Any
+from operator import contains, getitem
 
 
-def encoded(value ∈ object) → str:
+def encoded(value ∈ Any) → str:
     text ∈ str ← json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return text
 
@@ -20,12 +22,12 @@ def digest(text ∈ str) → str:
     return result
 
 
-def load(path ∈ str) → object:
-    result ∈ object ← json.loads(Path(path).read_text())
+def load(path ∈ str) → Any:
+    result ∈ Any ← json.loads(Path(path).read_text())
     return result
 
 
-def save(path ∈ str, value ∈ object) → None:
+def save(path ∈ str, value ∈ Any) → None:
     with Path(path).open("x", encoding="utf-8") as stream:
         stream.write(encoded(value) + "\n")
 
@@ -33,12 +35,12 @@ def save(path ∈ str, value ∈ object) → None:
 def completion_prompt(messages ∈ list[dict[str, str]]) → str:
     parts ∈ list[str] ← []
     for message in messages:
-        parts.append(message["role"].capitalize() + ":\n" + message["content"])
-    return "\n\n".join(parts) + "\n\nAssistant:\n"
+        parts.append(str(message["role"].capitalize()) + ":\n" + message["content"])
+    return str("\n\n".join(parts)) + "\n\nAssistant:\n"
 
 
-def body_for(payload ∈ dict[str, object], interface ∈ str, served_model ∈ str) → dict[str, object]:
-    body ∈ dict[str, object] ← {"model": served_model, "temperature": payload["temperature"], "max_tokens": payload["max_tokens"], "seed": payload["seed"], "stream": False}
+def body_for(payload ∈ dict[str, Any], interface ∈ str, served_model ∈ str) → dict[str, Any]:
+    body ∈ dict[str, Any] ← {"model": served_model, "temperature": payload["temperature"], "max_tokens": payload["max_tokens"], "seed": payload["seed"], "stream": False}
     if interface == "chat":
         body.update({"messages": payload["messages"]})
     elif interface == "completion":
@@ -49,21 +51,21 @@ def body_for(payload ∈ dict[str, object], interface ∈ str, served_model ∈ 
 
 
 def infer(output ∈ str) → int:
-    jobs ∈ list[dict[str, object]] ← load(output + "/requests.json")
-    manifest ∈ dict[str, object] ← load(output + "/manifest.json")
+    jobs ∈ list[dict[str, Any]] ← load(output + "/requests.json")
+    manifest ∈ dict[str, Any] ← load(output + "/manifest.json")
     if digest(encoded(jobs)) != manifest["requests_sha256"] or len(jobs) != manifest["count"] or len(jobs) > 500:
         raise ValueError("request manifest changed or exceeds budget")
-    model_record ∈ dict[str, object] ← load(output + "/model.json")
-    profile ∈ dict[str, object] ← model_record["profile"]
+    model_record ∈ dict[str, Any] ← load(output + "/model.json")
+    profile ∈ dict[str, Any] ← model_record["profile"]
     base ∈ str ← os.environ.get("MODEL_EVAL_BASE_URL", "")
     if not base:
         save(output + "/inference.json", {"status": "BLOCKED", "reason": "MODEL_EVAL_BASE_URL is not configured", "requests_attempted": 0, "model_inference": "NOT_RUN", "live_transfer": "NOT_RUN"})
         print("BLOCKED: no model inference endpoint configured; zero model calls")
         return 3
-    address ∈ object ← urlsplit(base)
+    address ∈ Any ← urlsplit(base)
     if address.username or address.password or address.query or address.fragment or not address.hostname:
         raise ValueError("inference base URL must not contain credentials, query or fragment")
-    if address.scheme != "https" and not (address.scheme == "http" and address.hostname in ["localhost", "127.0.0.1", "::1"]):
+    if str(address.scheme) != "https" and not (str(address.scheme) == "http" and contains(["localhost", "127.0.0.1", "::1"], address.hostname)):
         raise ValueError("HTTPS required except for a declared loopback inference server")
     served ∈ str ← os.environ.get("MODEL_EVAL_SERVED_MODEL", profile["hf_repo"])
     token ∈ str ← os.environ.get("MODEL_EVAL_API_KEY", "")
@@ -74,38 +76,38 @@ def infer(output ∈ str) → int:
     suffix ∈ str ← "/chat/completions"
     if interface == "completion":
         suffix ← "/completions"
-    endpoint ∈ str ← address.path.rstrip("/") + suffix
-    save(output + "/identity.json", {"backend": "openai-compatible-http", "requested_model": profile["hf_repo"], "served_model": served, "requested_revision": profile["revision"], "weight_identity": "UNVERIFIED_REMOTE_WEIGHTS", "format": interface, "seed_support": "requested; server enforcement not attested", "automatic_retries": 0, "model_tools": [], "live_transfer": "NOT_RUN"})
+    endpoint ∈ str ← str(address.path.rstrip("/")) + suffix
+    save(output + "/identity.json", {"backend": "openai-compatible-http", "requested_model": profile["hf_repo"], "served_model": served, "requested_revision": profile["revision"], "weight_identity": "UNVERIFIED_REMOTE_WEIGHTS", "format": interface, "seed_support": "requested; server enforcement not attested", "automatic_retries": 0, "model_tools": list(), "live_transfer": "NOT_RUN"})
     failures ∈ int ← 0
     for job in jobs:
         started ∈ float ← time.monotonic()
-        body ∈ dict[str, object] ← body_for(job["payload"], interface, served)
-        save(output + "/raw/" + job["id"] + ".request.json", body)
-        result ∈ dict[str, object] ← {"id": job["id"], "request_sha256": job["request_sha256"], "evidence": "live", "status": "FAILED", "text": ""}
-        connection ∈ object ← None
+        body ∈ dict[str, Any] ← body_for(job["payload"], interface, served)
+        save(output + "/raw/" + str(job["id"]) + ".request.json", body)
+        result ∈ dict[str, Any] ← {"id": job["id"], "request_sha256": job["request_sha256"], "evidence": "live", "status": "FAILED", "text": ""}
+        connection ∈ Any ← None
         try:
-            if address.scheme == "https":
+            if str(address.scheme) == "https":
                 connection ← http.client.HTTPSConnection(address.hostname, address.port, timeout=120)
             else:
                 connection ← http.client.HTTPConnection(address.hostname, address.port, timeout=120)
             connection.request("POST", endpoint, body=encoded(body).encode(), headers=headers)
-            response ∈ object ← connection.getresponse()
+            response ∈ Any ← connection.getresponse()
             raw ∈ bytes ← response.read(1048577)
             if len(raw) > 1048576:
                 raise ValueError("inference response exceeds one MiB")
-            Path(output + "/raw/" + job["id"] + ".response.bin").write_bytes(raw)
+            Path(output + "/raw/" + str(job["id"]) + ".response.bin").write_bytes(raw)
             result.update({"http_status": response.status})
-            if response.status != 200:
+            if int(response.status) != 200:
                 raise ValueError("inference HTTP status is not 200; redirects are not followed")
-            decoded ∈ dict[str, object] ← json.loads(raw)
-            if decoded.get("model") != served:
-                raise ValueError("response model does not match explicitly selected served model")
-            choices ∈ list[dict[str, object]] ← decoded["choices"]
-            if len(choices) != 1 or choices[0].get("finish_reason") != "stop":
+            decoded ∈ dict[str, Any] ← json.loads(raw)
+            if str(decoded.get("model")) != served:
+                raise ValueError("response model name does not match the explicitly selected served model")
+            choices ∈ list[dict[str, Any]] ← decoded["choices"]
+            if len(choices) != 1 or str(choices[0].get("finish_reason")) != "stop":
                 raise ValueError("response missing, truncated or not normally finished")
-            text ∈ object ← None
+            text ∈ Any ← None
             if interface == "chat":
-                message ∈ dict[str, object] ← choices[0]["message"]
+                message ∈ dict[str, Any] ← choices[0]["message"]
                 if message.get("tool_calls"):
                     raise ValueError("model tool calls are outside this evaluation interface")
                 text ← message.get("content")
@@ -113,27 +115,32 @@ def infer(output ∈ str) → int:
                 text ← choices[0].get("text")
             if not isinstance(text, str) or not text:
                 raise ValueError("empty model final response")
-            result.update({"status": "EXECUTED", "text": text, "raw_sha256": hashlib.sha256(raw).hexdigest(), "usage": decoded.get("usage"), "system_fingerprint": decoded.get("system_fingerprint")})
+            result.update({"status": "EXECUTED"})
+            result.update({"text": text})
+            result.update({"raw_sha256": hashlib.sha256(raw).hexdigest()})
+            result.update({"usage": decoded.get("usage")})
+            result.update({"system_fingerprint": decoded.get("system_fingerprint")})
         except Exception as error:
             failures ← failures + 1
             result.update({"error": type(error).__name__})
         finally:
-            if connection is not None:
+            if connection != None:
                 connection.close()
-        result.update({"seconds": time.monotonic() - started})
-        save(output + "/responses/" + job["id"] + ".json", result)
+        result.update({"seconds": float(time.monotonic()) - started})
+        save(output + "/responses/" + str(job["id"]) + ".json", result)
     save(output + "/inference.json", {"status": "EXECUTED", "requests_attempted": len(jobs), "transport_or_format_failures": failures, "weight_identity": "UNVERIFIED_REMOTE_WEIGHTS", "live_transfer": "NOT_RUN"})
     print("Actual HTTP requests: " + str(len(jobs)) + "; transport/format failures: " + str(failures))
     return 0
 
 
 def main() → int:
-    args ∈ list[str] ← sys.argv[1:]
+    raw_arguments ∈ list[str] ← sys.argv
+    args ∈ list[str] ← raw_arguments[1:]
     if args == ["check"]:
-        payload ∈ dict[str, object] ← {"messages": [{"role": "user", "content": "move repository"}], "temperature": 0.2, "seed": 17, "max_tokens": 256}
-        chat ∈ dict[str, object] ← body_for(payload, "chat", "openai/gpt-oss-120b")
-        completion ∈ dict[str, object] ← body_for(payload, "completion", "EleutherAI/pythia-12b-deduped")
-        if "prompt" in chat or "messages" in completion or "expected" in encoded(chat):
+        payload ∈ dict[str, Any] ← {"messages": [{"role": "user", "content": "move repository"}], "temperature": 0.2, "seed": 17, "max_tokens": 256}
+        chat ∈ dict[str, Any] ← body_for(payload, "chat", "openai/gpt-oss-120b")
+        completion ∈ dict[str, Any] ← body_for(payload, "completion", "EleutherAI/pythia-12b-deduped")
+        if contains(chat, "prompt") or contains(completion, "messages") or contains(encoded(chat), "expected"):
             raise ValueError("chat/completion separation or oracle exclusion failed")
         print("PASS GPT-OSS chat/Pythia completion request construction; inference NOT_RUN")
         return 0
@@ -141,6 +148,7 @@ def main() → int:
         return infer(args[1])
     raise ValueError("usage: infer-http.pi check | run PREPARED_DIRECTORY")
 
-namespace ∈ dict[str, object] ← globals()
-if namespace.get("__name__", "") == "__main__":
+namespace ∈ dict[str, Any] ← globals()
+module_name ∈ str ← namespace.get("__name__", "")
+if module_name == "__main__":
     sys.exit(main())
