@@ -63,8 +63,13 @@ acceptance verifier exit nonzero.
 
 ## Use
 
+These maintained C sources require division-capable ICK. The reusable action
+selects exact ICK `c61e448251744a2f40ad743ebef1a027bdcd2f9d` for its Linux
+x86_64 build and retains the declared native runtime. For a matching local
+ICK installation:
+
 ```text
-cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-compat src/aici_compat.c
+ick -fno-link-libatomic -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-compat src/aici_compat.c
 /tmp/aici-compat verify ci/idric-stack.contract.tsv out/compat/receipt.tsv out/compat
 ```
 
