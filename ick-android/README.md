@@ -22,8 +22,8 @@ records the tested setting.
 For `_FORTIFY_SOURCE=2`, API 26 or later, the action selects the bounded
 [Bionic Fortify adapter](fortify/README.md). Add `-I<header_overlay>` before
 the NDK include directories. The adapter keeps the original public Bionic
-headers and checked runtime ABI, supplies eight GCC-compatible fortified
-functions, and rejects the other forty fortified public functions. It keeps
+headers and checked runtime ABI, supplies eleven GCC-compatible fortified
+functions, and rejects the other thirty-seven fortified public functions. It keeps
 the original macro value and object-size checks. Unsupported APIs, functions
 or Fortify levels fail; the producer does not undefine hardening or erase
 Clang attributes to make a consumer pass. With no requested Fortify setting,
@@ -125,10 +125,10 @@ not acceptance of arbitrary sizes, out-of-line libatomic, or concurrent app beha
 
 When Fortify 2 is selected, every ABI also compiles and statically links the
 actual Bionic overflow fixture at O1, O2, O3 and Os. On an x86_64 Linux runner,
-the x86_64 Bionic executables run directly: each requires sixteen child
+the x86_64 Bionic executables run directly: each requires twenty-two child
 overflows to terminate with SIGABRT, including pointer argument side effects.
 A deliberately unfortified read control must fail with exit 55. Every ABI
-also requires all forty unsupported fortified functions and the API-25
+also requires all thirty-seven unsupported fortified functions and the API-25
 profile to fail at their intended diagnostics. These runtime results use
 actual Bionic on a Linux host; they do not imply Android device acceptance.
 

@@ -21,8 +21,12 @@ ICK_FORTIFY_INLINE size_t strlen(const char *source)
 {
     return __strlen_chk(source, ICK_FORTIFY_BOS0(source));
 }
+ICK_FORTIFY_INLINE char *strchr(const char *source, int character)
+{
+    return __strchr_chk(source, character, ICK_FORTIFY_BOS0(source));
+}
 /* These calls must not fall back to their unfortified public declarations. */
 #pragma GCC poison memchr memrchr mempcpy stpcpy strcpy strcat strncat
 #pragma GCC poison stpncpy strncpy strlcpy strlcat
-#pragma GCC poison strchr strrchr
+#pragma GCC poison strrchr
 #endif

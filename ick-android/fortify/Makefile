@@ -3,7 +3,7 @@ FORTIFY_SOURCE_FILE = $(QUALIFY_ROOT)fortify/runtime.c
 FORTIFY_OPTIMIZATIONS = 1 2 3 s
 FORTIFY_ARTIFACTS = $(addprefix $(QUALIFY_BUILD)/fortify-O,$(FORTIFY_OPTIMIZATIONS)) $(QUALIFY_BUILD)/fortify-control
 FORTIFY_ASSEMBLY = $(addsuffix .s,$(FORTIFY_ARTIFACTS))
-FORTIFY_FORBIDDEN = memchr memrchr mempcpy stpcpy strcpy strcat strncat stpncpy strncpy strlcpy strlcat strchr strrchr fread fgets sprintf snprintf vsprintf vsnprintf getcwd pread pread64 pwrite pwrite64 readlink readlinkat ppoll ppoll64 realpath umask open open64 openat openat64 recv recvfrom send sendto bcopy bzero
+FORTIFY_FORBIDDEN = memchr memrchr mempcpy stpcpy strcpy strcat strncat stpncpy strncpy strlcpy strlcat strrchr fread fgets sprintf vsprintf getcwd pread pread64 pwrite pwrite64 readlink readlinkat ppoll ppoll64 realpath umask open open64 openat openat64 recv recvfrom send sendto bcopy bzero
 FORTIFY_REJECTIONS = $(addprefix $(QUALIFY_BUILD)/reject-,$(addsuffix .checked,$(FORTIFY_FORBIDDEN)))
 FORTIFY_QUALIFY = fortify-qualify
 
@@ -47,11 +47,11 @@ fortify-run: $(FORTIFY_ASSEMBLY) $(FORTIFY_ARTIFACTS)
 	"$(QUALIFY_BUILD)/fortify-O3" > "$(QUALIFY_BUILD)/fortify-O3.log" 2>&1
 	"$(QUALIFY_BUILD)/fortify-Os" > "$(QUALIFY_BUILD)/fortify-Os.log" 2>&1
 	"$(QUALIFY_BUILD)/fortify-control" > "$(QUALIFY_BUILD)/fortify-control.log" 2>&1; test "$$?" = 55
-	printf 'bionic_static_runtime_on_linux_x86_64\tPASS\noverflow_sigabrt_cases_per_optimization\t16\noptimizations\tO1,O2,O3,Os\nunfortified_read_control_exit55\tPASS\nandroid_device_execution\tNOT_RUN\n' > "$(QUALIFY_BUILD)/fortify-runtime.tsv"
+	printf 'bionic_static_runtime_on_linux_x86_64\tPASS\noverflow_sigabrt_cases_per_optimization\t22\noptimizations\tO1,O2,O3,Os\nunfortified_read_control_exit55\tPASS\nandroid_device_execution\tNOT_RUN\n' > "$(QUALIFY_BUILD)/fortify-runtime.tsv"
 else
 fortify-run: $(FORTIFY_ASSEMBLY) $(FORTIFY_ARTIFACTS)
 	printf 'bionic_static_compile_link\tPASS\nexecution\tNOT_RUN\n' > "$(QUALIFY_BUILD)/fortify-runtime.tsv"
 endif
 
 fortify-qualify: fortify-run $(FORTIFY_REJECTIONS) fortify-reject-api25 fortify-reject-mismatched-api
-	printf 'unsupported_fortified_functions_rejected\t40\napi25_profile_rejected\tPASS\n' > "$(QUALIFY_BUILD)/fortify-rejections.tsv"
+	printf 'unsupported_fortified_functions_rejected\t37\napi25_profile_rejected\tPASS\n' > "$(QUALIFY_BUILD)/fortify-rejections.tsv"

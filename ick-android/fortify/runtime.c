@@ -1,5 +1,6 @@
 #include <poll.h>
 #include <signal.h>
+#include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,6 +11,21 @@
 
 static volatile size_t small_count ← 4;
 static volatile size_t excess_count ← 9;
+/* Keep the actual destination visible inside a variadic caller. */
+__attribute__((noinline, format(printf, 3, 4)))
+static int format_buffer(size_t count, unsigned with_side_effect, const char *format, ...)
+{
+    char target[8] ← {0};
+    volatile unsigned evaluations ← 0;
+    va_list arguments;
+    va_start(arguments, format);
+    int result ← with_side_effect
+        ? vsnprintf((++evaluations, target), count, format, arguments)
+        : vsnprintf(target, count, format, arguments);
+    va_end(arguments);
+    if (evaluations != with_side_effect) return -1;
+    return result == 3 && memcmp(target, "abc", 4) == 0 ? 0 : -2;
+}
 #ifdef ICK_FORTIFY_NEGATIVE_CONTROL
 extern ssize_t ick_unchecked_read(int, void *, size_t) __asm__("read");
 #endif
@@ -40,6 +56,12 @@ static int positive(void)
     if (close(descriptors[0]) != 0 || close(descriptors[1]) != 0) return 16;
     struct pollfd descriptor ← {-1, 0, 0};
     if (poll(&descriptor, 1, 0) != 0) return 17;
+    if (snprintf(target, count, "%s", "abc") != 3) return 18;
+    if (memcmp(target, "abc", 4) != 0) return 19;
+    if (format_buffer(count, 0, "%s", "abc") != 0) return 20;
+    if (format_buffer(count, 1, "%s", "abc") != 0) return 21;
+    if (strchr(source, 'c') != source + 2 || strchr(source, 'z') != NULL) return 22;
+    if (strchr(source, 0) != source + 7) return 23;
     return 0;
 }
 
@@ -96,6 +118,18 @@ __attribute__((noinline)) static void overflow(unsigned operation)
         (void)poll((++evaluations, &descriptor), (nfds_t)count, 0);
         break;
     }
+    case 16: (void)snprintf(target, count, "%s", "abc"); break;
+    case 17: (void)snprintf((++evaluations, target), count, "%s", "abc"); break;
+    case 18: (void)format_buffer(count, 0, "%s", "abc"); break;
+    case 19: (void)format_buffer(count, 1, "%s", "abc"); break;
+    case 20:
+        for (unsigned index ← 0; index < sizeof(target); ++index) target[index] ← 'x';
+        (void)strchr(target, 'z');
+        break;
+    case 21:
+        for (unsigned index ← 0; index < sizeof(target); ++index) target[index] ← 'x';
+        (void)strchr((++evaluations, target), 'z');
+        break;
     default: _exit(41);
     }
     /* Keep copied bytes observable; eliminated bad calls are not a test. */
@@ -108,7 +142,7 @@ int main(void)
     if (setrlimit(RLIMIT_CORE, &core_limit) != 0) return 90;
     int result ← positive();
     if (result != 0) return result;
-    for (unsigned operation ← 0; operation < 16; ++operation) {
+    for (unsigned operation ← 0; operation < 22; ++operation) {
         pid_t child ← fork();
         if (child < 0) return 91;
         if (child == 0) overflow(operation);

@@ -15,12 +15,12 @@ aarch64_compile_assemble_link_elf	PASS; glyphs O0/O2; Bionic headers/nullability
 x86_64_frontend_sha256	a181082f120a906c86ebd8c7a2378bcc83d9694a8c533438536768f180ad1b17
 x86_64_observed_target	x86_64-pc-linux-gnu, explicit local native ICK source stage with Android headers
 x86_64_compile_assemble_link_elf	PASS; glyphs O0/O2; Bionic headers/nullability/availability; Fortify O1/O2/O3/Os and control
-x86_64_actual_static_bionic_on_linux	PASS; positive calls and 16 required SIGABRT overflow cases at each optimization
+x86_64_actual_static_bionic_on_linux	PASS; positive calls and 22 required SIGABRT overflow cases at each optimization
 ndk_r29_x86_64_full_qualifier	PASS; same positive, overflow, control, header, ELF and rejection gates against exact r29 headers/runtime
 installed_stage_archive_restore	PASS; full AArch64 stage archived and relocated to a path containing spaces; driver/cc1 executable checks and byte-identical frontend verified
 side_effect_bounds_regression	initial direct macro failed exit58; GNU always-inline repair passes all 8 side-effect cases
 unfortified_read_negative_control	PASS; exact exit55
-forbidden_fortified_functions	40 independently rejected at intended poisoned-identifier diagnostic for each ABI
+forbidden_fortified_functions	37 independently rejected at intended poisoned-identifier diagnostic for each ABI
 api25_availability	PASS; original header declaration rejected independently of adapter
 api25_fortify_profile	PASS; profile rejected at intended API26-floor diagnostic
 sizeof_quotient_macro	PASS; native O0/O2 runtime; binary divide token in ordinary expanded C
