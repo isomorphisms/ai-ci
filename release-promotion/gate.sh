@@ -6,7 +6,7 @@ sha() { sha256sum -- "$1" | awk '{print $1}'; }
 json() {
     [[ -s $1 && -f $1 && ! -L $1 ]] || fail JSON 'missing regular JSON file'
     jq -e -s 'length == 1 and (.[0] | type == "object")' "$1" >/dev/null || fail JSON 'one JSON object required'
-    jq --stream -s -e 'map(select(length == 2) | .[0]) as $p | ($p|length) == ($p|unique|length)' "$1" >/dev/null || fail JSON 'duplicate JSON fields'
+    jq --stream -s -e 'map(if length == 2 then .[0] else .[0][0:-1] end) as $p | ($p|length) == ($p|unique|length)' "$1" >/dev/null || fail JSON 'duplicate JSON fields'
 }
 property() {
     [[ $# == 2 && -s $1 && $2 =~ ^[a-zA-Z_][a-zA-Z_0-9]*$ ]] || fail PROPERTY 'file and property required'
