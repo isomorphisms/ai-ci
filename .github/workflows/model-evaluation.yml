@@ -8,6 +8,8 @@ jobs:
   checked-ithon:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    env:
+      ITHON_CHECK_RECEIPT: ${{ runner.temp }}/model-evaluation-checked.jsonl
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -20,9 +22,21 @@ jobs:
           path: _ithon
           persist-credentials: false
       - name: Execute the actual Ithon frontend and grader controls
-        env:
-          ITHON_CHECK_RECEIPT: ${{ runner.temp }}/model-evaluation-checked.jsonl
         run: _ithon/ithon model-evaluation/evaluate.pi self-test
+      - name: Check GPT-OSS chat and Pythia completion interfaces
+        run: |
+          _ithon/ithon model-evaluation/infer-http.pi check
+          _ithon/ithon model-evaluation/infer-pythia.pi check
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: model-evaluation-source-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            model-evaluation/
+            _ithon/ithon
+            _ithon/ithon_host.py
+            _ithon/Lib/ithon_*.py
+          if-no-files-found: error
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
