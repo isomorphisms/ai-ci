@@ -1,5 +1,10 @@
 # Division glyph: fleet audit (2026-10-08)
 
+This directory is the historical first pass. The completed repository census,
+current compiler evidence, and subsequent consumer migration are recorded in
+[the 2026-10-09 continuation](../2026-10-09/README.md). Statements below describe
+what was known when this first pass was collected; they are not current status.
+
 ## Purpose and non-negotiable distinction
 
 In **maintained first-party** Icky C, Icky Lua and Idriç mathematical source,

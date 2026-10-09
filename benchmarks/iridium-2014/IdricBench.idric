@@ -193,7 +193,7 @@ column r n = column' n r n
     column' : Nat -> Rectangle -> (m : Nat) -> Vect m Rectangle
     column' _ _ Z = []
     column' n (MkRectangle x y w h) (S m) =
-      let w' = w / cast n
+      let w' = w ÷ cast n
       in MkRectangle (x + w' * cast m) y w' h :: column' n r m
 
 columnLayout : LayoutF wid

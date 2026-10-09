@@ -1,0 +1,152 @@
+module Main
+
+import Data.List
+import Data.Text
+import System
+import System.File
+
+record SourceCharacter where
+  constructor Located
+  character : Char
+  character_offset : Number
+  physical_line : Number
+  physical_column : Number
+
+record Finding where
+  constructor Found
+  location : SourceCharacter
+  kind : Text
+
+data SourceRegion = ProgramText | LineComment | BlockComment | Quoted Char
+
+mark_characters : Number → Number → Number → List Char → List SourceCharacter
+mark_characters offset line column [] = []
+mark_characters offset line column ('\\' :: '\n' :: rest) =
+  mark_characters (offset + 2) (line + 1) 1 rest
+mark_characters offset line column ('\\' :: '\r' :: '\n' :: rest) =
+  mark_characters (offset + 3) (line + 1) 1 rest
+mark_characters offset line column (character :: rest) =
+  Located character offset line column ::
+    if character ≟ '\n'
+      then mark_characters (offset + 1) (line + 1) 1 rest
+      else mark_characters (offset + 1) line (column + 1) rest
+
+end_position : SourceCharacter
+end_position = Located '\0' 0 0 0
+
+scan_c : SourceRegion → Bool → Bool → List SourceCharacter → List Finding
+scan_c BlockComment directive line_start [] =
+  [Found end_position "unterminated_block_comment"]
+scan_c (Quoted quote) directive line_start [] =
+  [Found end_position "unterminated_literal"]
+scan_c _ directive line_start [] = []
+scan_c LineComment directive line_start (here :: rest) =
+  if here.character ≟ '\n'
+    then scan_c ProgramText False True rest
+    else scan_c LineComment directive False rest
+scan_c BlockComment directive line_start (here :: rest) =
+  case rest of
+    next :: remaining ⇒
+      if here.character ≟ '*' && next.character ≟ '/'
+        then scan_c ProgramText directive line_start remaining
+        else scan_c BlockComment directive (line_start || here.character ≟ '\n') rest
+    [] ⇒ scan_c BlockComment directive line_start rest
+scan_c (Quoted quote) directive line_start (here :: rest) =
+  if here.character ≟ quote
+    then scan_c ProgramText directive False rest
+    else if here.character ≟ '\\'
+      then case rest of
+        next :: remaining ⇒ scan_c (Quoted quote) directive False remaining
+        [] ⇒ scan_c (Quoted quote) directive False rest
+      else scan_c (Quoted quote) directive False rest
+scan_c ProgramText directive line_start (here :: rest) =
+  if here.character ≟ '\n'
+    then scan_c ProgramText False True rest
+    else if line_start && (here.character ≟ ' ' || here.character ≟ '\t' || here.character ≟ '\r')
+      then scan_c ProgramText directive True rest
+      else if line_start && here.character ≟ '#'
+        then scan_c ProgramText True False rest
+        else if here.character ≟ '"' || here.character ≟ '\''
+          then scan_c (Quoted here.character) directive False rest
+          else if here.character ≟ '÷'
+            then Found here (if directive then "preprocessor_glyph" else "division_glyph") ::
+                 scan_c ProgramText directive False rest
+            else if here.character ≟ '/'
+              then case rest of
+                next :: remaining ⇒
+                  if next.character ≟ '/'
+                    then scan_c LineComment directive False remaining
+                    else if next.character ≟ '*'
+                      then scan_c BlockComment directive line_start remaining
+                      else if next.character ≟ '='
+                        then Found here "compound_division" :: scan_c ProgramText directive False remaining
+                        else Found here (if directive then "preprocessor_slash" else "ascii_division") ::
+                             scan_c ProgramText directive False rest
+                [] ⇒ [Found here (if directive then "preprocessor_slash" else "ascii_division")]
+              else scan_c ProgramText directive False rest
+
+has_trigraph : List Char → Bool
+has_trigraph ('?' :: '?' :: character :: rest) = True
+has_trigraph (character :: rest) = has_trigraph rest
+has_trigraph [] = False
+
+audit_c_text : Text → List Finding
+audit_c_text source =
+  let marked = mark_characters 0 1 1 (unpack source)
+      findings = scan_c ProgramText False True marked
+  in if has_trigraph (unpack source)
+       then Found end_position "trigraph_requires_review" :: findings
+       else findings
+
+finding_kinds : Text → List Text
+finding_kinds source = map kind (audit_c_text source)
+
+pure_checks : Bool
+pure_checks =
+  finding_kinds "double value = 12 / 3; double other = 12 ÷ 3; value /= 2;" ≟
+    ["ascii_division", "division_glyph", "compound_division"] &&
+  finding_kinds "char *path = \"a/b ÷ c\"; char slash = '/'; /* / ÷ */ // / ÷\n" ≟ [] &&
+  finding_kinds "/\\\n* hidden / *\\\n/ double value = 4 / 2;" ≟ ["ascii_division"] &&
+  finding_kinds "// continued \\\n hidden /\n double value = 6 / 2;" ≟ ["ascii_division"] &&
+  finding_kinds "#define HALF(value) ((value) / 2)\n" ≟ ["preprocessor_slash"] &&
+  finding_kinds "/* incomplete" ≟ ["unterminated_block_comment"] &&
+  finding_kinds "\"incomplete" ≟ ["unterminated_literal"] &&
+  finding_kinds "??/\n" ≟ ["trigraph_requires_review", "ascii_division"]
+
+print_finding : Text → Finding → IO ()
+print_finding path finding =
+  putStrLn (path ++ "\t" ++ show finding.location.physical_line ++ "\t" ++
+    show finding.location.physical_column ++ "\t" ++ show finding.location.character_offset ++
+    "\t" ++ finding.kind)
+
+covering
+audit_files : List Text → IO ()
+audit_files [] = pure ()
+audit_files (path :: rest) = do
+  content ← readFile path
+  case content of
+    Left failure ⇒ do
+      putStrLn (path ++ "\t0\t0\t0\tUNREADABLE: " ++ show failure)
+      exitFailure
+    Right source ⇒ do
+      traverse_ (print_finding path) (audit_c_text source)
+      audit_files rest
+
+covering
+main : IO ()
+main = do
+  arguments ← getArgs
+  case arguments of
+    [_ , "--self-test"] ⇒
+      if pure_checks
+        then putStrLn "PASS C division tokens, literals, comments, splices, preprocessor boundaries and malformed-source controls"
+        else do
+          putStrLn "FAIL C division scanner"
+          exitFailure
+    [_] ⇒ do
+      putStrLn "Usage: division-glyph-scan --self-test | FILE..."
+      exitFailure
+    _ :: paths ⇒ do
+      putStrLn "path\tline\tcolumn\tcharacter_offset\tkind"
+      audit_files paths
+    [] ⇒ exitFailure
