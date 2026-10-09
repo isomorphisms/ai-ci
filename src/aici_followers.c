@@ -297,10 +297,10 @@ static int validate_job_shape(const Job *job) {
         fprintf(stderr, "%s: invalid artifact_sha256\n", job->path);
         return 0;
     }
-    if (!one_of(job->state, states, sizeof(states) / sizeof(states[0])) ||
+    if (!one_of(job->state, states, sizeof(states) ÷ sizeof(states[0])) ||
         !one_of(job->required, required_values,
-                sizeof(required_values) / sizeof(required_values[0])) ||
-        !one_of(job->acceptance_kind, kinds, sizeof(kinds) / sizeof(kinds[0]))) {
+                sizeof(required_values) ÷ sizeof(required_values[0])) ||
+        !one_of(job->acceptance_kind, kinds, sizeof(kinds) ÷ sizeof(kinds[0]))) {
         fprintf(stderr, "%s: invalid state, required value, or acceptance kind\n", job->path);
         return 0;
     }
@@ -328,6 +328,10 @@ static int validate_job_shape(const Job *job) {
     }
     if (strcmp(job->state, "superseded") == 0 && dash(job->superseded_by)) {
         fprintf(stderr, "%s: superseded job has no successor\n", job->path);
+        return 0;
+    }
+    if (strcmp(job->state, "superseded") != 0 && !dash(job->superseded_by)) {
+        fprintf(stderr, "%s: only superseded jobs may name a successor\n", job->path);
         return 0;
     }
     if (strcmp(job->state, "unsupported") == 0 && dash(job->reason)) {
@@ -366,8 +370,8 @@ static int validate_receipt_shape(const Receipt *receipt, const char *path) {
     if (strcmp(receipt->schema, "aici-follower-receipt-v1") != 0 ||
         !valid_job_id(receipt->job_id) || !valid_commit(receipt->trigger_commit) ||
         !valid_commit(receipt->attempt_commit) ||
-        !one_of(receipt->result, results, sizeof(results) / sizeof(results[0])) ||
-        !one_of(receipt->acceptance_kind, kinds, sizeof(kinds) / sizeof(kinds[0])) ||
+        !one_of(receipt->result, results, sizeof(results) ÷ sizeof(results[0])) ||
+        !one_of(receipt->acceptance_kind, kinds, sizeof(kinds) ÷ sizeof(kinds[0])) ||
         !valid_sha256_or_dash(receipt->artifact_sha256)) {
         fprintf(stderr, "%s: invalid receipt shape\n", path);
         return 0;
@@ -448,6 +452,18 @@ static int validate_links(const Ledger *ledger) {
             fprintf(stderr, "%s: missing superseded_by job %s\n", job->path, job->superseded_by);
             return 0;
         }
+        if (!dash(job->superseded_by)) {
+            const Job *successor = &ledger->jobs[find_job(ledger, job->superseded_by)];
+            if (strcmp(job->repository, successor->repository) != 0 ||
+                strcmp(job->follower_platform, successor->follower_platform) != 0 ||
+                strcmp(job->follower_arch, successor->follower_arch) != 0 ||
+                strcmp(job->acceptance_kind, successor->acceptance_kind) != 0 ||
+                (strcmp(job->required, "yes") == 0 &&
+                 strcmp(successor->required, "yes") != 0)) {
+                fprintf(stderr, "%s: supersession changes follower obligation\n", job->path);
+                return 0;
+            }
+        }
         if (dash(job->depends_on)) continue;
         if (!copy_value(dependencies, sizeof(dependencies), job->depends_on)) return 0;
         token = strtok_r(dependencies, ",", &save);
@@ -457,6 +473,19 @@ static int validate_links(const Ledger *ledger) {
                 return 0;
             }
             token = strtok_r(NULL, ",", &save);
+        }
+    }
+    /* Every chain must end. Existence alone permits self-links and cycles that
+       make all involved obligations disappear from the pending view. */
+    for (index = 0; index < ledger->count; ++index) {
+        int current = index;
+        int traversed = 0;
+        while (!dash(ledger->jobs[current].superseded_by)) {
+            if (++traversed >= ledger->count) {
+                fprintf(stderr, "%s: supersession cycle\n", ledger->jobs[index].path);
+                return 0;
+            }
+            current = find_job(ledger, ledger->jobs[current].superseded_by);
         }
     }
     return 1;

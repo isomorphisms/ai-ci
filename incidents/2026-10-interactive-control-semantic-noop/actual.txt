@@ -1,0 +1,2 @@
+In isomorphismes/indras-pearls, the three experimental disk controls updated UI state and redrew their handles, but the Schottky renderer packet remained fixed at the bundled family member r=0.7. The human detected the defect by observing that the picture did not move.
+During the repair, Android's headless QEMU compositor screencap returned a black app surface even though the NativeActivity was focused and GLES/SwiftShader was live. A compositor screenshot was therefore not valid renderer evidence for that environment.

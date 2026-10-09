@@ -1,0 +1,2 @@
+build_id	target	toolchain	ick_revision	ick_status	ick_evidence
+android-platform	armeabi-v7a	ndk	89abcdef0123456789abcdef0123456789abcdef	qualified	issue:ick-platform-link

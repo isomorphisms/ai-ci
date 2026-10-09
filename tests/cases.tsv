@@ -57,3 +57,14 @@ fail	contracts/catfood-idric-cli-v0.contract.tsv	tests/fixtures/catfood-idric-cl
 pass	contracts/catfood-issh-v0.contract.tsv	tests/fixtures/catfood-issh-good	-
 fail	contracts/catfood-issh-v0.contract.tsv	tests/fixtures/catfood-issh-missing-tools	CATFOOD-TOOLS-EMPTY
 fail	contracts/catfood-issh-v0.contract.tsv	tests/fixtures/catfood-issh-missing-link	CATFOOD-ISSH
+pass	contracts/build-toolchain-v0.contract.tsv	tests/fixtures/build-toolchain-good	-
+fail	contracts/build-toolchain-v0.contract.tsv	tests/fixtures/build-toolchain-empty	BUILD-TOOLCHAIN-MANIFEST
+fail	contracts/build-toolchain-v0.contract.tsv	tests/fixtures/build-toolchain-bad-header	BUILD-TOOLCHAIN-HEADER
+fail	contracts/build-toolchain-v0.contract.tsv	tests/fixtures/build-toolchain-bad-choice	BUILD-TOOLCHAIN-CHOICE
+fail	contracts/build-toolchain-v0.contract.tsv	tests/fixtures/build-toolchain-bad-revision	BUILD-TOOLCHAIN-ICK-REVISION
+fail	contracts/build-toolchain-v0.contract.tsv	tests/fixtures/build-toolchain-bad-evidence	BUILD-TOOLCHAIN-ICK-EVIDENCE
+fail	contracts/build-toolchain-v0.contract.tsv	tests/fixtures/build-toolchain-bad-gap	BUILD-TOOLCHAIN-ICK-GAP
+pass	contracts/blackball-verdict-v0.contract.tsv	tests/fixtures/blackball-verdicts-good	-
+fail	contracts/blackball-verdict-v0.contract.tsv	tests/fixtures/blackball-verdicts-empty	BLACKBALL-VERDICTS-EMPTY
+fail	contracts/blackball-verdict-v0.contract.tsv	tests/fixtures/blackball-verdicts-bad-header	BLACKBALL-VERDICTS-HEADER
+fail	contracts/blackball-verdict-v0.contract.tsv	tests/fixtures/blackball-verdicts-bad-fields	BLACKBALL-VERDICTS-FIELDS

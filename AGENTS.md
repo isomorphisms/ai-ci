@@ -6,7 +6,23 @@ the canonical shared guardrail for recurrent agent failures. Repository-local
 `AGENTS.md` files may add stricter rules; do not copy this whole section into
 every repository.
 
+For the repository-design rationale behind small agent entry points, progressive
+disclosure, mechanical constraints, and agent-legible evidence, see
+[`docs/harness-engineering.md`](docs/harness-engineering.md).
+
+## Human-found test flaws
+
+- **Treat a human-found bad test as a generator bug until shown otherwise.** Repair the concrete test, then search for the semantic defect class across repositories and investigate the upstream reasoning mechanism, prompt, helper, fixture, oracle, schema, wrapper, or precedent that made the bad test seem valid. Prefer repairing the earliest reusable cause that can be changed safely. Before broad causal changes, establish landmarks such as exact revisions, known-good controls, known-bad mutants, independent semantic outputs, consumer inventories, and executed-case provenance; rerun them afterward and investigate every unexpected movement. Preserve the original defect and corrected form as regression evidence. See issue #183.
+
 ## Recurrent agent anti-patterns
+
+- **Deliver the requested assignment on the requested surface.** A Star/Sun/
+  Earth/Moon assignment requested for inspection, copying or dispatch defaults
+  to display. Use Flexible Pipes' authoritative stage artifact and ai-ci's
+  [job-delivery gate](docs/job-delivery.md). Internal composition, an issue,
+  successful dispatch or a link/summary does not establish visible delivery.
+  Bind optional dispatch to the same bytes and preserve a later “where’s the
+  text?” as failed-delivery evidence for that assignment.
 
 - **Do not claim stronger evidence than was produced.** Source presence,
   generation, compilation, packaging, installation, launch, semantic execution,
@@ -19,6 +35,23 @@ every repository.
   handwritten equivalent, alternate backend, alternate executable, lookalike
   renderer, or convenient reimplementation does not count as acceptance of the
   named implementation.
+
+- **Build through ICK or the Android NDK.** Every maintained compile/link stage
+  must declare exactly one of `ick` or `ndk` as its build toolchain. A
+  multi-stage build may use both only by recording the stages separately; for
+  example, an ICK-compiled object followed by an NDK platform link is two
+  declared stages, not one ambiguous toolchain. Prefer ICK when the exact target
+  and required language/runtime surface have current qualification evidence. Do
+  not force an immature ICK path merely to satisfy the rule. When NDK is selected
+  because ICK is not yet qualified for that stage, pin the exact ICK revision
+  evaluated, record a specific `gap:...` capability statement plus durable
+  evidence, and surface that gap in CI output. Generic `cc`, Clang, GCC,
+  Java/Kotlin/Gradle, or another build path is not an undeclared fallback.
+  Bootstrap dependencies are evidence about how ICK itself was produced, not
+  permission for consumer builds to bypass the selected toolchain. Consumer
+  repositories that build maintained code must wire the shared
+  `build-toolchain-v0` contract (or a stricter executable equivalent) into
+  their required build checks.
 
 - **Do not weaken acceptance to obtain green.** Repair the implementation.
   Change a test or contract only when the intended requirement itself is
@@ -100,6 +133,26 @@ every repository.
 - **Do not invent missing continuity.** If an earlier decision, branch state,
   artifact, or conversation fact cannot actually be recovered, report it as
   missing or uncertain rather than reconstructing a plausible history.
+
+- **Bind operational commands to the observed execution host.** Before giving,
+  accepting, or running environment-sensitive commands, identify the execution
+  host and keep source, destination, and build hosts distinct. Treat material
+  facts such as OS/release, architecture, command availability, filesystem
+  paths, writable/executable locations, credentials, and network reachability
+  as observed, declared, or unknown. Direct commands may rely only on observed
+  or declared facts; unknown facts require a cheap preflight or a fail-closed
+  path before mutation or expensive work. Classify platforms from positive
+  evidence, never from a negative catch-all such as `not Termux -> cloud`.
+  Do not assume a convenient command such as `gh` exists. Track command
+  **presence** separately from command **acquisition**: proving a command absent
+  does not prove any installer, package manager, binary download, privilege
+  model, or destination path is valid on that host. Prescribe installation only
+  when its host-specific acquisition path is itself established; otherwise
+  stop at the unknown boundary or use another already-supported mechanism. Do
+  not invent SSH key paths, and do not add an SSH/SCP hop when the execution
+  host is already the destination unless that loop is explicitly required.
+  Follow [the operational host-context preflight](docs/operational-host-context.md).
+
 
 - **Do not restore rejected abstractions from stale precedent.** Explicit current
   human corrections and current architecture outrank inherited code, generated
@@ -184,101 +237,18 @@ every repository.
   transient chatter; capture the durable technical content needed to recover
   the reasoning later.
 
-## Rotation, sphere, reflection, and hyperplane project map
+## Geometry ownership
 
-When work involves rotations, unit spheres/directions, projective quotients,
-orthogonal transforms, reflections, or affine hyperplanes, begin with the
-[central Idriç geometry inventory](https://github.com/isomorphisms/Idric/issues/108).
-Keep the semantic object, carrier, quotient/equivalence, normalization,
-orientation/sign convention, precision, and information loss explicit before
-copying a representation or test between repositories.
+For rotations, spheres, projective spaces, reflections, and affine hyperplanes,
+start with the [canonical Idriç geometry inventory](https://github.com/dilapidated-shed/Idric/issues/108).
+Keep semantic objects, carriers, equivalence, normalization, orientation,
+precision, and information loss explicit before reusing a representation.
+Include implemented, active, research, and planned relationships there, with
+honest evidence labels; keep private project records private. Do not duplicate
+its changing repository/PR status in this shared instruction file. Recover
+intent and the current owner before adding another index or coordination layer.
 
-This is deliberately broader than a dependency graph. Include a public
-repository when these concepts appear in implemented code, executable fixtures,
-an active pull request, research/design, a named planned consumer, or public
-project documentation. Listing a repository is not evidence that every
-described relationship is implemented or accepted. Each entry must state its
-current evidence status:
-
-- `implemented`: relevant executable code or fixtures exist;
-- `active PR`: the relevant change is under review and not yet merged;
-- `research`: an issue or design record exists, without an implementation
-  claim;
-- `planned`: the repository is a named future consumer or follower;
-- `documentation`: the repository explains or routes people to the work.
-
-The current public project map is:
-
-- `isomorphisms/Idric` — **active PR, research**: language-level types, maps,
-  laws, and distinctions among `R^n`, `S^n`, `RP^n`, `CP^n`,
-  quaternions, `O(n)`, `SO(n)`, and affine hyperplanes.
-- `isomorphisms/rhs` — **implemented, active PR**: exact coordinate
-  reflection/quarter-turn utilities plus empirical validation that
-  human-facing transformation and classifier names agree with independently
-  observed behavior; it consumes declared semantics and does not define them.
-- `walnut-burgundy/computer-science` — **research**:
-  mathematical/algorithm-selection work for Householder, Givens,
-  reflection-product, and other orthogonal-transform realizations before target
-  lowering.
-- `isomorphisms/ai-ci` — **implemented, active PR**: reusable cross-target
-  conformance fields, executable oracles, evidence boundaries, and receipt
-  policy; the geometry map itself remains proposed until its PR merges.
-- `Ashtray-Archer/utilities-android-phone-user` — **implemented, active PR**:
-  physical sensor vectors, compact `S^2` directions,
-  gyroscope/angular-velocity vectors, magnetometer vectors, and
-  device-orientation boundaries.
-- `isomorphisms/idric-embedded` — **active PR**: constrained-target
-  compact-direction fixtures and representation followers.
-- `isomorphismes/coxeter` — **implemented, research**: reflections,
-  Householder maps, reflection words, Givens/proper rotations, and
-  exact-versus-floating group behavior.
-- `walnut-burgundy/fulton` — **research, planned**: symmetric-group
-  representation spaces and their real/complex matrix, orthogonal/unitary,
-  normalized, and projective carriers.
-- `isomorphismes/hopf_fibration` — **implemented**: the Hopf map and the
-  distinct `S^3`, `S^2`, `S^1`, and `CP^1` quotient/action
-  relationships.
-- `isomorphismes/ortho` — **implemented**: orthants, coordinate faces, and
-  interactive spatial rotation.
-- `isomorphismes/Conway` — **implemented**: planar symmetry groups and affine
-  isometries, including rotations and reflections.
-- `isomorphisms/idris-shader-backend` — **research, planned**: executable
-  sphere, Givens, Householder, and orthogonal-transform shader oracles and
-  target lowering.
-- `isomorphisms/idric-arm-thumb`,
-  `isomorphisms/idric-x86-aggressive-backend`,
-  `isomorphisms/idric-risc-5`, and `isomorphisms/idric-big-iron` —
-  **planned**: architecture-specific followers for transform planning,
-  lowering, and receipts.
-- `isomorphisms/ib` — **implemented, research**: embedding vectors, explicit
-  optional normalization onto `S^(d-1)`, similarity/index geometry, and
-  affine hyperplane classifiers.
-- `isomorphisms/cockswain` — **research**: model-activation carriers and
-  hyperplane-separability experiments, kept separate from supervisor-quality
-  claims.
-- `isomorphisms/software` — **documentation**: the public front door includes
-  a dedicated “Rotations and hyperplanes” explanation connecting sensors,
-  compact `S^2` storage, `SO(3)`/quaternions, Householder reflections,
-  projective normals, embeddings, Coxeter, Fulton, Idriç, and RHS.
-- `isomorphismes/algebraic-variety-explorer-mobile` — **implemented,
-  research**: an algebraic-surface renderer using a viewing sphere, gradients
-  and surface normals, with active singular-surface and F16/F32 geometry
-  experiments.
-- `isomorphisms/manimi` — **implemented, research**: a Manim renderer and
-  GPU/vector-contract reference for buffer, shader, and synchronization
-  behavior shared with transform-bearing consumers.
-- `isomorphisms/grease` — **planned**: a named future consumer of Android
-  sensor vectors and later runtime vector operations; its current issue is
-  design/consumer tracking, not an implementation claim.
-
-Add a newly discovered public repository even when its relationship is only
-research, planned consumption, or documentation; it need not depend on a shared
-geometry library. Update the status rather than silently promoting plans to
-implementation. Do not publish private repository names in this public file;
-keep their geometry records inside the private repositories. A generic
-third-party matrix dependency alone does not create a project-level
-relationship, but “incidental” must not be used to hide the project's own
-concept-level use of rotation, spheres, reflections, normals, or hyperplanes.
+## Execution and delivery boundaries
 
 - **Preserve meaningful stage boundaries.** A later-stage success does not erase
   an earlier-stage failure. Build is not install; install is not launch; launch

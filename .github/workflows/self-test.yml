@@ -16,14 +16,6 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
-      - name: Compile independent verifiers
-        shell: sh
-        run: |
-          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici src/aici.c
-          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-build-preflight tests/build_preflight_oracle.c
-      - name: Prove bad fixtures are rejected
-        shell: sh
-        run: /tmp/aici self-test tests/cases.tsv
       - name: Refuse new first-party Python source
         shell: sh
         run: |
@@ -37,6 +29,24 @@ jobs:
             'tests/fixtures/language-bad-python/ci/hidden.py' \
             > "$RUNNER_TEMP/python-source.expected"
           diff -u "$RUNNER_TEMP/python-source.expected" "$RUNNER_TEMP/python-source.actual"
+      - name: Select the qualified ICK C compiler
+        uses: isomorphisms/ai-ci/ick-host@903b2cb27ea572c9c6cb2ffa9f39e0fbf06ec9f8
+        id: ick
+      - name: Compile independent verifiers
+        shell: sh
+        run: |
+          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici src/aici.c
+          "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-build-preflight tests/build_preflight_oracle.c
+          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-host-context src/aici_host_context.c
+      - name: Prove bad fixtures are rejected
+        shell: sh
+        run: /tmp/aici self-test tests/cases.tsv
+      - name: Keep historical backend probes off the recurring queue
+        shell: sh
+        run: /tmp/aici verify compiler_backends/historical.contract.tsv .
+      - name: Prove APK and DEX release shelf classification
+        shell: sh
+        run: sh release-shelf/tests/self-test.sh
       - name: Check out pinned Ike
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -48,7 +58,7 @@ jobs:
         shell: sh
         run: |
           cc -std=c11 -Wall -Wextra -Wpedantic -O2 _ike/ike.c -o /tmp/ike
-          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 \
+          "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2 \
             ike/verify_receipt.c -o /tmp/aici-ike-receipt
       - name: Prove mutated Ike receipts are rejected
         shell: sh
@@ -84,6 +94,20 @@ jobs:
           tests/build-preflight/fixture.sh bad-tree tests/build-preflight/bad-tree.trace.tsv
           /tmp/aici-build-preflight self-test tests/build-preflight/cases.tsv
           git diff --exit-code -- tests/build-preflight/*.trace.tsv
+      - name: Prove operational host-context preflight
+        shell: sh
+        run: |
+          /tmp/aici-host-context self-test tests/operational-host-context/cases.tsv
+          sh host-context/probe.sh github-runner sh git             > "$RUNNER_TEMP/host-context-live.tsv"
+          /tmp/aici-host-context check "$RUNNER_TEMP/host-context-live.tsv"
+          sh host-context/probe.sh github-runner aici-command-that-does-not-exist             > "$RUNNER_TEMP/host-context-absent.tsv"
+          /tmp/aici-host-context check "$RUNNER_TEMP/host-context-absent.tsv"
+
+      - name: Exercise reusable host-context action
+        uses: ./host-context
+        with:
+          trace: tests/operational-host-context/good-present.trace.tsv
+
       - name: Exercise the published composite action
         uses: ./
         with:
@@ -148,11 +172,14 @@ jobs:
       - name: Require FFmpeg probes
         shell: sh
         run: command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null
+      - name: Select the qualified ICK C compiler
+        uses: isomorphisms/ai-ci/ick-host@903b2cb27ea572c9c6cb2ffa9f39e0fbf06ec9f8
+        id: ick
       - name: Compile video verifier and fixture generator
         shell: sh
         run: |
-          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-video src/aici_video.c -lm
-          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-video-fixtures video/tests/make_video_fixtures.c
+          "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-video src/aici_video.c -lm
+          "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-video-fixtures video/tests/make_video_fixtures.c
       - name: Generate real MP4 fixtures
         shell: sh
         run: /tmp/aici-video-fixtures "$RUNNER_TEMP/aici-video-fixtures"
@@ -176,11 +203,14 @@ jobs:
       - name: Require APK receipt probes
         shell: sh
         run: command -v git >/dev/null && command -v jq >/dev/null && command -v sha256sum >/dev/null && command -v zip >/dev/null && command -v unzip >/dev/null
+      - name: Select the qualified ICK C compiler
+        uses: isomorphisms/ai-ci/ick-host@903b2cb27ea572c9c6cb2ffa9f39e0fbf06ec9f8
+        id: ick
       - name: Compile F-Droid verifier and fixture generator
         shell: sh
         run: |
-          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-fdroid src/aici_fdroid.c
-          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-fdroid-fixtures fdroid/tests/make_receipt_fixtures.c
+          "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-fdroid src/aici_fdroid.c
+          "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-fdroid-fixtures fdroid/tests/make_receipt_fixtures.c
       - name: Prove candidate receipt producer derives evidence
         shell: sh
         run: |
@@ -215,12 +245,15 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --yes --no-install-recommends libxml2-utils
+      - name: Select the qualified ICK C compiler
+        uses: isomorphisms/ai-ci/ick-host@903b2cb27ea572c9c6cb2ffa9f39e0fbf06ec9f8
+        id: ick
       - name: Compile verifier and deterministic fixture server
         shell: sh
         run: |
-          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 \
+          "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2 \
             -o /tmp/aici-ingestion ingestion/src/aici_ingestion.c
-          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 \
+          "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2 \
             -o /tmp/aici-ingestion-server ingestion/src/fixture_server.c
       - name: Verify canonical corpus bytes
         shell: sh

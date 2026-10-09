@@ -4,6 +4,7 @@ if [ -n "${AICI_GITHUB_GET_LOG:-}" ]; then
     printf '%s\n' "$1" >> "$AICI_GITHUB_GET_LOG"
 fi
 case $1 in
+    /search/issues\?*) exec sed -n '1,$p' @ROOT@/search.json ;;
     /repos/isomorphisms/example/pulls/17) exec sed -n '1,$p' @ROOT@/pr.json ;;
     /repos/isomorphisms/example/branches/main) exec sed -n '1,$p' @ROOT@/base.json ;;
     /repos/isomorphisms/example/commits/1111111111111111111111111111111111111111/check-runs?per_page=100) exec sed -n '1,$p' @ROOT@/head.json ;;

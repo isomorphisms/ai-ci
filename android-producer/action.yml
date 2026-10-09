@@ -1,0 +1,51 @@
+name: "AI CI Android producer gate"
+description: "Fail-closed Android APK producer verification with merged policy authority"
+inputs:
+  apk:
+    description: "Finished APK path"
+    required: true
+  root:
+    description: "Consumer repository root"
+    required: false
+    default: "."
+  packager-receipt:
+    description: "Receipt emitted by the canonical android-NDK NativeActivity packager"
+    required: true
+  packager-root:
+    description: "Checked-out isomorphisms/android-NDK repository used for packaging"
+    required: true
+  expected-abi:
+    description: "Only native ABI expected in the APK"
+    required: true
+  lane:
+    description: "Central Android signing lane"
+    required: false
+    default: "test"
+  prior-receipt:
+    description: "Optional prior accepted producer receipt for update continuity"
+    required: false
+    default: ""
+  require-no-dex:
+    description: "Reject classes*.dex in a direct NativeActivity APK"
+    required: false
+    default: "true"
+  receipt-output:
+    description: "Output receipt path"
+    required: false
+    default: "aici-android-producer.receipt.tsv"
+runs:
+  using: "composite"
+  steps:
+    - shell: bash
+      env:
+        AICI_APK: ${{ inputs.apk }}
+        AICI_ROOT: ${{ inputs.root }}
+        AICI_PACKAGER_RECEIPT: ${{ inputs.packager-receipt }}
+        AICI_PACKAGER_ROOT: ${{ inputs.packager-root }}
+        AICI_EXPECTED_ABI: ${{ inputs.expected-abi }}
+        AICI_SIGNING_LANE: ${{ inputs.lane }}
+        AICI_PRIOR_RECEIPT: ${{ inputs.prior-receipt }}
+        AICI_REQUIRE_NO_DEX: ${{ inputs.require-no-dex }}
+        AICI_RECEIPT_OUTPUT: ${{ inputs.receipt-output }}
+        AICI_POLICY_REF: ${{ github.action_ref }}
+      run: bash "$GITHUB_ACTION_PATH/check.sh"

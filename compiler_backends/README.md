@@ -1,18 +1,25 @@
-# Idris compiler-backend observations
+# Historical Idris compiler-backend observations
 
-This directory contains small deterministic probes for comparing the active
-Idris-family compiler backends. The probes are observations, not release gates.
+This directory preserves the August source-marker experiment and its small
+deterministic C probes. The ARM/Thumb PR #1 and Algebraic Variety Explorer PR #12
+that supplied its feature refs are closed without merging. The workflow pins
+their retained PR-head commits; the AVE feature branch no longer exists. These
+are historical experiments, not the active implementation graph.
 
-The current matrix watches:
+Run this observer manually or when changing its probes. It has no recurring
+schedule. Source-marker observations do not establish current compiler,
+consumer, runtime, or physical-device acceptance. Current selection belongs in
+[`idric/current-heads-v1.tsv`](../idric/current-heads-v1.tsv); executable
+acceptance remains with the implementation and receipt owners named there.
 
-- `isomorphisms/idric-arm-thumb` on `idric-ir-first-slice`, because the active
-  backend implementation is still on PR #1 rather than `main`;
-- `isomorphisms/idris-arm-backend` on `main`;
-- `isomorphisms/idris-shader-backend` on `main`, where merged PR #11
+The historical matrix reads:
+
+- `dilapidated-shed/idric-arm-thumb` at the closed PR #1 head;
+- `dilapidated-shed/idris-arm-backend` on `main`;
+- `dilapidated-shed/idris-shader-backend` on `main`, where merged PR #11
   provides executable whole-shader F16/F32 selection;
 - `isomorphismes/algebraic-variety-explorer-mobile` on
-  `dogfood/idris-shader-f16`, as an independent downstream consumer of that
-  shader mode.
+  the closed PR #12 head, the former `dogfood/idris-shader-f16` experiment.
 
 Each row in `probes.tsv` asks the same kind of discrete question of each
 backend: is a particular arithmetic operation, control-flow form, memory form,
@@ -47,9 +54,12 @@ The observer fails only when its own matrix or checkout mapping is malformed,
 or when an explicitly promoted FP16 baseline fact regresses. Its built-in self-test verifies present, absent, missing-file, sorting,
 duplicate-row behavior, and the required FP16/consumer metric sets.
 
-The workflow also has a daily schedule. GitHub activates scheduled workflows
-only from the default branch, so that surveillance begins only after this work
-lands there.
+The shared self-test checks `historical.contract.tsv` to prevent this historical
+observer from silently becoming recurring surveillance again. The original
+ComputerScience interpretation proposal and its dated baselines remain in
+[ComputerScience PR #12](https://github.com/walnut-burgundy/computer-science/pull/12).
+Interpretation research remains distinct from these deterministic probes;
+retiring its obsolete watcher does not establish that research as complete.
 
 Source probes remain weaker than compiling or executing the backend. A source
 surface can advertise an operation and still be wrong, while a refactor can

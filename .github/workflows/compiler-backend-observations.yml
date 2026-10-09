@@ -1,4 +1,4 @@
-name: observe Idris compiler backends
+name: historical Idris backend source probes
 
 on:
   push:
@@ -9,8 +9,6 @@ on:
     paths:
       - compiler_backends/**
       - .github/workflows/compiler-backend-observations.yml
-  schedule:
-    - cron: '7 13 * * *'
   workflow_dispatch:
 
 permissions:
@@ -26,32 +24,32 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
 
-      - name: Check out active Idriç ARM/Thumb backend
+      - name: Check out historical Idriç ARM/Thumb experiment
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          repository: isomorphisms/idric-arm-thumb
-          ref: idric-ir-first-slice
+          repository: dilapidated-shed/idric-arm-thumb
+          ref: 7bc8d71e76d2b75028f923dc7655ab245d4d0cf8 # closed ARM/Thumb PR #1
           path: _backends/idric-arm-thumb
 
       - name: Check out Idris ARM backend
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          repository: isomorphisms/idris-arm-backend
+          repository: dilapidated-shed/idris-arm-backend
           ref: main
           path: _backends/idris-arm-backend
 
-      - name: Check out active FP16 GLSL ES backend
+      - name: Check out FP16 GLSL ES backend
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          repository: isomorphisms/idris-shader-backend
+          repository: dilapidated-shed/idris-shader-backend
           ref: main
           path: _backends/idris-shader-backend
 
-      - name: Check out Algebraic Variety Explorer FP16 consumer
+      - name: Check out historical Algebraic Variety Explorer FP16 consumer
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: isomorphismes/algebraic-variety-explorer-mobile
-          ref: dogfood/idris-shader-f16
+          ref: 3d19d464b7fbf2400b6f3a9ebd08f9758bee80ce # closed AVE PR #12; branch removed
           path: _consumers/algebraic-variety-explorer-mobile
 
       - name: Compile deterministic observers
@@ -99,16 +97,17 @@ jobs:
         run: |
           {
             printf 'source\tref\trevision\n'
-            printf 'idric-arm-thumb\tidric-ir-first-slice\t%s\n' "$(git -C _backends/idric-arm-thumb rev-parse HEAD)"
+            printf 'idric-arm-thumb\tclosed-pr-1-head\t%s\n' "$(git -C _backends/idric-arm-thumb rev-parse HEAD)"
             printf 'idris-arm-backend\tmain\t%s\n' "$(git -C _backends/idris-arm-backend rev-parse HEAD)"
             printf 'idris-shader-backend\tmain\t%s\n' "$(git -C _backends/idris-shader-backend rev-parse HEAD)"
-            printf 'algebraic-variety-explorer-mobile\tdogfood/idris-shader-f16\t%s\n' "$(git -C _consumers/algebraic-variety-explorer-mobile rev-parse HEAD)"
+            printf 'algebraic-variety-explorer-mobile\tclosed-pr-12-head\t%s\n' "$(git -C _consumers/algebraic-variety-explorer-mobile rev-parse HEAD)"
           } > compiler-backend-revisions.tsv
 
       - name: Publish observation in the job summary
         run: |
           {
-            echo '### Compiler backend observations'
+            echo '### Historical backend source probes'
+            echo 'These experiment refs do not establish current backend or consumer acceptance.'
             echo
             echo '```text'
             cat compiler-backend-revisions.tsv

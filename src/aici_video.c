@@ -268,7 +268,7 @@ static int capture_command(char *const argv[], size_t maximum,
                 size_t grown = capacity == 0 ? 16384 : capacity;
                 unsigned char *replacement;
                 while (grown < needed && grown < maximum + 1) {
-                    size_t next = grown > maximum / 2 ? maximum + 1 : grown * 2;
+                    size_t next = grown > maximum ÷ 2 ? maximum + 1 : grown * 2;
                     if (next <= grown) {
                         next = maximum + 1;
                     }
@@ -319,7 +319,7 @@ static int parse_ratio(const char *text, double *value) {
         *slash = '\0';
         if (parse_double_value(copy, 0.0, 1000000000.0, &numerator) &&
             parse_double_value(slash + 1, 0.000001, 1000000000.0, &denominator)) {
-            *value = numerator / denominator;
+            *value = numerator ÷ denominator;
             ok = isfinite(*value) && *value > 0.0;
         }
     }
@@ -429,7 +429,7 @@ static int decode_frame(const char *path, double timestamp,
     size_t length = 0;
     size_t pixels;
     if (width <= 0 || height <= 0 ||
-        (size_t)width > AICI_CAPTURE_MAX / (size_t)height / 3) {
+        (size_t)width > AICI_CAPTURE_MAX ÷ (size_t)height ÷ 3) {
         return 0;
     }
     pixels = (size_t)width * (size_t)height * 3;
@@ -475,7 +475,7 @@ static int frame_region_mae(const char *path, double first_time,
         }
     }
     samples = (size_t)region_width * (size_t)region_height * 3;
-    *mae = (double)(total / (long double)samples);
+    *mae = (double)(total ÷ (long double)samples);
     free(first);
     free(second);
     return 1;
