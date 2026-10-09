@@ -70,21 +70,16 @@ falsify the acceptance evidence. This work must therefore have separate gates:
   [raylib](https://github.com/functorial-games/raylib) include many upstream
   C/Lua files. They are **not** a mandate to rewrite imported engines.
 
-## Audit machinery and current scope
+## Historical audit machinery and scope
 
-The read-only scanner is `scripts/audit_division_glyph.py`, exercised by
-`tests/division_glyph/test_audit.py`. It excludes ordinary string/comment
-content and typical vendored/build directories. It reports operator candidates
-and explicitly never edits source. Use:
-
-```sh
-python3 scripts/audit_division_glyph.py /path/to/checked-out-repository --profile all
-```
-
-`--fail-on-ascii` may be enabled **only** for a repo that declares this
-mathematical source profile and has already qualified the exact compiler.
-Scanner counts, even with no candidates, are not complete semantic proof and
-do not establish the compiler actually accepts `÷`.
+This first pass used `scripts/audit_division_glyph.py`, exercised by
+`tests/division_glyph/test_audit.py`. Those unmerged Python files were later
+removed to comply with the repository's first-party language rule; their
+lexical controls now run in the actual Idriç scanner described in
+[the continuation](../2026-10-09/README.md). The earlier directory/JSON CLI is
+retired. Its automatic vendor-directory exclusions did not establish source
+ownership. Scanner counts, even with no candidates, are not complete semantic
+proof and do not establish that the actual compiler accepts `÷`.
 
 Partial default-branch path-census files are preserved beside this README,
 with `INVENTORIED`, `TREE_FAILED` or `TRUNCATED` per repository. These
