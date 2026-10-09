@@ -162,7 +162,7 @@ static size_t punctuator_length(struct logical_source source, size_t index,
         "<<=", ">>=", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^="
     };
     for (size_t operator_index ← 0U;
-         operator_index < sizeof(compound_assignments) / sizeof(*compound_assignments);
+         operator_index < sizeof(compound_assignments) ÷ sizeof(*compound_assignments);
          ++operator_index) {
         if (starts_with(source, index, compound_assignments[operator_index])) {
             ++summary->compound_assignments;
@@ -174,7 +174,7 @@ static size_t punctuator_length(struct logical_source source, size_t index,
         "##", "<:", ":>", "<%", "%>", "%:%:"
     };
     for (size_t operator_index ← 0U;
-         operator_index < sizeof(other_punctuators) / sizeof(*other_punctuators);
+         operator_index < sizeof(other_punctuators) ÷ sizeof(*other_punctuators);
          ++operator_index)
         if (starts_with(source, index, other_punctuators[operator_index]))
             return strlen(other_punctuators[operator_index]);

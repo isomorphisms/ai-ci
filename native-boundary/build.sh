@@ -17,7 +17,7 @@ tree=$(git -C "$root" rev-parse HEAD:native-boundary)
 if [[ -n "$(git -C "$root" status --porcelain -- native-boundary)" ]]; then
   echo 'native-boundary source must be committed and clean' >&2; exit 2
 fi
-for file in probe.c fixture.c build.sh run.sh test.sh; do
+for file in probe.c fixture.c Makefile build.sh run.sh test.sh; do
   git -C "$root" ls-files --error-unmatch "native-boundary/$file" >/dev/null
 done
 mkdir -p "$(dirname "$output")"
@@ -25,11 +25,9 @@ mkdir "$output"
 output=$(cd "$output" && pwd)
 bundle="$output/bundle"
 mkdir "$bundle"
-flags=(-std=c17 -Wall -Wextra -Werror -pedantic -O2)
-links=(-Wl,-z,relro,-z,now)
 ndk=not-applicable
 api=not-android
-compiler=${CC:-cc}
+compiler=${ICK:-ick}
 reader=readelf
 if [[ "$target" != host ]]; then
   : "${ANDROID_NDK_HOME:?provide the pinned Android NDK 27.3.13750724}"
@@ -39,14 +37,10 @@ if [[ "$target" != host ]]; then
   api=24
   case "$target" in
     armv7a) triple=armv7a-linux-androideabi; machine='ARM'; class=ELF32; interpreter=/system/bin/linker; width=4 ;;
-    aarch64) triple=aarch64-linux-android; machine='AArch64'; class=ELF64; interpreter=/system/bin/linker64; width=8
-      links+=(-Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=16384) ;;
-    android-x86_64) triple=x86_64-linux-android; machine='Advanced Micro Devices X86-64'; class=ELF64; interpreter=/system/bin/linker64; width=8
-      links+=(-Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=16384) ;;
+    aarch64) triple=aarch64-linux-android; machine='AArch64'; class=ELF64; interpreter=/system/bin/linker64; width=8 ;;
+    android-x86_64) triple=x86_64-linux-android; machine='Advanced Micro Devices X86-64'; class=ELF64; interpreter=/system/bin/linker64; width=8 ;;
   esac
-  compiler="$tools/${triple}${api}-clang"
   reader="$tools/llvm-readelf"
-  flags+=(-DAICI_REQUIRE_BIONIC=1 "-DAICI_EXPECT_POINTER_SIZE=$width")
 fi
 command -v "$compiler"
 command -v "$reader"
@@ -61,20 +55,19 @@ command -v "$reader"
 build() {
   printf '%q ' "$@" >> "$bundle/commands.txt"
   printf '\n' >> "$bundle/commands.txt"
-  "$@"
+  "$@" | tee -a "$bundle/commands.txt"
 }
-build "$compiler" "${flags[@]}" -fPIC -shared "$root/native-boundary/fixture.c" \
-  "${links[@]}" -o "$bundle/libnative-fixture.so"
+build make --no-print-directory -f "$root/native-boundary/Makefile" \
+  TARGET="$target" ICK="$compiler" NDK="${ANDROID_NDK_HOME:-}" \
+  STAGE_DIR="$output/compiler-stage" KIND=fixture OUTPUT="$bundle/libnative-fixture.so"
 for mode in default largefile; do
-  offsets=()
-  if [[ "$mode" == largefile ]]; then offsets=(-D_FILE_OFFSET_BITS=64); fi
-  build "$compiler" "${flags[@]}" "${offsets[@]}" \
-    "-DAICI_NATIVE_REVISION=\"$revision\"" -fPIE -pie \
-    "$root/native-boundary/probe.c" -pthread -ldl "${links[@]}" -o "$bundle/probe-$mode"
+  build make --no-print-directory -f "$root/native-boundary/Makefile" \
+    TARGET="$target" ICK="$compiler" NDK="${ANDROID_NDK_HOME:-}" \
+    STAGE_DIR="$output/compiler-stage" MODE="$mode" REVISION="$revision" OUTPUT="$bundle/probe-$mode"
 done
 # Inspect actual ELF files, never a source declaration or one archive member.
 for name in libnative-fixture.so probe-default probe-largefile; do
-  "$reader" -h -l -d --wide "$bundle/$name" > "$output/$name.elf.txt"
+  "$reader" -h -l -d -r --wide "$bundle/$name" > "$output/$name.elf.txt"
   if [[ "$target" != host ]]; then
     awk -v machine="$machine" -v class="$class" '
       /Class:/ {if ($2 != class) exit 1; c++}
@@ -84,7 +77,9 @@ for name in libnative-fixture.so probe-default probe-largefile; do
         m++
       }
       /Type:/ && $2 == "DYN" {t++}
-      END {if (c != 1 || m != 1 || t != 1) exit 1}
+      /[[:space:]]R_[A-Z0-9_]+_COPY[[:space:]]/ {copies++}
+      /\(TEXTREL\)/ {textrels++}
+      END {if (c != 1 || m != 1 || t != 1 || copies || textrels) exit 1}
     ' "$output/$name.elf.txt"
     if [[ "$name" == probe-* ]]; then
       grep -F "Requesting program interpreter: $interpreter]" "$output/$name.elf.txt"
@@ -115,7 +110,7 @@ for name in libnative-fixture.so probe-default probe-largefile; do
   fi
 done
 cp "$root/native-boundary/run.sh" "$bundle/run.sh"
-(cd "$root"; sha256sum native-boundary/probe.c native-boundary/fixture.c \
+(cd "$root"; sha256sum native-boundary/probe.c native-boundary/fixture.c native-boundary/Makefile \
   native-boundary/build.sh native-boundary/run.sh native-boundary/test.sh) > "$bundle/source.sha256"
 (cd "$bundle"; sha256sum probe-default probe-largefile libnative-fixture.so \
   build.tsv compiler.txt commands.txt source.sha256 run.sh > SHA256SUMS)
