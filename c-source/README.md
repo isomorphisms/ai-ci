@@ -30,7 +30,7 @@ explicit semantic review.
 The Makefile requires ICK to compile the checker. Its good/known-bad fixtures
 prove distinctions between assignments, comparisons, compound operators,
 quoted/comment bytes, preprocessing, spliced tokens, and unsupported lexical
-input. The native producer under `ick-host/` proves literal `←` and `×`
+input. The native producer under `ick-host/` proves literal `←`, `×` and `÷`
 before exporting the compiler; it declares its host runtime dependency.
 
 The public account census is in `account-sweep-2026-10-08.tsv`. It is a

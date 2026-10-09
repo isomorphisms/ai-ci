@@ -14,7 +14,7 @@ runs:
       uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       with:
         repository: dilapidated-shed/ick
-        ref: c5d28dde9cc333a562b907785d0370b725146cdf
+        ref: c61e448251744a2f40ad743ebef1a027bdcd2f9d
         path: .ick-host-source
         submodules: true
         persist-credentials: false
@@ -24,11 +24,9 @@ runs:
     - name: Build ICK
       shell: bash
       run: make -f "${{ github.action_path }}/Makefile" ICK_SOURCE="$GITHUB_WORKSPACE/.ick-host-source" ICK_BUILD="$RUNNER_TEMP/ick-host-build" ICK_STAGE="$RUNNER_TEMP/ick-host-stage"
-    - name: Qualify the assignment frontend
+    - name: Qualify assignment, multiplication and division
       shell: bash
-      run: |
-        "$RUNNER_TEMP/ick-host-stage/bin/gcc" -fno-link-libatomic -std=c17 -Wall -Wextra -Werror "${{ github.action_path }}/assignment-arrow.c" -o "$RUNNER_TEMP/assignment-arrow"
-        "$RUNNER_TEMP/assignment-arrow"
+      run: make -f "${{ github.action_path }}/Makefile" qualify ICK_STAGE="$RUNNER_TEMP/ick-host-stage"
     - name: Export compiler path
       id: compiler
       shell: bash
