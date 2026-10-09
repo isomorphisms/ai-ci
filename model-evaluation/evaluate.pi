@@ -30,10 +30,12 @@ def save(path ∈ str, value ∈ object) → None:
 
 def unique_object(pairs ∈ list[tuple[str, object]]) → dict[str, object]:
     result ∈ dict[str, object] ← {}
-    for key, value in pairs:
+    for pair in pairs:
+        key ∈ str ← pair[0]
+        value ∈ object ← pair[1]
         if key in result:
             raise ValueError("duplicate JSON key")
-        result[key] ← value
+        result.update({key: value})
     return result
 
 
@@ -50,11 +52,11 @@ def grade_text(text ∈ str, expected ∈ dict[str, object]) → dict[str, objec
         actual ∈ object ← answer[key]
         wanted ∈ object ← expected[key]
         if type(actual) != type(wanted):
-            fields[key] ← False
+            fields.update({key: False})
         elif key in ["source", "destination"] and isinstance(actual, str):
-            fields[key] ← actual.lower() == wanted.lower()
+            fields.update({key: actual.lower() == wanted.lower()})
         else:
-            fields[key] ← actual == wanted
+            fields.update({key: actual == wanted})
     return {"pass": all(fields.values()), "parse": True, "fields": fields}
 
 
@@ -66,8 +68,11 @@ def validate(suite ∈ dict[str, object]) → None:
     seeds ∈ list[int] ← suite["seeds"]
     if len(cases) == 0 or len(conditions) == 0 or len(seeds) < 3:
         raise ValueError("nonempty cases/conditions and at least three trials required")
-    if len(set(seeds)) != len(seeds) or not all(type(seed) == int for seed in seeds):
-        raise ValueError("trial seeds must be unique integers")
+    if len(set(seeds)) != len(seeds):
+        raise ValueError("trial seeds must be unique")
+    for seed in seeds:
+        if type(seed) != int:
+            raise ValueError("trial seeds must be integers")
     if len(cases) * len(conditions) * len(seeds) > 500:
         raise ValueError("matrix exceeds 500-request budget")
     names ∈ list[str] ← []
@@ -131,7 +136,7 @@ def grade(output ∈ str, evidence ∈ str) → int:
         raise ValueError("prepared suite or requests changed")
     expected ∈ dict[str, object] ← {}
     for case in suite["cases"]:
-        expected[case["id"]] ← case["expected"]
+        expected.update({case["id"]: case["expected"]})
     verdicts ∈ list[dict[str, object]] ← []
     passed ∈ int ← 0
     responded ∈ int ← 0
@@ -142,11 +147,11 @@ def grade(output ∈ str, evidence ∈ str) → int:
             response ∈ dict[str, object] ← load(response_path)
             responded ← responded + 1
             if response.get("request_sha256") != job["request_sha256"] or response.get("id") != job["id"]:
-                result["error"] ← "wrong-request-binding"
+                result.update({"error": "wrong-request-binding"})
             elif response.get("evidence") != evidence:
-                result["error"] ← "evidence-class-mismatch"
+                result.update({"error": "evidence-class-mismatch"})
             elif response.get("status") != "EXECUTED":
-                result["error"] ← response.get("error", "inference-failed")
+                result.update({"error": response.get("error", "inference-failed")})
             else:
                 result ← grade_text(response["text"], expected[job["case_id"]])
         if result["pass"]:
@@ -172,16 +177,16 @@ def exercise(output ∈ str, mutation ∈ str) → int:
     jobs ∈ list[dict[str, object]] ← load(output + "/requests.json")
     expected ∈ dict[str, object] ← {}
     for case in suite["cases"]:
-        expected[case["id"]] ← case["expected"]
+        expected.update({case["id"]: case["expected"]})
     for job in jobs:
         answer ∈ object ← expected[job["case_id"]]
         if mutation == "constant":
             answer ← expected[jobs[0]["case_id"]]
         response ∈ dict[str, object] ← {"id": job["id"], "request_sha256": job["request_sha256"], "evidence": "fixture", "status": "EXECUTED", "text": encoded(answer)}
         if mutation == "stale":
-            response["request_sha256"] ← "0" * 64
+            response.update({"request_sha256": "0" * 64})
         if mutation == "false-live":
-            response["evidence"] ← "live"
+            response.update({"evidence": "live"})
         if mutation != "missing":
             save(output + "/responses/" + job["id"] + ".json", response)
     return grade(output, "fixture")
