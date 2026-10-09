@@ -45,6 +45,21 @@ done
 bad JSON physical "$work/missing"
 printf '{"decision":"rejected","decision":"accepted"}\n' > "$work/bad"
 bad JSON physical "$work/bad"
+# Count container nodes as well as leaves. Duplicate parents can have
+# empty or disjoint children without any duplicate leaf path.
+for prefix in '"device":{},' '"device":{"extra":"ignored"},' '"checks":{},'; do
+    { printf '{%s' "$prefix"; tail -c +2 "$work/receipt"; } > "$work/bad"
+    bad JSON physical "$work/bad"
+done
+jq '.required_checks=[]' "$work/context" > "$work/context-empty"
+bad ARTIFACT bash "$root/gate.sh" physical "$work/context-empty" "$work/receipt" "$work/candidate.apk" "$work/unsigned.apk"
+# Missing final newline must neither reject valid data nor bypass a rejection.
+tr -d '\n' < "$work/receipt" > "$work/receipt-no-newline"
+ok physical "$work/receipt-no-newline"
+for prefix in '"device":{},' '"decision":"rejected",'; do
+    { printf '{%s' "$prefix"; tail -c +2 "$work/receipt-no-newline"; } > "$work/bad"
+    bad JSON physical "$work/bad"
+done
 cat "$work/receipt" "$work/receipt" > "$work/bad"
 bad JSON physical "$work/bad"
 printf 'changed\n' >> "$work/candidate.apk"
