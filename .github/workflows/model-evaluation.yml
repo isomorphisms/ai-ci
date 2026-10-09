@@ -8,8 +8,6 @@ jobs:
   checked-ithon:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
-    env:
-      ITHON_CHECK_RECEIPT: ${{ runner.temp }}/model-evaluation-checked.jsonl
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -22,8 +20,12 @@ jobs:
           path: _ithon
           persist-credentials: false
       - name: Execute the actual Ithon frontend and grader controls
+        env:
+          ITHON_CHECK_RECEIPT: ${{ runner.temp }}/model-evaluation-checked.jsonl
         run: _ithon/ithon model-evaluation/evaluate.pi self-test
       - name: Check GPT-OSS chat and Pythia completion interfaces
+        env:
+          ITHON_CHECK_RECEIPT: ${{ runner.temp }}/model-evaluation-checked.jsonl
         run: |
           _ithon/ithon model-evaluation/infer-http.pi check
           _ithon/ithon model-evaluation/infer-pythia.pi check
