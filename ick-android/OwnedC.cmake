@@ -170,6 +170,7 @@ function(ick_android_objects output)
         -isystem "${CMAKE_SYSROOT}/usr/include"
         -isystem "${CMAKE_SYSROOT}/usr/include/${ICK_HEADER_TARGET}"
         -D__ANDROID__ "-D__ANDROID_API__=${ANDROID_PLATFORM_LEVEL}"
+        "-D__ANDROID_MIN_SDK_VERSION__=${ANDROID_PLATFORM_LEVEL}"
         -DBIONIC_IOCTL_NO_SIGNEDNESS_OVERLOAD "-std=c${OWNED_STANDARD}" -fPIC
         -gno-variable-location-views -gdwarf-4
         ${includes} ${definitions}

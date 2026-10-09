@@ -7,13 +7,13 @@ FORTIFY_FORBIDDEN = memchr memrchr mempcpy stpcpy strcpy strcat strncat stpncpy 
 FORTIFY_REJECTIONS = $(addprefix $(QUALIFY_BUILD)/reject-,$(addsuffix .checked,$(FORTIFY_FORBIDDEN)))
 FORTIFY_QUALIFY = fortify-qualify
 
-.PHONY: fortify-qualify fortify-run fortify-reject-api25
+.PHONY: fortify-qualify fortify-run fortify-reject-api25 fortify-reject-mismatched-api
 
 $(QUALIFY_BUILD)/fortify-O%.s: $(FORTIFY_SOURCE_FILE) FORCE | check-qualification
-	"$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) $(ICK_NDK_FLAGS) -D__ANDROID_API__=26 -std=c17 -O$* $(ICK_DEBUG_FLAGS) -fPIC -fstack-protector-strong -Wall -Wextra -Werror -Wpedantic -S "$<" -o "$@"
+	"$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) $(ICK_NDK_FLAGS) -D__ANDROID_API__=26 -D__ANDROID_MIN_SDK_VERSION__=26 -std=c17 -O$* $(ICK_DEBUG_FLAGS) -fPIC -fstack-protector-strong -Wall -Wextra -Werror -Wpedantic -S "$<" -o "$@"
 
 $(QUALIFY_BUILD)/fortify-control.s: $(FORTIFY_SOURCE_FILE) FORCE | check-qualification
-	"$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) $(ICK_NDK_FLAGS) -D__ANDROID_API__=26 -DICK_FORTIFY_NEGATIVE_CONTROL -std=c17 -O2 $(ICK_DEBUG_FLAGS) -fPIC -fstack-protector-strong -Wall -Wextra -Werror -Wpedantic -S "$<" -o "$@"
+	"$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) $(ICK_NDK_FLAGS) -D__ANDROID_API__=26 -D__ANDROID_MIN_SDK_VERSION__=26 -DICK_FORTIFY_NEGATIVE_CONTROL -std=c17 -O2 $(ICK_DEBUG_FLAGS) -fPIC -fstack-protector-strong -Wall -Wextra -Werror -Wpedantic -S "$<" -o "$@"
 
 $(QUALIFY_BUILD)/fortify-%.o: $(QUALIFY_BUILD)/fortify-%.s
 	"$(NDK_CC)" $(TARGET_FLAGS) -c "$<" -o "$@"
@@ -24,15 +24,20 @@ $(QUALIFY_BUILD)/fortify-%: $(QUALIFY_BUILD)/fortify-%.o
 $(QUALIFY_BUILD)/reject-%.checked: FORCE | check-qualification
 	printf 'int main(void) { (void)&%s; return 0; }\n' '$*' > "$(QUALIFY_BUILD)/reject-$*.c"
 	rm -f "$(QUALIFY_BUILD)/reject-$*.s"
-	! "$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) $(ICK_NDK_FLAGS) -D__ANDROID_API__=26 -std=c17 -O2 -Wall -Wextra -Werror -include "$(QUALIFY_ROOT)fortify/reject-includes.h" -S "$(QUALIFY_BUILD)/reject-$*.c" -o "$(QUALIFY_BUILD)/reject-$*.s" > "$(QUALIFY_BUILD)/reject-$*.log" 2>&1
+	! "$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) $(ICK_NDK_FLAGS) -D__ANDROID_API__=26 -D__ANDROID_MIN_SDK_VERSION__=26 -std=c17 -O2 -Wall -Wextra -Werror -include "$(QUALIFY_ROOT)fortify/reject-includes.h" -S "$(QUALIFY_BUILD)/reject-$*.c" -o "$(QUALIFY_BUILD)/reject-$*.s" > "$(QUALIFY_BUILD)/reject-$*.log" 2>&1
 	grep -E 'attempt to use poisoned.*\b'"$*"'\b' "$(QUALIFY_BUILD)/reject-$*.log"
 	test ! -e "$(QUALIFY_BUILD)/reject-$*.s"
 	touch "$@"
 
 fortify-reject-api25: check-qualification
-	! "$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) $(ICK_NDK_FLAGS) -D__ANDROID_API__=25 -std=c17 -O2 -fPIC -S "$(FORTIFY_SOURCE_FILE)" -o "$(QUALIFY_BUILD)/fortify-api25.s" > "$(QUALIFY_BUILD)/fortify-api25.log" 2>&1
+	! "$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) $(ICK_NDK_FLAGS) -D__ANDROID_API__=25 -D__ANDROID_MIN_SDK_VERSION__=25 -std=c17 -O2 -fPIC -S "$(FORTIFY_SOURCE_FILE)" -o "$(QUALIFY_BUILD)/fortify-api25.s" > "$(QUALIFY_BUILD)/fortify-api25.log" 2>&1
 	grep -F 'ICK Bionic Fortify profile currently requires Android API 26' "$(QUALIFY_BUILD)/fortify-api25.log"
 	test ! -e "$(QUALIFY_BUILD)/fortify-api25.s"
+
+fortify-reject-mismatched-api: check-qualification
+	! "$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) $(ICK_NDK_FLAGS) -D__ANDROID_API__=26 -D__ANDROID_MIN_SDK_VERSION__=25 -std=c17 -O2 -fPIC -S "$(FORTIFY_SOURCE_FILE)" -o "$(QUALIFY_BUILD)/fortify-mismatched-api.s" > "$(QUALIFY_BUILD)/fortify-mismatched-api.log" 2>&1
+	grep -F 'ICK Bionic Fortify profile requires matching Android API floor macros' "$(QUALIFY_BUILD)/fortify-mismatched-api.log"
+	test ! -e "$(QUALIFY_BUILD)/fortify-mismatched-api.s"
 
 ifeq ($(ABI),x86_64)
 fortify-run: $(FORTIFY_ASSEMBLY) $(FORTIFY_ARTIFACTS)
@@ -48,5 +53,5 @@ fortify-run: $(FORTIFY_ASSEMBLY) $(FORTIFY_ARTIFACTS)
 	printf 'bionic_static_compile_link\tPASS\nexecution\tNOT_RUN\n' > "$(QUALIFY_BUILD)/fortify-runtime.tsv"
 endif
 
-fortify-qualify: fortify-run $(FORTIFY_REJECTIONS) fortify-reject-api25
+fortify-qualify: fortify-run $(FORTIFY_REJECTIONS) fortify-reject-api25 fortify-reject-mismatched-api
 	printf 'unsupported_fortified_functions_rejected\t40\napi25_profile_rejected\tPASS\n' > "$(QUALIFY_BUILD)/fortify-rejections.tsv"

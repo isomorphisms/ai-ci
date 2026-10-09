@@ -1,5 +1,13 @@
 #include <stdatomic.h>
 #include <stdbool.h>
+#include <android/versioning.h>
+
+_Static_assert(__ANDROID_MIN_SDK_VERSION__ == __ANDROID_API__, "Android API floor macros must agree");
+#if defined(__BIONIC_AVAILABILITY_GUARD)
+#if !__BIONIC_AVAILABILITY_GUARD(26)
+#error "The API26 qualifier must expose r29 declarations introduced at API26"
+#endif
+#endif
 
 _Static_assert(ATOMIC_INT_LOCK_FREE == 2, "The declared scalar profile requires lock-free atomic int");
 

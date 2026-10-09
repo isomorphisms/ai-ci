@@ -114,7 +114,7 @@ check-qualification: check-compiler
 	rm -f "$(QUALIFY_BUILD)/receipt.tsv"
 
 $(QUALIFY_BUILD)/glyphs-O%.s: $(GLYPH_SOURCE) FORCE | check-qualification
-	"$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) $(ICK_NDK_FLAGS) -D__ANDROID_API__=26 -std=c17 -O$* $(ICK_DEBUG_FLAGS) -fPIE -Wall -Wextra -Werror -S "$<" -o "$@"
+	"$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) $(ICK_NDK_FLAGS) -D__ANDROID_API__=26 -D__ANDROID_MIN_SDK_VERSION__=26 -std=c17 -O$* $(ICK_DEBUG_FLAGS) -fPIE -Wall -Wextra -Werror -S "$<" -o "$@"
 
 $(QUALIFY_BUILD)/glyphs-O%.o: $(QUALIFY_BUILD)/glyphs-O%.s
 	"$(NDK_CC)" $(TARGET_FLAGS) -c "$<" -o "$@"
@@ -123,7 +123,7 @@ $(QUALIFY_BUILD)/glyphs-O%: $(QUALIFY_BUILD)/glyphs-O%.o
 	"$(NDK_CC)" $(TARGET_FLAGS) -fPIE -pie -Wl,--no-undefined -Wl,-z,max-page-size=16384 "$<" -o "$@"
 
 $(QUALIFY_BUILD)/atomics-O%.s: $(QUALIFY_ROOT)atomics.c FORCE | check-qualification
-	"$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) $(ICK_NDK_FLAGS) -D__ANDROID_API__=26 -std=c17 -O$* $(ICK_DEBUG_FLAGS) -fPIC -Wall -Wextra -Werror -S "$<" -o "$@"
+	"$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) $(ICK_NDK_FLAGS) -D__ANDROID_API__=26 -D__ANDROID_MIN_SDK_VERSION__=26 -std=c17 -O$* $(ICK_DEBUG_FLAGS) -fPIC -Wall -Wextra -Werror -S "$<" -o "$@"
 
 $(QUALIFY_BUILD)/atomics-O%.o: $(QUALIFY_BUILD)/atomics-O%.s
 	"$(NDK_CC)" $(TARGET_FLAGS) -c "$<" -o "$@"
@@ -143,7 +143,7 @@ qualify-atomics-runtime: $(QUALIFY_BUILD)/atomics-O0 $(QUALIFY_BUILD)/atomics-O2
 endif
 
 $(QUALIFY_BUILD)/bionic-%.s: $(BIONIC_SOURCE)/bionic-%.c FORCE | check-qualification
-	"$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) $(ICK_NDK_FLAGS) -D__ANDROID_API__=26 -std=c17 -O2 $(ICK_DEBUG_FLAGS) -fPIC -Wall -Wextra -Werror -S "$<" -o "$@"
+	"$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) $(ICK_NDK_FLAGS) -D__ANDROID_API__=26 -D__ANDROID_MIN_SDK_VERSION__=26 -std=c17 -O2 $(ICK_DEBUG_FLAGS) -fPIC -Wall -Wextra -Werror -S "$<" -o "$@"
 
 $(QUALIFY_BUILD)/bionic-%.o: $(QUALIFY_BUILD)/bionic-%.s
 	"$(NDK_CC)" $(TARGET_FLAGS) -c "$<" -o "$@"
@@ -158,7 +158,7 @@ $(QUALIFY_ELF_CHECKS): %.elf: %
 
 reject-api25: check-qualification
 	rm -f "$(QUALIFY_BUILD)/bionic-availability-api25.s"
-	! "$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) $(ICK_NDK_BASE_FLAGS) -D__ANDROID_API__=25 -std=c17 -O2 -fPIC -Wall -Wextra -Werror -S "$(BIONIC_SOURCE)/bionic-availability.c" -o "$(QUALIFY_BUILD)/bionic-availability-api25.s" > "$(QUALIFY_BUILD)/bionic-availability-api25.log" 2>&1
+	! "$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) $(ICK_NDK_BASE_FLAGS) -D__ANDROID_API__=25 -D__ANDROID_MIN_SDK_VERSION__=25 -std=c17 -O2 -fPIC -Wall -Wextra -Werror -S "$(BIONIC_SOURCE)/bionic-availability.c" -o "$(QUALIFY_BUILD)/bionic-availability-api25.s" > "$(QUALIFY_BUILD)/bionic-availability-api25.log" 2>&1
 	grep -Eqi 'requires Android API 26' "$(QUALIFY_BUILD)/bionic-availability-api25.log"
 	test ! -e "$(QUALIFY_BUILD)/bionic-availability-api25.s"
 

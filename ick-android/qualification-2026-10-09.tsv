@@ -26,6 +26,7 @@ api25_fortify_profile	PASS; profile rejected at intended API26-floor diagnostic
 sizeof_quotient_macro	PASS; native O0/O2 runtime; binary divide token in ordinary expanded C
 preprocessor_division	REJECTED; intended token-not-valid-in-preprocessor-expressions diagnostic
 resource_header_order	-nostdinc; exact ICK built-in headers before explicit NDK headers; no implicit host-header search
+api_floor_macros	__ANDROID_API__ and __ANDROID_MIN_SDK_VERSION__ both equal26; r29 API26 availability guard explicitly asserted
 scalar_atomics_all_abis	PASS; atomic_int/atomic_flag O0/O2 compile, NDK assembly and static link
 scalar_atomics_x86_64	PASS; actual Bionic static runtime on Linux for O0/O2 operations and lock-freedom checks
 android_os_or_device_execution	NOT_RUN

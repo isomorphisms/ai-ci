@@ -50,6 +50,7 @@ and include paths, `-S`, and these explicit platform arguments:
 * `-isystem <sysroot>/usr/include`
 * `-isystem <sysroot>/usr/include/<header_target>`
 * `-D__ANDROID__ -D__ANDROID_API__=<application minimum API>`
+* `-D__ANDROID_MIN_SDK_VERSION__=<same application minimum API>`
 * `-DBIONIC_IOCTL_NO_SIGNEDNESS_OVERLOAD`
 
 The ICK resource headers must precede the NDK directories. In particular,
@@ -57,6 +58,10 @@ GCC's `stdatomic.h` supplies this compiler's atomic builtins; selecting Bionic's
 Clang-only atomic implementation is a producer error. `-nostdinc` also prevents
 implicit host-header discovery. CMake resolves this directory from the exact
 driver and checks its `stdatomic.h` and `stddef.h` before compiling.
+Both API macros must match: r29's Bionic availability guards use
+`__ANDROID_MIN_SDK_VERSION__`, and leaving it undefined hides required API
+declarations despite a correct `__ANDROID_API__` value. The qualifier checks
+that API26 declarations are exposed and keeps both API25 negative controls.
 
 Keep normal optimization, warnings, PIC, stack protection and API requirements
 from the consumer's existing build. NDK assembly consumes the emitted `.s`

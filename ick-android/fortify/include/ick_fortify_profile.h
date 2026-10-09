@@ -13,6 +13,9 @@
 #if !defined(__ANDROID_API__) || __ANDROID_API__ < 26
 #error "ICK Bionic Fortify profile currently requires Android API 26 or later"
 #endif
+#if !defined(__ANDROID_MIN_SDK_VERSION__) || __ANDROID_MIN_SDK_VERSION__ != __ANDROID_API__
+#error "ICK Bionic Fortify profile requires matching Android API floor macros"
+#endif
 #if !defined(__BIONIC_FORTIFY) || !__BIONIC_FORTIFY_RUNTIME_CHECKS_ENABLED
 #error "ICK Bionic Fortify profile requires active Bionic runtime checks"
 #endif
