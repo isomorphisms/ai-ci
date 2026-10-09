@@ -1,88 +1,150 @@
 # Idriç source index
 
-This is the human-readable companion to
-[`source-inventory-v1.tsv`](source-inventory-v1.tsv).
+This is the human-readable companion to [source-inventory-v1.tsv](source-inventory-v1.tsv). Both contain the same 121 repository/ref/path entries: 119 follow the language and two retain historical snapshots.
 
-The inventory is for **language-change propagation**: when Idriç syntax, typing,
-primitives, or semantics changes, every `follow` entry is a migration/revalidation
-obligation. `review-only` entries are historical snapshots and must not be
-rewritten mechanically.
+The inventory supports language-change propagation. Each `follow` entry is a migration or revalidation obligation when Idriç syntax, types, primitives or semantics change. Its role preserves the distinction between a running program, a design contract, generated source and an intentional negative test. A listing is not a claim that every design is executable. `review-only` snapshots require inspection and retain their recorded source.
 
-Current scan: 2026-09-26.
+## Discovery and deliberate reconciliation
+
+The [9 October 2026 discovery job](https://github.com/isomorphisms/ai-ci/actions/runs/37894198124/job/113701679030) enumerated 64 repositories in the two namespaces configured by [source-owners-v1.tsv](source-owners-v1.tsv), and found 121 default-branch `*.idric` files. The inherited 103-row inventory rejected the 18 additional files. Those files have now been read at their exact census heads and classified below; the checker, discovery algorithm and negative cases remain unchanged.
+
+The downloaded discovery artifact has SHA-256 `0da30037b43b344186e43156791786e3cd88bd0c65ec0b87f7ed1b7e41b6c307`. Its repository/ref/path set is the comparison input for this reconciliation. The [account-wide division audit](https://github.com/isomorphisms/ai-ci/blob/c400e73ff6ec4d61177a51c8d704eedf718521e8/audits/division-glyph/2026-10-09/README.md) separately records the wider repository scope and active migration branches.
 
 ## Follow the language
 
-### isomorphisms/ai-ci
-
-- [`benchmarks/iridium-2014/IdricBench.idric`](https://github.com/isomorphisms/ai-ci/blob/main/benchmarks/iridium-2014/IdricBench.idric)
-- [`tests/fixtures/coupled-bad-partial/coupled-substitution.idric`](https://github.com/isomorphisms/ai-ci/blob/main/tests/fixtures/coupled-bad-partial/coupled-substitution.idric)
-- [`tests/fixtures/coupled-bad-precheck/coupled-substitution.idric`](https://github.com/isomorphisms/ai-ci/blob/main/tests/fixtures/coupled-bad-precheck/coupled-substitution.idric)
-- [`tests/fixtures/coupled-bad-signature/coupled-substitution.idric`](https://github.com/isomorphisms/ai-ci/blob/main/tests/fixtures/coupled-bad-signature/coupled-substitution.idric)
-- [`tests/fixtures/coupled-good/coupled-substitution.idric`](https://github.com/isomorphisms/ai-ci/blob/main/tests/fixtures/coupled-good/coupled-substitution.idric)
-
-The three negative fixtures still follow language-level surface changes; their
-specific intended failure must be preserved rather than accidentally replacing
-it with a parser failure.
-
-### isomorphismes/pauli
-
-- [`raytracer/RayTracer.idric`](https://github.com/isomorphismes/pauli/blob/main/raytracer/RayTracer.idric)
-- [`raytracer/RayTracerTypes.idric`](https://github.com/isomorphismes/pauli/blob/main/raytracer/RayTracerTypes.idric)
-
-### isomorphismes/Conway
-
-- [`wallpapers/ConwayWallpaper.idric`](https://github.com/isomorphismes/Conway/blob/main/wallpapers/ConwayWallpaper.idric)
-
-### isomorphismes/hopf_fibration
-
-- [`src/GenerateHeader.idric`](https://github.com/isomorphismes/hopf_fibration/blob/master/src/GenerateHeader.idric)
-- [`src/GenerateSource.idric`](https://github.com/isomorphismes/hopf_fibration/blob/master/src/GenerateSource.idric)
-- [`src/Hopf.idric`](https://github.com/isomorphismes/hopf_fibration/blob/master/src/Hopf.idric)
-
-### isomorphismes/theta
-
-- [`src/BrowserMain.idric`](https://github.com/isomorphismes/theta/blob/main/src/BrowserMain.idric)
-- [`src/Main.idric`](https://github.com/isomorphismes/theta/blob/main/src/Main.idric)
-- [`src/Theta/Interaction.idric`](https://github.com/isomorphismes/theta/blob/main/src/Theta/Interaction.idric)
-- [`src/Theta/Math.idric`](https://github.com/isomorphismes/theta/blob/main/src/Theta/Math.idric)
-- [`src/Theta/Model.idric`](https://github.com/isomorphismes/theta/blob/main/src/Theta/Model.idric)
-- [`src/Theta/Surface.idric`](https://github.com/isomorphismes/theta/blob/main/src/Theta/Surface.idric)
-- [`src/Theta/Touch.idric`](https://github.com/isomorphismes/theta/blob/main/src/Theta/Touch.idric)
-
-### isomorphismes/ortho
-
-- [`src/Generate.idric`](https://github.com/isomorphismes/ortho/blob/main/src/Generate.idric)
-- [`src/Orthant.idric`](https://github.com/isomorphismes/ortho/blob/main/src/Orthant.idric)
-
-### isomorphismes/L
-
-- [`shader/LWegert.idric`](https://github.com/isomorphismes/L/blob/main/shader/LWegert.idric)
-
-### isomorphismes/coxeter
-
-- [`pseudocode/Dynkin.idric`](https://github.com/isomorphismes/coxeter/blob/main/pseudocode/Dynkin.idric)
+| Repository and ref | Source | Role | Obligation |
+| --- | --- | --- | --- |
+| isomorphismes/Conway / `main` | [wallpapers/ConwayWallpaper.idric](https://github.com/isomorphismes/Conway/blob/main/wallpapers/ConwayWallpaper.idric) | program | Conway wallpaper program. |
+| isomorphismes/coxeter / `main` | [pseudocode/Dynkin.idric](https://github.com/isomorphismes/coxeter/blob/main/pseudocode/Dynkin.idric) | program | Coxeter Dynkin pseudocode/program. |
+| isomorphismes/hopf_fibration / `master` | [src/GenerateHeader.idric](https://github.com/isomorphismes/hopf_fibration/blob/master/src/GenerateHeader.idric) | program | Hopf-fibration generator. |
+| isomorphismes/hopf_fibration / `master` | [src/GenerateSource.idric](https://github.com/isomorphismes/hopf_fibration/blob/master/src/GenerateSource.idric) | program | Hopf-fibration generator. |
+| isomorphismes/hopf_fibration / `master` | [src/Hopf.idric](https://github.com/isomorphismes/hopf_fibration/blob/master/src/Hopf.idric) | program | Hopf-fibration program. |
+| isomorphismes/knot-complement / `main` | [refactor/idric/Recenter.idric](https://github.com/isomorphismes/knot-complement/blob/main/refactor/idric/Recenter.idric) | program | Keep the knot-complement Idriç source valid under language changes. |
+| isomorphismes/L / `main` | [shader/LWegert.idric](https://github.com/isomorphismes/L/blob/main/shader/LWegert.idric) | program | L/Wegert shader program. |
+| isomorphismes/ortho / `main` | [src/Generate.idric](https://github.com/isomorphismes/ortho/blob/main/src/Generate.idric) | program | Ortho generator. |
+| isomorphismes/ortho / `main` | [src/Orthant.idric](https://github.com/isomorphismes/ortho/blob/main/src/Orthant.idric) | program | Ortho orthant code. |
+| isomorphismes/pauli / `main` | [raytracer/RayTracer.idric](https://github.com/isomorphismes/pauli/blob/main/raytracer/RayTracer.idric) | program | Wolfgang Pauli ray-tracer language-pressure test. |
+| isomorphismes/pauli / `main` | [raytracer/RayTracerTypes.idric](https://github.com/isomorphismes/pauli/blob/main/raytracer/RayTracerTypes.idric) | program | Wolfgang Pauli ray-tracer type definitions. |
+| isomorphismes/spinor / `main` | [types/Spinor.idric](https://github.com/isomorphismes/spinor/blob/main/types/Spinor.idric) | design-sketch | Follow language changes while preserving the declared design-only, not-executed status. |
+| isomorphismes/theta / `main` | [src/BrowserMain.idric](https://github.com/isomorphismes/theta/blob/main/src/BrowserMain.idric) | program | Theta browser entry point. |
+| isomorphismes/theta / `main` | [src/Main.idric](https://github.com/isomorphismes/theta/blob/main/src/Main.idric) | program | Theta entry point. |
+| isomorphismes/theta / `main` | [src/Theta/Interaction.idric](https://github.com/isomorphismes/theta/blob/main/src/Theta/Interaction.idric) | program | Theta interaction code. |
+| isomorphismes/theta / `main` | [src/Theta/Math.idric](https://github.com/isomorphismes/theta/blob/main/src/Theta/Math.idric) | program | Theta mathematics code. |
+| isomorphismes/theta / `main` | [src/Theta/Model.idric](https://github.com/isomorphismes/theta/blob/main/src/Theta/Model.idric) | program | Theta model. |
+| isomorphismes/theta / `main` | [src/Theta/Surface.idric](https://github.com/isomorphismes/theta/blob/main/src/Theta/Surface.idric) | program | Theta surface code. |
+| isomorphismes/theta / `main` | [src/Theta/Touch.idric](https://github.com/isomorphismes/theta/blob/main/src/Theta/Touch.idric) | program | Theta touch code. |
+| isomorphismes/young-tableaux / `tables` | [types/YoungTableaux/Operations.idric](https://github.com/isomorphismes/young-tableaux/blob/tables/types/YoungTableaux/Operations.idric) | source-contract | Keep the mathematical operation contracts current without claiming every operation has a native implementation. |
+| isomorphisms/ai-ci / `main` | [benchmarks/iridium-2014/IdricBench.idric](https://github.com/isomorphisms/ai-ci/blob/main/benchmarks/iridium-2014/IdricBench.idric) | benchmark | Keep compiling under the current Idriç language. |
+| isomorphisms/ai-ci / `main` | [tests/fixtures/coupled-bad-partial/coupled-substitution.idric](https://github.com/isomorphisms/ai-ci/blob/main/tests/fixtures/coupled-bad-partial/coupled-substitution.idric) | negative-fixture | Migrate surface syntax as needed while preserving the intended partial-substitution failure. |
+| isomorphisms/ai-ci / `main` | [tests/fixtures/coupled-bad-precheck/coupled-substitution.idric](https://github.com/isomorphisms/ai-ci/blob/main/tests/fixtures/coupled-bad-precheck/coupled-substitution.idric) | negative-fixture | Migrate surface syntax as needed while preserving the intended precheck failure. |
+| isomorphisms/ai-ci / `main` | [tests/fixtures/coupled-bad-signature/coupled-substitution.idric](https://github.com/isomorphisms/ai-ci/blob/main/tests/fixtures/coupled-bad-signature/coupled-substitution.idric) | negative-fixture | Migrate surface syntax as needed while preserving the intended signature failure. |
+| isomorphisms/ai-ci / `main` | [tests/fixtures/coupled-good/coupled-substitution.idric](https://github.com/isomorphisms/ai-ci/blob/main/tests/fixtures/coupled-good/coupled-substitution.idric) | positive-fixture | Keep the positive fixture valid under the current Idriç language. |
+| isomorphisms/android-NDK / `main` | [dex/idric/examples/DexArithmetic.idric](https://github.com/isomorphisms/android-NDK/blob/main/dex/idric/examples/DexArithmetic.idric) | target-example | Keep the DEX Idriç example valid under language changes. |
+| isomorphisms/android-NDK / `main` | [dex/idric/examples/DexText.idric](https://github.com/isomorphisms/android-NDK/blob/main/dex/idric/examples/DexText.idric) | target-example | Keep the DEX Idriç example valid under language changes. |
+| isomorphisms/android-NDK / `main` | [dex/idric/tests/source/InvalidDexInt.idric](https://github.com/isomorphisms/android-NDK/blob/main/dex/idric/tests/source/InvalidDexInt.idric) | negative-fixture | Migrate language surface while preserving the intended DEX rejection. |
+| isomorphisms/android-NDK / `main` | [examples/autogenerated/quick-settings-bindings/QuickSettingsBindings.idric](https://github.com/isomorphisms/android-NDK/blob/main/examples/autogenerated/quick-settings-bindings/QuickSettingsBindings.idric) | generated-example | Keep generated Quick Settings binding proofs and imported public signatures current. |
+| isomorphisms/android-NDK / `main` | [examples/autogenerated/quick-settings-bindings/WrongTileReceiver.idric](https://github.com/isomorphisms/android-NDK/blob/main/examples/autogenerated/quick-settings-bindings/WrongTileReceiver.idric) | generated-negative-fixture | Preserve the intended wrong TileService receiver rejection for update_tile. |
+| isomorphisms/android-NDK / `main` | [examples/autogenerated/quick-settings-foreign-types/QuickSettingsForeignTypes.idric](https://github.com/isomorphisms/android-NDK/blob/main/examples/autogenerated/quick-settings-foreign-types/QuickSettingsForeignTypes.idric) | generated-example | Keep generated external-reference and exact DEX foreign-type examples current. |
+| isomorphisms/android-NDK / `main` | [quick-settings/idric/src/Android/QuickSettings.idric](https://github.com/isomorphisms/android-NDK/blob/main/quick-settings/idric/src/Android/QuickSettings.idric) | binding | Keep public Quick Settings types, constants and typed IO wrappers current. |
+| isomorphisms/android-NDK / `main` | [quick-settings/idric/src/Android/QuickSettings/Foreign.idric](https://github.com/isomorphisms/android-NDK/blob/main/quick-settings/idric/src/Android/QuickSettings/Foreign.idric) | foreign-binding | Preserve exact public SDK signatures, effectful reads and the documented API floor. |
+| isomorphisms/android-NDK / `main` | [quick-settings/idric/src/Android/QuickSettings/References.idric](https://github.com/isomorphisms/android-NDK/blob/main/quick-settings/idric/src/Android/QuickSettings/References.idric) | foreign-types | Preserve the distinct external Android receiver and reference types. |
+| isomorphisms/fastchat / `main` | [idric/FastChatCore.idric](https://github.com/isomorphisms/fastchat/blob/main/idric/FastChatCore.idric) | program | Keep the maintained typed FastChat core model current. |
+| isomorphisms/fastchat / `main` | [idric/FastChatCoreTests.idric](https://github.com/isomorphisms/fastchat/blob/main/idric/FastChatCoreTests.idric) | test-fixture | Preserve the FastChat request, cancellation, retry and typed-command semantic checks. |
+| isomorphisms/flexible-pipes / `main` | [examples/autogenerated/job-delivery/JobDelivery.idric](https://github.com/isomorphisms/flexible-pipes/blob/main/examples/autogenerated/job-delivery/JobDelivery.idric) | generated-example | Keep generated delivery-mode semantics current with the owning producer. |
+| isomorphisms/ib / `main` | [examples/autogenerated/protected-long-view-task/protected-long-view-task.idric](https://github.com/isomorphisms/ib/blob/main/examples/autogenerated/protected-long-view-task/protected-long-view-task.idric) | generated-example | Keep the generated IB Idriç example reconciled with language changes. |
+| isomorphisms/ib / `main` | [src/ArxivPrepaint.idric](https://github.com/isomorphisms/ib/blob/main/src/ArxivPrepaint.idric) | program | Keep the IB Idriç source valid under language changes. |
+| isomorphisms/ib / `main` | [src/ExactTextSmoke.idric](https://github.com/isomorphisms/ib/blob/main/src/ExactTextSmoke.idric) | test-fixture | Preserve exact-text Unicode fixture output under language changes. |
+| isomorphisms/ib / `main` | [src/HostileIngestionReceipt.idric](https://github.com/isomorphisms/ib/blob/main/src/HostileIngestionReceipt.idric) | program | Keep the IB Idriç source valid under language changes. |
+| isomorphisms/ib / `main` | [src/IB/DisplayRepair.idric](https://github.com/isomorphisms/ib/blob/main/src/IB/DisplayRepair.idric) | program | Keep the IB Idriç source valid under language changes. |
+| isomorphisms/ib / `main` | [src/IB/ExactText.idric](https://github.com/isomorphisms/ib/blob/main/src/IB/ExactText.idric) | semantic-oracle | Preserve exact interior-text search semantics, overlapping matches and empty-pattern boundaries. |
+| isomorphisms/ib / `main` | [src/IB/History.idric](https://github.com/isomorphisms/ib/blob/main/src/IB/History.idric) | program | Keep the IB Idriç source valid under language changes. |
+| isomorphisms/ib / `main` | [src/IB/Index.idric](https://github.com/isomorphisms/ib/blob/main/src/IB/Index.idric) | program | Keep the IB Idriç source valid under language changes. |
+| isomorphisms/ib / `main` | [src/IB/Information.idric](https://github.com/isomorphisms/ib/blob/main/src/IB/Information.idric) | program | Keep the IB Idriç source valid under language changes. |
+| isomorphisms/ib / `main` | [src/IB/Inspect.idric](https://github.com/isomorphisms/ib/blob/main/src/IB/Inspect.idric) | program | Keep the IB Idriç source valid under language changes. |
+| isomorphisms/ib / `main` | [src/IB/LongViewTask.idric](https://github.com/isomorphisms/ib/blob/main/src/IB/LongViewTask.idric) | program | Keep the IB Idriç source valid under language changes. |
+| isomorphisms/ib / `main` | [src/IB/Occurrence.idric](https://github.com/isomorphisms/ib/blob/main/src/IB/Occurrence.idric) | program | Keep the IB Idriç source valid under language changes. |
+| isomorphisms/ib / `main` | [src/IB/PaintBudget.idric](https://github.com/isomorphisms/ib/blob/main/src/IB/PaintBudget.idric) | program | Keep the renderer-neutral typed paint-budget selection current. |
+| isomorphisms/ib / `main` | [src/IB/PaintBudget/Mock.idric](https://github.com/isomorphisms/ib/blob/main/src/IB/PaintBudget/Mock.idric) | test-fixture | Keep test-only paint-work estimates separate from actual renderer estimates. |
+| isomorphisms/ib / `main` | [src/IB/Prefetch.idric](https://github.com/isomorphisms/ib/blob/main/src/IB/Prefetch.idric) | program | Keep the IB Idriç source valid under language changes. |
+| isomorphisms/ib / `main` | [src/IB/RecoveredInformation.idric](https://github.com/isomorphisms/ib/blob/main/src/IB/RecoveredInformation.idric) | program | Keep the IB Idriç source valid under language changes. |
+| isomorphisms/ib / `main` | [src/IB/ScientificMedia.idric](https://github.com/isomorphisms/ib/blob/main/src/IB/ScientificMedia.idric) | program | Keep the IB Idriç source valid under language changes. |
+| isomorphisms/ib / `main` | [src/IB/Storage.idric](https://github.com/isomorphisms/ib/blob/main/src/IB/Storage.idric) | program | Keep the IB Idriç source valid under language changes. |
+| isomorphisms/ib / `main` | [src/InformationSmoke.idric](https://github.com/isomorphisms/ib/blob/main/src/InformationSmoke.idric) | program | Keep the IB Idriç source valid under language changes. |
+| isomorphisms/ib / `main` | [src/OccurrenceSmoke.idric](https://github.com/isomorphisms/ib/blob/main/src/OccurrenceSmoke.idric) | program | Keep the IB Idriç source valid under language changes. |
+| isomorphisms/ib / `main` | [src/PaintBudgetSmoke.idric](https://github.com/isomorphisms/ib/blob/main/src/PaintBudgetSmoke.idric) | test-fixture | Preserve full, reduced, reused and deferred paint-selection checks. |
+| isomorphisms/ib / `main` | [src/PDFCaptionAssociate.idric](https://github.com/isomorphisms/ib/blob/main/src/PDFCaptionAssociate.idric) | program | Keep the IB Idriç source valid under language changes. |
+| isomorphisms/ib / `main` | [src/Smoke.idric](https://github.com/isomorphisms/ib/blob/main/src/Smoke.idric) | program | Keep the IB Idriç source valid under language changes. |
+| isomorphisms/ib / `main` | [src/Workbench.idric](https://github.com/isomorphisms/ib/blob/main/src/Workbench.idric) | program | Keep the IB Idriç source valid under language changes. |
+| isomorphisms/Idric / `Idriç` | [_/examples/compiler-one-step/PrintX.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/examples/compiler-one-step/PrintX.idric) | example | Keep the Idriç example valid under language changes. |
+| isomorphisms/Idric / `Idriç` | [_/examples/unified-higher-mathematics/Circle96.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/examples/unified-higher-mathematics/Circle96.idric) | example | Keep the Idriç example valid under language changes. |
+| isomorphisms/Idric / `Idriç` | [_/examples/unified-higher-mathematics/Circle96Tests.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/examples/unified-higher-mathematics/Circle96Tests.idric) | example | Keep the Idriç example valid under language changes. |
+| isomorphisms/Idric / `Idriç` | [_/examples/unified-higher-mathematics/CompactUnitDirectionStorage.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/examples/unified-higher-mathematics/CompactUnitDirectionStorage.idric) | example | Keep the Idriç example valid under language changes. |
+| isomorphisms/Idric / `Idriç` | [_/examples/unified-higher-mathematics/CompactUnitDirectionStorageTests.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/examples/unified-higher-mathematics/CompactUnitDirectionStorageTests.idric) | example | Keep the Idriç example valid under language changes. |
+| isomorphisms/Idric / `Idriç` | [_/examples/unified-higher-mathematics/ComplexPairAgreement.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/examples/unified-higher-mathematics/ComplexPairAgreement.idric) | example | Keep the Idriç example valid under language changes. |
+| isomorphisms/Idric / `Idriç` | [_/examples/unified-higher-mathematics/ComplexPairAgreementTests.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/examples/unified-higher-mathematics/ComplexPairAgreementTests.idric) | example | Keep the Idriç example valid under language changes. |
+| isomorphisms/Idric / `Idriç` | [_/examples/unified-higher-mathematics/ComplexProjective.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/examples/unified-higher-mathematics/ComplexProjective.idric) | example | Keep the Idriç example valid under language changes. |
+| isomorphisms/Idric / `Idriç` | [_/examples/unified-higher-mathematics/ComplexProjectiveTests.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/examples/unified-higher-mathematics/ComplexProjectiveTests.idric) | example | Keep the Idriç example valid under language changes. |
+| isomorphisms/Idric / `Idriç` | [_/examples/unified-higher-mathematics/EuclideanGeometry.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/examples/unified-higher-mathematics/EuclideanGeometry.idric) | example | Keep the Idriç example valid under language changes. |
+| isomorphisms/Idric / `Idriç` | [_/examples/unified-higher-mathematics/FormTests.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/examples/unified-higher-mathematics/FormTests.idric) | example | Keep the Idriç example valid under language changes. |
+| isomorphisms/Idric / `Idriç` | [_/examples/unified-higher-mathematics/MathematicalSpaces.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/examples/unified-higher-mathematics/MathematicalSpaces.idric) | example | Keep the Idriç example valid under language changes. |
+| isomorphisms/Idric / `Idriç` | [_/examples/unified-higher-mathematics/NamedFacts.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/examples/unified-higher-mathematics/NamedFacts.idric) | example | Keep the Idriç example valid under language changes. |
+| isomorphisms/Idric / `Idriç` | [_/examples/unified-higher-mathematics/PairArithmetic.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/examples/unified-higher-mathematics/PairArithmetic.idric) | example | Keep the Idriç example valid under language changes. |
+| isomorphisms/Idric / `Idriç` | [_/examples/unified-higher-mathematics/PairArithmeticTests.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/examples/unified-higher-mathematics/PairArithmeticTests.idric) | example | Keep the Idriç example valid under language changes. |
+| isomorphisms/Idric / `Idriç` | [_/examples/unified-higher-mathematics/PresheafRestriction.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/examples/unified-higher-mathematics/PresheafRestriction.idric) | example | Keep the Idriç example valid under language changes. |
+| isomorphisms/Idric / `Idriç` | [_/examples/unified-higher-mathematics/QuadraticForms.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/examples/unified-higher-mathematics/QuadraticForms.idric) | example | Keep the Idriç example valid under language changes. |
+| isomorphisms/Idric / `Idriç` | [_/examples/unified-higher-mathematics/QuaternionPairAgreement.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/examples/unified-higher-mathematics/QuaternionPairAgreement.idric) | example | Keep the Idriç example valid under language changes. |
+| isomorphisms/Idric / `Idriç` | [_/examples/unified-higher-mathematics/QuaternionPairAgreementTests.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/examples/unified-higher-mathematics/QuaternionPairAgreementTests.idric) | example | Keep the Idriç example valid under language changes. |
+| isomorphisms/Idric / `Idriç` | [_/examples/unified-higher-mathematics/Tests.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/examples/unified-higher-mathematics/Tests.idric) | example | Keep the Idriç example valid under language changes. |
+| isomorphisms/Idric / `Idriç` | [_/examples/unified-higher-mathematics/TopologyFacts.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/examples/unified-higher-mathematics/TopologyFacts.idric) | example | Keep the Idriç example valid under language changes. |
+| isomorphisms/Idric / `Idriç` | [_/examples/units-time-intervals/Tests.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/examples/units-time-intervals/Tests.idric) | example | Keep the Idriç example valid under language changes. |
+| isomorphisms/Idric / `Idriç` | [_/examples/units-time-intervals/UnitsTimeIntervals.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/examples/units-time-intervals/UnitsTimeIntervals.idric) | example | Keep the Idriç example valid under language changes. |
+| isomorphisms/Idric / `Idriç` | [_/koans/01-values-types-and-holes/exercise/Main.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/koans/01-values-types-and-holes/exercise/Main.idric) | koan | Keep the exercise or solution valid under the current Idriç language. |
+| isomorphisms/Idric / `Idriç` | [_/koans/01-values-types-and-holes/solution/Main.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/koans/01-values-types-and-holes/solution/Main.idric) | koan | Keep the exercise or solution valid under the current Idriç language. |
+| isomorphisms/Idric / `Idriç` | [_/koans/02-functions-with-unicode-arrows/exercise/Main.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/koans/02-functions-with-unicode-arrows/exercise/Main.idric) | koan | Keep the exercise or solution valid under the current Idriç language. |
+| isomorphisms/Idric / `Idriç` | [_/koans/02-functions-with-unicode-arrows/solution/Main.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/koans/02-functions-with-unicode-arrows/solution/Main.idric) | koan | Keep the exercise or solution valid under the current Idriç language. |
+| isomorphisms/Idric / `Idriç` | [_/koans/03-lists-and-length-indexed-lists/exercise/Main.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/koans/03-lists-and-length-indexed-lists/exercise/Main.idric) | koan | Keep the exercise or solution valid under the current Idriç language. |
+| isomorphisms/Idric / `Idriç` | [_/koans/03-lists-and-length-indexed-lists/solution/Main.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/koans/03-lists-and-length-indexed-lists/solution/Main.idric) | koan | Keep the exercise or solution valid under the current Idriç language. |
+| isomorphisms/Idric / `Idriç` | [_/koans/04-equality-proofs/exercise/Main.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/koans/04-equality-proofs/exercise/Main.idric) | koan | Keep the exercise or solution valid under the current Idriç language. |
+| isomorphisms/Idric / `Idriç` | [_/koans/04-equality-proofs/solution/Main.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/koans/04-equality-proofs/solution/Main.idric) | koan | Keep the exercise or solution valid under the current Idriç language. |
+| isomorphisms/Idric / `Idriç` | [_/koans/05-totality-and-coverage/exercise/Main.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/koans/05-totality-and-coverage/exercise/Main.idric) | koan | Keep the exercise or solution valid under the current Idriç language. |
+| isomorphisms/Idric / `Idriç` | [_/koans/05-totality-and-coverage/solution/Main.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/koans/05-totality-and-coverage/solution/Main.idric) | koan | Keep the exercise or solution valid under the current Idriç language. |
+| isomorphisms/Idric / `Idriç` | [_/koans/06-implicit-dependent-results/exercise/Main.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/koans/06-implicit-dependent-results/exercise/Main.idric) | koan | Keep the exercise or solution valid under the current Idriç language. |
+| isomorphisms/Idric / `Idriç` | [_/koans/06-implicit-dependent-results/solution/Main.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/koans/06-implicit-dependent-results/solution/Main.idric) | koan | Keep the exercise or solution valid under the current Idriç language. |
+| isomorphisms/Idric / `Idriç` | [_/koans/07-erased-arguments/exercise/Main.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/koans/07-erased-arguments/exercise/Main.idric) | koan | Keep the exercise or solution valid under the current Idriç language. |
+| isomorphisms/Idric / `Idriç` | [_/koans/07-erased-arguments/solution/Main.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/koans/07-erased-arguments/solution/Main.idric) | koan | Keep the exercise or solution valid under the current Idriç language. |
+| isomorphisms/Idric / `Idriç` | [_/koans/08-linear-arguments/exercise/Main.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/koans/08-linear-arguments/exercise/Main.idric) | koan | Keep the exercise or solution valid under the current Idriç language. |
+| isomorphisms/Idric / `Idriç` | [_/koans/08-linear-arguments/solution/Main.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/koans/08-linear-arguments/solution/Main.idric) | koan | Keep the exercise or solution valid under the current Idriç language. |
+| isomorphisms/Idric / `Idriç` | [_/koans/09-storage-neutral-choices/exercise/Main.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/koans/09-storage-neutral-choices/exercise/Main.idric) | koan | Keep the exercise or solution valid under the current Idriç language. |
+| isomorphisms/Idric / `Idriç` | [_/koans/09-storage-neutral-choices/solution/Main.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/koans/09-storage-neutral-choices/solution/Main.idric) | koan | Keep the exercise or solution valid under the current Idriç language. |
+| isomorphisms/Idric / `Idriç` | [_/koans/10-exhaustive-choice-patterns/exercise/Main.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/koans/10-exhaustive-choice-patterns/exercise/Main.idric) | koan | Keep the exercise or solution valid under the current Idriç language. |
+| isomorphisms/Idric / `Idriç` | [_/koans/10-exhaustive-choice-patterns/solution/Main.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/koans/10-exhaustive-choice-patterns/solution/Main.idric) | koan | Keep the exercise or solution valid under the current Idriç language. |
+| isomorphisms/Idric / `Idriç` | [_/koans/11-source-boundaries/exercise/Main.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/koans/11-source-boundaries/exercise/Main.idric) | koan | Keep the exercise or solution valid under the current Idriç language. |
+| isomorphisms/Idric / `Idriç` | [_/koans/11-source-boundaries/solution/Main.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/koans/11-source-boundaries/solution/Main.idric) | koan | Keep the exercise or solution valid under the current Idriç language. |
+| isomorphisms/Idric / `Idriç` | [_/koans/12-wegert-model/exercise/Main.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/koans/12-wegert-model/exercise/Main.idric) | koan | Keep the exercise or solution valid under the current Idriç language. |
+| isomorphisms/Idric / `Idriç` | [_/koans/12-wegert-model/solution/Main.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/koans/12-wegert-model/solution/Main.idric) | koan | Keep the exercise or solution valid under the current Idriç language. |
+| isomorphisms/Idric / `Idriç` | [_/tests/base/system_environment_value/InvalidNames.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/tests/base/system_environment_value/InvalidNames.idric) | negative-fixture | Migrate language surface while preserving the intended rejection. |
+| isomorphisms/Idric / `Idriç` | [_/tests/base/system_environment_value/Test.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/tests/base/system_environment_value/Test.idric) | test-fixture | Keep the compiler fixture valid under the current Idriç language. |
+| isomorphisms/Idric / `Idriç` | [_/tests/idris2/basic/edric002/Main.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/tests/idris2/basic/edric002/Main.idric) | test-fixture | Keep the compiler fixture valid under the current Idriç language. |
+| isomorphisms/Idric / `Idriç` | [_/tests/idris2/basic/edric002/WegertSource.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/tests/idris2/basic/edric002/WegertSource.idric) | test-fixture | Keep the compiler fixture valid under the current Idriç language. |
+| isomorphisms/Idric / `Idriç` | [_/tests/idris2/basic/edric003/Main.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/tests/idris2/basic/edric003/Main.idric) | test-fixture | Keep the compiler fixture valid under the current Idriç language. |
+| isomorphisms/Idric / `Idriç` | [_/tests/idris2/basic/edric003/WegertTouch.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/tests/idris2/basic/edric003/WegertTouch.idric) | test-fixture | Keep the compiler fixture valid under the current Idriç language. |
+| isomorphisms/Idric / `Idriç` | [_/tests/idris2/basic/edric005/Main.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/tests/idris2/basic/edric005/Main.idric) | test-fixture | Keep the compiler fixture valid under the current Idriç language. |
+| isomorphisms/Idric / `Idriç` | [_/tests/idris2/basic/edric010/Main.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/tests/idris2/basic/edric010/Main.idric) | test-fixture | Keep the compiler fixture valid under the current Idriç language. |
+| isomorphisms/Idric / `Idriç` | [_/tests/idris2/basic/edric011/Main.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/_/tests/idris2/basic/edric011/Main.idric) | compiler-compatibility-fixture | Retain both slash and division-glyph cases; the ordinary quotient is an intentional compiler compatibility control. |
+| isomorphisms/Idric / `Idriç` | [XbrlCanary.idric](https://github.com/isomorphisms/Idric/blob/Idri%C3%A7/XbrlCanary.idric) | canary | Keep the current Idriç canary valid under language changes. |
+| isomorphisms/mbox / `main` | [examples/autogenerated/safe-filing/safe-filing.idric](https://github.com/isomorphisms/mbox/blob/main/examples/autogenerated/safe-filing/safe-filing.idric) | generated-example | Keep generated safe-filing source current with its owning mail producer. |
 
 ## Review only: historical snapshots
 
-These are still Idriç source files, but they record an old PR snapshot. Do not
-silently modernize them when the language changes.
+These two sources retain an earlier PR snapshot. Preserve their recorded source during language propagation.
 
-- [`_/pr-9-catfood-bare-cloud-acceptance/code/catfood/fixtures/ib/AiciCatfoodFixture.idric`](https://github.com/isomorphisms/ai-ci/blob/main/_/pr-9-catfood-bare-cloud-acceptance/code/catfood/fixtures/ib/AiciCatfoodFixture.idric)
-- [`_/pr-9-catfood-bare-cloud-acceptance/code/catfood/fixtures/idric/Main.idric`](https://github.com/isomorphisms/ai-ci/blob/main/_/pr-9-catfood-bare-cloud-acceptance/code/catfood/fixtures/idric/Main.idric)
+| Repository and ref | Source | Role | Obligation |
+| --- | --- | --- | --- |
+| isomorphisms/ai-ci / `main` | [_/pr-9-catfood-bare-cloud-acceptance/code/catfood/fixtures/ib/AiciCatfoodFixture.idric](https://github.com/isomorphisms/ai-ci/blob/main/_/pr-9-catfood-bare-cloud-acceptance/code/catfood/fixtures/ib/AiciCatfoodFixture.idric) | historical-snapshot | Do not migrate automatically; retained PR-9 snapshot. |
+| isomorphisms/ai-ci / `main` | [_/pr-9-catfood-bare-cloud-acceptance/code/catfood/fixtures/idric/Main.idric](https://github.com/isomorphisms/ai-ci/blob/main/_/pr-9-catfood-bare-cloud-acceptance/code/catfood/fixtures/idric/Main.idric) | historical-snapshot | Do not migrate automatically; retained PR-9 snapshot. |
 
-## Scope and completeness
+## Mechanical coverage
 
-This snapshot was built by walking repository trees rather than relying only on
-GitHub code search, because several recent Idriç repositories are not present in
-the code-search/repository-search index.
+The `Idriç source inventory` workflow enumerates every nonempty repository in the configured namespaces, walks its current default tree and compares every discovered repository/ref/path with the canonical inventory. It runs for relevant ai-ci changes and once per day.
 
-Mechanical discovery is now part of ai-ci. The `Idriç source inventory`
-workflow enumerates the repositories owned by the namespaces in
-`source-owners-v1.tsv`, walks their current default-branch trees, and compares
-every discovered `*.idric` repository/ref/path with the canonical inventory.
-
-The workflow runs for relevant ai-ci changes and once per day. It fails on a new
-source file, a deleted or moved source file, a default-branch/ref change, a
-truncated repository tree, or malformed inventory data. A newly discovered file
-therefore has to be classified deliberately as `follow` or `review-only`
-rather than disappearing from the migration surface.
+New files, deleted or moved files, default-ref changes, truncated recursive trees and malformed input remain failures. Every new source therefore requires an explicit role and policy. [The existing self-test](tests/source-inventory-check.sh) exercises the positive case and adversarial input without accepting discovery output automatically.
