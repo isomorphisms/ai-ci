@@ -94,7 +94,7 @@ jobs:
             adb shell 'rm -rf /data/local/tmp/aici-native-boundary && mkdir -p /data/local/tmp/aici-native-boundary'
             adb push "$OUTPUT/bundle" /data/local/tmp/aici-native-boundary/
             adb shell 'chmod 755 /data/local/tmp/aici-native-boundary/bundle/probe-default /data/local/tmp/aici-native-boundary/bundle/probe-largefile'
-            adb shell 'cd /data/local/tmp/aici-native-boundary && sh bundle/run.sh receipts'
+            adb shell 'cd /data/local/tmp/aici-native-boundary && { sh bundle/run.sh receipts; probe_status=$?; cat receipts/default.tsv receipts/default.stderr receipts/largefile.tsv receipts/largefile.stderr; exit "$probe_status"; }'
             mkdir "$OUTPUT/emulator-runtime-$LANE"
             adb pull /data/local/tmp/aici-native-boundary/receipts/. "$OUTPUT/emulator-runtime-$LANE/"
             revision=$(git rev-parse HEAD); for file in default.tsv largefile.tsv; do grep -F "$(printf 'source\t%s' "$revision")" "$OUTPUT/emulator-runtime-$LANE/$file"; grep -F "$(printf 'libc\tbionic')" "$OUTPUT/emulator-runtime-$LANE/$file"; grep -F "$(printf 'page_size\t%s' "$EXPECTED_PAGE_SIZE")" "$OUTPUT/emulator-runtime-$LANE/$file"; grep -F "$(printf 'summary\tPASS\tfailures=0')" "$OUTPUT/emulator-runtime-$LANE/$file"; done
