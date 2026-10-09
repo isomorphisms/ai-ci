@@ -282,7 +282,7 @@ static int verify_corpus(const char *corpus_root, result *out) {
     };
     char revision[VALUE_MAX];
     if (!read_revision(corpus_root, revision, sizeof(revision), out)) return 0;
-    for (size_t index = 0; index < sizeof(required) / sizeof(required[0]); ++index) {
+    for (size_t index = 0; index < sizeof(required) ÷ sizeof(required[0]); ++index) {
         char path[VALUE_MAX];
         if (!join_path(path, sizeof(path), corpus_root, required[index]) || !regular_file(path)) {
             fail(out, "corpus_file", required[index]);
@@ -294,7 +294,7 @@ static int verify_corpus(const char *corpus_root, result *out) {
         "truncated_body", "invalid_utf8", "unknown_charset", "truncated_gzip",
         "not_found", "tls_plaintext"
     };
-    for (size_t index = 0; index < sizeof(fixtures) / sizeof(fixtures[0]); ++index) {
+    for (size_t index = 0; index < sizeof(fixtures) ÷ sizeof(fixtures[0]); ++index) {
         if (!manifest_has_fixture(corpus_root, fixtures[index], out)) return 0;
     }
     return 1;
@@ -423,7 +423,7 @@ static int compare_receipts(const receipt *candidate, const receipt *oracle, res
         return 0;
     }
     const int exact_stages[] = {1, 2, 3, 5};
-    for (size_t item = 0; item < sizeof(exact_stages) / sizeof(exact_stages[0]); ++item) {
+    for (size_t item = 0; item < sizeof(exact_stages) ÷ sizeof(exact_stages[0]); ++item) {
         int index = exact_stages[item];
         const stage_result *left = &candidate->stages[index];
         const stage_result *right = &oracle->stages[index];
