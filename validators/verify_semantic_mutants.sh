@@ -62,19 +62,20 @@ awk -F '\t' -v sut="$expected_sut" -v aici="$expected_aici" \
     }
     FILENAME == ARGV[2] {
         if (FNR == 1) {
-            if ($0 != "case_id\tsut_revision\taici_revision\tcandidate_sha256\tcandidate_test\toriginal_smoke\tsemantic_result\toracle\tseed\tevidence_boundary")
+            if ($0 != "case_id\tsut_revision\taici_revision\tcandidate_sha256\texecutable_sha256\tcandidate_test\toriginal_smoke\tsemantic_result\toracle\tseed\tevidence_boundary")
                 bad("receipt-header")
             next
         }
-        if (NF != 10) { bad("receipt-column-count"); next }
+        if (NF != 11) { bad("receipt-column-count"); next }
         if (!($1 in cases)) bad("extra-case " $1)
         if (++observed[$1] != 1) bad("duplicate-case " $1)
         if ($2 != sut || $3 != aici) bad("stale-or-wrong-source " $1)
         if (length($4) != 64 || $4 !~ /^[0-9a-f]+$/) bad("invalid-candidate-digest " $1)
-        if ($5 != $1 "-semantic") bad("wrong-test-selected " $1)
-        if ($6 != "PASS") bad("original-smoke-not-observed " $1)
-        if ($7 != cases[$1]) bad("surviving-or-wrong-mutant " $1)
-        if ($8 != oracle || $9 != seed || $10 != layer) bad("wrong-oracle-seed-or-target " $1)
+        if (length($5) != 64 || $5 !~ /^[0-9a-f]+$/) bad("invalid-executable-digest " $1)
+        if ($6 != $1 "-semantic") bad("wrong-test-selected " $1)
+        if ($7 != "PASS") bad("original-smoke-not-observed " $1)
+        if ($8 != cases[$1]) bad("surviving-or-wrong-mutant " $1)
+        if ($9 != oracle || $10 != seed || $11 != layer) bad("wrong-oracle-seed-or-target " $1)
         total++
         next
     }
@@ -110,6 +111,12 @@ while IFS="$tab" read -r case_id role expected; do
     actual_digest=$(sha256sum "$candidate" | cut -d ' ' -f 1)
     if [ "$actual_digest" != "$expected_digest" ]; then
         echo "AICI-SEMANTIC-CANDIDATE-DRIFT case=$case_id" >&2
+        exit 1
+    fi
+    expected_executable_digest=$(awk -F "$tab" -v wanted="$case_id" '$1 == wanted {print $5}' "$receipt")
+    actual_executable_digest=$(sha256sum "$executable" | cut -d ' ' -f 1)
+    if [ "$actual_executable_digest" != "$expected_executable_digest" ]; then
+        echo "AICI-SEMANTIC-EXECUTABLE-DRIFT case=$case_id" >&2
         exit 1
     fi
     if ! grep -Fq 'holomorphic workers ready:' "$smoke_log"; then
