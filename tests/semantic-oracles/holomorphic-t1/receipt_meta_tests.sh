@@ -46,13 +46,13 @@ mv "$scratch/omitted-case/temp.tsv" "$scratch/omitted-case/aici-holomorphic-t1.t
 reject_bad omitted-case
 
 fresh surviving-mutant
-awk -F "$tab" 'BEGIN{OFS="\t"} $1=="scale-half" {$7="PASS"} {print}' \
+awk -F "$tab" 'BEGIN{OFS="\t"} $1=="scale-half" {$8="PASS"} {print}' \
     "$scratch/surviving-mutant/aici-holomorphic-t1.tsv" > "$scratch/surviving-mutant/temp.tsv"
 mv "$scratch/surviving-mutant/temp.tsv" "$scratch/surviving-mutant/aici-holomorphic-t1.tsv"
 reject_bad surviving-mutant
 
 fresh skipped-mutant
-awk -F "$tab" 'BEGIN{OFS="\t"} $1=="scale-half" {$7="SKIPPED"} {print}' \
+awk -F "$tab" 'BEGIN{OFS="\t"} $1=="scale-half" {$8="SKIPPED"} {print}' \
     "$scratch/skipped-mutant/aici-holomorphic-t1.tsv" > "$scratch/skipped-mutant/temp.tsv"
 mv "$scratch/skipped-mutant/temp.tsv" "$scratch/skipped-mutant/aici-holomorphic-t1.tsv"
 reject_bad skipped-mutant
@@ -64,7 +64,7 @@ mv "$scratch/stale-source/temp.tsv" "$scratch/stale-source/aici-holomorphic-t1.t
 reject_bad stale-source
 
 fresh wrong-selected-test
-awk -F "$tab" 'BEGIN{OFS="\t"} $1=="good" {$5="unrelated-semantic"} {print}' \
+awk -F "$tab" 'BEGIN{OFS="\t"} $1=="good" {$6="unrelated-semantic"} {print}' \
     "$scratch/wrong-selected-test/aici-holomorphic-t1.tsv" > "$scratch/wrong-selected-test/temp.tsv"
 mv "$scratch/wrong-selected-test/temp.tsv" "$scratch/wrong-selected-test/aici-holomorphic-t1.tsv"
 reject_bad wrong-selected-test
@@ -82,6 +82,9 @@ fresh candidate-changed
 printf '\n/* corruption after receipt emission */\n' \
     >> "$scratch/candidate-changed/derivative-degree-candidate.c"
 reject_bad candidate-changed
+fresh executable-changed
+printf 'BAD-AFTER-RECEIPT\n' >> "$scratch/executable-changed/good-semantic.bin"
+reject_bad executable-changed
 
 fresh duplicate-case
 grep -F 'scale-half' "$observations/aici-holomorphic-t1.tsv" \
@@ -94,4 +97,4 @@ head -n 1 "$scratch/empty-cases/aici-holomorphic-t1.tsv" \
 mv "$scratch/empty-cases/temp.tsv" "$scratch/empty-cases/aici-holomorphic-t1.tsv"
 reject_bad empty-cases
 
-printf 'AICI-META-ACCEPTANCE valid=1 invalid-rejected=10 invalid-accepted=0\n'
+printf 'AICI-META-ACCEPTANCE valid=1 invalid-rejected=11 invalid-accepted=0\n'
