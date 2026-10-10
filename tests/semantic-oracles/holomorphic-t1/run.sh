@@ -104,5 +104,9 @@ if [ "$observed_cases" -ne 6 ]; then
     echo "AICI-MISSING-CASES expected=6 observed=$observed_cases" >&2
     exit 1
 fi
+sh "$aici_root/validators/verify_semantic_mutants.sh" \
+    "$aici_root/tests/semantic-oracles/holomorphic-t1/cases.tsv" \
+    "$receipt_dir" "$observed_revision" "$oracle_revision" \
+    hand-derived-six-values fixed-six host-CPU-not-GPU-or-device
 printf 'AICI-INDEPENDENT-PASS good=1 killed=5 survived=0 cases=6 sut=%s oracle=%s\n' \
     "$observed_revision" "$oracle_revision"
