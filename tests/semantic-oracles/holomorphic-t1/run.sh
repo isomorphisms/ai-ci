@@ -21,7 +21,7 @@ trap 'rm -rf "$scratch"' EXIT HUP INT TERM
 receipt_dir=${AICI_SEMANTIC_RECEIPT_DIR:-"$scratch"}
 mkdir -p "$receipt_dir"
 receipt="$receipt_dir/aici-holomorphic-t1.tsv"
-printf 'case_id\tsut_revision\taici_revision\tcandidate_sha256\tcandidate_test\toriginal_smoke\tsemantic_result\toracle\tseed\tevidence_boundary\n' > "$receipt"
+printf 'case_id\tsut_revision\taici_revision\tcandidate_sha256\texecutable_sha256\tcandidate_test\toriginal_smoke\tsemantic_result\toracle\tseed\tevidence_boundary\n' > "$receipt"
 
 check() {
     case_id=$1
@@ -42,6 +42,7 @@ check() {
     cc -std=c11 -Wall -Wextra -Werror -O2 -I "$header_dir" \
         -include "$candidate" "$oracle" -pthread -lm -o "$scratch/$case_id-semantic"
     cp "$scratch/$case_id-semantic" "$receipt_dir/$case_id-semantic.bin"
+    executable_sha=$(sha256sum "$scratch/$case_id-semantic" | cut -d ' ' -f 1)
     if "$scratch/$case_id-semantic" > "$receipt_dir/$case_id-semantic.log" 2>&1; then
         result=PASS
         grep -Fq 'AICI-SEMANTIC-PASS cases=6' "$receipt_dir/$case_id-semantic.log" || {
@@ -60,9 +61,9 @@ check() {
         echo "AICI-SEMANTIC-UNEXPECTED-RESULT case=$case_id got=$result wanted=$expected" >&2
         exit 1
     fi
-    printf '%s\t%s\t%s\t%s\t%s\tPASS\t%s\thand-derived-six-values\tfixed-six\thost-CPU-not-GPU-or-device\n' \
+    printf '%s\t%s\t%s\t%s\t%s\t%s\tPASS\t%s\thand-derived-six-values\tfixed-six\thost-CPU-not-GPU-or-device\n' \
         "$case_id" "$observed_revision" "$oracle_revision" "$sha" \
-        "$case_id-semantic" "$result" >> "$receipt"
+        "$executable_sha" "$case_id-semantic" "$result" >> "$receipt"
     printf 'AICI-T1 case=%s old_smoke=PASS independent=%s source=%s\n' \
         "$case_id" "$result" "$observed_revision"
 }
