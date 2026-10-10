@@ -317,3 +317,34 @@ jobs:
           role: implementation-under-test
           exec_trace: ingestion/tests/fixtures/good-candidate.execve
           oracle_receipt: ingestion/tests/fixtures/good-oracle.tsv
+
+  holomorphic-t1-independent:
+    name: holomorphic-t1-independent-oracle
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out exact AICI verifier head
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Check out immutable original Holomorphic counterexample
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphismes/holomorphic
+          ref: 7041b262c553e295b9769ebb84b7cb626e2ce50e
+          path: _holomorphic
+          persist-credentials: false
+      - name: Independently execute source evaluator against good and bad controls
+        env:
+          AICI_SEMANTIC_RECEIPT_DIR: ${{ runner.temp }}/aici-holomorphic-t1
+        run: |
+          set -euo pipefail
+          sh tests/semantic-oracles/holomorphic-t1/run.sh \
+            _holomorphic 7041b262c553e295b9769ebb84b7cb626e2ce50e
+      - name: Preserve independently observed semantic case logs and receipt
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: aici-holomorphic-t1-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/aici-holomorphic-t1/
+          if-no-files-found: error
