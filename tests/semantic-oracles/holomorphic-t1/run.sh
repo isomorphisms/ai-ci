@@ -27,6 +27,7 @@ check() {
     case_id=$1
     candidate=$2
     expected=$3
+    cp "$candidate" "$receipt_dir/$case_id-candidate.c"
     sha=$(sha256sum "$candidate" | cut -d ' ' -f 1)
     cc -std=c11 -Wall -Wextra -Werror -O2 -I "$header_dir" \
         "$smoke_test" "$candidate" -pthread -lm -o "$scratch/$case_id-worker-smoke"
@@ -40,6 +41,7 @@ check() {
     }
     cc -std=c11 -Wall -Wextra -Werror -O2 -I "$header_dir" \
         -include "$candidate" "$oracle" -pthread -lm -o "$scratch/$case_id-semantic"
+    cp "$scratch/$case_id-semantic" "$receipt_dir/$case_id-semantic.bin"
     if "$scratch/$case_id-semantic" > "$receipt_dir/$case_id-semantic.log" 2>&1; then
         result=PASS
         grep -Fq 'AICI-SEMANTIC-PASS cases=6' "$receipt_dir/$case_id-semantic.log" || {
