@@ -341,7 +341,7 @@ jobs:
           set -euo pipefail
           sh tests/semantic-oracles/holomorphic-t1/run.sh \
             _holomorphic 7041b262c553e295b9769ebb84b7cb626e2ce50e
-      - name: Prove acceptance gate rejects ten hostile semantic receipts
+      - name: Prove acceptance gate rejects eleven hostile semantic receipts
         env:
           AICI_EXACT_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
