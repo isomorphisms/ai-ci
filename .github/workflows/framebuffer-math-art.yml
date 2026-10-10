@@ -22,14 +22,14 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: isomorphisms/rough.framebuffer
-          ref: fdecef6dfc99b2c61342b03a4e8b704748bcbc5c
+          ref: 803c22c9fb282d892319f5bb1526ed345c41bb34
           path: _fb
           persist-credentials: false
       - name: Require source identity and build independent checker
         shell: sh
         run: |
           set -eu
-          test "$(git -C _fb rev-parse HEAD)" = fdecef6dfc99b2c61342b03a4e8b704748bcbc5c
+          test "$(git -C _fb rev-parse HEAD)" = 803c22c9fb282d892319f5bb1526ed345c41bb34
           mkdir -p "$RUNNER_TEMP/framebuffer-accept"
           cc -std=c11 -O2 -Wall -Wextra -Werror -pedantic _fb/src/surface_main.c _fb/src/surface.c -lm -o "$RUNNER_TEMP/framebuffer-accept/rough-surface"
           cc -std=c11 -O2 -Wall -Wextra -Werror -pedantic _fb/src/main.c _fb/src/framebuffer.c -lm -o "$RUNNER_TEMP/framebuffer-accept/rough-fb"
