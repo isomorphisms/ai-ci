@@ -14,7 +14,7 @@ done
 
 ick_pin=c61e448251744a2f40ad743ebef1a027bdcd2f9d
 gcc_pin=6294f1d9e7536e5ffcde09d1528c918d63abfef5
-leaf_pin=9150d3039a72c9ca94ea132b27721aa140e89d8b
+leaf_pin=49592bf113d6d6294fbce1224b83501896594a5d
 test "$(git -C "$ICK_SOURCE_DIR" rev-parse HEAD)" = "$ick_pin"
 test "$(git -C "$ICK_SOURCE_DIR/gcc" rev-parse HEAD)" = "$gcc_pin"
 test "$(git -C "$LEAF_ROOT" rev-parse HEAD)" = "$leaf_pin"
