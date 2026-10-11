@@ -31,7 +31,7 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           repository: isomorphisms/rough.framebuffer
-          ref: 9150d3039a72c9ca94ea132b27721aa140e89d8b
+          ref: 49592bf113d6d6294fbce1224b83501896594a5d
           path: producer
           persist-credentials: false
 
@@ -56,7 +56,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git -C producer rev-parse HEAD)" = 9150d3039a72c9ca94ea132b27721aa140e89d8b
+          test "$(git -C producer rev-parse HEAD)" = 49592bf113d6d6294fbce1224b83501896594a5d
           test "$(git -C ick-toolchain rev-parse HEAD)" = c61e448251744a2f40ad743ebef1a027bdcd2f9d
           test "$(git -C ick-toolchain/gcc rev-parse HEAD)" = 6294f1d9e7536e5ffcde09d1528c918d63abfef5
           grep -Fxq gcc_commit=6294f1d9e7536e5ffcde09d1528c918d63abfef5 ick-toolchain/ick/SOURCE.lock
