@@ -2,7 +2,7 @@
 
 AICI tests the **actual** 3×3/5×5 C implementation in `isomorphisms/rough.framebuffer` against its own rational-integer midpoint oracle. The producer's numerical test arrays and product build scripts are **not** used.
 
-Current immutable acceptance target: rough.framebuffer policy-stack `9150d3039a72c9ca94ea132b27721aa140e89d8b` ([PR #10](https://github.com/isomorphisms/rough.framebuffer/pull/10)), which includes 3×3 PR #6 and 5×5 PR #8. The source checkout must match that exact revision. Updating the target requires a new review/run, not silently following a branch.
+Current immutable acceptance target: rough.framebuffer policy-stack `49592bf113d6d6294fbce1224b83501896594a5d` ([PR #10](https://github.com/isomorphisms/rough.framebuffer/pull/10)), which includes 3×3 PR #6 and 5×5 PR #8. The source checkout must match that exact revision. Updating the target requires a new review/run, not silently following a branch.
 
 ## Independent geometry oracle
 
