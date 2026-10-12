@@ -6,6 +6,8 @@
  * Compiled exclusively by pinned owned ICK in the acceptance workflow.
  */
 #include "sublixel/curve_patch.h"
+#include "sublixel/coverage_plane.h"
+#include "sublixel_framebuffer.h"
 
 #include <math.h>
 #include <stdint.h>
@@ -209,10 +211,78 @@ static void test_accumulation_and_failure(void) {
     near(sentinel.origin.x, 91, "3x3 nonfinite mutated output");
 }
 
+
+/* Independent integer/rational checks for the new global occupancy consumer.
+ * No producer test arrays or image hashes are consulted. */
+static void test_coverage_plane_and_framebuffer(void) {
+    uint64_t occupied[35] = {0};
+    cp_coverage_plane plane = {occupied, 35, 7, 5, 5, -2, -2};
+    cp_curve_patch first, second;
+    require(cp_patch_from_segment(&first, point(-3, 0), point(3, 0),
+                                  0.25) == CP_OK, "coverage first band");
+    require(cp_patch_from_segment(&second, point(-3, 0.375), point(3, 0.375),
+                                  0.0625) == CP_OK, "coverage second band");
+    require(cp_coverage_plane_accumulate_3x3(&plane, &first, 0, 0) == CP_OK,
+            "coverage first neighborhood");
+    require(cp_coverage_plane_accumulate_5x5(&plane, &second, 0, 0) == CP_OK,
+            "coverage second neighborhood");
+    for (int row = 0; row < 5; ++row)
+        for (int column = 0; column < 7; ++column) {
+            uint64_t expected = 0;
+            if (column < 5)
+                for (int sample_y = 0; sample_y < 8; ++sample_y)
+                    for (int sample_x = 0; sample_x < 8; ++sample_x) {
+                        int y16 = 16 * (row - 2) + 2 * sample_y - 7;
+                        int in_first_grid = row >= 1 && row <= 3 &&
+                                            column >= 1 && column <= 3;
+                        int first_hit = in_first_grid && y16 >= -4 && y16 <= 4;
+                        int second_hit = y16 - 6 >= -1 && y16 - 6 <= 1;
+                        if (first_hit || second_hit)
+                            expected |= UINT64_C(1) << (sample_y * 8 + sample_x);
+                    }
+            require(occupied[row * 7 + column] == expected,
+                    "coverage plane rational union");
+        }
+    uint64_t before[35];
+    memcpy(before, occupied, sizeof before);
+    first.a2 = NAN;
+    require(cp_coverage_plane_accumulate_3x3(&plane, &first, 0, 0) == CP_INVALID,
+            "coverage plane invalid patch");
+    require(memcmp(before, occupied, sizeof before) == 0,
+            "coverage plane transactional failure");
+
+    for (unsigned count = 0; count <= 64; ++count) {
+        uint64_t mask = count == 64 ? UINT64_MAX :
+            count == 0 ? 0 : (UINT64_C(1) << count) - 1;
+        cp_coverage_plane one = {&mask, 1, 1, 1, 1, 1, 0};
+        uint32_t pixels[4] = {UINT32_C(0xffabcdef), UINT32_C(0x800000ff),
+                              UINT32_C(0x12345678), UINT32_C(0x87654321)};
+        rough_framebuffer target = {
+            .pixels = pixels, .width = 2, .height = 1, .stride_pixels = 4
+        };
+        require(rough_blend_sublixel_coverage(&target, &one,
+                    UINT32_C(0xffff0000), 1.0) == 0, "framebuffer composition");
+        /* Alpha numerator has denominator 64 after multiplication by 255.
+         * RGB divides the independent premultiplied red/blue numerators by
+         * the total alpha numerator. Round rational values to nearest byte. */
+        unsigned total = 255 * count + 128 * (64 - count);
+        unsigned alpha = (total + 32) / 64;
+        unsigned red = (255 * 255 * count + total / 2) / total;
+        unsigned blue = (255 * 128 * (64 - count) + total / 2) / total;
+        uint32_t expected = (uint32_t)(alpha << 24) |
+                            (uint32_t)(red << 16) | blue;
+        require(pixels[1] == expected, "framebuffer rational alpha");
+        require(pixels[0] == UINT32_C(0xffabcdef) &&
+                pixels[2] == UINT32_C(0x12345678) &&
+                pixels[3] == UINT32_C(0x87654321), "framebuffer padded clipping");
+    }
+}
+
 int main(void) {
     test_3x3();
     test_5x5();
     test_accumulation_and_failure();
+    test_coverage_plane_and_framebuffer();
     puts("aici independent subpixel curvature oracle: PASS");
     return 0;
 }

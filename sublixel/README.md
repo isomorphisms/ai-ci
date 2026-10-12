@@ -2,7 +2,11 @@
 
 AICI tests the **actual** 3×3/5×5 C implementation in `isomorphisms/rough.framebuffer` against its own rational-integer midpoint oracle. The producer's numerical test arrays and product build scripts are **not** used.
 
-Current immutable acceptance target: rough.framebuffer policy-stack `49592bf113d6d6294fbce1224b83501896594a5d` ([PR #10](https://github.com/isomorphisms/rough.framebuffer/pull/10)), which includes 3×3 PR #6 and 5×5 PR #8. The source checkout must match that exact revision. Updating the target requires a new review/run, not silently following a branch.
+Current immutable acceptance target: `49aa03cdeabbc57dbac758e0a9470579c3af0015` from
+[isomorphisms/rough.framebuffer PR #13, “Render real Sublixel 3×3/5×5 slanted-curve coverage through ICK/Ike”](https://github.com/isomorphisms/rough.framebuffer/pull/13).
+It includes the quadratic/cubic library and repaired build policy. The source
+checkout must match that exact revision. Updating the target requires a new
+review/run, not silently following a branch.
 
 ## Independent geometry oracle
 
@@ -23,3 +27,14 @@ The ICK stage-zero build still explicitly uses GNU Make and host GCC/G++ to cons
 This independent mathematical check is narrower than full ai-ci product promotion. It does **not** verify complete live Flexible Pipes dispatch/delivery, Android A1/C67 ABI/runtime, actual framebuffer consumer integration or triangle-edge antialiasing. The producer branch is still draft and must not be merged solely on the strength of this acceptance candidate. Host green is not a physical C67 observation.
 
 Tracker: [ai-ci #253](https://github.com/isomorphisms/ai-ci/issues/253); related FP #75, #77, #78 and #79.
+
+## Global coverage and framebuffer integration
+
+The current target includes the reusable occupancy plane and actual framebuffer
+composition from the native preview branch. The independent verifier derives
+union masks from rational horizontal bands and checks padding and failure
+atomicity. It derives straight-alpha source-over results with integer rational
+arithmetic for every coverage count 0..64, rather than copying producer tests.
+Two additional real compiled mutants overwrite union masks or stamp partial
+coverage opaquely; both must fail the unchanged oracle. This adds bounded host
+framebuffer integration evidence, not streaming-kernel or Android acceptance.

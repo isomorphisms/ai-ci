@@ -31,7 +31,7 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           repository: isomorphisms/rough.framebuffer
-          ref: 49592bf113d6d6294fbce1224b83501896594a5d
+          ref: 49aa03cdeabbc57dbac758e0a9470579c3af0015
           path: producer
           persist-credentials: false
 
@@ -56,7 +56,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git -C producer rev-parse HEAD)" = 49592bf113d6d6294fbce1224b83501896594a5d
+          test "$(git -C producer rev-parse HEAD)" = 49aa03cdeabbc57dbac758e0a9470579c3af0015
           test "$(git -C ick-toolchain rev-parse HEAD)" = c61e448251744a2f40ad743ebef1a027bdcd2f9d
           test "$(git -C ick-toolchain/gcc rev-parse HEAD)" = 6294f1d9e7536e5ffcde09d1528c918d63abfef5
           grep -Fxq gcc_commit=6294f1d9e7536e5ffcde09d1528c918d63abfef5 ick-toolchain/ick/SOURCE.lock
@@ -120,7 +120,7 @@ jobs:
           /usr/bin/x86_64-linux-gnu-gcc .owned/ike.o -o .owned/ike
           sha256sum .owned/ike.o .owned/ike
 
-      - name: Run independently authored rational oracle and two real mutants via Ike
+      - name: Run independently authored rational oracle and four real mutants via Ike
         shell: bash
         run: |
           set -euo pipefail
@@ -134,7 +134,7 @@ jobs:
           export IKE_RECEIPT="$PWD/build/ike-accept.tsv"
           unset IKE_RECIPE_RUNNER
           "$GITHUB_WORKSPACE/.owned/ike" accept | tee build/accept-stdout.log
-          grep -Fxq 'AICI_SUBLIXEL_ACCEPT independent 3x3/5x5 rational coverage and two source mutants: PASS' \
+          grep -Fxq 'AICI_SUBLIXEL_ACCEPT independent 3x3/5x5 rational coverage and four source mutants: PASS' \
             build/accept-stdout.log
           ./build/receipt-check "$IKE_RECEIPT" "$IKE_IKEFILE_IDENTITY"
 
