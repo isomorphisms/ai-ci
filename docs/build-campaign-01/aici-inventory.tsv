@@ -1,0 +1,255 @@
+kind	number	title	url	review_depth
+PR	1	Add fail-closed acceptance contract gate	https://github.com/isomorphisms/ai-ci/pull/1	indexed-only
+issue	2	Catch self-modifying CI and incomplete primitive integration	https://github.com/isomorphisms/ai-ci/issues/2	full-body-and-comments
+PR	3	Add anti-fake-green contract kernel	https://github.com/isomorphisms/ai-ci/pull/3	indexed-only
+PR	4	Add executable finished-video acceptance suite	https://github.com/isomorphisms/ai-ci/pull/4	indexed-only
+PR	5	Add executable build-script preflight regressions	https://github.com/isomorphisms/ai-ci/pull/5	indexed-only
+PR	6	Add reusable F-Droid release acceptance gate	https://github.com/isomorphisms/ai-ci/pull/6	indexed-only
+issue	7	Track Idriç compiler and backend compatibility across the active repository fleet	https://github.com/isomorphisms/ai-ci/issues/7	indexed-only
+PR	8	Add exact compatibility receipt gate	https://github.com/isomorphisms/ai-ci/pull/8	indexed-only
+PR	9	Exercise Cat Food from a bare cloud container	https://github.com/isomorphisms/ai-ci/pull/9	indexed-only
+issue	10	Enforce whole-inventory Cat Food delivery: host builds and phone/tablet runtimes	https://github.com/isomorphisms/ai-ci/issues/10	indexed-only
+issue	11	Require IR builds for Hefner and ARMv7 phone with explicit BLAS/GPU receipts	https://github.com/isomorphisms/ai-ci/issues/11	indexed-only
+issue	12	Route Idriç backend run receipts into ComputerScience	https://github.com/isomorphisms/ai-ci/issues/12	indexed-only
+PR	13	Add equality assignment observation scaffold	https://github.com/isomorphisms/ai-ci/pull/13	indexed-only
+PR	14	Add deterministic backend and keyboard observations	https://github.com/isomorphisms/ai-ci/pull/14	indexed-only
+issue	15	Start observing Coxeter reflection/group-theory behavior	https://github.com/isomorphisms/ai-ci/issues/15	indexed-only
+issue	16	Future: test precision choices against mathematical sensitivity	https://github.com/isomorphisms/ai-ci/issues/16	indexed-only
+issue	17	Watch shared GPU/vector contract across ManimGL and Idriç consumers	https://github.com/isomorphisms/ai-ci/issues/17	indexed-only
+PR	18	Document IRK/RHS validator equivalence	https://github.com/isomorphisms/ai-ci/pull/18	indexed-only
+PR	19	Add reproducible Iridium 2014 historical benchmark	https://github.com/isomorphisms/ai-ci/pull/19	indexed-only
+issue	20	Track ARM/Thumb follower propagation with per-target mutatis-mutandis policy	https://github.com/isomorphisms/ai-ci/issues/20	indexed-only
+issue	21	Track shader follower propagation across PowerVR, Switch/Maxwell, and WebGPU/WGSL	https://github.com/isomorphisms/ai-ci/issues/21	indexed-only
+PR	22	Add ARM/Thumb compiler follower sweep policy	https://github.com/isomorphisms/ai-ci/pull/22	indexed-only
+PR	23	Add shader follower sweep policy	https://github.com/isomorphisms/ai-ci/pull/23	indexed-only
+issue	24	Freeze refC: do not add new dependencies	https://github.com/isomorphisms/ai-ci/issues/24	indexed-only
+PR	25	Add a standard compiler benchmark ladder	https://github.com/isomorphisms/ai-ci/pull/25	indexed-only
+issue	26	Roll the compiler ladder across every tracked compiler route	https://github.com/isomorphisms/ai-ci/issues/26	indexed-only
+PR	27	Add biology search contrast gym	https://github.com/isomorphisms/ai-ci/pull/27	indexed-only
+PR	28	Add coupled substitution contract oracle	https://github.com/isomorphisms/ai-ci/pull/28	indexed-only
+issue	29	Gate shader targets on Givens-rotation conformance	https://github.com/isomorphisms/ai-ci/issues/29	indexed-only
+issue	30	Evaluate established GPU semantic and stress suites for the shader/compiler gym	https://github.com/isomorphisms/ai-ci/issues/30	indexed-only
+issue	31	Start the GPU semantic gym with Piglit and VkRunner-style probes	https://github.com/isomorphisms/ai-ci/issues/31	indexed-only
+issue	32	Mine dEQP / VK-GL-CTS for shader semantic and precision conformance cases	https://github.com/isomorphisms/ai-ci/issues/32	indexed-only
+issue	33	Add metamorphic shader testing with GraphicsFuzz and spirv-fuzz ideas	https://github.com/isomorphisms/ai-ci/issues/33	indexed-only
+issue	34	Add a small PolyBench/GPU numerical workload slice with reference answers	https://github.com/isomorphisms/ai-ci/issues/34	indexed-only
+issue	35	Add composable suite, case, tag, target, and profile selectors to the GPU gym	https://github.com/isomorphisms/ai-ci/issues/35	indexed-only
+issue	36	Consider Parboil as a second-wave GPU workload corpus	https://github.com/isomorphisms/ai-ci/issues/36	indexed-only
+issue	37	Consider Rodinia for broader GPU algorithm stress after the first numerical slice	https://github.com/isomorphisms/ai-ci/issues/37	indexed-only
+issue	38	Consider Mesa shader-db for real-world shader codegen comparisons	https://github.com/isomorphisms/ai-ci/issues/38	indexed-only
+issue	39	Consider HeCBench only after the GPU gym can bound large heterogeneous corpora	https://github.com/isomorphisms/ai-ci/issues/39	indexed-only
+issue	40	Consider BabelStream as a narrow validated GPU memory-bandwidth lane	https://github.com/isomorphisms/ai-ci/issues/40	indexed-only
+issue	41	Treat DEX vs physical CPU lowering as an open design experiment	https://github.com/isomorphisms/ai-ci/issues/41	indexed-only
+issue	42	Observe how inferred indexed work is realized: SIMD, GPU, loop, or other	https://github.com/isomorphisms/ai-ci/issues/42	indexed-only
+issue	43	Temporary typed pseudo-register IR experiment for cross-backend lowering	https://github.com/isomorphisms/ai-ci/issues/43	indexed-only
+issue	44	Research note: preserve provisional type-system designs for future model re-audit and repair	https://github.com/isomorphisms/ai-ci/issues/44	indexed-only
+PR	45	[Superseded by #151] Add staged Wegert Edric-to-GLSL host diagnostics	https://github.com/isomorphisms/ai-ci/pull/45	indexed-only
+issue	46	Cross-repo: CI receipts for HTML / DOM / network ingestion	https://github.com/isomorphisms/ai-ci/issues/46	indexed-only
+PR	47	Add hostile-web corpus and checked stage receipts	https://github.com/isomorphisms/ai-ci/pull/47	indexed-only
+PR	48	Add Blackball evaluation mocks and replaceable chat CLI	https://github.com/isomorphisms/ai-ci/pull/48	indexed-only
+PR	49	Add many-valued Blackball model-effect mocks	https://github.com/isomorphisms/ai-ci/pull/49	indexed-only
+issue	50	Future Blackball ablation harness: compare masked repository subsets	https://github.com/isomorphisms/ai-ci/issues/50	indexed-only
+PR	51	Consolidate Blackball verdict and fresh-chat contracts	https://github.com/isomorphisms/ai-ci/pull/51	indexed-only
+issue	52	Acceptance contract for bounded streaming mailbox workload	https://github.com/isomorphisms/ai-ci/issues/52	indexed-only
+PR	53	Qualify Grease fresh-chat adapter against the real Responses endpoint	https://github.com/isomorphisms/ai-ci/pull/53	indexed-only
+issue	54	Define one Porcelain boundary over dirty tool output	https://github.com/isomorphisms/ai-ci/issues/54	indexed-only
+issue	55	Acceptance receipts for multi-part Max prompt delivery	https://github.com/isomorphisms/ai-ci/issues/55	indexed-only
+PR	56	Enforce canonical Idriç GitHub source metadata	https://github.com/isomorphisms/ai-ci/pull/56	indexed-only
+PR	57	Note reuse of Syllabus emotion classifier	https://github.com/isomorphisms/ai-ci/pull/57	indexed-only
+issue	58	Major methodology failure: reassess RAG vs training before automating evaluation	https://github.com/isomorphisms/ai-ci/issues/58	indexed-only
+PR	59	Define evidence standard for repository-backed reasoning	https://github.com/isomorphisms/ai-ci/pull/59	indexed-only
+PR	60	Ground repository-context methodology in model mechanism	https://github.com/isomorphisms/ai-ci/pull/60	indexed-only
+PR	61	Register Idric-Net network boundary	https://github.com/isomorphisms/ai-ci/pull/61	indexed-only
+PR	62	Check Cat Food Idriç CLI linkage	https://github.com/isomorphisms/ai-ci/pull/62	indexed-only
+issue	63	Maintain examples and compiler receipts for Try Idriç	https://github.com/isomorphisms/ai-ci/issues/63	indexed-only
+PR	64	Add a pinned bounded-green Idriç R128 acceptance receipt	https://github.com/isomorphisms/ai-ci/pull/64	indexed-only
+issue	65	Research Idriç principals versus Linux credentials	https://github.com/isomorphisms/ai-ci/issues/65	indexed-only
+issue	66	Track executable Idriç SMS foundation across repositories	https://github.com/isomorphisms/ai-ci/issues/66	indexed-only
+PR	67	Run the executable SMS path against moving heads	https://github.com/isomorphisms/ai-ci/pull/67	indexed-only
+PR	68	SMS: record exact current-head compatibility	https://github.com/isomorphisms/ai-ci/pull/68	indexed-only
+PR	69	Separate Idriç current heads from historical evidence	https://github.com/isomorphisms/ai-ci/pull/69	indexed-only
+PR	70	Observe the shader consumer's moving backend ref	https://github.com/isomorphisms/ai-ci/pull/70	indexed-only
+issue	71	Check TinyIdris exactly-once duplication and erased-type example	https://github.com/isomorphisms/ai-ci/issues/71	indexed-only
+PR	72	Execute TinyIdris quantity receipt against current Idriç	https://github.com/isomorphisms/ai-ci/pull/72	indexed-only
+PR	73	Require Triple-T in F-Droid release policy	https://github.com/isomorphisms/ai-ci/pull/73	indexed-only
+PR	74	Superseded cloud-environment experiment	https://github.com/isomorphisms/ai-ci/pull/74	indexed-only
+PR	75	Watch Catfood issh linkage	https://github.com/isomorphisms/ai-ci/pull/75	indexed-only
+issue	76	Watch branching and conditional-control-flow decisions across targets	https://github.com/isomorphisms/ai-ci/issues/76	indexed-only
+PR	77	Add reusable Idriç source-style guardrails	https://github.com/isomorphisms/ai-ci/pull/77	indexed-only
+PR	78	Define holomorphic-explorer evidence boundaries	https://github.com/isomorphisms/ai-ci/pull/78	indexed-only
+PR	79	Make x86 complex/projective leadership a checked policy	https://github.com/isomorphisms/ai-ci/pull/79	indexed-only
+PR	80	Establish canonical recurring-agent guardrails	https://github.com/isomorphisms/ai-ci/pull/80	indexed-only
+PR	81	Track shader codegen regressions explicitly	https://github.com/isomorphisms/ai-ci/pull/81	indexed-only
+PR	82	Make mobile follower debt mechanically durable	https://github.com/isomorphisms/ai-ci/pull/82	indexed-only
+issue	83	Retracted CI environment experiment	https://github.com/isomorphisms/ai-ci/issues/83	indexed-only
+PR	84	Superseded CI-hosting policy experiment	https://github.com/isomorphisms/ai-ci/pull/84	indexed-only
+PR	85	Superseded CI-hosting follower record	https://github.com/isomorphisms/ai-ci/pull/85	indexed-only
+PR	86	Add shared Bionic/native-call validation beyond curses	https://github.com/isomorphisms/ai-ci/pull/86	indexed-only
+issue	87	ULTRA: whole-week intent, claims, and implementation audit — 2026-09-05 through 2026-09-12	https://github.com/isomorphisms/ai-ci/issues/87	indexed-only
+PR	88	Record actual September 5–12 ULTRA audit execution	https://github.com/isomorphisms/ai-ci/pull/88	indexed-only
+issue	89	ULTRA: repository-wide conservative consolidation	https://github.com/isomorphisms/ai-ci/issues/89	indexed-only
+issue	90	Restore GitHub-hosted Ubuntu CI	https://github.com/isomorphisms/ai-ci/issues/90	indexed-only
+PR	91	ci: enforce hosted Ubuntu CI policy	https://github.com/isomorphisms/ai-ci/pull/91	indexed-only
+issue	92	Automate Android native-boundary runtime in emulator	https://github.com/isomorphisms/ai-ci/issues/92	indexed-only
+issue	93	Discarded temporary issue	https://github.com/isomorphisms/ai-ci/issues/93	indexed-only
+PR	94	Automate Android native-boundary runtime in emulator	https://github.com/isomorphisms/ai-ci/pull/94	indexed-only
+PR	95	Record the actual ai-ci source head in SMS receipts	https://github.com/isomorphisms/ai-ci/pull/95	indexed-only
+PR	96	ci: restore repository follower ledger verification	https://github.com/isomorphisms/ai-ci/pull/96	indexed-only
+PR	97	ci: make runner policy eligible as required check	https://github.com/isomorphisms/ai-ci/pull/97	indexed-only
+PR	98	Make SMS moving-head surveillance daily	https://github.com/isomorphisms/ai-ci/pull/98	indexed-only
+issue	99	Adopt Ike as a required build orchestrator after its trust boundary is green	https://github.com/isomorphisms/ai-ci/issues/99	indexed-only
+PR	100	Use Idriç consistently in agent guidance	https://github.com/isomorphisms/ai-ci/pull/100	indexed-only
+PR	101	Prefer GitHub retrieval for human-facing artifacts	https://github.com/isomorphisms/ai-ci/pull/101	indexed-only
+PR	102	Keep maintained Linux CI on GitHub-hosted Ubuntu	https://github.com/isomorphisms/ai-ci/pull/102	indexed-only
+PR	103	Keep maintained Linux CI on GitHub-hosted Ubuntu	https://github.com/isomorphisms/ai-ci/pull/103	indexed-only
+PR	104	Make follower target and runtime evidence boundaries explicit	https://github.com/isomorphisms/ai-ci/pull/104	indexed-only
+PR	105	Move SMS service dependency from Grease to az	https://github.com/isomorphisms/ai-ci/pull/105	indexed-only
+PR	106	Follow az main for SMS service	https://github.com/isomorphisms/ai-ci/pull/106	indexed-only
+issue	107	Record physical ARMv7 native-boundary receipt	https://github.com/isomorphisms/ai-ci/issues/107	indexed-only
+PR	108	Reconcile ARMv7 phone follower to 9df receipt	https://github.com/isomorphisms/ai-ci/pull/108	indexed-only
+PR	109	Document colored human paste-back output	https://github.com/isomorphisms/ai-ci/pull/109	indexed-only
+issue	110	Accidental placeholder — no action	https://github.com/isomorphisms/ai-ci/issues/110	indexed-only
+PR	111	Accept exact ARMv7 physical-phone receipt	https://github.com/isomorphisms/ai-ci/pull/111	indexed-only
+PR	112	Normalize Idriç terminology in human-facing labels	https://github.com/isomorphisms/ai-ci/pull/112	indexed-only
+PR	113	Run exact AArch64 artifact on 16 KiB translated emulator	https://github.com/isomorphisms/ai-ci/pull/113	indexed-only
+PR	114	Bind merge authorization to exact revision topology and evidence	https://github.com/isomorphisms/ai-ci/pull/114	indexed-only
+PR	115	Require stable Android update signing	https://github.com/isomorphisms/ai-ci/pull/115	indexed-only
+PR	116	Require durable repository notes for substantive design work	https://github.com/isomorphisms/ai-ci/pull/116	indexed-only
+PR	117	Centralize shared CI ownership and trigger coverage	https://github.com/isomorphisms/ai-ci/pull/117	indexed-only
+PR	118	Add publisher-independent Soil CI receipts	https://github.com/isomorphisms/ai-ci/pull/118	indexed-only
+PR	119	Export repository root for Soil job execution	https://github.com/isomorphisms/ai-ci/pull/119	indexed-only
+PR	120	Preserve verified device paths in agent terminal scripts	https://github.com/isomorphisms/ai-ci/pull/120	indexed-only
+PR	121	Apply stable Android signing to every first-party APK	https://github.com/isomorphisms/ai-ci/pull/121	indexed-only
+PR	122	Make hypothetical AArch64 runtime followers conditional	https://github.com/isomorphisms/ai-ci/pull/122	indexed-only
+PR	123	Keep storage facts scoped to the exact device	https://github.com/isomorphisms/ai-ci/pull/123	indexed-only
+PR	124	Make Termux color-script guardrail explicit	https://github.com/isomorphisms/ai-ci/pull/124	indexed-only
+PR	125	Allow exact Soil task-status exceptions	https://github.com/isomorphisms/ai-ci/pull/125	indexed-only
+PR	126	Spell out low-level errors for people	https://github.com/isomorphisms/ai-ci/pull/126	indexed-only
+PR	127	Preserve deferred mobile setup boundaries	https://github.com/isomorphisms/ai-ci/pull/127	indexed-only
+PR	128	Guard against invented follower targets	https://github.com/isomorphisms/ai-ci/pull/128	indexed-only
+PR	129	Fix AGENTS Markdown paragraph break	https://github.com/isomorphisms/ai-ci/pull/129	indexed-only
+PR	130	Reject synthetic PR checkout in workflow integrity	https://github.com/isomorphisms/ai-ci/pull/130	indexed-only
+PR	131	Retire resolved obligations in their original trackers	https://github.com/isomorphisms/ai-ci/pull/131	indexed-only
+PR	132	Guard the Grease consumer-facing name	https://github.com/isomorphisms/ai-ci/pull/132	indexed-only
+issue	133	Convert the remaining live Python programs to Ithon	https://github.com/isomorphisms/ai-ci/issues/133	indexed-only
+PR	134	Require Ithon instead of Python for first-party source	https://github.com/isomorphisms/ai-ci/pull/134	indexed-only
+PR	135	Shadow the AICI core build through pinned Ike	https://github.com/isomorphisms/ai-ci/pull/135	indexed-only
+issue	136	Protect main with required CI merge gates	https://github.com/isomorphisms/ai-ci/issues/136	indexed-only
+issue	137	Enforce nondecreasing Android versionCode across replacement builds	https://github.com/isomorphisms/ai-ci/issues/137	indexed-only
+PR	138	Harden workflow integrity YAML scoping	https://github.com/isomorphisms/ai-ci/pull/138	indexed-only
+PR	139	Require exact merge approval receipts	https://github.com/isomorphisms/ai-ci/pull/139	indexed-only
+PR	140	Make merge evidence and completion fail closed	https://github.com/isomorphisms/ai-ci/pull/140	indexed-only
+PR	141	Preserve contextual merge authority	https://github.com/isomorphisms/ai-ci/pull/141	indexed-only
+PR	142	Bind merge authority to source provenance	https://github.com/isomorphisms/ai-ci/pull/142	indexed-only
+PR	143	Collect live merge state and blockers	https://github.com/isomorphisms/ai-ci/pull/143	indexed-only
+PR	144	Correct merge-authority failure ledger	https://github.com/isomorphisms/ai-ci/pull/144	indexed-only
+issue	145	Collect merge-authority provenance from task context	https://github.com/isomorphisms/ai-ci/issues/145	indexed-only
+PR	146	Record the cross-repository geometry project map	https://github.com/isomorphisms/ai-ci/pull/146	indexed-only
+issue	147	Add architecture-aware Android artifact matrix with a direct-DEX fallback	https://github.com/isomorphisms/ai-ci/issues/147	indexed-only
+PR	148	Archive intent and code from PR #9	https://github.com/isomorphisms/ai-ci/pull/148	indexed-only
+issue	149	Rebuild Cat Food clean-machine acceptance against current main	https://github.com/isomorphisms/ai-ci/issues/149	indexed-only
+PR	150	Archive code and context from PR #45	https://github.com/isomorphisms/ai-ci/pull/150	indexed-only
+issue	151	Express Wegert staged diagnostics with current compatibility receipts	https://github.com/isomorphisms/ai-ci/issues/151	indexed-only
+issue	152	Implement trusted F-Droid receipt producer	https://github.com/isomorphisms/ai-ci/issues/152	indexed-only
+PR	153	Keep open PRs in the retirement loop	https://github.com/isomorphisms/ai-ci/pull/153	indexed-only
+PR	154	Generate candidate F-Droid receipts from executed evidence	https://github.com/isomorphisms/ai-ci/pull/154	indexed-only
+PR	155	Centralize Android release shelves	https://github.com/isomorphisms/ai-ci/pull/155	indexed-only
+PR	156	Add a central Android signing identity gate	https://github.com/isomorphisms/ai-ci/pull/156	indexed-only
+PR	157	Register Holomorphic Android test signing identity	https://github.com/isomorphisms/ai-ci/pull/157	indexed-only
+issue	158	Android APK signing identity must be enforced end to end	https://github.com/isomorphisms/ai-ci/issues/158	indexed-only
+issue	159	Artifact handoff must never expose nonexistent or transient download paths	https://github.com/isomorphisms/ai-ci/issues/159	indexed-only
+PR	160	Track and enforce the Idriç source migration surface	https://github.com/isomorphisms/ai-ci/pull/160	indexed-only
+issue	161	Planned follower: surface isomorphisms/shop-talk in Twin Pines	https://github.com/isomorphisms/ai-ci/issues/161	indexed-only
+PR	162	Document harness engineering lessons	https://github.com/isomorphisms/ai-ci/pull/162	indexed-only
+PR	163	Reject incomplete account discovery before PR retirement	https://github.com/isomorphisms/ai-ci/pull/163	indexed-only
+PR	164	Reject follower supersession that hides obligations	https://github.com/isomorphisms/ai-ci/pull/164	indexed-only
+PR	165	Retire stale coordination state and duplicated instructions	https://github.com/isomorphisms/ai-ci/pull/165	indexed-only
+issue	166	Cross-index MIRO A1 physical Bionic and native-boundary receipt	https://github.com/isomorphisms/ai-ci/issues/166	indexed-only
+issue	167	Reject contradictory authority and unproved follower supersession in merge/state.sh	https://github.com/isomorphisms/ai-ci/issues/167	indexed-only
+issue	168	Unify workflow parsing: comment-only checkout passes, quoted run fails open, harmless text fails	https://github.com/isomorphisms/ai-ci/issues/168	full-body-and-comments
+issue	169	Require real ingestion execution evidence and compare only explicitly covered semantics	https://github.com/isomorphisms/ai-ci/issues/169	indexed-only
+issue	170	Refresh live acceptance before retirement instead of reclassifying the saved snapshot	https://github.com/isomorphisms/ai-ci/issues/170	indexed-only
+issue	171	Acceptance audit: preserve counterexamples, oracle doctrine and prioritized repair jobs	https://github.com/isomorphisms/ai-ci/issues/171	full-body-and-comments
+PR	172	Add source-grounded mail translation acceptance	https://github.com/isomorphisms/ai-ci/pull/172	indexed-only
+PR	173	Enforce ICK-or-NDK build declarations	https://github.com/isomorphisms/ai-ci/pull/173	indexed-only
+PR	174	Scope ICK-or-NDK declarations to build stages	https://github.com/isomorphisms/ai-ci/pull/174	indexed-only
+issue	175	Bind ICK-or-NDK declarations to actual compiler execution	https://github.com/isomorphisms/ai-ci/issues/175	indexed-only
+issue	176	Reject unverified host/platform assumptions in generated operational commands	https://github.com/isomorphisms/ai-ci/issues/176	indexed-only
+issue	177	Orchestrate experiment products and gate paid compute behind preflight	https://github.com/isomorphisms/ai-ci/issues/177	indexed-only
+PR	178	Require host-context preflight for operational commands	https://github.com/isomorphisms/ai-ci/pull/178	indexed-only
+issue	179	Adversarial audit of operational host-context preflight	https://github.com/isomorphisms/ai-ci/issues/179	indexed-only
+issue	180	Record and verify textbook → SURFER visualization receipts	https://github.com/isomorphisms/ai-ci/issues/180	indexed-only
+issue	181	Enforce repository ownership boundaries in agent instructions and generated work	https://github.com/isomorphisms/ai-ci/issues/181	full-body-and-comments
+issue	182	Agent job: exhaustive polynomial and variety catalog from the Macaulay2 computations book	https://github.com/isomorphisms/ai-ci/issues/182	indexed-only
+issue	183	Human-found test flaws must trigger fleet-wide defect-class sweeps	https://github.com/isomorphisms/ai-ci/issues/183	full-body-and-comments
+PR	184	Document human-found test flaw bootstrap policy	https://github.com/isomorphisms/ai-ci/pull/184	indexed-only
+issue	185	Treat small generated operational scripts as high-risk intent/code artifacts	https://github.com/isomorphisms/ai-ci/issues/185	indexed-only
+issue	186	Add a mandatory verification flow before emitting runnable terminal commands	https://github.com/isomorphisms/ai-ci/issues/186	indexed-only
+issue	187	Kitchen conformance: check directory guidance and enforce evidence before serving scripts	https://github.com/isomorphisms/ai-ci/issues/187	indexed-only
+issue	188	Dakota recurrence: turn recorded reasoning failures into enforced, source-bound regression cases	https://github.com/isomorphisms/ai-ci/issues/188	indexed-only
+issue	189	Preserve the good Dakota reasoning: constrained models, input-error sensitivity and useful symmetry reductions	https://github.com/isomorphisms/ai-ci/issues/189	indexed-only
+issue	190	Verify dependency-change obligations across producer and consumer repositories	https://github.com/isomorphisms/ai-ci/issues/190	full-body-and-comments
+issue	191	Regression: routine GitHub transfer should return the direct command first	https://github.com/isomorphisms/ai-ci/issues/191	indexed-only
+issue	192	Acceptance rule: execute requested admin action, don't merely commit a helper script	https://github.com/isomorphisms/ai-ci/issues/192	indexed-only
+PR	193	Record interactive control semantic-noop failure mode	https://github.com/isomorphisms/ai-ci/pull/193	indexed-only
+issue	194	Regression: do not call an Android build integrated without causal interaction evidence	https://github.com/isomorphisms/ai-ci/issues/194	indexed-only
+PR	195	Log Schottky APK handoff regressions	https://github.com/isomorphisms/ai-ci/pull/195	indexed-only
+issue	196	Collect a physical MIRO C67 ABI and native-runtime receipt	https://github.com/isomorphisms/ai-ci/issues/196	indexed-only
+PR	197	Register Indra's Pearls stable test signer	https://github.com/isomorphisms/ai-ci/pull/197	indexed-only
+issue	198	Incident: Indra's Pearls signing regression persisted across repeated fixes	https://github.com/isomorphisms/ai-ci/issues/198	indexed-only
+issue	199	Reject ephemeral Android debug-key generation in distributable APK workflows	https://github.com/isomorphisms/ai-ci/issues/199	indexed-only
+issue	200	Model every APK post-processing/re-signing path as a separate signing boundary	https://github.com/isomorphisms/ai-ci/issues/200	indexed-only
+issue	201	Incident: nonresponsive Android APKs were handed off despite insufficient interaction acceptance	https://github.com/isomorphisms/ai-ci/issues/201	indexed-only
+issue	202	Android visual oracles must compare RGB pixels, not PNG bytes or alpha-only nonblank checks	https://github.com/isomorphisms/ai-ci/issues/202	indexed-only
+issue	203	Track ICK BetterC, full-DMD, and IDK activity separately	https://github.com/isomorphisms/ai-ci/issues/203	indexed-only
+issue	204	Regression: three-control rewrite removed the stronger direct GPU frame probe	https://github.com/isomorphisms/ai-ci/issues/204	indexed-only
+issue	205	Gate the exact human paste block on fresh-session execution; reject helper-only and unrelated-green evidence	https://github.com/isomorphisms/ai-ci/issues/205	indexed-only
+PR	206	Register canonical Crystal test signing identities	https://github.com/isomorphisms/ai-ci/pull/206	indexed-only
+issue	207	Make Android APK producer policy a mandatory composite gate, not opt-in consumer advice	https://github.com/isomorphisms/ai-ci/issues/207	full-body-and-comments
+issue	208	Diagnostic evidence gate: reject irrelevant probes, unbound APK claims, and unsupported visual root causes	https://github.com/isomorphisms/ai-ci/issues/208	indexed-only
+PR	209	Add mandatory Android producer composite gate	https://github.com/isomorphisms/ai-ci/pull/209	indexed-only
+PR	210	Validate Kitchen mutation attempts from independent API observations	https://github.com/isomorphisms/ai-ci/pull/210	indexed-only
+PR	211	Bind Android producer execution and diagnostic claims to verified identities	https://github.com/isomorphisms/ai-ci/pull/211	full-body-and-relevant-source
+issue	212	Gate human-facing mathematical notation against ASCII and terminology regressions	https://github.com/isomorphisms/ai-ci/issues/212	indexed-only
+PR	213	Register Mock Theta test APK signer	https://github.com/isomorphisms/ai-ci/pull/213	indexed-only
+issue	214	Regression: green build and hidden controls masked incomplete operation coverage	https://github.com/isomorphisms/ai-ci/issues/214	indexed-only
+PR	215	Register Functorial Mock Theta test APK signer	https://github.com/isomorphisms/ai-ci/pull/215	indexed-only
+issue	216	Regression: load and enforce Idriç style before emitting type sketches or APIs	https://github.com/isomorphisms/ai-ci/issues/216	indexed-only
+issue	217	Regression: preserve functorial ICKY C instead of falling back to generic C/game idioms	https://github.com/isomorphisms/ai-ci/issues/217	indexed-only
+issue	218	STAR: derive hardware-profile-driven companion builds across Cat Food, Flexible Pipes, and AICI	https://github.com/isomorphisms/ai-ci/issues/218	indexed-only
+issue	219	P0: Reject hidden job handoffs when the user asked for visible job text	https://github.com/isomorphisms/ai-ci/issues/219	full-body-and-comments
+PR	220	Reject hidden or changed authoritative job text	https://github.com/isomorphisms/ai-ci/pull/220	indexed-only
+PR	221	Define retained-source contract evidence without live promotion	https://github.com/isomorphisms/ai-ci/pull/221	indexed-only
+PR	222	Constrain retained-source fixture receipts to host evidence	https://github.com/isomorphisms/ai-ci/pull/222	indexed-only
+PR	223	Enforce exact binary attachment delivery	https://github.com/isomorphisms/ai-ci/pull/223	full-body-and-relevant-source
+PR	224	Repair event-aware Android producer authority self-test	https://github.com/isomorphisms/ai-ci/pull/224	indexed-only
+issue	225	Keep Android builds on the ICK-or-NDK path through Flexible Pipes	https://github.com/isomorphisms/ai-ci/issues/225	indexed-only
+issue	226	P0: Reject unmaterialized script links even when the generator and helper tests pass	https://github.com/isomorphisms/ai-ci/issues/226	full-body-and-comments
+PR	227	Record hidden Icky C assignment gap and the all-C audit obligation	https://github.com/isomorphisms/ai-ci/pull/227	indexed-only
+PR	228	Register Mostow's stable public test Android signer	https://github.com/isomorphisms/ai-ci/pull/228	indexed-only
+PR	229	Register Green Grocer's stable public test Android signer	https://github.com/isomorphisms/ai-ci/pull/229	indexed-only
+PR	230	SUN 1: independently verify Cat Food companion plans and signed APK bytes	https://github.com/isomorphisms/ai-ci/pull/230	full-body-and-relevant-source
+PR	231	Guard owned C and qualify pinned ICK native and Android producers	https://github.com/isomorphisms/ai-ci/pull/231	indexed-only
+issue	232	STAR I-MATH-01: prepare all isomorphismes math repos, sources, Idriç kernels and builds	https://github.com/isomorphisms/ai-ci/issues/232	indexed-only
+issue	233	SUN IL-1: all-profile Functorial ICKY C readiness and Icky Lua eligibility ledger	https://github.com/isomorphisms/ai-ci/issues/233	indexed-only
+issue	234	SUN IL-2: mathematical and visual Functorial C → modified Icky Lua pass	https://github.com/isomorphisms/ai-ci/issues/234	indexed-only
+issue	235	SUN IL-3: systems and utilities Functorial C → modified Icky Lua pass	https://github.com/isomorphisms/ai-ci/issues/235	indexed-only
+PR	236	Register Seifert's stable public test Android signer	https://github.com/isomorphisms/ai-ci/pull/236	indexed-only
+PR	237	Execute I-MATH-01 preparation across all 49 current mathematical repositories	https://github.com/isomorphisms/ai-ci/pull/237	indexed-only
+issue	238	STAR PR-JUDGE-01: intent-grounded PR review, reconciliation and conditional approvals	https://github.com/isomorphisms/ai-ci/issues/238	indexed-only
+issue	239	STAR BUILD-CAMPAIGN-01: deterministic build and delivery campaign	https://github.com/isomorphisms/ai-ci/issues/239	full-body-and-comments
+PR	240	Complete the ÷ census and migrate audit verifiers through ICK	https://github.com/isomorphisms/ai-ci/pull/240	indexed-only
+PR	241	Require exact physical acceptance and preserve immutable test releases	https://github.com/isomorphisms/ai-ci/pull/241	indexed-only
+PR	242	Reject duplicate nested JSON fields in release acceptance	https://github.com/isomorphisms/ai-ci/pull/242	indexed-only
+PR	243	Test GPT-OSS command understanding with independent grading and Pythia comparisons	https://github.com/isomorphisms/ai-ci/pull/243	indexed-only
+issue	244	SUN MATH-LANG-01: paired Idriç/Agda semantics across math repositories	https://github.com/isomorphisms/ai-ci/issues/244	indexed-only
+issue	245	Bind live mutation completion to delivery, target execution, and independent postcondition	https://github.com/isomorphisms/ai-ci/issues/245	indexed-only
+issue	246	Independently accept rough.framebuffer mathematical surface frames	https://github.com/isomorphisms/ai-ci/issues/246	indexed-only
+PR	247	SUN T1: independently reject Holomorphic polynomial mutants with AICI reference	https://github.com/isomorphisms/ai-ci/pull/247	full-body-and-relevant-source
+PR	248	Independently verify framebuffer mathematical art with six failing mutants	https://github.com/isomorphisms/ai-ci/pull/248	indexed-only
+issue	249	Accept native framebuffer Android drag-to-pixel path independently	https://github.com/isomorphisms/ai-ci/issues/249	indexed-only
+PR	250	Propose stable test-only signer identity for Rough Mathematical Art	https://github.com/isomorphisms/ai-ci/pull/250	indexed-only
+PR	251	Verify actual Android framebuffer screenshot change with independent image oracle	https://github.com/isomorphisms/ai-ci/pull/251	indexed-only
+issue	252	Cross-viewer regression: front hemisphere must follow drag, not the back	https://github.com/isomorphisms/ai-ci/issues/252	indexed-only
+issue	253	Independently accept Sublixel 3×3/5×5 and ICK/Ike-only build receipts	https://github.com/isomorphisms/ai-ci/issues/253	indexed-only
+PR	254	Independent 3×3/5×5 Sublixel ICK/Ike numerical and receipt acceptance	https://github.com/isomorphisms/ai-ci/pull/254	indexed-only
