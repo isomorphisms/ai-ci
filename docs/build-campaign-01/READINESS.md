@@ -2,7 +2,7 @@
 
 ## First runnable wave
 
-All33 STAR investigations are ready: refresh the cited exact heads, read retained decisions and source, settle their bounded domain, and emit complete SUN implementation jobs. Their assignments are authored/filed, **not actually dispatched Work jobs**.
+All 33 STAR investigations are ready: refresh the cited exact heads, read retained decisions and source, settle their bounded domain, and emit complete SUN implementation jobs. Their assignments are authored/filed, **not actually dispatched Work jobs**.
 
 The earliest independent SUN implementation candidates are retained ICKY complete-archive/relocation repair (P02, existing job), A02's remaining oracle corpus/provenance, A06's producer-edge inventory, A07's supported parser/source-integrity controls, K01/K04/K05's source and failure cases, and T01's scoped Ike selection/compatibility work. Each STAR must establish its exact language/runtime prerequisites before marking its SUN runnable. Implementing a missing prerequisite is allowed; claiming its consumer already works is not.
 
@@ -47,6 +47,6 @@ These are artifact-level dependencies, not a cycle requiring every domain to fin
 
 ## Continuation record
 
-Next unexecuted work is domain STAR qualification and full SUN authoring, beginning with the independent wave above.132 proposed boundaries are not132 completed SUN handoffs. Reuse prior SUN identifiers such as CF-A2-S2/S3/S4/S5, SUN1, IL-0, K1 and existing ICKY packaging work. Emit no recursive generic coordinator.
+Next unexecuted work is domain STAR qualification and full SUN authoring, beginning with the independent wave above. The 132 proposed boundaries are not 132 completed SUN handoffs. Reuse prior SUN identifiers such as CF-A2-S2/S3/S4/S5, SUN1, IL-0, K1 and existing ICKY packaging work. Emit no recursive generic coordinator.
 
 Noncore all-state repository history, unenumerable original conversations, ib-pensieve and inaccessible local source remain explicitly incomplete. Account scope is enumerated and screened; actual source review is bounded by the source ledgers. Domain STARs own focused expansion along real dependency edges. No unresolved work is marked complete merely because this coordinator delivered packets.

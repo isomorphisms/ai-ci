@@ -11,7 +11,7 @@ This coordinator recovered the full ten-section request, reconciled retained/cur
 
 ai-ci owns shared requirements, independent acceptance and executable policy. Kitchen owns maintained procedures and exact human commands. Cat Food owns target facts, inventory, acquisition, build cells and delivery. Flexible Pipes owns registered execution, stable requests, stages, replay and handoff. Producer repositories retain source, semantics and recipes. The renamed repository is now `isomorphisms/coxswain`; its existing `cockswain-*` executables retain their spelling.
 
-The companion resolver is merged; its producer/admission/delivery chain remains incomplete. Existing APK packager, presentation checks, release safeguards, installed-material seals and FP qualification branches must be continued, not recreated. Current managed-system Grease qualification is blocked by the October10 no-C++ correction. ICKY's hosted source PASS did not make its incomplete delivered archive runnable. A real C67 transfer succeeded historically, while exact delivered bytes were not retained and the generic trusted platform sink remains undeployed. Ike's five-owner adoption is a distinct new domain under the later recorded directive.
+The companion resolver is merged; its producer/admission/delivery chain remains incomplete. Existing APK packager, presentation checks, release safeguards, installed-material seals and FP qualification branches must be continued, not recreated. Current managed-system Grease qualification is blocked by the October 10 no-C++ correction. ICKY's hosted source PASS did not make its incomplete delivered archive runnable. A real C67 transfer succeeded historically, while exact delivered bytes were not retained and the generic trusted platform sink remains undeployed. Ike's five-owner adoption is a distinct new domain under the later recorded directive.
 
 ## Campaign packets
 
@@ -75,4 +75,6 @@ The four core repositories contain **239 issues and 299 PRs**, all states, 538 r
 | place-of-honor | 3 | 2 |
 | functorial-games | 1 | 4 |
 
-Completion here means the coordinator's packet/coverage work. Actual dispatched Work jobs: **0**. No new product acceptance, merge, closure, release, schedule, installation or activation is claimed. See DELIVERY.tsv for conversation visibility; GitHub filing does not establish chat delivery.
+Completion here means the coordinator's packet/coverage work. All **33 complete bodies were emitted in five numbered conversation batches**, ending with BC-T01. No job remains undelivered. This records assistant emission; no separate client-side byte attestation was available. All 33 canonical issue comments were read back and matched their saved packets. See DELIVERY.tsv for the cumulative batch record.
+
+Actual dispatched Work jobs: **0**. The next work is domain STAR qualification and complete SUN authoring, with the independent first wave and conditional prerequisites in READINESS.md. No new product acceptance, merge, closure, release, schedule, installation or activation is claimed.

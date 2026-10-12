@@ -1,2 +1,7 @@
 snapshot	authored	filed	comment_readback_verified	conversation_visible	actually_dispatched	next_undelivered
 2026-10-12-before-chat-batches	33	33	33	0	0	BC-A01
+2026-10-12-after-batch-1	33	33	33	8	0	BC-CF01
+2026-10-12-after-batch-2	33	33	33	16	0	BC-FP01
+2026-10-12-after-batch-3	33	33	33	22	0	BC-K01
+2026-10-12-after-batch-4	33	33	33	27	0	BC-P01
+2026-10-12-after-batch-5	33	33	33	33	0	NONE
