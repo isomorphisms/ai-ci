@@ -6,6 +6,7 @@ permissions:
   contents: read
 jobs:
   delivery:
+    name: ${{ github.event_name == 'pull_request' && 'delivery' || format('delivery-{0}', github.event_name) }}
     runs-on: ubuntu-24.04
     steps:
       - name: Check out exact ai-ci source
