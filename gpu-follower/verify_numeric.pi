@@ -1,0 +1,147 @@
+import math
+import sys
+from pathlib import Path
+import numpy as np
+import ml_dtypes
+import builtins
+
+def fail(message ∈ str) → None:
+    print(message)
+    sys.exit(1)
+
+# Independent CPU oracle: ml_dtypes 0.5.3 implements the published scalar
+# encodings in foreign C++. It does not import the producer's format tables.
+# The producer uses exact integers in units of 2^-17.
+def dtype_for(format_name ∈ str) → np.dtype:
+    if format_name == "e4m3":
+        return np.dtype("float8_e4m3fn")
+    if format_name == "e5m2":
+        return np.dtype("float8_e5m2")
+    if format_name == "e4m3fnuz":
+        return np.dtype("float8_e4m3fnuz")
+    if format_name == "e5m2fnuz":
+        return np.dtype("float8_e5m2fnuz")
+    if format_name == "e2m1":
+        return np.dtype("float4_e2m1fn")
+    if format_name == "e2m3":
+        return np.dtype("float6_e2m3fn")
+    if format_name == "e3m2":
+        return np.dtype("float6_e3m2fn")
+    fail("unknown scalar format")
+    return np.dtype("float8_e4m3fn")
+
+def decode(format_name ∈ str, code ∈ int) → float:
+    dtype ∈ np.dtype ← dtype_for(format_name)
+    values ∈ np.ndarray ← np.frombuffer(bytes([code]), dtype=dtype)
+    value ∈ float ← values.item()
+    return value
+
+def encode(format_name ∈ str, value ∈ float) → int:
+    dtype ∈ np.dtype ← dtype_for(format_name)
+    values ∈ np.ndarray ← np.asarray([value], dtype=dtype)
+    bytes_array ∈ np.ndarray ← values.view(np.uint8)
+    result ∈ int ← bytes_array.item()
+    return result
+
+def render(value ∈ float) → str:
+    if math.isnan(value):
+        return "nan"
+    if math.isinf(value):
+        return "-inf" if value < 0 else "+inf"
+    if value == 0:
+        sign ∈ float ← math.copysign(1.0, value)
+        if sign < 0:
+            return "-0"
+    return str(int(value × 131072))
+
+def main() → None:
+    arguments ∈ list[str] ← sys.argv
+    path_text ∈ str ← arguments.pop(1)
+    lines ∈ list[str] ← Path(path_text).read_text().splitlines()
+    observed ∈ set[str] ← builtins.set()
+    decode_count ← 0
+    round_count ← 0
+    arithmetic_count ← 0
+    for line in lines:
+        already ∈ bool ← observed.__contains__(line)
+        if already:
+            fail("duplicate numerical record")
+        observed.add(line)
+        fields ∈ list[str] ← line.split("\t")
+        record_kind ∈ str ← fields.pop(0)
+        format_name ∈ str ← fields.pop(0)
+        code_text ∈ str ← fields.pop(0)
+        code ← int(code_text)
+        if record_kind == "decode":
+            actual ∈ str ← fields.pop(0)
+            expected ← render(decode(format_name, code))
+            if actual != expected:
+                fail("decode mismatch: " + line + " expected " + expected)
+            decode_count ← decode_count + 1
+        elif record_kind == "round":
+            offset_text ∈ str ← fields.pop(0)
+            actual_text ∈ str ← fields.pop(0)
+            offset ← int(offset_text)
+            first ← decode(format_name, code)
+            second ← decode(format_name, code + 1)
+            sample ← (first + second) ÷ 2.0 + offset ÷ 1048576.0
+            expected_code ← encode(format_name, sample)
+            if int(actual_text) != expected_code:
+                fail("round mismatch: " + line + " expected " + str(expected_code))
+            round_count ← round_count + 1
+        elif record_kind == "arith":
+            second_text ∈ str ← fields.pop(0)
+            operation ∈ str ← fields.pop(0)
+            actual_text ∈ str ← fields.pop(0)
+            second_code ← int(second_text)
+            first ← decode(format_name, code)
+            second ← decode(format_name, second_code)
+            result ∈ float ← 0.0
+            if operation == "add":
+                result ← first + second
+            elif operation == "sub":
+                result ← first - second
+            elif operation == "mul":
+                result ← first × second
+            elif operation == "div":
+                if second == 0:
+                    if first == 0:
+                        result ← float("nan")
+                    else:
+                        first_sign ∈ float ← math.copysign(1.0, first)
+                        second_sign ∈ float ← math.copysign(1.0, second)
+                        sign ← first_sign × second_sign
+                        infinity ← float("inf")
+                        result ∈ float ← math.copysign(infinity, sign)
+                else:
+                    result ← first ÷ second
+            else:
+                fail("unknown arithmetic operation")
+            actual_code ← int(actual_text)
+            expected_code ← encode(format_name, result)
+            actual_value ← decode(format_name, actual_code)
+            expected_value ← decode(format_name, expected_code)
+            # The two OCP NaN sign payloads have the same value semantics;
+            # FNUZ has one exact NaN code and remains byte-exact.
+            both_nan ∈ bool ← False
+            if math.isnan(actual_value):
+                if math.isnan(expected_value):
+                    both_nan ← True
+            if actual_code != expected_code:
+                if both_nan == False:
+                    fail("arithmetic mismatch: " + line)
+            arithmetic_count ← arithmetic_count + 1
+        else:
+            fail("unknown numerical record")
+        remaining ∈ int ← fields.__len__()
+        if remaining != 0:
+            fail("extra numerical fields")
+    if decode_count != 1168:
+        fail("incomplete numerical corpus")
+    if round_count != 1716:
+        fail("incomplete numerical corpus")
+    if arithmetic_count != 904:
+        fail("incomplete arithmetic corpus")
+    print("PASS independent scalar decode, midpoint boundaries and finite-operand arithmetic", decode_count, round_count, arithmetic_count)
+
+main()
