@@ -1,0 +1,25 @@
+distance=1
+groebner=matrix {{elbowX-2, elbowY^2}}
+dimension=0
+length_over_QQ=2
+radical=ideal(elbowY,elbowX-2)
+distance=2
+groebner=matrix {{4*elbowX-7, 16*elbowY^2-15}}
+dimension=0
+length_over_QQ=2
+radical=ideal(4*elbowX-7,16*elbowY^2-15)
+distance=3
+groebner=matrix {{elbowX-2, elbowY^2}}
+dimension=0
+length_over_QQ=2
+radical=ideal(elbowY,elbowX-2)
+distance=4
+groebner=matrix {{8*elbowX-19, 64*elbowY^2+105}}
+dimension=0
+length_over_QQ=2
+radical=ideal(8*elbowX-19,64*elbowY^2+105)
+outer_jacobian=matrix {{4, -2}, {0, 0}}
+outer_tangent_dimension=1
+reduced_tangent_dimension=0
+second_order_obstruction=matrix {{secondX, firstX, firstY^2}}
+PASS case-a: full ideal, support, tangent, length, family identity, obstruction
