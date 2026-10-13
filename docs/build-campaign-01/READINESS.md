@@ -1,5 +1,7 @@
 # Dependency, readiness and continuation
 
+**Continuation:** [Wave 1](wave1/README.md) requalified BC-A02/A06/A07/K04/P02/T01 and authored 26 SUN jobs. Its artifact-level dependency order supersedes the provisional boundaries below for those domains; 27 other domain STARs remain unexecuted in this continuation.
+
 ## First runnable wave
 
 All 33 STAR investigations are ready: refresh the cited exact heads, read retained decisions and source, settle their bounded domain, and emit complete SUN implementation jobs. Their assignments are authored/filed, **not actually dispatched Work jobs**.

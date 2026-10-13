@@ -1,5 +1,7 @@
 # STAR BUILD-CAMPAIGN-01
 
+**Continuation, 2026-10-13 UTC:** six domain STARs have now produced [26 fully authored SUN implementation jobs](wave1/README.md). Their source decisions, prerequisites, canonical issue comments and separate delivery ledger are retained there. The other 27 domains remain for continuation. The original coordinator account below is preserved as its dated result.
+
 Parent: https://github.com/isomorphisms/ai-ci/issues/239  
 Source reconciliation: 2026-10-12; initial interrupted discovery: 2026-10-08.
 
