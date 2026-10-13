@@ -52,5 +52,14 @@ intersection_scheme_dimension=0
 intersection_scheme_degree=2
 intersection_scheme_reduced=true
 status=LIMIT_SETS_INTERSECT
+case_id=irrational_settings
+incoming_limit_ideal=(sinC^2+cosC^2-1,1*cosC+1*sinC)
+outgoing_limit_ideal=(sinC^2+cosC^2-1,-2*cosC+-2*sinC)
+limit_determinant=0
+intersection_ideal_groebner=matrix {{sinC+cosC, 2*cosC^2-1}}
+intersection_scheme_dimension=0
+intersection_scheme_degree=2
+intersection_scheme_reduced=true
+status=LIMIT_SETS_INTERSECT
 scope=limiting_C_settings_only;_not_clearance_collision_or_motion_authorization
 PASS pole-continuation

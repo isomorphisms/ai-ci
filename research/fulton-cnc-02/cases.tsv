@@ -4,3 +4,8 @@ whole-fiber-is-limit	fixtures/whole-fiber-is-limit	1	FULTON-CNC-LIMIT-DIMENSION
 wrong-disjoint-status	fixtures/wrong-disjoint-status	1	FULTON-CNC-LIMIT-STATUS
 zero-accepted	fixtures/zero-accepted	1	FULTON-CNC-ZERO-MERIDIAN
 full-frame-accepted	fixtures/full-frame-accepted	1	FULTON-CNC-POSE-KIND
+missing-case-field	fixtures/missing-case-field	1	FULTON-CNC-CASE-Y-Y
+wrong-limit-equation	fixtures/wrong-limit-equation	1	FULTON-CNC-LIMIT-EQUATIONS
+duplicate-case	fixtures/duplicate-case	1	FULTON-CNC-CASE-IDENTITY
+forged-producer-exit	fixtures/forged-producer-exit	1	FULTON-CNC-PRODUCER-EXIT
+wrong-pole-equation	fixtures/wrong-pole-equation	1	FULTON-CNC-POLE-EQUATIONS
