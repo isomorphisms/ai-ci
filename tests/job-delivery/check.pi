@@ -59,7 +59,143 @@ def run_attachment_case(variant ∈ str) → str:
     except ValueError as error:
         return str(error)
 
+def run_actual_case(variant ∈ str, legacy ∈ bool) → str:
+    payload ∈ bytes ← b"SUN fixture\nModel: SUN\nUse ordinary text.\n"
+    request ∈ dict[str, object] ← {"id": "actual-fixture", "text": "Write a SUN job using ordinary text.", "corrections": ["Use ordinary text."]}
+    expected ∈ dict[str, object] ← {"audience": "Sun", "model": "SUN", "source_context": "original-fixture-request", "request": request}
+    spec ∈ dict[str, object] ← json.loads(json.dumps(expected))
+    required ∈ list[str] ← ["Use ordinary text."]
+    source ∈ bytes ← payload
+    metadata ∈ dict[str, object] ← {"evidence_class": "fixture", "message_id": "fixture-message", "surface": "fixture-visible-chat"}
+    delivered ∈ bytes ← payload
+    if variant == "actual-wrong-model":
+        spec["model"] ← "Moon"
+    elif variant == "actual-wrong-audience":
+        spec["audience"] ← "internal-worker"
+    elif variant == "actual-request-substitution":
+        spec["request"] ← {"id": "actual-fixture", "text": "A worker-created replacement request."}
+    elif variant == "actual-correction-missing":
+        source ← b"SUN fixture\nModel: SUN\nUse a CodeBlock.\n"
+        delivered ← source
+    elif variant == "actual-forged-platform":
+        metadata["evidence_class"] ← "platform"
+        metadata["trusted"] ← True
+    elif variant == "actual-internal":
+        metadata["evidence_class"] ← "producer-capture"
+    elif variant == "actual-message-id":
+        metadata["message_id"] ← "another-message"
+    elif variant.startswith("actual-file"):
+        source ← b"PK\x03\x04real-selected-apk\x00\xff"
+        delivered ← source
+        required ← []
+        attachment ∈ dict[str, object] ← {"file_name": "selected.apk", "mime_type": "application/vnd.android.package-archive", "sha256": handoff.digest(source), "source_name": "selected.apk", "source_sha256": handoff.digest(source), "provenance": {"provider": "github-actions", "resource": "fixture/repository", "revision": "1111111111111111111111111111111111111111", "reference": "artifact:123"}}
+        if variant == "actual-file-archive":
+            stream ∈ object ← io.BytesIO()
+            archive ∈ object ← zipfile.ZipFile(stream, "w", zipfile.ZIP_STORED)
+            archive.writestr("c67/selected.apk", source)
+            archive.close()
+            source ← stream.getvalue()
+            attachment["source_name"] ← "artifact.zip"
+            attachment["source_sha256"] ← handoff.digest(source)
+            attachment["archive_member"] ← "c67/selected.apk"
+        spec["attachment"] ← attachment
+        expected["attachment"] ← dict(attachment)
+        metadata ← {"evidence_class": "service-readback", "file_id": "fixture-file", "file_name": "selected.apk", "mime_type": "application/vnd.android.package-archive", "surface": "fixture-visible-chat"}
+        if variant == "actual-file-bytes":
+            delivered ← delivered + b"changed"
+        elif variant == "actual-file-name":
+            metadata["file_name"] ← "renamed.apk"
+        elif variant == "actual-file-mime":
+            metadata["mime_type"] ← "application/zip"
+        elif variant == "actual-file-id":
+            metadata["file_id"] ← "another-file"
+    stage ∈ dict[str, object] ← {"name": "actual-fixture", "kind": "command", "exit_code": 0, "stdout_sha256": handoff.digest(source)}
+    try:
+        stage ← handoff.compose(stage, source, spec)
+        record ∈ dict[str, object] ← dict(stage["handoff"])
+        events ∈ list[dict[str, object]] ← []
+        if int(record["version"]) == 2:
+            attachment ← dict(record["attachment"])
+            events.append(attachment_event(bytes(job_delivery.reference_attachment(source, attachment)), 1, str(attachment["file_name"]), str(attachment["mime_type"])))
+        else:
+            events.append(visible_event(source, source, 1))
+            events[0]["message_id"] ← "fixture-message"
+        record["events"] ← events
+        record["visible_state"] ← "OBSERVED"
+        stage["handoff"] ← record
+        if variant == "actual-recovery":
+            events[0]["message_id"] ← "old-message"
+            events.append({"kind": "delivery-failed", "sequence": 2, "payload_sha256": handoff.digest(source), "correction": "The earlier presentation failed."})
+            events.append(visible_event(source, source, 3))
+            events[2]["message_id"] ← "fixture-message"
+        if variant == "actual-placeholder":
+            delivered ← b"This content is unavailable in this version of the app.\n"
+        if legacy:
+            if int(record["version"]) == 2:
+                job_delivery.check_attachment(stage, source, True)
+            else:
+                job_delivery.check(stage, source, source, True)
+            return "PASS"
+        job_delivery.check_actual(stage, source, delivered, metadata, expected, required, True)
+        if variant == "actual-text" or variant == "actual-file-archive":
+            specimen ∈ Path ← output.joinpath(variant)
+            specimen.mkdir()
+            specimen.joinpath("stage.json").write_text(str(json.dumps(stage, sort_keys=True)) + "\n")
+            specimen.joinpath("source.bin").write_bytes(source)
+            specimen.joinpath("delivered.bin").write_bytes(delivered)
+            specimen.joinpath("metadata.json").write_text(str(json.dumps(metadata, sort_keys=True)) + "\n")
+            specimen.joinpath("admission.json").write_text(str(json.dumps({"spec": expected, "required_text": required}, sort_keys=True)) + "\n")
+        return "PASS"
+    except ValueError as error:
+        return str(error)
+
+def run_storage_case(variant ∈ str) → str:
+    payload ∈ bytes ← b"PK\x03\x04stored-selected-apk\x00\xff"
+    source ∈ bytes ← payload
+    attachment ∈ dict[str, object] ← {"file_name": "app-debug.apk", "mime_type": "application/vnd.android.package-archive", "sha256": handoff.digest(payload), "source_name": "app-debug.apk", "source_sha256": handoff.digest(source), "provenance": {"provider": "github-actions", "resource": "fixture/repository", "revision": "1111111111111111111111111111111111111111", "reference": "artifact:123"}}
+    if variant == "storage-archive":
+        stream ∈ object ← io.BytesIO()
+        archive ∈ object ← zipfile.ZipFile(stream, "w", zipfile.ZIP_STORED)
+        archive.writestr("c67/app-debug.apk", payload)
+        archive.close()
+        source ← stream.getvalue()
+        attachment["source_name"] ← "artifact.zip"
+        attachment["source_sha256"] ← handoff.digest(source)
+        attachment["archive_member"] ← "c67/app-debug.apk"
+    expected ∈ dict[str, object] ← {"audience": "human", "model": "fixture", "source_context": "stored-file-qualification", "request": {"id": "storage-fixture", "text": "Give me the exact APK."}, "attachment": attachment}
+    if variant == "storage-text":
+        expected.pop("attachment")
+        source ← b"ordinary text\n"
+    stage ∈ dict[str, object] ← {"name": "storage-fixture", "kind": "command", "exit_code": 0, "stdout_sha256": handoff.digest(source)}
+    metadata ∈ dict[str, object] ← {"file_id": "fixture-stored-file", "file_name": "app-debug.apk", "mime_type": "application/vnd.android.package-archive", "file_size_bytes": len(payload), "evidence_class": "fixture"}
+    stored ∈ bytes ← payload
+    if variant == "storage-bytes":
+        stored ← stored + b"changed"
+    elif variant == "storage-name":
+        metadata["file_name"] ← "app-debug(7).apk"
+    elif variant == "storage-mime":
+        metadata["mime_type"] ← None
+    elif variant == "storage-size":
+        metadata["file_size_bytes"] ← len(payload) - 1
+    elif variant == "storage-id":
+        metadata["file_id"] ← ""
+    elif variant == "storage-forged-platform":
+        metadata["evidence_class"] ← "platform"
+    try:
+        stage ← handoff.compose(stage, source, expected)
+        unchanged ∈ str ← str(json.dumps(stage, sort_keys=True))
+        job_delivery.check_storage(stage, source, stored, metadata, expected)
+        if str(json.dumps(stage, sort_keys=True)) != unchanged:
+            raise AssertionError("storage inspection changed delivery state")
+        return "PASS"
+    except ValueError as error:
+        return str(error)
+
 def run_case(fixture ∈ str, variant ∈ str) → str:
+    if variant.startswith("storage-"):
+        return run_storage_case(variant)
+    if variant.startswith("actual-"):
+        return run_actual_case(variant, False)
     if variant.startswith("attachment-"):
         return run_attachment_case(variant)
     payload ∈ bytes ← Path(fp + "/regressions/job-delivery/" + fixture + ".txt").read_bytes()
@@ -166,4 +302,12 @@ for line in lines[1:]:
         raise AssertionError(fields[0] + ": expected " + fields[3] + ", got " + actual)
     print("PASS " + fields[0] + " -> " + actual)
 output.joinpath("results.tsv").write_text(str("\n".join(results)) + "\n")
-print("independent delivery cases PASS: " + str(len(seen)))
+for defect in ["actual-wrong-model", "actual-wrong-audience", "actual-request-substitution", "actual-correction-missing", "actual-file-bytes", "actual-file-name", "actual-file-mime", "actual-file-id", "actual-forged-platform"]:
+    old_verdict ∈ str ← run_actual_case(defect, True)
+    new_verdict ∈ str ← run_actual_case(defect, False)
+    if old_verdict != "PASS" or new_verdict == "PASS":
+        raise AssertionError("missing rejection transition for " + defect)
+    results.append(defect + "-transition\tLEGACY_ACCEPTS_BAD_INPUT\t" + new_verdict + "\tPASS")
+    print("PASS rejection transition " + defect + " -> " + new_verdict)
+output.joinpath("results.tsv").write_text(str("\n".join(results)) + "\n")
+print("independent delivery cases PASS: " + str(len(seen)) + "; rejection transitions: 9")
