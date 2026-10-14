@@ -149,7 +149,51 @@ def run_actual_case(variant ∈ str, legacy ∈ bool) → str:
     except ValueError as error:
         return str(error)
 
+def run_storage_case(variant ∈ str) → str:
+    payload ∈ bytes ← b"PK\x03\x04stored-selected-apk\x00\xff"
+    source ∈ bytes ← payload
+    attachment ∈ dict[str, object] ← {"file_name": "app-debug.apk", "mime_type": "application/vnd.android.package-archive", "sha256": handoff.digest(payload), "source_name": "app-debug.apk", "source_sha256": handoff.digest(source), "provenance": {"provider": "github-actions", "resource": "fixture/repository", "revision": "1111111111111111111111111111111111111111", "reference": "artifact:123"}}
+    if variant == "storage-archive":
+        stream ∈ object ← io.BytesIO()
+        archive ∈ object ← zipfile.ZipFile(stream, "w", zipfile.ZIP_STORED)
+        archive.writestr("c67/app-debug.apk", payload)
+        archive.close()
+        source ← stream.getvalue()
+        attachment["source_name"] ← "artifact.zip"
+        attachment["source_sha256"] ← handoff.digest(source)
+        attachment["archive_member"] ← "c67/app-debug.apk"
+    expected ∈ dict[str, object] ← {"audience": "human", "model": "fixture", "source_context": "stored-file-qualification", "request": {"id": "storage-fixture", "text": "Give me the exact APK."}, "attachment": attachment}
+    if variant == "storage-text":
+        expected.pop("attachment")
+        source ← b"ordinary text\n"
+    stage ∈ dict[str, object] ← {"name": "storage-fixture", "kind": "command", "exit_code": 0, "stdout_sha256": handoff.digest(source)}
+    metadata ∈ dict[str, object] ← {"file_id": "fixture-stored-file", "file_name": "app-debug.apk", "mime_type": "application/vnd.android.package-archive", "file_size_bytes": len(payload), "evidence_class": "fixture"}
+    stored ∈ bytes ← payload
+    if variant == "storage-bytes":
+        stored ← stored + b"changed"
+    elif variant == "storage-name":
+        metadata["file_name"] ← "app-debug(7).apk"
+    elif variant == "storage-mime":
+        metadata["mime_type"] ← None
+    elif variant == "storage-size":
+        metadata["file_size_bytes"] ← len(payload) - 1
+    elif variant == "storage-id":
+        metadata["file_id"] ← ""
+    elif variant == "storage-forged-platform":
+        metadata["evidence_class"] ← "platform"
+    try:
+        stage ← handoff.compose(stage, source, expected)
+        unchanged ∈ str ← str(json.dumps(stage, sort_keys=True))
+        job_delivery.check_storage(stage, source, stored, metadata, expected)
+        if str(json.dumps(stage, sort_keys=True)) != unchanged:
+            raise AssertionError("storage inspection changed delivery state")
+        return "PASS"
+    except ValueError as error:
+        return str(error)
+
 def run_case(fixture ∈ str, variant ∈ str) → str:
+    if variant.startswith("storage-"):
+        return run_storage_case(variant)
     if variant.startswith("actual-"):
         return run_actual_case(variant, False)
     if variant.startswith("attachment-"):

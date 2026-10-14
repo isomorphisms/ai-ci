@@ -56,3 +56,12 @@ actual-service-name-mutation	young-tableaux	actual-file-name	JOB-READBACK-METADA
 actual-service-mime-mutation	young-tableaux	actual-file-mime	JOB-READBACK-METADATA
 actual-service-id-mutation	young-tableaux	actual-file-id	JOB-READBACK-FILE
 actual-recovered-new-message	young-tableaux	actual-recovery	PASS
+storage-direct-bytes	young-tableaux	storage-direct	PASS
+storage-selected-member	young-tableaux	storage-archive	PASS
+storage-changed-bytes	young-tableaux	storage-bytes	JOB-STORAGE-BYTES
+storage-renamed-file	young-tableaux	storage-name	JOB-STORAGE-NAME
+storage-missing-mime	young-tableaux	storage-mime	JOB-STORAGE-MIME
+storage-wrong-size	young-tableaux	storage-size	JOB-STORAGE-SIZE
+storage-missing-file-id	young-tableaux	storage-id	JOB-STORAGE-FILE
+storage-forged-platform	young-tableaux	storage-forged-platform	JOB-PLATFORM-ADAPTER-UNAVAILABLE
+storage-text-transport	young-tableaux	storage-text	JOB-STORAGE-TRANSPORT

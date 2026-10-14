@@ -227,8 +227,42 @@ def check_actual(stage ∈ dict[str, object], source ∈ bytes, delivered ∈ by
             if str(latest.get("file_id")) != str(metadata.get("file_id")) or str(latest.get("surface")) != str(metadata.get("surface")):
                 raise ValueError("JOB-READBACK-FILE")
 
+def check_storage(stage ∈ dict[str, object], source ∈ bytes, stored ∈ bytes, metadata ∈ dict[str, object], expected ∈ dict[str, object]) → None:
+    """Inspect storage bytes without manufacturing a visible-delivery event."""
+    no_text ∈ list[str] ← []
+    check_authority(stage, source, expected, no_text)
+    record ∈ dict[str, object] ← dict(stage["handoff"])
+    if int(record["version"]) != 2:
+        raise ValueError("JOB-STORAGE-TRANSPORT")
+    evidence ∈ str ← str(metadata.get("evidence_class", ""))
+    if evidence != "fixture" and evidence != "service-storage-readback":
+        raise ValueError("JOB-PLATFORM-ADAPTER-UNAVAILABLE")
+    attachment ∈ dict[str, object] ← dict(record["attachment"])
+    if stored != bytes(reference_attachment(source, attachment)):
+        raise ValueError("JOB-STORAGE-BYTES")
+    if str(metadata.get("file_name")) != str(attachment["file_name"]):
+        raise ValueError("JOB-STORAGE-NAME")
+    if str(metadata.get("mime_type")) != str(attachment["mime_type"]):
+        raise ValueError("JOB-STORAGE-MIME")
+    if int(metadata.get("file_size_bytes", -1)) != len(stored):
+        raise ValueError("JOB-STORAGE-SIZE")
+    if str(metadata.get("file_id", "")) == "":
+        raise ValueError("JOB-STORAGE-FILE")
+    handoff.plain(metadata["file_id"])
+
 def main() → None:
     args ∈ list[str] ← sys.argv
+    if len(args) == 8 and args[1] == "stored":
+        storage_stage ∈ dict[str, object] ← json.loads(Path(args[2]).read_bytes())
+        storage_source ∈ bytes ← Path(args[3]).read_bytes()
+        stored ∈ bytes ← Path(args[4]).read_bytes()
+        storage_metadata ∈ dict[str, object] ← json.loads(Path(args[5]).read_bytes())
+        storage_admission ∈ dict[str, object] ← json.loads(Path(args[6]).read_bytes())
+        storage_expected ∈ dict[str, object] ← dict(storage_admission["spec"])
+        check_storage(storage_stage, storage_source, stored, storage_metadata, storage_expected)
+        storage_result ∈ dict[str, object] ← {"status": "STORAGE_BYTES_PASS", "platform_delivery_status": "NOT_VERIFIED", "presentation_status": "NOT_VERIFIED", "evidence_class": storage_metadata["evidence_class"], "stage_sha256": hashlib.sha256(Path(args[2]).read_bytes()).hexdigest(), "source_sha256": hashlib.sha256(storage_source).hexdigest(), "stored_sha256": hashlib.sha256(stored).hexdigest(), "admission_sha256": hashlib.sha256(Path(args[6]).read_bytes()).hexdigest()}
+        Path(args[7]).write_text(str(json.dumps(storage_result, sort_keys=True)) + "\n")
+        return
     if len(args) == 8 and args[1] == "actual":
         stage ∈ dict[str, object] ← json.loads(Path(args[2]).read_bytes())
         source ∈ bytes ← Path(args[3]).read_bytes()

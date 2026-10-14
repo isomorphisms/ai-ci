@@ -85,3 +85,23 @@ read-back data. Sanitized positive specimens are retained for CLI inspection.
 Actual delivery-service and physical-device qualification remain separately
 required and have not been replaced by those specimens.
 
+## Storage qualification without claiming presentation
+
+`check-job-delivery.pi stored STAGE SOURCE STORED METADATA ADMISSION RESULT`
+opens the actual stored file and compares it with the independent source-member
+oracle, exact filename, MIME type, size and nonempty service file identity.
+It consumes the existing stage while leaving its events and delivery states
+unchanged. This permits honest live file-service qualification while presentation
+is still pending. The result is STORAGE_BYTES_PASS, with presentation_status
+and platform_delivery_status both NOT_VERIFIED. The evidence labels describe
+inputs and cannot authenticate caller-created files or enable dispatch.
+
+The additional cases reject a renamed file, missing MIME, changed bytes, wrong
+size, missing file identity, text transport and forged platform classification.
+The original ordinary-text positive control and all previous cases remain.
+The FP35 live Wegert specimen was retrieved from the original workflow archive,
+materialized by FP, uploaded, independently read back and checked with this CLI.
+An initial duplicate-safe rename was rejected; recovery retained the same
+storage identity, restored the exact filename and used a new backing version
+with the APK MIME. Byte equality qualified storage, not Android presentation.
+
