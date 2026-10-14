@@ -1,0 +1,44 @@
+name: Android framebuffer image witness self-test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  image-witness:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Build independent RGB24 screenshot oracle and fixture producer
+        shell: sh
+        run: |
+          set -eu
+          cc -std=c17 -O2 -Wall -Wextra -Werror -pedantic framebuffer/verify_android_screens.c -o "$RUNNER_TEMP/aici-android-frame-diff"
+          cc -std=c17 -O2 -Wall -Wextra -Werror -pedantic framebuffer/tests/make_screen_fixtures.c -o "$RUNNER_TEMP/make-screen-fixtures"
+          mkdir -p "$RUNNER_TEMP/frames"
+          "$RUNNER_TEMP/make-screen-fixtures" "$RUNNER_TEMP/frames"
+      - name: Require actual changed-image witness
+        shell: sh
+        run: |
+          set -eu
+          d="$RUNNER_TEMP/frames"
+          "$RUNNER_TEMP/aici-android-frame-diff" "$d/before.rgb" "$d/after.rgb"
+      - name: Reject static, tiny and blank false-pass screenshots
+        shell: sh
+        run: |
+          set -eu
+          d="$RUNNER_TEMP/frames"
+          if "$RUNNER_TEMP/aici-android-frame-diff" "$d/before.rgb" "$d/before.rgb" > "$d/failure.log" 2>&1; then exit 1; fi
+          grep -q 'ANDROID_FRAME_DIFF_FAIL INPUT_DID_NOT_CHANGE_MATH_PIXELS' "$d/failure.log"
+          if "$RUNNER_TEMP/aici-android-frame-diff" "$d/before.rgb" "$d/tiny.rgb" > "$d/failure.log" 2>&1; then exit 1; fi
+          grep -q 'ANDROID_FRAME_DIFF_FAIL INPUT_DID_NOT_CHANGE_MATH_PIXELS' "$d/failure.log"
+          if "$RUNNER_TEMP/aici-android-frame-diff" "$d/blank.rgb" "$d/blank.rgb" > "$d/failure.log" 2>&1; then exit 1; fi
+          grep -q 'ANDROID_FRAME_DIFF_FAIL BLANK_MATH_CROP' "$d/failure.log"
+          echo 'ANDROID_SCREEN_MUTANTS_REJECTED static tiny blank'
