@@ -22,3 +22,6 @@ jobs:
       - name: Reject unrelated glyph source mutations
         shell: /home/runner/work/ai-ci/ai-ci/.ithon/ithon /home/runner/work/ai-ci/ai-ci/validators/rhs_glyph.pi selftest {0}
         run: independent source controls
+      - name: Verify independent detector metrics and held-out boundaries
+        shell: /home/runner/work/ai-ci/ai-ci/.ithon/ithon /home/runner/work/ai-ci/ai-ci/validators/rhs_detector.pi selftest {0}
+        run: independent metric controls
