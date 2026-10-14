@@ -1,0 +1,38 @@
+"""Execute Kitchen's geometry wrapper with actual checked Ithon entrypoints."""
+import sys
+import subprocess
+from pathlib import Path
+from builtins import ValueError
+
+def execute(argv ∈ list[str], expected_success ∈ bool) → None:
+    result ∈ object ← subprocess.run(argv,capture_output=True,timeout=30)
+    code ∈ int ← result.returncode
+    output ∈ str ← result.stdout.decode()
+    error ∈ str ← result.stderr.decode()
+    if expected_success:
+        if code!=0 or len(output)==0:
+            raise ValueError("Kitchen did not execute successful independent checker: "+error)
+    else:
+        if code!=1 and code!=2:
+            raise ValueError("Kitchen must reject missing/relative inputs or propagate semantic refusal; observed "+str(code))
+    print("PASS Kitchen control",str(code),str(argv))
+
+arguments ∈ list[str] ← sys.argv
+if len(arguments)!=5:
+    raise ValueError("usage: kitchen_controls.pi GREASE RECIPE ITHON CHECKER")
+grease ∈ str ← arguments[1]
+recipe ∈ str ← arguments[2]
+ithon ∈ str ← arguments[3]
+checker ∈ str ← arguments[4]
+for path in [grease,recipe,ithon,checker]:
+    absolute ∈ bool ← Path(path).is_absolute()
+    exists ∈ bool ← Path(path).is_file()
+    if not absolute or not exists:
+        raise ValueError("control inputs require observed absolute files")
+execute([grease,recipe,ithon,checker,"--self-test"],True)
+execute([grease,recipe,"relative-ithon",checker,"--self-test"],False)
+execute([grease,recipe,ithon,"relative-checker","--self-test"],False)
+execute([grease,recipe,"/nonexistent-geometry-ithon",checker,"--self-test"],False)
+execute([grease,recipe,ithon,"/nonexistent-geometry-checker.pi","--self-test"],False)
+execute([grease,recipe,ithon,checker,"--invalid-semantic-invocation"],False)
+print("PASS Kitchen real positive invocation, four rejected path inputs, propagated checker failure; no promotion or physical claim")
