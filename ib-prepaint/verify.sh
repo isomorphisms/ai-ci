@@ -83,7 +83,7 @@ LC_ALL=C awk -F '\t' '
   END { if (bad || state!=6 || revision_count!=1) exit 1 }
 ' "$candidate" || fail invalid_version1
 awk -F '\t' '
-  NF!=2 || $1 !~ /^[a-z_]+$/ || $2=="" || /\r/ {bad=1}
+  NF!=2 || $1 !~ /^[a-z_][a-z_0-9]*$/ || $2=="" || /\r/ {bad=1}
   {if (seen[$1]++) bad=1}
   END {if (bad || NR!=4) exit 1}
 ' "$receipt" || fail invalid_source_receipt
