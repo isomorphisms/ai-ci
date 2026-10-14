@@ -6,7 +6,7 @@ The completed allocation tranche contains **71 complete SUN/Ultra handoffs** for
 
 The earlier33 STAR packets and26 first-wave SUNs remain intact. There are now97 distinct campaign SUN identities, including13 older owner assignments now expanded and reconciled. BC-T01-S05 is cross-referenced verbatim, not counted again. No SUN implementation, actual Work dispatch, deployment, merge, release or device action is claimed by this coordinator.
 
-**Delivery checkpoint:** 45/71 newly emitted in chat; next BC-K01-S01. The earlier26 SUNs and33 STARs were emitted in their recorded prior batches. These ordinary ledger fields record actual assistant emission only, not platform-attested client visibility. Full text follows in numbered complete batches after preservation.
+**Delivery checkpoint:** 71/71 emitted in chat; next undelivered job: NONE. The earlier26 SUNs and33 STARs were emitted in their recorded prior batches. These ordinary ledger fields record actual assistant emission only, not platform-attested client visibility. The last 26 complete bodies were emitted in batches 16–24 on October 14, after verifying their saved packet SHA-256 values against jobs.tsv; packet bodies and digests are unchanged.
 
 **Runtime inventory reconciled:** all55 rows now have explicit dispositions. The36 previously generic gap owners have current repository/branch identities and exact existing work or named missing source/target scope; four additional grounded SUNs continue ICU, IR, checked Ithon/Archive and Cat Food producer integration. Their deeper artifact/physical scopes remain explicit, not presumed accepted. These four packets append to the original67, preserving emission order.
 
@@ -54,4 +54,4 @@ Current work is preserved: merged native transfer safeguards, retained S3 seals,
 
 Delivery correction: batch 6 initially mistyped the Ish ARMv7 digest in BC-CF03-S01; its complete corrected body was emitted immediately afterward. Saved and filed bytes were unchanged.
 
-Batch 15 had a chat-only bold-markup error in BC-FP06-S02's Outcome heading; an explicit formatting correction followed. Words and saved/filed bytes were unchanged. The next full-body batch is 16, jobs 46–48 (BC-K01-S01/S02/S03); 26 continuation bodies remain to emit. No additional investigation or filing is required for those preserved packets.
+Batch 15 had a chat-only bold-markup error in BC-FP06-S02's Outcome heading; an explicit formatting correction followed. Words and saved/filed bytes were unchanged. Batches 16–24 subsequently emitted jobs 46–71 in full, ending with BC-CF03-S06. All 71 continuation bodies are now emitted; no job remains undelivered. This closes the recorded chat-emission step only. Work dispatch and implementation remain unclaimed.
