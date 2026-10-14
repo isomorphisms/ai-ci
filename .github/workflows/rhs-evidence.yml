@@ -1,0 +1,24 @@
+name: RHS independent evidence controls
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  controls:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: dilapidated-shed/ithon
+          ref: d6e83969f82512e920fb17b44326cb54f31d015c
+          path: .ithon
+          persist-credentials: false
+      - name: Reject unrelated glyph source mutations
+        shell: /home/runner/work/ai-ci/ai-ci/.ithon/ithon /home/runner/work/ai-ci/ai-ci/validators/rhs_glyph.pi selftest {0}
+        run: independent source controls
