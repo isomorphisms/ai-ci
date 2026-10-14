@@ -53,7 +53,6 @@ proc fails (label, url, message) {
   cmp actual.stdout expected.stdout
   pass "$label"
 }
-find /tmp -maxdepth 1 -type d -name 'icu-response-*' -print | sort > captures.before
 succeeds http-get text http://127.0.0.1:28080/plain b'200\thello'
 succeeds http-post post http://127.0.0.1:28080/post b'200\tposted'
 succeeds https-get text https://localhost:28443/plain b'200\thello'
@@ -104,19 +103,21 @@ pass curl-oracle
 fork { "$probe" text http://127.0.0.1:28080/hold > hold.stdout 2> hold.stderr }
 var hold_pid = "$!"
 sleep 0.4
-find /tmp -maxdepth 1 -type d -name 'icu-response-*' -print | sort > captures.during
-comm -13 captures.before captures.during > new-capture
-var capture_path = "$(cat new-capture)"
+var probe_pid = "$hold_pid"
+var child_pids = "$(cat "/proc/$hold_pid/task/$hold_pid/children")"
+if (child_pids !== '') { setvar probe_pid = "$(printf '%s\n' "$child_pids" | awk '{print $1}')" }
+find "/proc/$probe_pid/fd" -maxdepth 1 -type l -printf '%l\n' | grep -E '^/tmp/icu-response-[^/]+/body$' > own-body-path
+var capture_path = "$(sed 's|/body$||' own-body-path)"
 test -n "$capture_path"
 test "$(stat -c '%a' "$capture_path")" = 700
 test "$(stat -c '%a' "$capture_path/body")" = 600
 wait "$hold_pid"
+test ! -e "$capture_path"
 pass private-capture
 for attempt in 1 2 3 {
   "$probe" text http://127.0.0.1:28080/plain > repeated.stdout 2> repeated.stderr
 }
-find /tmp -maxdepth 1 -type d -name 'icu-response-*' -print | sort > captures.after
-cmp captures.before captures.after
+test ! -e "$capture_path"
 pass cleanup
 env LD_DEBUG=libs "$probe" text http://127.0.0.1:28080/plain > trace.stdout 2> trace.stderr
 grep -F libicu_transport.so trace.stderr > loader-witness.txt
