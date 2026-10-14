@@ -1,0 +1,89 @@
+name: Framebuffer mathematical art independent acceptance
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  framebuffer-math-art:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out exact ai-ci head
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Check out exact framebuffer source candidate
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphisms/rough.framebuffer
+          ref: 803c22c9fb282d892319f5bb1526ed345c41bb34
+          path: _fb
+          persist-credentials: false
+      - name: Require source identity and build independent checker
+        shell: sh
+        run: |
+          set -eu
+          test "$(git -C _fb rev-parse HEAD)" = 803c22c9fb282d892319f5bb1526ed345c41bb34
+          mkdir -p "$RUNNER_TEMP/framebuffer-accept"
+          cc -std=c11 -O2 -Wall -Wextra -Werror -pedantic _fb/src/surface_main.c _fb/src/surface.c -lm -o "$RUNNER_TEMP/framebuffer-accept/rough-surface"
+          cc -std=c11 -O2 -Wall -Wextra -Werror -pedantic _fb/src/main.c _fb/src/framebuffer.c -lm -o "$RUNNER_TEMP/framebuffer-accept/rough-fb"
+          cc -std=c17 -O2 -Wall -Wextra -Werror -pedantic -I_fb/src framebuffer/verify_surfaces.c _fb/src/framebuffer.c -lm -o "$RUNNER_TEMP/framebuffer-accept/verify"
+          sha256sum "$RUNNER_TEMP/framebuffer-accept/rough-surface" "$RUNNER_TEMP/framebuffer-accept/rough-fb" "$RUNNER_TEMP/framebuffer-accept/verify"
+      - name: Render all five scenes through real native source and rasterizer
+        shell: sh
+        run: |
+          set -eu
+          d="$RUNNER_TEMP/framebuffer-accept"
+          "$d/rough-surface" torus 0 160 160 > "$d/torus0.ops"
+          "$d/rough-surface" torus 360 160 160 > "$d/torus360.ops"
+          "$d/rough-surface" torus 37 160 160 > "$d/torus37.ops"
+          "$d/rough-surface" enneper 25 160 160 > "$d/enneper25.ops"
+          "$d/rough-surface" torus 30 160 160 0.55 > "$d/near.ops"
+          "$d/rough-fb" "$d/torus0.ops" "$d/torus0.ppm" 160 160
+          "$d/rough-fb" "$d/torus37.ops" "$d/torus37.ppm" 160 160
+          "$d/rough-fb" "$d/enneper25.ops" "$d/enneper25.ppm" 160 160
+          sha256sum "$d"/*.ops "$d"/*.ppm
+      - name: Independent semantics and framebuffer pixel acceptance
+        shell: sh
+        run: |
+          set -eu
+          d="$RUNNER_TEMP/framebuffer-accept"
+          "$d/verify" "$d/torus0.ops" "$d/torus360.ops" "$d/torus37.ops" "$d/enneper25.ops" "$d/near.ops" "$d/torus0.ppm" "$d/torus37.ppm" "$d/enneper25.ppm"
+      - name: Kill seam, projection, occlusion, static-frame, missing-clip and fake-frame mutants
+        shell: sh
+        run: |
+          set -eu
+          d="$RUNNER_TEMP/framebuffer-accept"
+          sed -e 's/sin(u)/sin(1.3 * u)/' -e 's/cos(2.0 \* v)/cos(1.8 * v)/' _fb/src/surface.c > "$d/bad-palette.c"
+          grep -q 'sin(1.3 \* u)' "$d/bad-palette.c"
+          cc -std=c11 -O2 -Wall -Wextra -Werror -pedantic -I_fb/src _fb/src/surface_main.c "$d/bad-palette.c" -lm -o "$d/bad-palette"
+          "$d/bad-palette" torus 0 160 160 > "$d/bad-palette.ops"
+          if "$d/verify" "$d/bad-palette.ops" "$d/torus360.ops" "$d/torus37.ops" "$d/enneper25.ops" "$d/near.ops" "$d/torus0.ppm" "$d/torus37.ppm" "$d/enneper25.ppm" > "$d/mutant.log" 2>&1; then exit 1; fi
+          grep -q 'FAIL TORUS_PALETTE_SEAM' "$d/mutant.log"
+
+          sed 's/0.5 + focal \* p.x/0.5 - focal * p.x/' _fb/src/surface.c > "$d/bad-camera.c"
+          grep -q '0.5 - focal \* p.x' "$d/bad-camera.c"
+          cc -std=c11 -O2 -Wall -Wextra -Werror -pedantic -I_fb/src _fb/src/surface_main.c "$d/bad-camera.c" -lm -o "$d/bad-camera"
+          "$d/bad-camera" torus 0 160 160 > "$d/bad-camera.ops"
+          if "$d/verify" "$d/bad-camera.ops" "$d/torus360.ops" "$d/torus37.ops" "$d/enneper25.ops" "$d/near.ops" "$d/torus0.ppm" "$d/torus37.ppm" "$d/enneper25.ppm" > "$d/mutant.log" 2>&1; then exit 1; fi
+          grep -q 'FAIL ANALYTIC_TORUS_PROJECTION' "$d/mutant.log"
+
+          sed 's/fragment_depth < (double)fb->depth\[depth_index\]/fragment_depth > (double)fb->depth[depth_index]/' _fb/src/framebuffer.c > "$d/bad-depth.c"
+          grep -q 'fragment_depth > (double)fb->depth\[depth_index\]' "$d/bad-depth.c"
+          cc -std=c17 -O2 -Wall -Wextra -Werror -pedantic -I_fb/src framebuffer/verify_surfaces.c "$d/bad-depth.c" -lm -o "$d/bad-depth"
+          if "$d/bad-depth" "$d/torus0.ops" "$d/torus360.ops" "$d/torus37.ops" "$d/enneper25.ops" "$d/near.ops" "$d/torus0.ppm" "$d/torus37.ppm" "$d/enneper25.ppm" > "$d/mutant.log" 2>&1; then exit 1; fi
+          grep -q 'FAIL FAR_TRIANGLE_MISSING' "$d/mutant.log"
+
+          if "$d/verify" "$d/torus0.ops" "$d/torus360.ops" "$d/torus0.ops" "$d/enneper25.ops" "$d/near.ops" "$d/torus0.ppm" "$d/torus37.ppm" "$d/enneper25.ppm" > "$d/mutant.log" 2>&1; then exit 1; fi
+          grep -q 'FAIL ANGLE_DID_NOT_CHANGE_GEOMETRY' "$d/mutant.log"
+          if "$d/verify" "$d/torus0.ops" "$d/torus360.ops" "$d/torus37.ops" "$d/enneper25.ops" "$d/torus0.ops" "$d/torus0.ppm" "$d/torus37.ppm" "$d/enneper25.ppm" > "$d/mutant.log" 2>&1; then exit 1; fi
+          grep -q 'FAIL NEAR_PLANE_NOT_CLIPPED' "$d/mutant.log"
+          if "$d/verify" "$d/torus0.ops" "$d/torus360.ops" "$d/torus37.ops" "$d/enneper25.ops" "$d/near.ops" "$d/torus0.ppm" "$d/torus0.ppm" "$d/enneper25.ppm" > "$d/mutant.log" 2>&1; then exit 1; fi
+          grep -q 'FAIL FRAME_NOT_RENDERED_FROM_OPERATIONS' "$d/mutant.log"
+          echo 'MUTANT_REJECTION_PASS: 6 incorrect implementations/artifacts rejected at intended oracles'
