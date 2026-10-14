@@ -1,0 +1,9 @@
+ib-prepaint	1
+revision	0	complete
+requested-url	https://example.com/
+resolved-url	https://example.com/
+title	Example
+heading	1	Example
+text	One & two.
+link	Next	https://example.com/next
+end
