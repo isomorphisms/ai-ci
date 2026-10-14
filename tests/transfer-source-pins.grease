@@ -1,0 +1,32 @@
+#!/usr/bin/env grease
+# Record the exact clean repositories exercised by the cross-repository job.
+set -eu
+test "$#" = 6 || exit 2
+catfood=$1
+kitchen=$2
+aici=$3
+fp=$4
+runtime=$5
+output=$6
+mkdir -p "$output"
+record() {
+    name=$1
+    directory=$2
+    changes=$(git -C "$directory" status --porcelain)
+    test -z "$changes" || { printf 'FAIL dirty source: %s\n' "$name" >&2; exit 1; }
+    origin=$(git -C "$directory" remote get-url origin)
+    test "$origin" = "https://github.com/isomorphisms/$name.git" || exit 1
+    revision=$(git -C "$directory" rev-parse HEAD)
+    tree=$(git -C "$directory" rev-parse 'HEAD^{tree}')
+    printf '%s\t%s\t%s\t%s\n' "$name" "$revision" "$tree" "$origin"
+}
+{
+    record catfood "$catfood"
+    record kitchen "$kitchen"
+    record ai-ci "$aici"
+    record flexible-pipes "$fp"
+} > "$output/source-pins.tsv"
+engine=$(dirname "$runtime")/ysh
+sha256sum "$runtime" "$engine" > "$output/native-runtime.sha256"
+printf 'runtime_target\tLinux-x86_64\nphysical_C67\tNOT_RUN\nphysical_A1\tNOT_RUN\nlive_GitHub_mutation\tNOT_RUN\n' > "$output/evidence-scope.tsv"
+cat "$output/source-pins.tsv" "$output/native-runtime.sha256" "$output/evidence-scope.tsv"
