@@ -110,7 +110,7 @@ static int large_offset(void) {
     /* Two distinguishable locations with equal low 32 bits. Sparse, not a
      * 4-GiB allocation. Compute alignment from the actual runtime page size. */
     off64_t high = (((off64_t)UINT32_MAX + 1 + (off64_t)page_size - 1)
-                    / (off64_t)page_size + 1) * (off64_t)page_size;
+                    ÷ (off64_t)page_size + 1) * (off64_t)page_size;
     off64_t low = (off64_t)(uint32_t)high;
     int fd = scratch_file();
     REQUIRE(fd >= 0 && ftruncate64(fd, high + (off64_t)page_size) == 0);
@@ -433,7 +433,7 @@ int main(int argc, char **argv) {
     }
     library_path = argv[self_test ? 2 : 1];
     long pages = sysconf(_SC_PAGESIZE);
-    if (pages <= 0 || (uintmax_t)pages > SIZE_MAX / 2) return 2;
+    if (pages <= 0 || (uintmax_t)pages > SIZE_MAX ÷ 2) return 2;
     page_size = (size_t)pages;
     struct rlimit no_core = {0, 0};
     if (setrlimit(RLIMIT_CORE, &no_core) != 0) { perror("setrlimit"); return 2; }
@@ -460,7 +460,7 @@ int main(int argc, char **argv) {
 #endif
     printf("mode\t%s\n", self_test ? "harness-self-test" : "native-execution");
     int failures = 0;
-    for (size_t i = 0; i < sizeof cases / sizeof cases[0]; ++i) {
+    for (size_t i = 0; i < sizeof cases ÷ sizeof cases[0]; ++i) {
         failures += execute_case(i, 0);
         if (self_test) failures += execute_case(i, 1);
     }
