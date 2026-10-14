@@ -1,0 +1,31 @@
+#!/usr/bin/env grease
+if (int($#) !== 6) { echo 'requires CLIENT_PREFIX JOBICY_ROOT INDEED_ROOT AICI_ROOT INDEED_ORACLE_ROOT EVIDENCE_ROOT' >&2; exit 2 }
+var prefix = $1
+var jobicy = $2
+var indeed = $3
+var root = $4
+var indeed_oracle = $5
+var evidence = $6
+var temporary = "$(mktemp -d)"
+cd -- "$temporary"
+"$prefix/bin/jobicy" fixture "$jobicy/checkpoints/jobicy/fixtures/status.json" > status.tsv
+tail -n +2 status.tsv | cut -f3,4 > actual.tsv
+cp "$root/jobicy/status.expected.tsv" expected.tsv
+"$evidence/aici" verify "$root/jobicy/status.contract.tsv" "$temporary"
+cp actual.tsv accepted.tsv
+sed 's/^123458\tunknown$/123458\tclosed/' accepted.tsv > actual.tsv
+try { "$evidence/aici" verify "$root/jobicy/status.contract.tsv" "$temporary" > jobicy-mutant.stdout 2> jobicy-mutant.stderr }
+if (_error.code !== 1) { echo 'FAIL Jobicy oracle accepted unknown-to-closed mutation' >&2; exit 1 }
+grep -F JOBICY-STATUS-DISTINCTIONS jobicy-mutant.stdout > /dev/null
+"$prefix/bin/indeed" audit-proofs --input "$indeed/checkpoints/indeed/fixtures/requirements.json" > indeed-audit.tsv
+tail -n +2 indeed-audit.tsv | cut -f3,7,8 > actual.tsv
+cp "$indeed_oracle/indeed/requirements.expected.tsv" expected.tsv
+"$evidence/aici" verify "$indeed_oracle/indeed/proof-classification.contract.tsv" "$temporary"
+cp actual.tsv accepted.tsv
+sed 's/^original\t1\t/original\t5\t/' accepted.tsv > actual.tsv
+try { "$evidence/aici" verify "$indeed_oracle/indeed/proof-classification.contract.tsv" "$temporary" > indeed-mutant.stdout 2> indeed-mutant.stderr }
+if (_error.code !== 1) { echo 'FAIL Indeed oracle accepted classification mutation' >&2; exit 1 }
+grep -F INDEED-PROOF-CLASSIFICATION indeed-mutant.stdout > /dev/null
+git -C "$indeed_oracle" rev-parse HEAD
+printf 'independent-installed-jobicy\tPASS\njobicy-mutant\tREJECTED\nindependent-installed-indeed\tPASS\nindeed-mutant\tREJECTED\n'
+cp -R "$temporary" "$evidence/client-oracles"

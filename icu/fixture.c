@@ -50,10 +50,14 @@ static void respond(int fd, SSL *tls, const char *request, int port) {
     }
     unsigned char binary[] = {0, 1, 2, 255, 10, 13, 0, 128};
     unsigned char invalid[] = {0xc0, 0xaf};
+    unsigned char held[16385];
+    int holding = !strncmp(path, "/hold-", 6);
+    if (holding) { memset(held, 'x', sizeof(held)); memcpy(held, path + 1, strlen(path) - 1); }
     size_t size = strlen(body);
     const void *bytes = body;
     if (!strcmp(path, "/binary")) { size = sizeof(binary); bytes = binary; }
     if (!strcmp(path, "/invalid-utf8")) { size = sizeof(invalid); bytes = invalid; }
+    if (holding) { size = sizeof(held); bytes = held; }
     if (!strcmp(path, "/empty")) size = 0;
     int status = 200;
     if (!strncmp(path, "/status/", 8)) status = atoi(path + 8);
@@ -72,7 +76,12 @@ static void respond(int fd, SSL *tls, const char *request, int port) {
     char head[512];
     int n = snprintf(head, sizeof(head), "HTTP/1.0 %d Fixture\r\n%sContent-Type: %s\r\nContent-Encoding: %s\r\nConnection: close\r\n\r\n", status, length, type, encoding);
     if (!send_all(fd, tls, head, (size_t)n)) return;
-    if (!strcmp(path, "/hold")) sleep(2);
+    if (holding) {
+        if (!send_all(fd, tls, held, sizeof(held) - 1)) return;
+        sleep(2);
+        (void)send_all(fd, tls, held + sizeof(held) - 1, 1);
+        return;
+    }
     if (large) {
         unsigned char block[4096]; memset(block, 'x', sizeof(block));
         while (size) {
