@@ -7,14 +7,12 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 mkdir "$1"
 output=$(cd "$1" && pwd)
 mkdir "$output/scratch"
-compiler=${CC:-cc}
-flags=(-std=c17 -Wall -Wextra -Werror -pedantic -O2)
-"$compiler" "${flags[@]}" -fPIC -shared "$root/native-boundary/fixture.c" -o "$output/libnative-fixture.so"
+compiler=${ICK:-ick}
+make --no-print-directory -f "$root/native-boundary/Makefile" \
+  TARGET=host ICK="$compiler" KIND=fixture LINK_FLAGS= OUTPUT="$output/libnative-fixture.so"
 for mode in default largefile; do
-  offsets=()
-  if [[ "$mode" == largefile ]]; then offsets=(-D_FILE_OFFSET_BITS=64); fi
-  "$compiler" "${flags[@]}" "${offsets[@]}" -DAICI_NATIVE_SELF_TEST \
-    "$root/native-boundary/probe.c" -pthread -ldl -o "$output/self-test-$mode"
+  make --no-print-directory -f "$root/native-boundary/Makefile" \
+    TARGET=host ICK="$compiler" KIND=self-test MODE="$mode" LINK_FLAGS= OUTPUT="$output/self-test-$mode"
   (cd "$output/scratch"; "$output/self-test-$mode" --self-test "$output/libnative-fixture.so") \
     > "$output/$mode.tsv" 2> "$output/$mode.stderr"
   awk -F '\t' '
