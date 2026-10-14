@@ -2,13 +2,13 @@
 
 Parent: https://github.com/isomorphisms/ai-ci/issues/239
 
-The initial tranche contains **67 complete SUN/Ultra handoffs** for the remaining 27 domain STARs: **54 new job identities and 13 refreshed existing assignments**. All67 are filed on44 existing canonical issues and read back with exactly matching full bodies. No replacement umbrella issue was created.
+The completed allocation tranche contains **71 complete SUN/Ultra handoffs** for the remaining 27 domain STARs: **58 new job identities and 13 refreshed existing assignments**. All71 are filed on45 existing canonical issues and read back with exactly matching full bodies. No replacement umbrella issue was created.
 
-The earlier33 STAR packets and26 first-wave SUNs remain intact. There are currently93 distinct campaign SUN identities, including13 older owner assignments now expanded and reconciled. BC-T01-S05 is cross-referenced verbatim, not counted again. No SUN implementation, actual Work dispatch, deployment, merge, release or device action is claimed by this coordinator.
+The earlier33 STAR packets and26 first-wave SUNs remain intact. There are now97 distinct campaign SUN identities, including13 older owner assignments now expanded and reconciled. BC-T01-S05 is cross-referenced verbatim, not counted again. No SUN implementation, actual Work dispatch, deployment, merge, release or device action is claimed by this coordinator.
 
-**Delivery checkpoint:** 0/67 newly emitted in chat; next BC-A01-S01. The earlier26 SUNs and33 STARs were emitted in their recorded prior batches. These ordinary ledger fields record actual assistant emission only, not platform-attested client visibility. Full text follows in numbered complete batches after preservation.
+**Delivery checkpoint:** 6/71 newly emitted in chat; next BC-A05-S01. The earlier26 SUNs and33 STARs were emitted in their recorded prior batches. These ordinary ledger fields record actual assistant emission only, not platform-attested client visibility. Full text follows in numbered complete batches after preservation.
 
-**Open extension:** CF03's55-row runtime inventory needs additional exact producer-job dispositions. Investigation is continuing; generic “producer must supply package” rows are not treated as completed allocation. Any grounded supplement will append to this tranche and receive its own filed/readback/emission record.
+**Runtime inventory reconciled:** all55 rows now have explicit dispositions. The36 previously generic gap owners have current repository/branch identities and exact existing work or named missing source/target scope; four additional grounded SUNs continue ICU, IR, checked Ithon/Archive and Cat Food producer integration. Their deeper artifact/physical scopes remain explicit, not presumed accepted. These four packets append to the original67, preserving emission order.
 
 [All complete SUN bodies](ALL-SUN-JOBS.md) · [Exact index and canonical comments](jobs.tsv) · [Delivery ledger](DELIVERY.tsv) · [All33 domain dispositions](domains.tsv) · [Dependency and readiness decisions](DEPENDENCIES.md) · [Current source/coverage limits](SOURCES.md) · [Prior-wave changes](PRIOR-WAVE-DISPOSITIONS.md) · [Original complete request](../REQUEST.md).
 
@@ -23,7 +23,7 @@ The earlier33 STAR packets and26 first-wave SUNs remain intact. There are curren
 | BC-A08 | 3 | [Decision](A08/decision.md), [coverage](A08/source-coverage.md) |
 | BC-CF01 | 2 | [Decision](BC-CF01/decision.md), [coverage](BC-CF01/source-coverage.md) |
 | BC-CF02 | 2 | [Decision](BC-CF02/decision.md), [coverage](BC-CF02/source-coverage.md) |
-| BC-CF03 | 3 | [Decision](BC-CF03/decision.md), [coverage](BC-CF03/source-coverage.md) |
+| BC-CF03 | 7 | [Decision](BC-CF03/decision.md), [coverage](BC-CF03/source-coverage.md) |
 | BC-CF04 | 1 | [Decision](BC-CF04/decision.md), [coverage](BC-CF04/source-coverage.md) |
 | BC-CF05 | 2 | [Decision](BC-CF05/decision.md), [coverage](BC-CF05/source-coverage.md) |
 | BC-CF06 | 2 | [Decision](BC-CF06/decision.md), [coverage](BC-CF06/source-coverage.md) |

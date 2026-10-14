@@ -1,10 +1,10 @@
 id	body_path	body_sha256	canonical_comment	authored	filed	readback_verified	chat_emitted	batch	dispatched
-BC-A01-S01	A01/jobs/BC-A01-S01.md	e4d450cb40ca16fbaa0ff96f89cc4ae20c262025edcbe2fb25af003a0d39759d	https://github.com/isomorphisms/ai-ci/issues/181#issuecomment-6170074997	YES	YES	YES	NO	PENDING	NO
-BC-A01-S02	A01/jobs/BC-A01-S02.md	bf70fad768d567a67c55592c326201d8512e4c22617f286c4880d0252838fe18	https://github.com/isomorphisms/ai-ci/issues/181#issuecomment-6170081071	YES	YES	YES	NO	PENDING	NO
-BC-A01-S03	A01/jobs/BC-A01-S03.md	afe318b81930b5250af021cb9e1cbd43776da61b81a2e9dad96c835e3a3ef330	https://github.com/isomorphisms/ai-ci/issues/181#issuecomment-6170081824	YES	YES	YES	NO	PENDING	NO
-CF-A2-S4	A03/jobs/CF-A2-S4.md	7f4786a32b349e2f13ff5c7fab57fc9f319c6a69351af882cfff36584ca715a9	https://github.com/isomorphisms/ai-ci/issues/207#issuecomment-6170082255	YES	YES	YES	NO	PENDING	NO
-BC-A04-S01	A04/jobs/BC-A04-S01.md	ff2e99bbc944b1bcec2d14e5e30af3c409adbadf7eff3e3eba2426a6e33652c3	https://github.com/isomorphisms/ai-ci/issues/171#issuecomment-6170082821	YES	YES	YES	NO	PENDING	NO
-BC-A04-S02	A04/jobs/BC-A04-S02.md	5392dd7e9bed0b1b878f2246d823790f7b31a844e0f33f6c4235590080919ba3	https://github.com/isomorphisms/ai-ci/issues/171#issuecomment-6170083614	YES	YES	YES	NO	PENDING	NO
+BC-A01-S01	A01/jobs/BC-A01-S01.md	e4d450cb40ca16fbaa0ff96f89cc4ae20c262025edcbe2fb25af003a0d39759d	https://github.com/isomorphisms/ai-ci/issues/181#issuecomment-6170074997	YES	YES	YES	YES	1	NO
+BC-A01-S02	A01/jobs/BC-A01-S02.md	bf70fad768d567a67c55592c326201d8512e4c22617f286c4880d0252838fe18	https://github.com/isomorphisms/ai-ci/issues/181#issuecomment-6170081071	YES	YES	YES	YES	1	NO
+BC-A01-S03	A01/jobs/BC-A01-S03.md	afe318b81930b5250af021cb9e1cbd43776da61b81a2e9dad96c835e3a3ef330	https://github.com/isomorphisms/ai-ci/issues/181#issuecomment-6170081824	YES	YES	YES	YES	1	NO
+CF-A2-S4	A03/jobs/CF-A2-S4.md	7f4786a32b349e2f13ff5c7fab57fc9f319c6a69351af882cfff36584ca715a9	https://github.com/isomorphisms/ai-ci/issues/207#issuecomment-6170082255	YES	YES	YES	YES	2	NO
+BC-A04-S01	A04/jobs/BC-A04-S01.md	ff2e99bbc944b1bcec2d14e5e30af3c409adbadf7eff3e3eba2426a6e33652c3	https://github.com/isomorphisms/ai-ci/issues/171#issuecomment-6170082821	YES	YES	YES	YES	2	NO
+BC-A04-S02	A04/jobs/BC-A04-S02.md	5392dd7e9bed0b1b878f2246d823790f7b31a844e0f33f6c4235590080919ba3	https://github.com/isomorphisms/ai-ci/issues/171#issuecomment-6170083614	YES	YES	YES	YES	2	NO
 BC-A05-S01	A05/jobs/BC-A05-S01.md	f161bc3e45694e2fa8d4403f16e87136cc59e2eebeab24bdc65592e29db0c97d	https://github.com/isomorphisms/ai-ci/issues/183#issuecomment-6170084269	YES	YES	YES	NO	PENDING	NO
 BC-A05-S02	A05/jobs/BC-A05-S02.md	1314593f54b32affca371bd1c1940e37d768f6931517d08f70e6f38e614eea4a	https://github.com/isomorphisms/ai-ci/issues/183#issuecomment-6170084747	YES	YES	YES	NO	PENDING	NO
 BC-A05-S03	A05/jobs/BC-A05-S03.md	87ad76dff116970744a8d53b3863977742277b80f979a7e86b9e3c99fb2bcb5c	https://github.com/isomorphisms/ai-ci/issues/183#issuecomment-6170085285	YES	YES	YES	NO	PENDING	NO
@@ -66,3 +66,7 @@ BC-P04-S03	P04/jobs/BC-P04-S03.md	3c8d1ef4a69cc5a394f4dd3df1ef86e693320647b19fe5
 BC-S01-S01	S01/jobs/BC-S01-S01.md	af6f9e90de975294d3434abdee7d335922a76ce88a4830d8c3e62ea55ce9277d	https://github.com/isomorphisms/coxswain/issues/31#issuecomment-6170120849	YES	YES	YES	NO	PENDING	NO
 BC-S01-S02	S01/jobs/BC-S01-S02.md	4b706cde211f5fbcb50ed728ff69a14bee5d0ba0cce20a6b9ad598be998a97d3	https://github.com/isomorphisms/coxswain/issues/32#issuecomment-6170121228	YES	YES	YES	NO	PENDING	NO
 BC-S01-S03	S01/jobs/BC-S01-S03.md	4d7ffbfc387475176f4ef00b4eacf81a8feb2c8ffdf3687131d44e611531dd41	https://github.com/isomorphisms/coxswain/issues/34#issuecomment-6170121644	YES	YES	YES	NO	PENDING	NO
+BC-CF03-S03	BC-CF03/jobs/BC-CF03-S03.md	f9ee28f7212e75a93eef60adf2ad6459948ee15033c76b5b342bb6c62e06b1f2	https://github.com/dilapidated-shed/icu/issues/24#issuecomment-6170319464	YES	YES	YES	NO	PENDING	NO
+BC-CF03-S04	BC-CF03/jobs/BC-CF03-S04.md	98814d55878cfdbcd3accb3cfb6ace241ade13e322db8b8add26735d2b1689d1	https://github.com/isomorphisms/catfood/issues/33#issuecomment-6170319825	YES	YES	YES	NO	PENDING	NO
+BC-CF03-S05	BC-CF03/jobs/BC-CF03-S05.md	dc21bd816bcc0f89ce518c927cb18d53796d082fdd9c59fdb3810d636ab1eee7	https://github.com/isomorphisms/catfood/issues/33#issuecomment-6170320185	YES	YES	YES	NO	PENDING	NO
+BC-CF03-S06	BC-CF03/jobs/BC-CF03-S06.md	e49f3903a6ea933010ed329e14022d4465aba61c61d7b3b00198f1eb5b016c81	https://github.com/isomorphisms/catfood/issues/33#issuecomment-6170320593	YES	YES	YES	NO	PENDING	NO

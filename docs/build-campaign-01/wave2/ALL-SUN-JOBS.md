@@ -1873,3 +1873,115 @@ END OF BC-S01-S02
 **12. Authority:** Source implementation and bounded read-only/disposable tests, canonical draft records; no schedule, watcher activation, automatic repair, live prompt dispatch, merge, closure, installation or device changes.
 
 END OF BC-S01-S03
+
+# BC-CF03-S03 — Finish ICU’s existing direct-DEX runtime package and reconcile its duplicate JNI paths
+
+**1. Identity and execution:** SUN, Ultra; owner `dilapidated-shed/icu`; parent BC-CF03 and [BUILD-CAMPAIGN-01](https://github.com/isomorphisms/ai-ci/issues/239); continue canonical [ICU #24](https://github.com/dilapidated-shed/icu/issues/24), not a replacement producer.
+
+**2. Outcome:** Deliver the real ICU command as the existing runtime-only ARMv7 DEX/JNI/OpenSSL package, with one maintained native seam and a consumable Cat Food descriptor. Keep ARM64 separately unresolved unless its actual producer qualifies.
+
+**3. Recovered intent:** ICU #24 and its complete comment select direct checked DEX plus narrow NDK/JNI, without phone compilation, RefC substitution or experimental ARM/Thumb prerequisites. High-level URL, command, redirect and result semantics remain Idriç/Idric-Net.
+
+**4. Current evidence:** Current `icu` is 468355b780d17f9b0838c8ac975962596811c484. [dilapidated-shed/icu PR #27, “Android: add fail-closed Cat Food phone packager”](https://github.com/dilapidated-shed/icu/pull/27) is merged. [dilapidated-shed/icu PR #26, “Android: add direct-DEX JNI transport seam”](https://github.com/dilapidated-shed/icu/pull/26) also merged despite its older warning; main contains both native/build paths. Release collection is 0/0.
+
+**5. Reuse instructions:** Reuse `android/package-catfood.sh`, `android/build-native.sh`, `android/jni_transport.c`, `native/android_jni.c`, emulator acceptance and `src/Main.idric`. Preserve #25 native/OpenSSL evidence and #27’s explicitly test-only DEX. Existing [backend #58](https://github.com/fuego-ironworks/idric-arm-thumb/issues/58) and [fuego-ironworks/idric-arm-thumb PR #59, “DEX: add ICU-derived checked command slice”](https://github.com/fuego-ironworks/idric-arm-thumb/pull/59), live 59fdb257f59d4e619f7182aa89c68ad99b02e77e, own checked lowering.
+
+**6. Scope and ownership:** ICU owns transport/package implementation; backend owns language lowering; Cat Food consumes; AICI independently qualifies. Reconcile current JNI symbols/argv/stdout/exit support into the maintained transport build rather than adding a third adapter. Do not transplant IB-specific semantics.
+
+**7. Prerequisites:** Source reconciliation and negative package tests start now. Production release requires source-derived real ICU DEX plus qualified target transport. Consume that released artifact, not completion of every backend experiment. Recheck every compiler/Idric-Net/NDK/OpenSSL source pin and managed no-C++ eligibility.
+
+**8. Work:** Complete source-bound packaging: prove DEX entry/JNI agreement, exact target/API and every runtime member; bind generated DEX to checked source/plan and producer status. Package the real OpenSSL closure and runtime data, record deterministic archive identity and sizes, then prepare the immutable release/consumer row through existing gates.
+
+**9. Acceptance:** Execute actual command arguments through ART against deterministic local HTTP/HTTPS fixtures. Validate UTF-8 body length, output and exit status. Reject fixture-only DEX, wrong source, missing transport/OpenSSL, wrong ABI, swapped JNI class, failed producer with surviving output and tampered members. Benign relocation, repeated packaging and fresh installation retain identical behavior; changes invalidate receipts.
+
+**10. Evidence limits:** Refreshed source and metadata are observed; earlier native PASS is producer-reported, not a fresh payload execution here. Current packager checks ARM machine/class syntax but does not establish complete semantics. Build, emulator, release, install and physical HTTP/HTTPS remain distinct.
+
+**11. Completion and continuation:** Deliver one reconciled implementation and rejecting tests, exact package/producer manifest, Cat Food handoff and first concrete unsupported checked form if blocked. Keep affected inventory cells explicit; unrelated runtimes proceed.
+
+**12. Authority:** Use an isolated branch and bounded tests. This campaign performs no publication, merge or device operation and adds no authority. Preserve any separately recorded scoped authority; production activation still requires its exact evidence gates.
+
+END OF BC-CF03-S03
+
+# BC-CF03-S04 — Continue IR’s exact-source Android package with explicit compiler and runtime eligibility gates
+
+**1. Identity and execution:** SUN, Ultra; owner `isomorphisms/ir`; parent BC-CF03 and [BUILD-CAMPAIGN-01](https://github.com/isomorphisms/ai-ci/issues/239); canonical [Cat Food #33](https://github.com/isomorphisms/catfood/issues/33). Continue [isomorphisms/ir PR #24, “Sync IR source to R-devel r90659 (preserve Unicode semantics)”](https://github.com/isomorphisms/ir/pull/24) as the existing producer work.
+
+**2. Outcome:** Produce an honestly qualified IR runtime package from the selected exact source and implement its existing packaging/consumer boundary. Resolve the real language/toolchain conflict before admission; do not invent a new R implementation.
+
+**3. Recovered intent:** Whole-inventory delivery preserves IR’s Unicode semantics and private installation beside ordinary R. Runtime-only phones and [Cat Food #131](https://github.com/isomorphisms/catfood/issues/131) forbid compiler installation and C++ managed material. Optional IR incompleteness cannot stop unrelated provisioning.
+
+**4. Current evidence:** Default `ir` is 7829f310ce505109fc4bfd0e1d151b2c92b4b29f; live #24 is 29ea780263bd5d1a32a67327b39a6c8581fd1a32. [isomorphisms/ir PR #2, “Build an isolated ARMv7 Termux package”](https://github.com/isomorphisms/ir/pull/2) landed. Existing release `ir-4.7.0-devel-armv7.1` binds older 84564b69c1bcad789f0f3be686660c226071e184; its .deb SHA-256 is 36874b459e15ae781789ab4dba8834a50a97ee48970306424a71ff3ae3049de1.
+
+**5. Reuse instructions:** Reuse `build-armv7-termux`, `build/termux-armv7/package/build.sh`, existing Unicode/regression fixtures and build records. Preserve historical release bytes; they do not qualify newer source. The real recipe explicitly selects gcc-15, gfortran-15 and g++-15 and links eleven named runtime dependencies. Its native Android build executes freshly built R.
+
+**6. Scope and ownership:** IR owns source/runtime semantics and package production; Cat Food owns supported consumer import, material obligations and admission. Keep `ir`/`irscript` private and ordinary `R`/`Rscript` unchanged. Do not introduce a generic apt solver or rename CXXR history into an eligible runtime.
+
+**7. Prerequisites:** Packaging qualification can begin independently. Enumerate actual C, Fortran, C++ and inherited runtime stages against qualified ICK/NDK capabilities. Identify exact mandatory C++ source/library or unavailable Fortran stage as BLOCKED_CAPABILITY; no waiver, silent GCC fallback, translation or altered build claim.
+
+**8. Work:** Add source-bound stage checks and complete dependency/material receipts to the existing producer. Qualify safe .deb-to-existing-Cat-Food payload preparation only from approved exact contents, without running arbitrary maintainer scripts or hiding transitive libraries. Preserve modes, paths, symlinks, resources and license records. Emit deterministic package identity and per-ABI support; do not copy ARMv7 success into ARM64.
+
+**9. Acceptance:** Run actual IR Unicode/assignment/function/equality/tensor and relevant upstream regression behavior on the qualified built runtime. Independently reject wrong revision, undeclared C++ dependency, omitted library, wrong ABI, stale .deb, failing producer with stale output, and command collisions. Benign private-prefix relocation and repeat installation retain results and ordinary R. Retain minimal failing target reproducer when compilation is blocked.
+
+**10. Evidence limits:** Metadata refreshed: one release/four assets, no fresh .deb download or runtime execution here. Source-sync CI success is neither compiler qualification nor exact-head runtime acceptance. Container execution remains distinct from A1 physical execution.
+
+**11. Completion and continuation:** Deliver implementation and executable eligibility/package checks, exact remaining capability owner, complete closure and prepared consumer descriptor. Keep #24 unaccepted until its original executed semantic obligations pass; do not revive CXXR as a convenient alternative.
+
+**12. Authority:** Work in isolation; no remote mutation, release, device install or merge is authorized by this campaign. Preserve original issue/PR scope and historical failures. Return a genuine source-language conflict for judgment while completing unaffected packaging work.
+
+END OF BC-CF03-S04
+
+# BC-CF03-S05 — Materialize the existing checked Ithon and Internet Archive runtime closure without ambient fallback
+
+**1. Identity and execution:** SUN, Ultra; producer owners `dilapidated-shed/ithon` and `dilapidated-shed/internetarchive`; parent BC-CF03 and [BUILD-CAMPAIGN-01](https://github.com/isomorphisms/ai-ci/issues/239); canonical [Cat Food #33](https://github.com/isomorphisms/catfood/issues/33). This continues existing checked execution and client packaging, not a language rewrite.
+
+**2. Outcome:** Make the Ithon interpreter/checker and existing `ia-ithon` client materializable as exact runtime packages, with explicit target qualification and complete source/module/native-library closure. No phone source/compiler build or silent ambient Python route.
+
+**3. Recovered intent:** Preserve original Ithon .pi semantics and Internet Archive application ownership. The whole inventory requires both rows to remain visible. Optional Ithon/Archive absence cannot become a universal bootstrap stop or permission to install the old Python client.
+
+**4. Current evidence:** Ithon main is 396d8b7af1417a0a61245db940fdb22ef9fbac51; Archive master is 0ea2e7243bcbf78cf2002ebbaea4a735731784ba. [dilapidated-shed/internetarchive PR #1, “Rewrite Internet Archive tools in Ithon”](https://github.com/dilapidated-shed/internetarchive/pull/1) merged, retained f9e86e74d7a56bbbfcae7c505514117f056129c3. Its launcher delegates to `${ITHON:-ithon}` and checked `ithon/ia.pi`.
+
+**5. Reuse instructions:** Reuse [dilapidated-shed/ithon PR #5, “Run checked Ithon on Manimi’s host Python”](https://github.com/dilapidated-shed/ithon/pull/5) and [dilapidated-shed/ithon PR #10, “Make checked consumer receipts executable”](https://github.com/dilapidated-shed/ithon/pull/10). Existing native and explicitly selected checked host-runtime paths are different qualified modes; preserve their checker, loader and receipts. Do not convert the old client tree into the selected runtime.
+
+**6. Scope and ownership:** Ithon owns interpreter/frontend/loader qualification; Archive owns client modules/fixtures; Cat Food consumes. Implement packaging around existing `ithon`, `ithon_host.py`, `Lib/ithon_run.py`, Android producer and Archive launcher. New first-party helper logic follows checked Ithon/Idriç and Grease requirements.
+
+**7. Prerequisites:** The inherited Android producer lists only aarch64-linux-android and x86_64-linux-android; ARMv7 is not qualified. Begin closure and supported-target packaging now; record ARM32’s exact missing target/compiler/runtime boundary, without speculative port. Qualified compiler stages and no-C++ material eligibility remain mandatory.
+
+**8. Work:** Bind one explicit native or owner-qualified host-runtime mode per package. Eliminate ambient fallback from the delivered wrapper while preserving the upstream development launcher. Include checker/import modules, matched standard-library and extension closure, TLS/CA resources actually used, application files, hashes and provenance. Adapt the inherited package path without shipping its Java/Gradle testbed as production. Prepare a Cat Food descriptor and independent clean-prefix consumption.
+
+**9. Acceptance:** Run real arrow/membership-typed .pi code and nested checked imports, then Archive’s maintained offline URL/client fixtures through the installed command outside source/build trees. Reject ill-typed .pi, tampered checker/lowered source, absent extension/stdlib/CA, wrong ABI, unexpected host interpreter and failed check with stale receipt. Benign relocation and repeated installation preserve semantics; a changed source or runtime invalidates evidence.
+
+**10. Evidence limits:** Current release collection is 0/0 for Ithon. No Android bytes were built or executed in this STAR. Prior Manimi host receipts prove their bounded host route only. Archive credentials, uploads, mutations and broad 2018 parity are outside this packaging slice.
+
+**11. Completion and continuation:** Deliver working package preparation/installation integration, complete declared closure and executed positive/bad/benign controls on available qualified targets. Return exact unsupported ARM32 or build stage with minimal reproducer; keep other target lanes moving. Reuse existing producer issues when discovered.
+
+**12. Authority:** Use isolated reviewable branches and bounded offline fixtures; do not publish, activate or access accounts here. No permission to bypass existing source-language, independent acceptance or physical-device gates is inferred.
+
+END OF BC-CF03-S05
+
+# BC-CF03-S06 — Connect existing application and library producers to truthful Cat Food inventory materialization
+
+**1. Identity and execution:** SUN, Ultra; owner `isomorphisms/catfood`; parent BC-CF03 and [BUILD-CAMPAIGN-01](https://github.com/isomorphisms/ai-ci/issues/239); canonical [Cat Food #33](https://github.com/isomorphisms/catfood/issues/33). Continue existing inventory/materialization, preserving all 55 rows and producer identities.
+
+**2. Outcome:** Make already-owned runtime, application, library and data closures enter Cat Food through their real supported boundaries. Correct stale identity/branch assumptions and expose precise per-row missing obligations; never create a port merely because a repository is marked runtime.
+
+**3. Recovered intent:** Keep original application semantics in producers and installation facts in Cat Food. Missing optional rows cannot block unrelated provisioning. [Cat Food #131](https://github.com/isomorphisms/catfood/issues/131) still governs every managed dependency, including native static/shared libraries.
+
+**4. Current evidence:** Main 8ba159f8322cd436aa8e6400b0eded2d74c14011 has 55 classifications. Configured Idric/IB URLs redirect to `isomorphisms/Idric`/`isomorphisms/ib`; Field Mouse’s selected edric-rewrite is stale relative to master3736fe4088787f3fb16af64e2dabe75cd7ef15a4. [dilapidated-shed/gopeed PR #2, “Build headless Gopeed REST service for Termux ARM targets”](https://github.com/dilapidated-shed/gopeed/pull/2) produced release `termux-869a35e44a8b`, with actual paired immutable executables.
+
+**5. Reuse instructions:** Reuse existing packages/delivery tables and installer, S2 obligations and S3 seals. That retained REST service is a separately scoped deliverable; it does not fulfill or replace the intended Android application preserved in Cat Food #33’s inventory. ARMv7/ARM64 SHA-256 values are 7b7e039317fdc2c1b9beb9f76515ec66fb98c8bb052702ab11d355d167f83659 and 86bbcabfad83ee03eeb6a60ee12797e603798da229229757a823215cd6ed1422. Verify bytes and eligibility; the historical Go producer has no implicit exemption from maintained ICK/NDK toolchain policy.
+
+**6. Scope and ownership:** Package adapters may consume approved immutable producer bytes and complete runtime closure. APK authority stays CF07; device/profile selection stays CF02. Field Mouse native delivery remains [Idriç #130](https://github.com/isomorphisms/Idric/issues/130); IB retains [IB-C01](https://github.com/isomorphisms/flexible-pipes/issues/76) and [IB-R1](https://github.com/isomorphisms/ib/issues/120). No duplicate browser, renderer, transport or compiler jobs.
+
+**7. Prerequisites:** Begin current-source reconciliation immediately. Consume released per-artifact interfaces rather than waiting for entire producer jobs. Existing [isomorphisms/Idric PR #10, “Build Idriç for 32-bit ARMv7 Termux”](https://github.com/isomorphisms/Idric/pull/10) explicitly retires phone compiler installation; reconcile its row as a preserved unresolved runtime-component obligation, not an instruction to reinstall that compiler.
+
+**8. Work:** Implement immutable Gopeed material preparation and existing installer integration, verifying actual service behavior. Bind compiled-program closures such as Field Mouse/Jobicy to declared Chez/support/native dependencies only on qualified targets; a Linux receipt grants no Android lane. Represent issh’s library/type boundary without fabricating working SSH. For research/web/desktop rows, record exact supported product and named missing adapter/consumer before any install claim.
+
+**9. Acceptance:** Test real fresh-prefix materialization, complete dependency presence and original producer behavior. Reject altered payload, missing runtime member, wrong OS/libc/ABI, stale source, unauthorized APK receipt, fabricated command role and ambient compiler/interpreter. Benign relocation, idempotent repeat and an unavailable unrelated optional row must succeed appropriately. Failed activation preserves accepted material; changed closure invalidates receipts.
+
+**10. Evidence limits:** This STAR refreshed 36 gap-owner identities, complete issue/branch collections, selected full discussions and five release collections; it did not re-execute downloaded applications. The companion ownership ledger explicitly names deeper artifact/build scopes still uncollected. No blanket readiness follows from a green PR.
+
+**11. Completion and continuation:** Deliver actual consumer integration plus independently executed controls and updated exhaustive disposition rows. Each unresolved cell names an existing producer assignment or exact source-backed missing capability; no generic “producer must supply closure.” Preserve historical and current evidence separately.
+
+**12. Authority:** Use isolated reviewable changes; no publication, remote installation, account action, merge or device mutation is inferred. Preserve recorded scoped authority and keep all unqualified lanes honestly conditional.
+
+END OF BC-CF03-S06

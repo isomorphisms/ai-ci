@@ -31,3 +31,5 @@ A01 source projection, A04 lossless evidence mappings, A05 incident registration
 - FP/platform: supported trusted message/file acknowledgement and installed-origin provenance. Source work and ordinary complete chat emission continue.
 - Target owners: actual current device/host, installed signer baseline and physical replacement/launch evidence. Host fixtures cannot fill these cells.
 - Existing exact transfer authority is preserved only at its original task/object/preflight scope; campaign filing grants no additional effect authority.
+
+CF03 supplement: existing ICU checked-DEX/backend and JNI artifacts feed BC-CF03-S03 packaging; IR's actual C/Fortran/C++ stages remain explicit capability/policy gates in BC-CF03-S04; BC-CF03-S05 packages explicit Ithon/Archive runtime modes; BC-CF03-S06 consumes approved producer bytes into existing Cat Food materialization. Existing Field Mouse130, IB120/IB-C01 and keyboard PKB-B3 stay canonical. Gopeed REST delivery is separate from the still-preserved intended Android application, with no implicit Go-toolchain exception.

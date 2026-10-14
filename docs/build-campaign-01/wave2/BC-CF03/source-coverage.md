@@ -68,3 +68,46 @@ Original user corrections preserved in issue bodies outrank later assistant sour
 
 Source snapshots and baseline/wave1 are read-only. This agent owns only BC-CF03/04/05/06 wave2 directories; coordinator performs durable repository filing after reconciliation.
 
+## Additional producer ownership coverage — coordinator-requested CF03 continuation
+
+Complete current repository identity lookup succeeded for all36 previously generic gap owners. `producer-ownership-supplement.tsv` contains immutable repository IDs and exact current default/selected branch SHAs. Metadata redirects for Idric and IB were followed and preserved.
+
+Issue/PR inventory: **775/775 records**,36 repositories,38 REST pages at100/page, state=all sorted by updated; Idric100+38 and IB100+48, every other first page<100. These collections supplied full bodies plus titles/status/comment counts; semantic review concentrated on the owner boundaries below, not a claim of deep review of all775 unrelated tasks. Branch inventory: **1,077/1,077**,41 REST pages; IR100+100+100+34, Idric100+24, IB100+17, all others<100. All last pages exhausted. Selected24 application PR metadata heads were checked against these live branches:23 matched; Hegel PR1 metadata c9cfc858 is stale relative to retained c76e1e40135b5ac67782890978b1ddba10add170, which its body explicitly records.
+
+Primary full bodies and discussion coverage for new jobs:
+
+| Source | Complete combined discussion entries collected/reviewed |
+|---|---:|
+| isomorphisms/ir PR2 “Build an isolated ARMv7 Termux package”; PR24 “Sync IR source to R-devel r90659 (preserve Unicode semantics)” |0/0 each|
+| dilapidated-shed/icu issue24, original direct-DEX package owner |1/1|
+| dilapidated-shed/icu PR25 “Android: build ICU transport as DEX/JNI native boundary”; PR26 “Android: add direct-DEX JNI transport seam”; PR27 “Android: add fail-closed Cat Food phone packager”; PR28 “DEX: expose checked ICU command entry” |0/0 each|
+| fuego-ironworks/idric-arm-thumb issue58 and PR59 “DEX: add ICU-derived checked command slice” |0/0 each; live retained59fdb257 independently refreshed|
+| dilapidated-shed/ithon PR2 “Compose checked Ithon support for Manimi”; PR5 “Run checked Ithon on Manimi's host Python”; PR10 “Make checked consumer receipts executable” |PR2 issue collection reported0; PR5/10 complete combined0/0|
+| dilapidated-shed/internetarchive PR1 “Rewrite Internet Archive tools in Ithon” |0/0|
+| dilapidated-shed/fieldmouse PR10 “Complete the first standalone Field Mouse helper runtime”; isomorphisms/Idric issue130 |0/0|
+| isomorphisms/Idric PR10 “Build Idriç for 32-bit ARMv7 Termux” |1/1 retirement comment; body fully read|
+| dilapidated-shed/idric-cli PR9 “Deliver a tested Idriç Jobicy CLI with live public searches”; gopeed PR2 “Build headless Gopeed REST service for Termux ARM targets” |issue collections report0 each; bodies and live retained heads read, current checks not re-executed|
+| dilapidated-shed/issh PR3 “Add first Edric embedded/CLI boundary” |2/2|
+| isomorphisms/programmers-keyboard issue26 SUN PKB-B3 and PR49 “Finish RP2040 division migration with a qualified bare-metal ICK producer” |issue collections report0 each; full existing job/body read|
+
+Additional application current/retained producer bodies were read for the exact24 selections recorded in the ownership TSV: idric-cli9, issh3, keyboard49, ddg1, gopeed2, Wegert72, utilities81, SURFER30, learn-toki-pona12, game4, Hegel1, Holomorphic63, non-poly1, coefficient7, Cayley9, tablature5, zoneedit1, L4, SOAP2, Klein-quartic1, Hopf5, Ortho4, theta3, Indra15. Combined complete nonempty discussions: Wegert72 1/1; learn-toki-pona12 1/1; Holomorphic63 1/1; Cayley9 1/1; tablature5 2/2; SOAP2 2/2; issh3 2/2. Other selected issue collections report zero issue comments; separate review timelines for those zero-comment application PRs were not exhaustively collected. These are reuse/source assignments, not new acceptance reviews.
+
+IB120 full issue and4/4 comment bodies were retrieved, including the original29 complete jobs and recovered-text supplement. The large existing queue was inspected for ownership and current continuation anchors, not re-reviewed/re-authored job by job. FP76 body and7/7 comments, android-NDK22 body and6/6 comments were retrieved; current final comments6127736253/6127742374 explicitly supersede the old fastUnpack/integration blocker with successful bounded IB-owned ART diagnostic evidence. Broader lifecycle/dynamic runtime representations remain open. IB147 full body/live metadata establish its new consumer-specific failure; no Android implementation or acceptance is inferred from the issue queue.
+
+Current source trees inspected, all untruncated: IR15,338; Ithon6,539; Idric6,213; idric-cli118; issh612; Field Mouse41; ICU4,547; Archive142; sent.idr16; BookReader377; Chawan222; geofence3; kleinian-groups27. Exact refs are in the TSV. Read full applicable local AGENTS (IR, ICU, Field Mouse, CLI, issh, Archive) and current README files for these relevant boundaries; inherited Archive Python instructions do not override the user's current checked-Ithon route.
+
+Exact files inspected for new implementation grounding:
+- IR `build/termux-armv7/package/build.sh`: explicit gcc-15/gfortran-15/g++-15, native R build execution, runtime dependencies and private command renaming. It is not an ICK-qualified or no-C++ proof.
+- ICU `android/package-catfood.sh`: complete source read; DEX035/class, ARM machine and SHA fields do not prove actual checked-source semantics or complete closure. Main tree confirms both JNI/build mechanisms.
+- Ithon `ithon`, `README.md`, `Platforms/Android/README.md`, `Platforms/Android/__main__.py` target declarations: native mode plus explicit/ambient host modes; Android HOSTS only aarch64/x86_64. Build-test Java/Gradle testbed is not selected production generation.
+- Archive `bin/ia-ithon`, current tree and original merged rewrite: exact delegated checker/client boundary remains.
+- Field Mouse README and merged runtime body: full launcher/compiled payload/Chez/support closure, current compiler pin94dfd99; Android packaging still separate.
+- idric-cli README and `checkpoints/jobicy/README.md`: actual Kitchen-installed host command, Chez/ICU/OpenSSL dependencies, source-bound FP receipt and explicit Android NOT_RUN.
+- issh README/current tree and merged boundary discussion: imported libssh2 plus typed request/domain model, no claimed implemented authentication/host-key/channel.
+- sent.idr, BookReader, Chawan, geofence and kleinian-groups READMEs/tree establish actual product/runtime categories. Deeper Android producer/build/packaging scope is named uncollected, not inaccessible or falsely absent account-wide.
+
+Release metadata refreshed completely for5 producers (each first page<100): IR1 release/4 assets; Gopeed1/5; Ithon0/0; ICU0/0; Field Mouse0/0. Zero releases does not prove zero Actions artifacts. Existing IR .deb and paired Gopeed binary digests/targets are preserved in new bodies; binary bytes were not downloaded/executed. No separate exhaustive Actions/artifact history for these36 owners was collected. Production freshness, actual package contents, executable semantics and managed eligibility therefore remain explicit implementing gates.
+
+The full55-row table is ownership coverage, not55 accepted runtime claims. All original eight job SHA-256 values were captured before supplement authoring and remain unchanged; the four new packets are separate files.
+
+

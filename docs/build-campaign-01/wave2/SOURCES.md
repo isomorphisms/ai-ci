@@ -25,3 +25,7 @@ The original complete request and 33 STAR packets are preserved on the campaign 
 The new main revisions and candidate changes discovered during this continuation supersede stale assumptions only for the boundaries they actually establish. Each job refreshes mutable state before acting; historical receipts are retained without granting current admission.
 
 The fresh existing Kitchen source-handoff suite ran on exact main 5a00f0c498c93a6bcacbfc41ccbd320e5a1d2b16, Ubuntu24.04.3 x86_64: 27/27 passed. This is an existing bounded source seam, not newly implemented SUN acceptance. Domain source-coverage records preserve exact inspected refs and complete supported discussion counts; overlapping domains must not be summed as distinct sources. Temporary raw caches are not included in this publication.
+
+## Runtime-inventory supplement
+
+CF03 refreshed all36 previously generic gap-owner identities and completely enumerated775 issue/PR records across38 pages plus1,077 branches across41 pages. These are separate owner inventories and overlap other domain collections; do not add them to the core588 or call them775 new defects. Source/discussion review remains bounded as documented in BC-CF03/source-coverage.md. The55-row inventory and36-owner supplement bind each row to existing implementation work or a precisely named uncollected source/target boundary. Four additional implementation handoffs close the generic unowned-package assignment gap; no speculative compiler/application port is assigned.
