@@ -25,3 +25,6 @@ jobs:
       - name: Verify independent detector metrics and held-out boundaries
         shell: /home/runner/work/ai-ci/ai-ci/.ithon/ithon /home/runner/work/ai-ci/ai-ci/validators/rhs_detector.pi selftest {0}
         run: independent metric controls
+      - name: Reject missing, expired and forged findings and compare exact rational relations
+        shell: /home/runner/work/ai-ci/ai-ci/.ithon/ithon /home/runner/work/ai-ci/ai-ci/validators/test_rhs_findings.pi {0}
+        run: independent finding controls
