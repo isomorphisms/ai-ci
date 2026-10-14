@@ -1,0 +1,169 @@
+#!/usr/bin/env grease
+if (int($#) !== 4) { echo 'requires INSTALL_PREFIX EVIDENCE_ROOT AICI_ROOT capture|proxy' >&2; exit 2 }
+var prefix = $1
+var evidence = $2
+var root = $3
+var phase = $4
+var probe = "$prefix/bin/response-probe"
+var icu = "$prefix/bin/icu"
+var fixture = "$evidence/fixture"
+var verifier = "$evidence/aici"
+var work = "$(mktemp -d)"
+cd -- "$work"
+umask 077
+setglobal ENV.HTTPS_PROXY = ''
+setglobal ENV.https_proxy = ''
+var pids = []
+proc cleanup {
+  for pid in (pids) { kill "$pid" }
+}
+trap --add EXIT { cleanup }
+openssl req -x509 -newkey rsa:2048 -nodes -keyout key.pem -out cert.pem -days 1 -subj '/CN=localhost' -addext 'subjectAltName=DNS:localhost,DNS:fixture.icu.test,IP:127.0.0.1' > certificate.stdout 2> certificate.stderr
+setglobal ENV.SSL_CERT_FILE = "$work/cert.pem"
+fork { "$fixture" http 28080 plain.ready > plain.stdout 2> plain.stderr }
+setvar pids = pids ++ ["$!"]
+fork { "$fixture" tls 28443 tls.ready cert.pem key.pem > tls.stdout 2> tls.stderr }
+setvar pids = pids ++ ["$!"]
+if (phase === 'proxy') {
+  fork { "$fixture" proxy 28082 proxy.ready 28443 > proxy.stdout 2> proxy.stderr }
+  setvar pids = pids ++ ["$!"]
+  fork { "$fixture" reject 28083 reject.ready > reject.stdout 2> reject.stderr }
+  setvar pids = pids ++ ["$!"]
+  fork { "$fixture" proxy6 28084 proxy6.ready 28443 > proxy6.stdout 2> proxy6.stderr }
+  setvar pids = pids ++ ["$!"]
+}
+sleep 1
+test -s plain.ready
+test -s tls.ready
+var rows = []
+proc pass (label) {
+  setglobal rows = rows ++ [label ++ '	PASS']
+  printf 'PASS\t%s\n' "$label"
+}
+proc succeeds (label, mode, url, expected) {
+  "$probe" "$mode" "$url" > actual.stdout 2> actual.stderr
+  printf '%s\n' "$expected" > expected.stdout
+  cmp actual.stdout expected.stdout
+  pass "$label"
+}
+proc fails (label, url, message) {
+  try { "$probe" text "$url" > actual.stdout 2> actual.stderr }
+  if (_error.code !== 1) { echo "FAIL $label: expected exit 1" >&2; exit 1 }
+  printf '%s\n' "$message" > expected.stdout
+  cmp actual.stdout expected.stdout
+  pass "$label"
+}
+find /tmp -maxdepth 1 -type d -name 'icu-response-*' -print | sort > captures.before
+succeeds http-get text http://127.0.0.1:28080/plain b'200\thello'
+succeeds http-post post http://127.0.0.1:28080/post b'200\tposted'
+succeeds https-get text https://localhost:28443/plain b'200\thello'
+succeeds https-post post https://localhost:28443/post b'200\tposted'
+succeeds empty text http://127.0.0.1:28080/empty b'204\t'
+for status in 401 403 429 500 {
+  var expected_status = status ++ '	hello'
+  succeeds "status-$status" text "http://127.0.0.1:28080/status/$status" "$expected_status"
+}
+fails invalid-utf8 http://127.0.0.1:28080/invalid-utf8 'ICU response is not valid UTF-8'
+fails compressed http://127.0.0.1:28080/compressed 'ICU response encoding is unsupported'
+fails charset http://127.0.0.1:28080/charset 'ICU response encoding is unsupported'
+fails malformed http://127.0.0.1:28080/malformed 'ICU malformed or unsupported HTTP framing'
+fails status-digits http://127.0.0.1:28080/status-digits 'ICU malformed or unsupported HTTP framing'
+for path in bad-length duplicate-length chunked {
+  fails "$path" "http://127.0.0.1:28080/$path" 'ICU malformed or unsupported HTTP framing'
+}
+fails truncated http://127.0.0.1:28080/truncated 'ICU response body length mismatch'
+fails limit http://127.0.0.1:28080/limit 'ICU captured response exceeds 8 MiB'
+fails limit-stream http://127.0.0.1:28080/limit-stream 'ICU captured response exceeds 8 MiB'
+fails refusal http://127.0.0.1:28999/plain 'ICU connection failed'
+fails timeout http://127.0.0.1:28080/timeout 'ICU request timed out'
+fails tls-timeout https://localhost:28443/timeout 'ICU request timed out'
+setglobal ENV.SSL_CERT_FILE = "$work/untrusted.pem"
+fails tls-trust https://localhost:28443/plain 'ICU TLS verification or handshake failed'
+setglobal ENV.SSL_CERT_FILE = "$work/cert.pem"
+succeeds same-origin headers http://localhost:28080/same b'200\tretained'
+succeeds cross-origin headers http://localhost:28080/cross b'200\tstripped'
+"$probe" bytes http://127.0.0.1:28080/binary binary.actual > actual.stdout
+printf '\000\001\002\377\012\015\000\200' > binary.expected
+cmp binary.expected binary.actual
+test "$(cat actual.stdout)" = b'200\t8'
+pass binary
+"$probe" bytes http://127.0.0.1:28080/exact-limit exact-limit.bin > actual.stdout
+test "$(wc -c < exact-limit.bin)" = 8388608
+test "$(cat actual.stdout)" = b'200\t8388608'
+pass exact-limit
+"$icu" get http://127.0.0.1:28080/binary > stdout-binary.actual
+cmp binary.expected stdout-binary.actual
+"$icu" post https://localhost:28443/post café > stdout-post.actual
+test "$(cat stdout-post.actual)" = posted
+pass stdout-compatibility
+curl --noproxy '*' -fsS http://127.0.0.1:28080/binary -o curl-binary.actual
+cmp binary.actual curl-binary.actual
+curl --noproxy '*' -fsS --cacert cert.pem https://localhost:28443/plain -o curl-text.actual
+test "$(cat curl-text.actual)" = hello
+pass curl-oracle
+fork { "$probe" text http://127.0.0.1:28080/hold > hold.stdout 2> hold.stderr }
+var hold_pid = "$!"
+sleep 0.4
+find /tmp -maxdepth 1 -type d -name 'icu-response-*' -print | sort > captures.during
+comm -13 captures.before captures.during > new-capture
+var capture_path = "$(cat new-capture)"
+test -n "$capture_path"
+test "$(stat -c '%a' "$capture_path")" = 700
+test "$(stat -c '%a' "$capture_path/body")" = 600
+wait "$hold_pid"
+pass private-capture
+for attempt in 1 2 3 {
+  "$probe" text http://127.0.0.1:28080/plain > repeated.stdout 2> repeated.stderr
+}
+find /tmp -maxdepth 1 -type d -name 'icu-response-*' -print | sort > captures.after
+cmp captures.before captures.after
+pass cleanup
+env LD_DEBUG=libs "$probe" text http://127.0.0.1:28080/plain > trace.stdout 2> trace.stderr
+grep -F libicu_transport.so trace.stderr > loader-witness.txt
+nm -D "$prefix/bin/response-probe_app/libicu_transport.so" > native-symbols.txt
+if grep -E '(curl|execve|execl|execvp|popen|system)($|@)' native-symbols.txt { echo 'FAIL subprocess or curl dependency' >&2; exit 1 }
+pass no-fallback
+if (phase === 'proxy') {
+  test -s proxy.ready
+  setglobal ENV.HTTPS_PROXY = 'http://127.0.0.1:28082'
+  setglobal ENV.https_proxy = 'http://127.0.0.1:28999'
+  succeeds proxy-get text https://fixture.icu.test:28443/plain b'200\thello'
+  succeeds proxy-post post https://fixture.icu.test:28443/post b'200\tposted'
+  succeeds proxy-credentials headers https://fixture.icu.test:28443/require-credentials b'200\tretained'
+  succeeds proxy-same-origin headers https://fixture.icu.test:28443/same b'200\tretained'
+  succeeds proxy-cross-origin headers https://fixture.icu.test:28443/cross b'200\tstripped'
+  test -s proxy6.ready
+  setglobal ENV.HTTPS_PROXY = 'http://[::1]:28084'
+  succeeds ipv6-proxy text https://fixture.icu.test:28443/plain b'200\thello'
+  setglobal ENV.HTTPS_PROXY = ''
+  setglobal ENV.https_proxy = 'http://127.0.0.1:28082'
+  succeeds lowercase-proxy text https://fixture.icu.test:28443/plain b'200\thello'
+  setglobal ENV.HTTPS_PROXY = 'http://fixture-only@proxy.invalid'
+  fails invalid-proxy https://fixture.icu.test:28443/plain 'ICU HTTPS proxy tunnel failed'
+  if grep -F fixture-only actual.stdout actual.stderr { echo 'FAIL credentials in proxy diagnostic' >&2; exit 1 }
+  setglobal ENV.HTTPS_PROXY = 'http://127.0.0.1:28999'
+  fails proxy-refusal https://fixture.icu.test:28443/plain 'ICU connection failed'
+  setglobal ENV.HTTPS_PROXY = 'http://127.0.0.1:28083'
+  fails proxy-rejected https://fixture.icu.test:28443/plain 'ICU HTTPS proxy tunnel failed'
+  setglobal ENV.HTTPS_PROXY = 'http://127.0.0.1:28082'
+  fails original-hostname https://wrong.icu.test:28443/plain 'ICU TLS verification or handshake failed'
+  setglobal ENV.SSL_CERT_FILE = "$work/untrusted.pem"
+  fails proxy-tls-trust https://fixture.icu.test:28443/plain 'ICU TLS verification or handshake failed'
+  setglobal ENV.SSL_CERT_FILE = "$work/cert.pem"
+  setglobal ENV.HTTPS_PROXY = 'http://127.0.0.1:28999'
+  succeeds loopback-direct text https://localhost:28443/plain b'200\thello'
+  env HTTPS_PROXY=http://127.0.0.1:28082 https_proxy= curl --proxy http://127.0.0.1:28082 --noproxy '' --cacert cert.pem -fsS https://fixture.icu.test:28443/plain > curl-proxy.actual
+  test "$(cat curl-proxy.actual)" = hello
+  pass proxy-curl-oracle
+}
+printf '%s\n' @rows > actual.tsv
+cp "$root/icu/$phase.expected.tsv" expected.tsv
+"$verifier" verify "$root/icu/behavior.contract.tsv" "$work"
+cp actual.tsv accepted.tsv
+sed 's/^binary.PASS$/binary\tFAIL/' accepted.tsv > actual.tsv
+try { "$verifier" verify "$root/icu/behavior.contract.tsv" "$work" > mutant.stdout 2> mutant.stderr }
+if (_error.code !== 1) { echo 'FAIL oracle accepted binary mutation' >&2; exit 1 }
+grep -F ICU-INSTALLED-BEHAVIOR mutant.stdout > /dev/null
+cp accepted.tsv actual.tsv
+cp -R "$work" "$evidence/$phase-acceptance"
+printf 'independent-oracle\tPASS\nrejecting-mutant\tPASS\nandroid-a1\tNOT_RUN\nandroid-c67\tNOT_RUN\n'

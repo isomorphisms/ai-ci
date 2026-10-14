@@ -1,0 +1,3 @@
+equal	ICU-INSTALLED-BEHAVIOR	expected.tsv	actual.tsv
+equal	ICU-BINARY-BYTES	binary.expected	binary.actual
+not_contains	ICU-CREDENTIAL-DIAGNOSTICS	hold.stdout	fixture-only
