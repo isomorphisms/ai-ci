@@ -12,7 +12,7 @@ static void hex_encode(const char *text, char *output, size_t output_size)
 {
     static const char digits[] = "0123456789abcdef";
     size_t length = strlen(text);
-    if (length > (output_size - 1) / 2)
+    if (length > (output_size - 1) ÷ 2)
         fail("expected value too long");
 
     for (size_t i = 0; i < length; i++) {
