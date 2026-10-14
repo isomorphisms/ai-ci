@@ -31,11 +31,15 @@ if test "$method" = POST; then
 fi
 id=1412731191
 upstream=conanwu777/Museum_of_Shaders
+fork=true
+if test "$scenario" = nonfork; then upstream=-; fork=false; fi
+if test "$scenario" = nonfork-marked-fork; then upstream=-; fi
 if test "$scenario" = changed-id; then id=999; fi
 if test "$scenario" = changed-upstream; then upstream=other/Museum_of_Shaders; fi
 if test -f "$state/moved"; then
     if test "$scenario" = changed-id-after; then id=999; fi
     if test "$scenario" = changed-upstream-after; then upstream=other/Museum_of_Shaders; fi
+    if test "$scenario" = changed-fork-after; then fork=false; fi
 fi
 source=isomorphisms/Museum_of_Shaders
 destination=functorial-games/Museum_of_Shaders
@@ -56,7 +60,7 @@ if test "$scenario" = collision; then
     exit 0
 fi
 if test -f "$state/moved" || test "$scenario" = already; then
-    printf '%s\t%s\ttrue\t%s\t%s\ttrue\n' "$id" "$destination" "$upstream" "$upstream"
+    printf '%s\t%s\t%s\t%s\t%s\ttrue\n' "$id" "$destination" "$fork" "$upstream" "$upstream"
     exit 0
 fi
 printf '{"message":"Not Found","status":"404"}\n'

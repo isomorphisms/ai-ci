@@ -129,6 +129,32 @@ mkdir "$output/negative/no-envelope"
 try { "$grease" "$here/../transfer-handoff/verify.grease" check "$output/program.grease" "$digest" "$output/negative/no-envelope" functorial-games/Museum_of_Shaders 1412731191 conanwu777/Museum_of_Shaders > "$output/negative/bypass.stdout" 2> "$output/negative/bypass.stderr" }
 if (_error.code === 0) { echo 'FAIL missing FP envelope accepted'; exit 1 }
 grep -F 'missing Flexible Pipes envelope' "$output/negative/bypass.stderr" >/dev/null
+# Exercise the independent observer itself, not only Kitchen's own checks.
+mkdir -p "$output/independent-remote"
+touch "$output/independent-remote/moved"
+setglobal ENV.AICI_TRANSFER_FIXTURE = "$output/independent-remote"
+for scenario in changed-id-after changed-upstream-after changed-fork-after; do
+    setglobal ENV.AICI_TRANSFER_SCENARIO = scenario
+    try { "$grease" "$here/../transfer-handoff/verify.grease" destination "$output/program.grease" "$digest" "$output/negative" functorial-games/Museum_of_Shaders 1412731191 conanwu777/Museum_of_Shaders > "$output/negative/$scenario.stdout" 2> "$output/negative/$scenario.stderr" }
+    if (_error.code === 0) { echo "FAIL independent observer accepted $scenario"; exit 1 }
+    case $scenario in
+        changed-id-after) diagnostic='independent repository ID mismatch';;
+        changed-upstream-after) diagnostic='independent original upstream mismatch';;
+        changed-fork-after) diagnostic='independent fork identity mismatch';;
+    esac
+    grep -F "$diagnostic" "$output/negative/$scenario.stderr" >/dev/null
+done
+mkdir -p "$output/nonfork"
+"$grease" "$generator" isomorphisms Museum_of_Shaders functorial-games isomorphisms 1412731191 - > "$output/nonfork/program.grease"
+nonfork_digest=$(sha256sum "$output/nonfork/program.grease" | cut -d ' ' -f1)
+printf 'program_sha256=%s\nrepository_id=1412731191\ndestination=functorial-games/Museum_of_Shaders\nupstream=-\n' "$nonfork_digest" > "$output/nonfork/fp-envelope.tsv"
+setglobal ENV.AICI_TRANSFER_SCENARIO = 'nonfork'
+"$grease" "$here/../transfer-handoff/verify.grease" destination "$output/nonfork/program.grease" "$nonfork_digest" "$output/nonfork" functorial-games/Museum_of_Shaders 1412731191 - > "$output/nonfork/good.stdout"
+setglobal ENV.AICI_TRANSFER_SCENARIO = 'nonfork-marked-fork'
+try { "$grease" "$here/../transfer-handoff/verify.grease" destination "$output/nonfork/program.grease" "$nonfork_digest" "$output/nonfork" functorial-games/Museum_of_Shaders 1412731191 - > "$output/nonfork/bad.stdout" 2> "$output/nonfork/bad.stderr" }
+if (_error.code === 0) { echo 'FAIL nonfork accepted changed fork flag'; exit 1 }
+grep -F 'independent nonfork identity mismatch' "$output/nonfork/bad.stderr" >/dev/null
+printf 'PASS\tindependent-observer-identity-upstream-and-fork-controls\n'
 # The original 404 response and exit must both survive successful transfer.
 rg -l '"status":"404"' "$output/normal/job" > "$output/404-files.txt"
 test -s "$output/404-files.txt"
