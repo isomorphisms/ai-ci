@@ -1,0 +1,56 @@
+#!/usr/bin/env grease
+# Consumer gate over the existing independent follower verifier, not a new ledger.
+if (int($#) !== 5) {
+  echo 'requires ABS_VERIFIER ABS_JOBS ABS_RECEIPTS EXACT_IB_COMMIT ABS_OUTPUT' >&2
+  exit 2
+}
+var verifier = $1
+var jobs = $2
+var receipts = $3
+var trigger = $4
+var output = $5
+proc absolute_path (value) {
+  if (not value.startsWith('/') or value.contains(u'\n') or value.contains(u'\r') or value.contains(u'\t')) {
+    echo 'requires an absolute path without record separators' >&2
+    exit 2
+  }
+}
+absolute_path "$verifier"
+absolute_path "$jobs"
+absolute_path "$receipts"
+absolute_path "$output"
+printf '%s\n' "$trigger" | grep -Ex '[0-9a-f]{40}' > /dev/null
+mkdir -p -- "$output"
+"$verifier" verify "$jobs" "$receipts" > "$output/ledger.txt"
+var tab = u'\t'
+for target in linux phone tablet {
+  var job = "$jobs/ib-shared-$target-$trigger.tsv"
+  test -f "$job"
+  grep -Fx "job_id${tab}ib-shared-$target-$trigger" "$job" > /dev/null
+  grep -Fx "repository${tab}isomorphisms/ib" "$job" > /dev/null
+  grep -Fx "trigger_commit${tab}$trigger" "$job" > /dev/null
+  grep -Fx "required${tab}yes" "$job" > /dev/null
+  if (target === 'linux') {
+    grep -Fx "follower_platform${tab}linux-build-container" "$job" > /dev/null
+    grep -Fx "follower_arch${tab}x86_64" "$job" > /dev/null
+    grep -Fx "acceptance_kind${tab}runtime" "$job" > /dev/null
+  } elif (target === 'phone') {
+    grep -Fx "follower_platform${tab}miro-a1" "$job" > /dev/null
+    grep -Fx "follower_arch${tab}armeabi-v7a" "$job" > /dev/null
+    grep -Fx "acceptance_kind${tab}physical-device" "$job" > /dev/null
+  } else {
+    grep -Fx "follower_platform${tab}tab-p10" "$job" > /dev/null
+    grep -Fx "follower_arch${tab}arm64-v8a" "$job" > /dev/null
+    grep -Fx "acceptance_kind${tab}physical-device" "$job" > /dev/null
+  }
+  if grep -Fx "state${tab}accepted" "$job" > /dev/null {
+    echo "exact-follower-accepted=$target"
+  } else {
+    echo "shared-core-parity=BLOCKED: $target lacks exact accepted evidence" >&2
+    "$verifier" pending "$jobs" "$receipts" "$trigger" > "$output/pending.tsv"
+    exit 4
+  }
+}
+"$verifier" pending "$jobs" "$receipts" "$trigger" > "$output/pending.tsv"
+test "$(wc -l < "$output/pending.tsv")" = 1
+echo 'shared-core-parity=PASS'
