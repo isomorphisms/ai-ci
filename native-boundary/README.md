@@ -1,7 +1,7 @@
 # Native libc boundary: Bionic cross-builds, emulator runtime, and hosted-Linux checks
 
 This is a reusable **platform probe**, independent of curses. It exercises real
-libc calls through the selected C compiler/headers/linker. It is not a replacement
+libc calls through ICK C compilation and the declared platform headers/linker. It is not a replacement
 for a consumer's own native wrapper, Idriç ABI lowering, JNI, DEX, curses, or
 application acceptance. A passing standalone probe cannot grant any of those
 implementation-specific claims.
@@ -33,10 +33,10 @@ bad observations, not exhaustive coverage of every possible libc/ABI defect.
 
 | Target | Compiler/libc | Offset builds | Execution in GitHub CI |
 | --- | --- | --- | --- |
-| Ubuntu 24.04 x86-64 | native C17 / glibc | default and `_FILE_OFFSET_BITS=64` | Host checks run during build |
-| Android ARMv7a | NDK 27.3.13750724 / Bionic / API 24 | default and `_FILE_OFFSET_BITS=64` | Cross-build only |
-| Android AArch64 | same pinned NDK / Bionic / API 24 | default and `_FILE_OFFSET_BITS=64` | Cross-build only |
-| Android x86-64 emulator | same pinned NDK / Bionic / API 24 | default and `_FILE_OFFSET_BITS=64` | Executes on API-35 4-KiB and 16-KiB emulator images |
+| Ubuntu 24.04 x86-64 | ICK C17 / declared Ubuntu glibc runtime | default and `_FILE_OFFSET_BITS=64` | Host checks run during build |
+| Android ARMv7a | ICK C17 → NDK 27.3.13750724 assembly/link / Bionic / API 24 | default and `_FILE_OFFSET_BITS=64` | Cross-build only |
+| Android AArch64 | ICK C17 → same pinned NDK / Bionic / API 24 | default and `_FILE_OFFSET_BITS=64` | Cross-build only |
+| Android x86-64 emulator | ICK C17 → same pinned NDK / Bionic / API 24 | default and `_FILE_OFFSET_BITS=64` | Executes on API-35 4-KiB and 16-KiB emulator images |
 
 The x86-64 Android target exists to automate Bionic runtime semantics in CI. It is
 not an architectural substitute for ARMv7 or AArch64 execution. Physical ARM
@@ -67,22 +67,19 @@ support is a visible setup failure.
 
 Use a clean checkout at the intended immutable commit. Output directories must
 be new: existing directories are rejected rather than recycled as evidence.
-The build scripts are an explicit Bash/POSIX-shell build/test boundary; the
-assertions and negative-test runner are C17. No Python, Java, Gradle, compiler
-backend, or package-manager bootstrap is introduced by the suite itself.
+The existing scripts remain an explicit Bash/POSIX-shell orchestration boundary;
+the assertions and negative-test runner are C17. Their source compiler stage is
+now the checked-in Makefile, whose fixed command interface records direct ICK,
+assembler and linker invocations. No source transliteration is used.
 
-```sh
-bash native-boundary/build.sh host /tmp/native-host
-ANDROID_NDK_HOME=/opt/android-ndk-r27d \
-  bash native-boundary/build.sh armv7a /tmp/native-armv7a
-ANDROID_NDK_HOME=/opt/android-ndk-r27d \
-  bash native-boundary/build.sh aarch64 /tmp/native-aarch64
-ANDROID_NDK_HOME=/opt/android-ndk-r27d \
-  bash native-boundary/build.sh android-x86_64 /tmp/native-android-x86_64
-```
+Invoke the existing `native-boundary/build.sh` through Bash with the target name
+and a new output-directory path. Set `ICK` to the actual qualified compiler
+driver. Android builds additionally require `ANDROID_NDK_HOME` to name the exact
+r27d installation. The target names remain `host`, `armv7a`, `aarch64`, and
+`android-x86_64`; no target is replaced by a different architecture.
 
 The checked-in build script expects an Ubuntu x86-64 build environment, Bash/POSIX
-sh, a C17 compiler and development headers, Git, awk, coreutils, tar/gzip and
+sh, the ICK C17 compiler and declared development headers, Make, Git, awk, coreutils, tar/gzip and
 readelf. Cross-building additionally requires exactly NDK `27.3.13750724` with
 its Linux x86-64 toolchain. The GitHub workflows install the host prerequisites
 and download and verify that NDK themselves; absent or wrong NDK remains a failure.
@@ -90,8 +87,8 @@ and download and verify that NDK themselves; absent or wrong NDK remains a failu
 GitHub jobs use `ubuntu-24.04`, immutable action pins, and check out the event's
 exact source SHA. There is no self-hosted runner, Debian-host requirement, or
 Hetzner dependency. ARMv7/AArch64 jobs use Ubuntu only as the build host; their
-actual Android ABI checks come from the pinned NDK compiler, headers, linker and
-inspected ELF output. The emulator workflow separately builds the x86-64 Bionic
+actual Android ABI checks come from the ICK source stage, pinned NDK headers,
+assembler/linker, and inspected ELF output. The emulator workflow separately builds the x86-64 Bionic
 bundle, boots Android API 35 on ordinary 4-KiB and `google_apis_ps16k` 16-KiB
 system images, executes `bundle/run.sh`, and retains the runtime receipts.
 
@@ -106,12 +103,39 @@ execution.
 The host path also runs 34 positive cases and 34 targeted semantic rejections
 across the two offset builds, executes the actual packaged probes, and rejects
 four damaged bundles: changed binary, missing library, partial manifest and
-duplicate manifest. To exercise only C fixtures:
+duplicate manifest. To exercise only C fixtures, invoke the existing
+`native-boundary/test.sh` through Bash with a new output directory and the same
+qualified `ICK` driver. A stock compiler is not a fallback for glyph source.
 
-```sh
-bash native-boundary/test.sh /tmp/native-fixtures
-CC=clang bash native-boundary/test.sh /tmp/native-clang-fixtures
-```
+### Division migration, 2026-10-09
+
+The three owned division expressions now use `÷` with unchanged operand types
+and precedence. The workflows pin the shared compiler producer at
+`903b2cb27ea572c9c6cb2ffa9f39e0fbf06ec9f8`, which builds ICK
+`c61e448251744a2f40ad743ebef1a027bdcd2f9d`. Both shipped offset variants and the
+independent semantic-mutation variants use that frontend. The Makefile is part
+of the exact native-boundary tree and source-hash receipt. Intermediate assembly
+and Android object files are retained outside the checksummed runtime bundle.
+
+The Android stage retains API 24, both offset ABIs, strict C17 warning flags,
+RELRO/NOW, and the original ELF alignment and dependency assertions. It selects
+the ICK resource headers before NDK headers with `-nostdinc`, defines both API
+floor macros consistently, preserves ARMv7 A32/NEON/softfp, and reserves AArch64
+x18. The original suite did not enable Fortify; no existing Fortify flag is
+removed or weakened. NDK r27d remains mandatory at the public build entrypoint.
+
+The first migrated x86-64 emulator runs exposed a loader failure before `main`:
+GCC `-fPIE` generated a COPY relocation for Bionic's `stderr` object. Android
+source generation now uses `-fPIC` while executable linking remains `-pie`.
+The NDK link rejects COPY relocations and writable text relocations, and the
+actual ELF inspection independently rejects either before packaging. The host
+profile and every native case, semantic negative and page-size gate are retained.
+
+The migrated actual ICK host self-test passed all 34 native cases and all 34
+targeted semantic rejections. Complete bundle and current-head hosted results
+are retained separately; those include the existing two Android emulator page
+sizes. A compiler qualifier at API 26 does not substitute for this suite's
+actual API-24 builds or Android runtime execution.
 
 ## Execute the bundle on Android
 

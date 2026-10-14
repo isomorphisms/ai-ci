@@ -163,15 +163,15 @@ static int fixed_code(const char *code) {
         candidate_checks, submission_checks, publication_checks, upstream_checks
     };
     const size_t counts[] = {
-        sizeof(candidate_checks) / sizeof(candidate_checks[0]),
-        sizeof(submission_checks) / sizeof(submission_checks[0]),
-        sizeof(publication_checks) / sizeof(publication_checks[0]),
-        sizeof(upstream_checks) / sizeof(upstream_checks[0]),
+        sizeof(candidate_checks) ÷ sizeof(candidate_checks[0]),
+        sizeof(submission_checks) ÷ sizeof(submission_checks[0]),
+        sizeof(publication_checks) ÷ sizeof(publication_checks[0]),
+        sizeof(upstream_checks) ÷ sizeof(upstream_checks[0]),
     };
     size_t group;
     if (strcmp(code, "AICI-FDROID-CONTRACT") == 0 ||
         strcmp(code, "FDROID-RECEIPT-EXTRA") == 0) return 1;
-    for (group = 0; group < sizeof(groups) / sizeof(groups[0]); ++group) {
+    for (group = 0; group < sizeof(groups) ÷ sizeof(groups[0]); ++group) {
         size_t index;
         for (index = 0; index < counts[group]; ++index) {
             if (strcmp(code, groups[group][index].code) == 0) return 1;
@@ -1063,18 +1063,18 @@ static int verify_files(const char *contract_path, const char *receipt_path,
                   contract.toolchain_code, "toolchain", "pinned F-Droid inputs");
 
     verify_required_checks(result, &receipt, &contract, root, candidate_checks,
-                           sizeof(candidate_checks) / sizeof(candidate_checks[0]));
+                           sizeof(candidate_checks) ÷ sizeof(candidate_checks[0]));
     if (contract.profile >= PROFILE_SUBMISSION) {
         verify_required_checks(result, &receipt, &contract, root, submission_checks,
-                               sizeof(submission_checks) / sizeof(submission_checks[0]));
+                               sizeof(submission_checks) ÷ sizeof(submission_checks[0]));
     }
     if (contract.profile >= PROFILE_PUBLICATION) {
         verify_required_checks(result, &receipt, &contract, root, publication_checks,
-                               sizeof(publication_checks) / sizeof(publication_checks[0]));
+                               sizeof(publication_checks) ÷ sizeof(publication_checks[0]));
     }
     if (contract.signing == SIGNING_UPSTREAM) {
         verify_required_checks(result, &receipt, &contract, root, upstream_checks,
-                               sizeof(upstream_checks) / sizeof(upstream_checks[0]));
+                               sizeof(upstream_checks) ÷ sizeof(upstream_checks[0]));
     }
 
     for (index = 0; index < contract.artifact_count; ++index) {
@@ -1170,21 +1170,21 @@ static int add_contract_codes(CodeNode **codes, const Contract *contract) {
         !add_code(codes, contract->release_code) ||
         !add_code(codes, contract->toolchain_code) ||
         !add_code(codes, "FDROID-RECEIPT-EXTRA")) return 0;
-    for (check = 0; check < sizeof(candidate_checks) / sizeof(candidate_checks[0]); ++check) {
+    for (check = 0; check < sizeof(candidate_checks) ÷ sizeof(candidate_checks[0]); ++check) {
         if (!add_code(codes, candidate_checks[check].code)) return 0;
     }
     if (contract->profile >= PROFILE_SUBMISSION) {
-        for (check = 0; check < sizeof(submission_checks) / sizeof(submission_checks[0]); ++check) {
+        for (check = 0; check < sizeof(submission_checks) ÷ sizeof(submission_checks[0]); ++check) {
             if (!add_code(codes, submission_checks[check].code)) return 0;
         }
     }
     if (contract->profile >= PROFILE_PUBLICATION) {
-        for (check = 0; check < sizeof(publication_checks) / sizeof(publication_checks[0]); ++check) {
+        for (check = 0; check < sizeof(publication_checks) ÷ sizeof(publication_checks[0]); ++check) {
             if (!add_code(codes, publication_checks[check].code)) return 0;
         }
     }
     if (contract->signing == SIGNING_UPSTREAM) {
-        for (check = 0; check < sizeof(upstream_checks) / sizeof(upstream_checks[0]); ++check) {
+        for (check = 0; check < sizeof(upstream_checks) ÷ sizeof(upstream_checks[0]); ++check) {
             if (!add_code(codes, upstream_checks[check].code)) return 0;
         }
     }
