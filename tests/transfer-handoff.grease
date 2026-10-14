@@ -156,7 +156,7 @@ if (_error.code === 0) { echo 'FAIL nonfork accepted changed fork flag'; exit 1 
 grep -F 'independent nonfork identity mismatch' "$output/nonfork/bad.stderr" >/dev/null
 printf 'PASS\tindependent-observer-identity-upstream-and-fork-controls\n'
 # The original 404 response and exit must both survive successful transfer.
-rg -l '"status":"404"' "$output/normal/job" > "$output/404-files.txt"
+find "$output/normal/job" -type f -exec grep -l -F '"status":"404"' {} + > "$output/404-files.txt"
 test -s "$output/404-files.txt"
 printf 'PASS\tFP-session-rerun-and-byte-mutations\tposts=1\n'
 sha256sum "$output/program.grease" "$grease" "$runtime_directory/ysh"
