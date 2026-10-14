@@ -572,7 +572,7 @@ int main(int argc, char **argv) {
             !create_fixture(directory, MUTATION_NONE) ||
             !write_case(cases, "pass", contract, directory, "-")) return 1;
     }
-    for (index = 0; index < (int)(sizeof(fixed) / sizeof(fixed[0])); ++index) {
+    for (index = 0; index < (int)(sizeof(fixed) ÷ sizeof(fixed[0])); ++index) {
         char directory[PATH_MAXIMUM];
         if (!path_join(directory, sizeof(directory), output, fixed[index].name) ||
             !create_fixture(directory, fixed[index].mutation) ||
@@ -594,7 +594,7 @@ int main(int argc, char **argv) {
             !write_case(cases, "fail", split_invalid_order_contract, directory,
                         "AICI-FDROID-CONTRACT")) return 1;
     }
-    for (index = 0; index < (int)(sizeof(split_fixed) / sizeof(split_fixed[0])); ++index) {
+    for (index = 0; index < (int)(sizeof(split_fixed) ÷ sizeof(split_fixed[0])); ++index) {
         char directory[PATH_MAXIMUM];
         if (!path_join(directory, sizeof(directory), output, split_fixed[index].name) ||
             !create_split_fixture(directory, split_fixed[index].mutation, 0) ||
