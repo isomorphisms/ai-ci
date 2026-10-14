@@ -1,0 +1,152 @@
+module SharedCoreOracle
+
+import Data.Text
+import IB.LongViewTask
+import IB.LongViewLifecycle
+import IB.FragmentStore
+import IB.Occurrence
+import IB.Strand
+import System
+
+-- Independent golden inputs; no producer assertion list is consumed.
+golden_text : Text
+golden_text = "A東京🙂éB"
+
+source_for : Text → Text → Text → Maybe RevisionedSource
+source_for identity digest body = do
+  representation ← nonempty_text "retained:desktop-source"
+  revisioned_source (Source representation PlainTextSource CompleteSource)
+    (SourceText identity body) digest "utf8-decoder-v1"
+
+graph_for : RevisionedSource → Maybe FragmentGraph
+graph_for source =
+  validate_graph source
+    [Fragment "middle" (source_id (revision_text source)) 1 4]
+    (MaterializedStrand "reading-source" ["middle"]) []
+
+refused : Maybe value → Bool
+refused Nothing = True
+refused (Just _) = False
+
+durable_policy : tab_protection → Bool
+durable_policy protection = case persistence_for protection of
+  durable_browser_task ⇒ True
+  _ ⇒ False
+
+byte_boundaries : List (Number, Number)
+byte_boundaries = [(0, 0), (1, 1), (2, 4), (3, 7), (4, 11), (5, 12), (6, 14), (7, 15)]
+
+unit_boundaries : List (Number, Number)
+unit_boundaries = [(0, 0), (1, 1), (2, 2), (3, 3), (4, 5), (5, 6), (6, 7), (7, 8)]
+
+boundary_cases : RevisionedSource → List (Text, Bool)
+boundary_cases source =
+  map (\(position, expected) ⇒
+       ("utf8-boundary-" ++ show position, utf8_byte_offset position source ≟ Just expected))
+      byte_boundaries ++
+  map (\(position, expected) ⇒
+       ("utf16-boundary-" ++ show position, utf16_code_unit_offset position source ≟ Just expected))
+      unit_boundaries
+
+source_cases : RevisionedSource → FragmentGraph → List (Text, Bool)
+source_cases source graph =
+  [ ("ordinary-tab-is-durable", durable_policy ordinary_tab)
+  , ("protected-tab-is-durable", durable_policy protected_authenticated_transaction)
+  , ("exact-source-fragment", fragment_source_text source "middle" graph ≟ Just "東京🙂")
+  , ("absent-fragment-refused", refused (fragment_source_text source "absent" graph))
+  , ("utf8-beyond-source-refused", refused (utf8_byte_offset 8 source))
+  , ("utf16-beyond-source-refused", refused (utf16_code_unit_offset 8 source))
+  , ("changed-decoded-revision-refused", case source_for "source-1" "sha256:changed" golden_text of
+       Just changed ⇒ refused (fragment_source_text changed "middle" graph)
+       Nothing ⇒ False)
+  , ("equal-bytes-other-origin-refused", case source_for "source-2" "sha256:original" golden_text of
+       Just other ⇒ refused (fragment_source_text other "middle" graph)
+       Nothing ⇒ False)
+  , ("changed-text-same-claimed-digest-refused", case source_for "source-1" "sha256:original" "changed" of
+       Just changed ⇒ refused (fragment_source_text changed "middle" graph)
+       Nothing ⇒ False)
+  , ("changed-representation-refused", case nonempty_text "retained:other-source" of
+       Nothing ⇒ False
+       Just representation ⇒ case revisioned_source
+         (Source representation PlainTextSource CompleteSource)
+         (SourceText "source-1" golden_text) "sha256:original" "utf8-decoder-v1" of
+           Nothing ⇒ False
+           Just changed ⇒ refused (fragment_source_text changed "middle" graph))
+  , ("changed-decoder-refused", case nonempty_text "retained:desktop-source" of
+       Nothing ⇒ False
+       Just representation ⇒ case revisioned_source
+         (Source representation PlainTextSource CompleteSource)
+         (SourceText "source-1" golden_text) "sha256:original" "different-decoder" of
+           Nothing ⇒ False
+           Just changed ⇒ refused (fragment_source_text changed "middle" graph))
+  , ("invalid-source-range-refused", refused (validate_graph source
+       [Fragment "middle" "source-1" 1 8]
+       (MaterializedStrand "reading-source" ["middle"]) []))
+  , ("copied-text-is-not-normalized", case source_for "spaced-source" "sha256:spaces" "  α\tβ\n" of
+       Nothing ⇒ False
+       Just spaced ⇒ case validate_graph spaced [Fragment "all" "spaced-source" 0 6]
+            (MaterializedStrand "spaces" ["all"]) [] of
+         Nothing ⇒ False
+         Just exact ⇒ fragment_source_text spaced "all" exact ≟ Just "  α\tβ\n")
+  , ("query-bearing-protected-address-refused", refused (neutral_address "https://example.test/?code=secret"))
+  , ("fragment-bearing-protected-address-refused", refused (neutral_address "https://example.test/#token"))
+  ] ++ boundary_cases source
+
+same_browser_identity : LongViewTask → LongViewTask → Bool
+same_browser_identity before after =
+  identity_text before.task_identity ≟ identity_text after.task_identity &&
+  identity_text before.tab_identity ≟ identity_text after.tab_identity &&
+  identity_text before.navigation_identity ≟ identity_text after.navigation_identity
+
+lifecycle_cases : List (Text, Bool)
+lifecycle_cases = case fixture of
+  Nothing ⇒ [("lifecycle-fixture", False)]
+  Just (live, replacement_host, observation) ⇒
+    let restarted = open_in_host replacement_host live in
+    let lost = renderer_was_lost live in
+    [ ("restart-keeps-browser-identity", same_browser_identity live restarted)
+    , ("renderer-loss-keeps-browser-identity", same_browser_identity live lost)
+    , ("current-renderer-observation-admitted", observes_current_renderer observation live)
+    , ("old-host-observation-refused", refused (record_page_commit observation restarted))
+    , ("detached-renderer-observation-refused", refused (record_page_commit observation lost))
+    , ("restart-does-not-prove-authentication", case restarted.session of
+         session_not_proven ⇒ True
+         _ ⇒ False)
+    , ("restart-does-not-prove-live-heap", case restarted.heap of
+         heap_not_available ⇒ True
+         _ ⇒ False)
+    ]
+  where
+    fixture : Maybe (LongViewTask, DurableIdentity, RendererObservation)
+    fixture = do
+      task ← durable_identity "task-1"
+      tab ← durable_identity "tab-1"
+      navigation ← durable_identity "navigation-1"
+      host ← durable_identity "host-1"
+      next_host ← durable_identity "host-2"
+      renderer ← durable_identity "renderer-1"
+      let live = attach_initial_renderer renderer
+            (start_protected_task task tab navigation Nothing Nothing no_safe_navigation host)
+      let observation = ObservedRenderer task tab navigation host live.host_generation
+                            renderer live.renderer_generation
+      pure (live, next_host, observation)
+
+export
+acceptance_results : List (Text, Bool)
+acceptance_results = case source_for "source-1" "sha256:original" golden_text of
+  Nothing ⇒ [("source-fixture", False)]
+  Just source ⇒ case graph_for source of
+    Nothing ⇒ [("graph-fixture", False)]
+    Just graph ⇒ source_cases source graph ++ lifecycle_cases
+
+acceptance_passed : Bool
+acceptance_passed = all snd acceptance_results
+
+report : List (Text, Bool) → IO ()
+report [] = pure ()
+report ((name, passed) :: rest) = do
+  putStrLn (name ++ "=" ++ show passed)
+  if passed then report rest else exitFailure
+
+main : IO ()
+main = report acceptance_results
