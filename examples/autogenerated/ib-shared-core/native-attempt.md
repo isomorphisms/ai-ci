@@ -17,4 +17,14 @@ It does not establish a GUI, network, persistence or Android execution claim.
 
 ## Result
 
-PENDING. Generated attempts and receipts will retain failures and exact pins.
+PASS for generated Linux/Chez execution and ICK C FFI: all 46 cases, native
+byte-count mutation rejection, missing-library rejection, clean restoration
+and relocation into a Unicode/apostrophe directory. Exact FP receipts retain
+the source, compiler/runtime and executable identities and original failures.
+
+The real compiler misquotes Unicode build paths and returns zero after Error:;
+the recipe caught its missing executable and now declares/refuses that input
+restriction. See https://github.com/isomorphisms/Idric/issues/138. Identical
+generated Scheme/library/launcher bytes yielded different compiled .so hashes
+in two fresh output builds; byte reproducibility remains unresolved. Android,
+GUI, network and durable disk recovery remain unaccepted.

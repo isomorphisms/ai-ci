@@ -43,7 +43,9 @@ for target in linux phone tablet {
     grep -Fx "follower_arch${tab}arm64-v8a" "$job" > /dev/null
     grep -Fx "acceptance_kind${tab}physical-device" "$job" > /dev/null
   }
-  if not grep -Fx "state${tab}accepted" "$job" > /dev/null {
+  if grep -Fx "state${tab}accepted" "$job" > /dev/null {
+    echo "exact-follower-accepted=$target"
+  } else {
     echo "shared-core-parity=BLOCKED: $target lacks exact accepted evidence" >&2
     "$verifier" pending "$jobs" "$receipts" "$trigger" > "$output/pending.tsv"
     exit 4
