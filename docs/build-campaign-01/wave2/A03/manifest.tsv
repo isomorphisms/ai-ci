@@ -1,0 +1,2 @@
+id	title	owner	canonical_issue	readiness	dependencies	path	disposition
+CF-A2-S4	Finish current-policy authority and qualify the retained Android producer boundary	isomorphisms/ai-ci	https://github.com/isomorphisms/ai-ci/issues/207	SOURCE_READY_REAL_EXECUTION_AND_DEPLOYMENT_CONDITIONAL	retained5c80279dfcee565f4e999d2b1f97feb966b8efd3;artifact:BC-P02:eligible-closure;artifact:BC-P01:compiler-witness;artifact:BC-CF02:canonical-plan;artifact:BC-P04:packager;positive tracing-isolation host	jobs/CF-A2-S4.md	REUSED_CONTINUATION

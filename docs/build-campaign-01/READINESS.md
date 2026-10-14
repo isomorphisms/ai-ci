@@ -1,5 +1,7 @@
 # Dependency, readiness and continuation
 
+**Continuation, 2026-10-14 UTC:** [Wave 2](wave2/README.md) preserves 67 additional complete SUN handoffs (54 new identities, 13 reused), all filed/readback-verified; complete chat emission follows. These plus the earlier26 total93 distinct SUN assignments. The remaining27 domain decisions are requalified; CF03's runtime-inventory extension is still being reconciled. No SUN implementation or Work dispatch is claimed. See the dated current [dependency/readiness](wave2/DEPENDENCIES.md), [domain dispositions](wave2/domains.tsv) and [prior-wave corrections](wave2/PRIOR-WAVE-DISPOSITIONS.md). Historical entries below retain their original date and evidence scope.
+
 **Continuation:** [Wave 1](wave1/README.md) requalified BC-A02/A06/A07/K04/P02/T01 and authored 26 SUN jobs. Its artifact-level dependency order supersedes the provisional boundaries below for those domains; 27 other domain STARs remain unexecuted in this continuation.
 
 ## First runnable wave

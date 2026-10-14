@@ -1,0 +1,2 @@
+id	title	owner	canonical_issue	readiness	dependencies	path	disposition
+CF-A2-S2	Continue the approved plan and runtime-obligation contract through package graph validation	isomorphisms/catfood	https://github.com/isomorphisms/catfood/issues/33	READY_SOURCE_IMPLEMENTATION;INTEGRATION_CONDITIONAL	artifact:BC-A03:approved-authority-interface;artifact:BC-CF02:canonical-plan;artifact:CF-A2-S3:sealed-material-interface;artifact:BC-A06:transition-interface	jobs/CF-A2-S2.md	PRESERVE_EXISTING_ID_REQUALIFIED_CONTINUATION

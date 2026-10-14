@@ -1,5 +1,7 @@
 # STAR BUILD-CAMPAIGN-01
 
+**Continuation, 2026-10-14 UTC:** [Wave 2](wave2/README.md) preserves 67 additional complete SUN handoffs (54 new identities, 13 reused), all filed/readback-verified; complete chat emission follows. These plus the earlier26 total93 distinct SUN assignments. The remaining27 domain decisions are requalified; CF03's runtime-inventory extension is still being reconciled. No SUN implementation or Work dispatch is claimed. See the dated current [dependency/readiness](wave2/DEPENDENCIES.md), [domain dispositions](wave2/domains.tsv) and [prior-wave corrections](wave2/PRIOR-WAVE-DISPOSITIONS.md). Historical entries below retain their original date and evidence scope.
+
 **Continuation, 2026-10-13 UTC:** six domain STARs have now produced [26 fully authored SUN implementation jobs](wave1/README.md). Their source decisions, prerequisites, canonical issue comments and separate delivery ledger are retained there. The other 27 domains remain for continuation. The original coordinator account below is preserved as its dated result.
 
 Parent: https://github.com/isomorphisms/ai-ci/issues/239  
