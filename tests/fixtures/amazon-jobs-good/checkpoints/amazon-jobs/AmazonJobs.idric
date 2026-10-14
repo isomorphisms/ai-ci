@@ -1,0 +1,11 @@
+module Main
+-- observed public source
+source_record_id : Text
+complete_result options expected selected_reversed scanned =
+    if complete_census options && not (scanned ≟ hits) then Left "incomplete census:" else Right []
+job_json job = JObject
+  [ ("business_category", JString (business_category job))
+  , ("team", JString (team_label job))
+  , ("source_record_id", JString (source_record_id job))
+  ]
+search_parameters = ["https://www.amazon.jobs/en/search.json"]
