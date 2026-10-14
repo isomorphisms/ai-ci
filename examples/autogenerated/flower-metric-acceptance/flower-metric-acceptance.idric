@@ -1,0 +1,10 @@
+module FlowerMetricAcceptance
+
+valid_euler_count : Number → Number → Number → Number → Bool
+valid_euler_count vertices edges faces chi =
+  vertices - edges + faces ≟ chi
+
+main : IO ()
+main = if valid_euler_count 12 24 12 0
+          then putChar 'Y'
+          else putChar 'N'

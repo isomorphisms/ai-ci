@@ -210,4 +210,30 @@ def selftest() → None:
             for row in range(4):
                 for col in range(4):
                     close(combined[row][col],expected[row][col],"paired inverse")
-    print("PASS independent basis solve, eight Lorentz/inverse checks, two degree-six edges and torus link counts")
+    for start_cell in range(2):
+        for start_left in range(4):
+            for start_right in range(4):
+                if start_left != start_right:
+                    cell ∈ int ← start_cell
+                    left ∈ int ← start_left
+                    right ∈ int ← start_right
+                    face ∈ int ← 0
+                    while face==left or face==right:
+                        face ← face+1
+                    first_face ∈ int ← face
+                    total ∈ list[list[float]] ← identity()
+                    for step in range(6):
+                        permutation ∈ list[int] ← glue[cell][face]
+                        total ← product(total,transition(face,permutation))
+                        incoming ∈ int ← permutation[face]
+                        left ← permutation[left]
+                        right ← permutation[right]
+                        cell ← 1-cell
+                        face ← 0
+                        while face==left or face==right or face==incoming:
+                            face ← face+1
+                    require(cell==start_cell and left==start_left and right==start_right and face==first_face,"oriented six-wedge edge cycle")
+                    for row in range(4):
+                        for col in range(4):
+                            close(total[row][col],expected[row][col],"edge-cycle holonomy")
+    print("PASS independent basis solve, eight Lorentz/inverse checks, 24 oriented six-wedge cycles and identity holonomies, two degree-six edges and torus link counts")
