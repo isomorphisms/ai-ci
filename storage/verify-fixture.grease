@@ -1,0 +1,28 @@
+#!/usr/bin/env grease
+set -eu
+test "$#" = 3 || { printf 'usage: verify-fixture RECEIPT_DIR EXPECTED_IB_REV EXPECTED_RUNTIME_SHA256\n' >&2; exit 2; }
+directory=$1
+expected_revision=$2
+expected_runtime=$3
+fail() { printf 'storage fixture receipt: %s\n' "$*" >&2; exit 2; }
+receipt=$directory/receipt.tsv
+test -f "$receipt" && test ! -L "$receipt" || fail 'receipt is missing or linked'
+awk -F '\t' '
+ BEGIN { split("schema result scope ib_revision ib_tree runtime_sha256 stdout_sha256 stderr_sha256 live physical", fields, " "); for (i in fields) required[fields[i]]=1 }
+ NF != 2 || !($1 in required) || $2 == "" || seen[$1]++ { bad=1 }
+ END { for (key in required) if (!seen[key]) bad=1; exit bad }
+' "$receipt" || fail 'invalid receipt fields'
+field() { awk -F '\t' -v key="$1" '$1 == key {print $2}' "$receipt"; }
+test "$(field schema)" = storage-source-fixture-v1 || fail 'unsupported schema'
+test "$(field result)" = PASS || fail 'fixture did not pass'
+test "$(field scope)" = host-fixture || fail 'fixture receipt cannot claim another scope'
+test "$(field live)" = NOT_RUN && test "$(field physical)" = NOT_RUN || fail 'fixture cannot accept live or physical evidence'
+test "$(field ib_revision)" = "$expected_revision" || fail 'source revision mismatch'
+test "$(field runtime_sha256)" = "$expected_runtime" || fail 'runtime digest mismatch'
+for stream in stdout stderr; do
+  test -f "$directory/$stream.txt" && test ! -L "$directory/$stream.txt" || fail 'stream evidence missing or linked'
+  actual=$(sha256sum "$directory/$stream.txt" | cut -d ' ' -f 1)
+  test "$actual" = "$(field ${stream}_sha256)" || fail 'stream digest mismatch'
+done
+grep -Fx 'PASS Grease retained-source, graph/reference, history, rebuild and refusal fixtures; live source NOT_RUN' "$directory/stdout.txt" >/dev/null || fail 'semantic fixture completion absent'
+printf 'PASS storage host-fixture receipt; live and physical NOT_RUN\n'

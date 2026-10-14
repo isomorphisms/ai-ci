@@ -1,0 +1,33 @@
+#!/usr/bin/env grease
+set -eu
+root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
+runner=${GREASE:?set GREASE to the verified runtime}
+temporary=$(mktemp -d)
+trap 'rm -rf -- "$temporary"' EXIT HUP INT TERM
+revision=1111111111111111111111111111111111111111
+runtime=2222222222222222222222222222222222222222222222222222222222222222
+printf 'PASS Grease retained-source, graph/reference, history, rebuild and refusal fixtures; live source NOT_RUN\n' > "$temporary/stdout.txt"
+: > "$temporary/stderr.txt"
+{
+ printf 'schema\tstorage-source-fixture-v1\nresult\tPASS\nscope\thost-fixture\nib_revision\t%s\nib_tree\t%s\nruntime_sha256\t%s\n' "$revision" "$revision" "$runtime"
+ printf 'stdout_sha256\t%s\nstderr_sha256\t%s\nlive\tNOT_RUN\nphysical\tNOT_RUN\n' \
+  "$(sha256sum "$temporary/stdout.txt" | cut -d ' ' -f 1)" "$(sha256sum "$temporary/stderr.txt" | cut -d ' ' -f 1)"
+} > "$temporary/good"
+cp "$temporary/good" "$temporary/receipt.tsv"
+"$runner" "$root/storage/verify-fixture.grease" "$temporary" "$revision" "$runtime"
+for mutation in scope live physical source omitted; do
+ case $mutation in
+  scope) sed 's/host-fixture/live-drive/' "$temporary/good" > "$temporary/receipt.tsv"; expected='another scope' ;;
+  live) sed 's/live\tNOT_RUN/live\tPASS/' "$temporary/good" > "$temporary/receipt.tsv"; expected='cannot accept live' ;;
+  physical) sed 's/physical\tNOT_RUN/physical\tPASS/' "$temporary/good" > "$temporary/receipt.tsv"; expected='cannot accept live' ;;
+  source) sed "s/$revision/3333333333333333333333333333333333333333/" "$temporary/good" > "$temporary/receipt.tsv"; expected='revision mismatch' ;;
+  omitted) sed '/^physical/d' "$temporary/good" > "$temporary/receipt.tsv"; expected='invalid receipt fields' ;;
+ esac
+ if "$runner" "$root/storage/verify-fixture.grease" "$temporary" "$revision" "$runtime" 2> "$temporary/error"; then exit 1; fi
+ grep -F "$expected" "$temporary/error" >/dev/null
+done
+cp "$temporary/good" "$temporary/receipt.tsv"
+printf altered >> "$temporary/stdout.txt"
+if "$runner" "$root/storage/verify-fixture.grease" "$temporary" "$revision" "$runtime" 2> "$temporary/error"; then exit 1; fi
+grep -F 'stream digest mismatch' "$temporary/error" >/dev/null
+printf 'PASS storage receipt rejecting fixtures\n'
