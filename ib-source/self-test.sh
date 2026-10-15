@@ -112,7 +112,7 @@ printf 'extension_field\tYES\n' >> "$receipt"
 reject extension-field
 cp "$work/good.tsv" "$receipt"
 printf '\r' >> "$receipt"
-reject-control
+reject control
 cp "$work/good.tsv" "$receipt"
 printf '%s\n' "$((bytes - 1))" > "$root/responses.arena.used"
 reject uncommitted-range
