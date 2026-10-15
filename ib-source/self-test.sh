@@ -114,7 +114,6 @@ cp "$work/good.tsv" "$receipt"
 printf '\r' >> "$receipt"
 reject-control
 cp "$work/good.tsv" "$receipt"
-cp "$work/good.tsv" "$receipt"
 printf '%s\n' "$((bytes - 1))" > "$root/responses.arena.used"
 reject uncommitted-range
 printf '9000\n' > "$root/responses.arena.used"
@@ -125,7 +124,7 @@ printf X | dd of="$root/responses.arena" bs=1 seek=0 conv=notrunc status=none
 reject modified-committed-bytes
 dd if="$work/page" of="$root/responses.arena" bs=65536 conv=notrunc status=none
 # Matching digest is insufficient: the independent reader must verify UTF-8.
-printf '\\377' | dd of="$root/responses.arena" bs=1 seek=0 conv=notrunc status=none
+printf '\377' | dd of="$root/responses.arena" bs=1 seek=0 conv=notrunc status=none
 dd if="$root/responses.arena" of="$work/invalid-utf8" bs=65536 iflag=count_bytes count="$bytes" status=none
 invalid_digest=$(sha256sum "$work/invalid-utf8" | cut -d ' ' -f 1)
 mutate invalid-utf8-with-matching-hash sha256 "$invalid_digest"
