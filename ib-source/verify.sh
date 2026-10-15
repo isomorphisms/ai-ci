@@ -112,6 +112,8 @@ test "$(wc -c < "$work/body" | tr -d '[:space:]')" -eq "$length" ||
     fail 'short independent committed read'
 actual=$(sha256sum "$work/body" | cut -d ' ' -f 1)
 test "$actual" = "$digest" || fail 'committed bytes differ from receipt SHA-256'
+iconv -f UTF-8 -t UTF-8 < "$work/body" > /dev/null 2>&1 ||
+    fail 'committed HTML bytes are not valid UTF-8'
 test "$(cat "$used")" = "$pointer" ||
     fail 'commit pointer changed during read'
 printf 'PASS\tib-source-v2-admitted\t%s\t%s\t%s\t%s\n' "$request" "$generation" "$length" "$digest"
