@@ -10,7 +10,7 @@ root=$(CDPATH= cd "$(dirname "$0")" && pwd)
 : "${HOST_LINKER:?system CRT/link driver required}"
 ick_pin=c61e448251744a2f40ad743ebef1a027bdcd2f9d
 gcc_pin=6294f1d9e7536e5ffcde09d1528c918d63abfef5
-flower_pin=217ccf103d253310c73732fe793862ac6214aa9b
+flower_pin=25fa730858901665b686c578a09e514ead16400c
 leaf_pin=efff5fbe71d8722d713282c478dbdb52fa280f9b
 test "$(git -C "$ICK_SOURCE_DIR" rev-parse HEAD)" = "$ick_pin"
 test "$(git -C "$ICK_SOURCE_DIR/gcc" rev-parse HEAD)" = "$gcc_pin"

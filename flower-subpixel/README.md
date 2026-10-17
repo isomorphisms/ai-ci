@@ -2,7 +2,7 @@
 
 Authority: https://github.com/isomorphisms/flexible-pipes/issues/124
 
-Pin Flower isomorphismes/flower@217ccf103d253310c73732fe793862ac6214aa9b (draft PR #6); pin corrected producer isomorphisms/rough.framebuffer@efff5fbe71d8722d713282c478dbdb52fa280f9b (draft PR #15). The immutable source pins must be refreshed and rerun for every change. Never qualify moving branch tips, historical old API aliases, or producer-authored test source as an independent oracle.
+Pin Flower isomorphismes/flower@25fa730858901665b686c578a09e514ead16400c (draft PR #6); pin corrected producer isomorphisms/rough.framebuffer@efff5fbe71d8722d713282c478dbdb52fa280f9b (draft PR #15). The immutable source pins must be refreshed and rerun for every change. Never qualify moving branch tips, historical old API aliases, or producer-authored test source as an independent oracle.
 
 CI source-builds ICK at c61e448251744a2f40ad743ebef1a027bdcd2f9d, verifies GCC reference submodule 6294f1d9e7536e5ffcde09d1528c918d63abfef5, source-builds Ike at a92fe68bf8aad8dfcfe9f7a7abd84e07290f7fe0 using ICK, and uses Ike's exact one-step recipe/receipt. Final linker supplies only system CRT/libm and consumes ICK objects; stage-zero GCC/GNU Make are not substitutes for the producer compiler.
 
