@@ -18,6 +18,17 @@ leaf_pin=efff5fbe71d8722d713282c478dbdb52fa280f9b
 test "$(git -C "$ICK_SOURCE_DIR" rev-parse HEAD)" = "$ick_pin"
 test "$(git -C "$ICK_SOURCE_DIR/gcc" rev-parse HEAD)" = "$gcc_pin"
 test "$(git -C "$LEAF_ROOT" rev-parse HEAD)" = "$leaf_pin"
+# Independent migration gate: a pinned new API must not retain a second old one.
+legacy=sub
+legacy="${legacy}lixel"
+if git -C "$LEAF_ROOT" ls-files | grep -i "$legacy"; then
+    echo 'AICI BLOCKED: obsolete producer path' >&2
+    exit 2
+fi
+if git -C "$LEAF_ROOT" grep -I -n -i "$legacy" -- .; then
+    echo 'AICI BLOCKED: obsolete producer source or public API' >&2
+    exit 2
+fi
 test "$ICK_CC" = "$ICK_SOURCE_DIR/stage/bin/x86_64-linux-gnu-gcc" || {
     echo 'AICI BLOCKED: source-unbound compiler path' >&2; exit 2;
 }
