@@ -1,5 +1,5 @@
 #!/bin/sh
-# Independent numeric acceptance for exact pinned Sublixel sources.
+# Independent numeric acceptance for exact pinned Subpixel sources.
 # Invoked only by pinned Ike. All C source and AICI verifier compile with ICK.
 # The system driver is permitted only to link ICK-produced objects.
 set -eu
@@ -14,7 +14,7 @@ done
 
 ick_pin=c61e448251744a2f40ad743ebef1a027bdcd2f9d
 gcc_pin=6294f1d9e7536e5ffcde09d1528c918d63abfef5
-leaf_pin=49aa03cdeabbc57dbac758e0a9470579c3af0015
+leaf_pin=efff5fbe71d8722d713282c478dbdb52fa280f9b
 test "$(git -C "$ICK_SOURCE_DIR" rev-parse HEAD)" = "$ick_pin"
 test "$(git -C "$ICK_SOURCE_DIR/gcc" rev-parse HEAD)" = "$gcc_pin"
 test "$(git -C "$LEAF_ROOT" rev-parse HEAD)" = "$leaf_pin"
@@ -31,20 +31,20 @@ case "$cc1" in
   *) echo 'AICI BLOCKED: unowned C frontend' >&2; exit 2 ;;
 esac
 
-source3="$LEAF_ROOT/sublixel/src/curve_patch.c"
-source5="$LEAF_ROOT/sublixel/src/curve_patch_5x5.c"
-header="$LEAF_ROOT/sublixel/include/sublixel/curve_patch.h"
+source3="$LEAF_ROOT/subpixel/src/curve_patch.c"
+source5="$LEAF_ROOT/subpixel/src/curve_patch_5x5.c"
+header="$LEAF_ROOT/subpixel/include/subpixel/curve_patch.h"
 test -s "$source3" && test -s "$source5" && test -s "$header"
 out="$root/build"
 mkdir -p "$out"
 flags="-std=c11 -O2 -Wall -Wextra -Werror -pedantic -fPIC -ffp-contract=off -fno-fast-math"
-includes="-I$LEAF_ROOT/sublixel/include -I$LEAF_ROOT/src"
+includes="-I$LEAF_ROOT/subpixel/include -I$LEAF_ROOT/src"
 
 # Do not use the candidate producer's build script or its test program.
 "$ICK_CC" $flags $includes -c "$source3" -o "$out/3.o"
 "$ICK_CC" $flags $includes -c "$source5" -o "$out/5.o"
-"$ICK_CC" $flags $includes -c "$LEAF_ROOT/sublixel/src/coverage_plane.c" -o "$out/plane.o"
-"$ICK_CC" $flags $includes -c "$LEAF_ROOT/src/sublixel_framebuffer.c" -o "$out/framebuffer.o"
+"$ICK_CC" $flags $includes -c "$LEAF_ROOT/subpixel/src/coverage_plane.c" -o "$out/plane.o"
+"$ICK_CC" $flags $includes -c "$LEAF_ROOT/src/subpixel_framebuffer.c" -o "$out/framebuffer.o"
 "$ICK_CC" $flags $includes -c "$root/verify.c" -o "$out/independent.o"
 "$ICK_CC" $flags -c "$root/receipt_check.c" -o "$out/receipt_check.o"
 "$HOST_LINKER" "$out/receipt_check.o" -o "$out/receipt-check"
@@ -72,7 +72,7 @@ if "$out/reject-mutant-3" > "$out/mutant-3.log" 2>&1; then
     echo 'AICI FALSE PASS: 3x3 inverted-curvature mutant accepted' >&2
     exit 1
 fi
-grep -Fq 'AICI_SUBLIXEL_REJECT 3x3 integer-rational oracle' "$out/mutant-3.log"
+grep -Fq 'AICI_SUBPIXEL_REJECT 3x3 integer-rational oracle' "$out/mutant-3.log"
 
 original5='    double value = quadratic + cubic;'
 changed5='    double value = quadratic - cubic;'
@@ -87,7 +87,7 @@ if "$out/reject-mutant-5" > "$out/mutant-5.log" 2>&1; then
     echo 'AICI FALSE PASS: 5x5 inverted-cubic mutant accepted' >&2
     exit 1
 fi
-grep -Fq 'AICI_SUBLIXEL_REJECT 5x5 integer-rational oracle' "$out/mutant-5.log"
+grep -Fq 'AICI_SUBPIXEL_REJECT 5x5 integer-rational oracle' "$out/mutant-5.log"
 
 
 # Genuine integration mutants must compile/link successfully, then fail the
@@ -96,7 +96,7 @@ original_plane='    plane->occupied[(size_t)row * plane->stride_words + (size_t)
 changed_plane='    plane->occupied[(size_t)row * plane->stride_words + (size_t)column] = mask;'
 awk -v before="$original_plane" -v after="$changed_plane" \
     '{if ($0 == before) {print after; count++} else print} END {if (count != 1) exit 13}' \
-    "$LEAF_ROOT/sublixel/src/coverage_plane.c" > "$out/mutant-plane.c"
+    "$LEAF_ROOT/subpixel/src/coverage_plane.c" > "$out/mutant-plane.c"
 "$ICK_CC" $flags $includes -c "$out/mutant-plane.c" -o "$out/mutant-plane.o"
 "$HOST_LINKER" "$out/3.o" "$out/5.o" "$out/mutant-plane.o" \
     "$out/framebuffer.o" "$out/independent.o" -lm -o "$out/reject-mutant-plane"
@@ -104,13 +104,13 @@ if "$out/reject-mutant-plane" > "$out/mutant-plane.log" 2>&1; then
     echo 'AICI FALSE PASS: overwritten coverage union accepted' >&2
     exit 1
 fi
-grep -Fq 'AICI_SUBLIXEL_REJECT coverage plane rational union' "$out/mutant-plane.log"
+grep -Fq 'AICI_SUBPIXEL_REJECT coverage plane rational union' "$out/mutant-plane.log"
 
 original_frame='            double source_alpha = source_base_alpha * occupied_samples(mask) / 64.0;'
 changed_frame='            double source_alpha = source_base_alpha * (occupied_samples(mask) != 0);'
 awk -v before="$original_frame" -v after="$changed_frame" \
     '{if ($0 == before) {print after; count++} else print} END {if (count != 1) exit 14}' \
-    "$LEAF_ROOT/src/sublixel_framebuffer.c" > "$out/mutant-framebuffer.c"
+    "$LEAF_ROOT/src/subpixel_framebuffer.c" > "$out/mutant-framebuffer.c"
 "$ICK_CC" $flags $includes -c "$out/mutant-framebuffer.c" -o "$out/mutant-framebuffer.o"
 "$HOST_LINKER" "$out/3.o" "$out/5.o" "$out/plane.o" \
     "$out/mutant-framebuffer.o" "$out/independent.o" -lm -o "$out/reject-mutant-framebuffer"
@@ -118,7 +118,7 @@ if "$out/reject-mutant-framebuffer" > "$out/mutant-framebuffer.log" 2>&1; then
     echo 'AICI FALSE PASS: opaque coverage stamp accepted' >&2
     exit 1
 fi
-grep -Fq 'AICI_SUBLIXEL_REJECT framebuffer rational alpha' "$out/mutant-framebuffer.log"
+grep -Fq 'AICI_SUBPIXEL_REJECT framebuffer rational alpha' "$out/mutant-framebuffer.log"
 
 printf 'aici_leaf_commit\t%s\n' "$leaf_pin"
 printf 'aici_ick_commit\t%s\n' "$ick_pin"
@@ -128,4 +128,4 @@ sha256sum "$ICK_CC" "$cc1" "$source3" "$source5" "$header" \
     "$out/3.o" "$out/5.o" "$out/independent.o" "$out/independent-verify" \
     "$out/mutant-3.o" "$out/mutant-5.o" \
     "$out/receipt_check.o" "$out/receipt-check"
-echo 'AICI_SUBLIXEL_ACCEPT independent 3x3/5x5 rational coverage and four source mutants: PASS'
+echo 'AICI_SUBPIXEL_ACCEPT independent 3x3/5x5 rational coverage and four source mutants: PASS'

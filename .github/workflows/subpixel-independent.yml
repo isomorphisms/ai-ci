@@ -1,16 +1,16 @@
-name: Independent Sublixel ICK + Ike curvature acceptance
+name: Independent Subpixel ICK + Ike curvature acceptance
 
 on:
   pull_request:
     paths:
-      - 'sublixel/**'
-      - '.github/workflows/sublixel-independent.yml'
+      - 'subpixel/**'
+      - '.github/workflows/subpixel-independent.yml'
   push:
     branches:
-      - 'accept/sublixel-*'
+      - 'accept/subpixel-*'
     paths:
-      - 'sublixel/**'
-      - '.github/workflows/sublixel-independent.yml'
+      - 'subpixel/**'
+      - '.github/workflows/subpixel-independent.yml'
 
 permissions:
   contents: read
@@ -31,7 +31,7 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           repository: isomorphisms/rough.framebuffer
-          ref: 49aa03cdeabbc57dbac758e0a9470579c3af0015
+          ref: efff5fbe71d8722d713282c478dbdb52fa280f9b
           path: producer
           persist-credentials: false
 
@@ -56,7 +56,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git -C producer rev-parse HEAD)" = 49aa03cdeabbc57dbac758e0a9470579c3af0015
+          test "$(git -C producer rev-parse HEAD)" = efff5fbe71d8722d713282c478dbdb52fa280f9b
           test "$(git -C ick-toolchain rev-parse HEAD)" = c61e448251744a2f40ad743ebef1a027bdcd2f9d
           test "$(git -C ick-toolchain/gcc rev-parse HEAD)" = 6294f1d9e7536e5ffcde09d1528c918d63abfef5
           grep -Fxq gcc_commit=6294f1d9e7536e5ffcde09d1528c918d63abfef5 ick-toolchain/ick/SOURCE.lock
@@ -128,13 +128,13 @@ jobs:
           export ICK_CC="$ICK_SOURCE_DIR/stage/bin/x86_64-linux-gnu-gcc"
           export LEAF_ROOT="$GITHUB_WORKSPACE/producer"
           export HOST_LINKER=/usr/bin/x86_64-linux-gnu-gcc
-          cd sublixel
+          cd subpixel
           mkdir -p build
           export IKE_IKEFILE_IDENTITY="sha256:$(sha256sum Ikefile | cut -d ' ' -f1)"
           export IKE_RECEIPT="$PWD/build/ike-accept.tsv"
           unset IKE_RECIPE_RUNNER
           "$GITHUB_WORKSPACE/.owned/ike" accept | tee build/accept-stdout.log
-          grep -Fxq 'AICI_SUBLIXEL_ACCEPT independent 3x3/5x5 rational coverage and four source mutants: PASS' \
+          grep -Fxq 'AICI_SUBPIXEL_ACCEPT independent 3x3/5x5 rational coverage and four source mutants: PASS' \
             build/accept-stdout.log
           ./build/receipt-check "$IKE_RECEIPT" "$IKE_IKEFILE_IDENTITY"
 
@@ -142,7 +142,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cd sublixel
+          cd subpixel
           identity="sha256:$(sha256sum Ikefile | cut -d ' ' -f1)"
           awk '{ if ($0 == "final_result\tPASS") print "final_result\tFAIL"; else print }' \
             build/ike-accept.tsv > build/bad-final.tsv
@@ -151,7 +151,7 @@ jobs:
             echo 'Accepted forged final receipt PASS' >&2
             exit 1
           fi
-          grep -Fq 'AICI_SUBLIXEL_RECEIPT_REJECT final result' build/bad-final.out
+          grep -Fq 'AICI_SUBPIXEL_RECEIPT_REJECT final result' build/bad-final.out
           awk -F '\t' '{ if ($1 == "selected_target_hex") print "selected_target_hex\t00"; else print }' \
             build/ike-accept.tsv > build/bad-target.tsv
           if ./build/receipt-check build/bad-target.tsv "$identity" \
@@ -159,5 +159,5 @@ jobs:
             echo 'Accepted forged target receipt' >&2
             exit 1
           fi
-          grep -Fq 'AICI_SUBLIXEL_RECEIPT_REJECT selected target' build/bad-target.out
+          grep -Fq 'AICI_SUBPIXEL_RECEIPT_REJECT selected target' build/bad-target.out
           echo 'AICI exact Ike receipt negative controls: PASS'
