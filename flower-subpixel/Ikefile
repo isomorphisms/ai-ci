@@ -1,0 +1,4 @@
+# Independently accepted Flower material chart. The recipe is executed by owned
+# Ike and every C object in the acceptance program is compiled with pinned ICK.
+accept depends on accept.sh verify.c
+    sh accept.sh
