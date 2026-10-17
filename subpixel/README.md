@@ -1,9 +1,9 @@
-# Independent Sublixel numerical and owned-toolchain acceptance
+# Independent Subpixel numerical and owned-toolchain acceptance
 
 AICI tests the **actual** 3×3/5×5 C implementation in `isomorphisms/rough.framebuffer` against its own rational-integer midpoint oracle. The producer's numerical test arrays and product build scripts are **not** used.
 
-Current immutable acceptance target: `49aa03cdeabbc57dbac758e0a9470579c3af0015` from
-[isomorphisms/rough.framebuffer PR #13, “Render real Sublixel 3×3/5×5 slanted-curve coverage through ICK/Ike”](https://github.com/isomorphisms/rough.framebuffer/pull/13).
+Current immutable acceptance target: `efff5fbe71d8722d713282c478dbdb52fa280f9b` from
+[isomorphisms/rough.framebuffer PR #13, “Render real Subpixel 3×3/5×5 slanted-curve coverage through ICK/Ike”](https://github.com/isomorphisms/rough.framebuffer/pull/13).
 It includes the quadratic/cubic library and repaired build policy. The source
 checkout must match that exact revision. Updating the target requires a new
 review/run, not silently following a branch.
@@ -18,7 +18,7 @@ Two mutant builds change **real implementation source** while leaving the indepe
 
 The [source-built ICK](https://github.com/dilapidated-shed/ick) compiler is pinned to `c61e448251744a2f40ad743ebef1a027bdcd2f9d`; its retained GCC reference submodule is pinned to `6294f1d9e7536e5ffcde09d1528c918d63abfef5`. Only its authenticated staged x86_64 compiler and `cc1` compile **both producer curve sources, AICI's independent oracle, AICI's receipt checker, and both mutants**.
 
-The acceptance orchestrator is [Ike](https://github.com/dilapidated-shed/ike) at `a92fe68bf8aad8dfcfe9f7a7abd84e07290f7fe0`, built by ICK. AICI uses its own literal `sublixel/Ikefile` to run the oracle and demands `ike-build-v1` with exact target, source digest, rule, recipe, runner, status and no trailing bytes. The receipt checker is **also compiled by ICK**. Two mutated receipts (wrong target and false final result) must be rejected, not passed along by simply testing for the word `PASS`.
+The acceptance orchestrator is [Ike](https://github.com/dilapidated-shed/ike) at `a92fe68bf8aad8dfcfe9f7a7abd84e07290f7fe0`, built by ICK. AICI uses its own literal `subpixel/Ikefile` to run the oracle and demands `ike-build-v1` with exact target, source digest, rule, recipe, runner, status and no trailing bytes. The receipt checker is **also compiled by ICK**. Two mutated receipts (wrong target and false final result) must be rejected, not passed along by simply testing for the word `PASS`.
 
 The ICK stage-zero build still explicitly uses GNU Make and host GCC/G++ to construct the GCC-derived compiler. The final system link driver consumes **only ICK-produced object files**, supplying CRT/libc/libm. These are not consumer source compilation alternatives or claims of self-hosted ICK. The CI workflow does not run any producer-owned Makefile, native test program or consumer CC fallback.
 

@@ -1,13 +1,13 @@
-/* Independent Sublixel geometry acceptance oracle.
+/* Independent Subpixel geometry acceptance oracle.
  *
  * This file belongs to ai-ci, NOT rough.framebuffer. It computes exact rational
  * subpixel occupancy from the chosen analytic curves, independently from the
  * implementation's local frame, pixel_mask or stored reference fixtures.
  * Compiled exclusively by pinned owned ICK in the acceptance workflow.
  */
-#include "sublixel/curve_patch.h"
-#include "sublixel/coverage_plane.h"
-#include "sublixel_framebuffer.h"
+#include "subpixel/curve_patch.h"
+#include "subpixel/coverage_plane.h"
+#include "subpixel_framebuffer.h"
 
 #include <math.h>
 #include <stdint.h>
@@ -16,7 +16,7 @@
 #include <string.h>
 
 static void fail(const char *message, int y, int x, double actual, double expected) {
-    fprintf(stderr, "AICI_SUBLIXEL_REJECT %s cell=(%d,%d) got=%.17g expected=%.17g\n",
+    fprintf(stderr, "AICI_SUBPIXEL_REJECT %s cell=(%d,%d) got=%.17g expected=%.17g\n",
             message, y, x, actual, expected);
     exit(1);
 }
@@ -260,7 +260,7 @@ static void test_coverage_plane_and_framebuffer(void) {
         rough_framebuffer target = {
             .pixels = pixels, .width = 2, .height = 1, .stride_pixels = 4
         };
-        require(rough_blend_sublixel_coverage(&target, &one,
+        require(rough_blend_subpixel_coverage(&target, &one,
                     UINT32_C(0xffff0000), 1.0) == 0, "framebuffer composition");
         /* Alpha numerator has denominator 64 after multiplication by 255.
          * RGB divides the independent premultiplied red/blue numerators by
