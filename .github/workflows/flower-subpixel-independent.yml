@@ -1,0 +1,190 @@
+name: Independent Flower material subpixel ICK + Ike acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'flower-subpixel/**'
+      - '.github/workflows/flower-subpixel-independent.yml'
+  push:
+    branches:
+      - 'sun/124-flower-*'
+    paths:
+      - 'flower-subpixel/**'
+      - '.github/workflows/flower-subpixel-independent.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  independent-curvature:
+    name: ICK-built independent Flower Net, coverage, stride and alpha mutants
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Check out independent ai-ci source at PR head
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Check out exact 3x3+5x5 producer candidate
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: isomorphisms/rough.framebuffer
+          ref: efff5fbe71d8722d713282c478dbdb52fa280f9b
+          path: producer
+          persist-credentials: false
+
+      - name: Check out exact Flower consumer implementation
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: isomorphismes/flower
+          ref: 217ccf103d253310c73732fe793862ac6214aa9b
+          path: flower
+          persist-credentials: false
+
+      - name: Check out owned ICK compiler and pinned reference
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: dilapidated-shed/ick
+          ref: c61e448251744a2f40ad743ebef1a027bdcd2f9d
+          path: ick-toolchain
+          submodules: true
+          persist-credentials: false
+
+      - name: Check out owned Ike orchestrator source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: dilapidated-shed/ike
+          ref: a92fe68bf8aad8dfcfe9f7a7abd84e07290f7fe0
+          path: ike-toolchain
+          persist-credentials: false
+
+      - name: Verify immutable source revisions and locks
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C producer rev-parse HEAD)" = efff5fbe71d8722d713282c478dbdb52fa280f9b
+          test "$(git -C flower rev-parse HEAD)" = 217ccf103d253310c73732fe793862ac6214aa9b
+          test "$(git -C ick-toolchain rev-parse HEAD)" = c61e448251744a2f40ad743ebef1a027bdcd2f9d
+          test "$(git -C ick-toolchain/gcc rev-parse HEAD)" = 6294f1d9e7536e5ffcde09d1528c918d63abfef5
+          grep -Fxq gcc_commit=6294f1d9e7536e5ffcde09d1528c918d63abfef5 ick-toolchain/ick/SOURCE.lock
+          test "$(git -C ike-toolchain rev-parse HEAD)" = a92fe68bf8aad8dfcfe9f7a7abd84e07290f7fe0
+
+      - name: Install stage-zero ICK compiler build dependencies only
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential flex texinfo \
+            libgmp-dev libmpfr-dev libmpc-dev libisl-dev libzstd-dev binutils
+
+      - name: Materialize source-built ICK (no consumer fallback)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ick-toolchain
+          sh ick/materialize.sh gcc source
+          test -d source/gcc/c
+          test -d source/gcc/c-family
+
+      - name: Configure ICK native C compiler
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ick-toolchain/build ick-toolchain/stage
+          cd ick-toolchain/build
+          ../source/configure \
+            --target=x86_64-linux-gnu \
+            --prefix="$GITHUB_WORKSPACE/ick-toolchain/stage" \
+            --with-as="$(command -v x86_64-linux-gnu-as)" \
+            --with-ld="$(command -v x86_64-linux-gnu-ld)" \
+            --enable-languages=c \
+            --disable-bootstrap \
+            --disable-multilib \
+            --disable-nls \
+            --disable-shared \
+            --disable-threads \
+            --without-headers \
+            --disable-libatomic \
+            --disable-libgomp \
+            --disable-libquadmath \
+            --disable-libssp \
+            --disable-libvtv
+
+      - name: Build pinned ICK compiler using declared stage-zero GNU Make
+        shell: bash
+        run: |
+          set -euo pipefail
+          /usr/bin/make -C ick-toolchain/build -j2 all-gcc
+          /usr/bin/make -C ick-toolchain/build install-gcc
+
+      - name: Build pinned Ike with ICK (not host GCC)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .owned
+          ./ick-toolchain/stage/bin/x86_64-linux-gnu-gcc \
+            -std=c11 -O2 -Wall -Wextra -Werror -pedantic -fPIC \
+            -c ike-toolchain/ike.c -o .owned/ike.o
+          readelf -h .owned/ike.o | grep -q 'Machine:.*Advanced Micro Devices X86-64'
+          /usr/bin/x86_64-linux-gnu-gcc .owned/ike.o -o .owned/ike
+          sha256sum .owned/ike.o .owned/ike
+
+      - name: Run independent Flower 2D Net coverage and four real source mutants via Ike
+        shell: bash
+        run: |
+          set -euo pipefail
+          export ICK_SOURCE_DIR="$GITHUB_WORKSPACE/ick-toolchain"
+          export ICK_CC="$ICK_SOURCE_DIR/stage/bin/x86_64-linux-gnu-gcc"
+          export FLOWER_ROOT="$GITHUB_WORKSPACE/flower"
+          export LEAF_ROOT="$GITHUB_WORKSPACE/producer"
+          export HOST_LINKER=/usr/bin/x86_64-linux-gnu-gcc
+          cd flower-subpixel
+          mkdir -p build
+          export IKE_IKEFILE_IDENTITY="sha256:$(sha256sum Ikefile | cut -d ' ' -f1)"
+          export IKE_RECEIPT="$PWD/build/ike-accept.tsv"
+          unset IKE_RECIPE_RUNNER
+          "$GITHUB_WORKSPACE/.owned/ike" accept | tee build/accept-stdout.log
+          grep -Fxq 'AICI_FLOWER_SUBPIXEL_ACCEPT 3x3/5x5 Flower material masks + four compiled source mutants: PASS' \
+            build/accept-stdout.log
+          ./build/receipt-check "$IKE_RECEIPT" "$IKE_IKEFILE_IDENTITY"
+          cat "$IKE_RECEIPT"
+          sha256sum build/verify build/oracle.o | tee build/SHA256SUMS.txt
+
+      - name: Retain exact-head independent acceptance receipts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: aici-flower-subpixel-ick-ike
+          path: |
+            flower-subpixel/build/ike-accept.tsv
+            flower-subpixel/build/accept-stdout.log
+            flower-subpixel/build/SHA256SUMS.txt
+            flower-subpixel/build/mutant-diagonal.log
+            flower-subpixel/build/mutant-stride.log
+            flower-subpixel/build/mutant-union.log
+            flower-subpixel/build/mutant-alpha.log
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Prove independent receipt checker rejects forged results
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd flower-subpixel
+          identity="sha256:$(sha256sum Ikefile | cut -d ' ' -f1)"
+          awk '{ if ($0 == "final_result\tPASS") print "final_result\tFAIL"; else print }' \
+            build/ike-accept.tsv > build/bad-final.tsv
+          if ./build/receipt-check build/bad-final.tsv "$identity" \
+               > build/bad-final.out 2>&1; then
+            echo 'Accepted forged final receipt PASS' >&2
+            exit 1
+          fi
+          grep -Fq 'AICI_SUBPIXEL_RECEIPT_REJECT final result' build/bad-final.out
+          awk -F '\t' '{ if ($1 == "selected_target_hex") print "selected_target_hex\t00"; else print }' \
+            build/ike-accept.tsv > build/bad-target.tsv
+          if ./build/receipt-check build/bad-target.tsv "$identity" \
+               > build/bad-target.out 2>&1; then
+            echo 'Accepted forged target receipt' >&2
+            exit 1
+          fi
+          grep -Fq 'AICI_SUBPIXEL_RECEIPT_REJECT selected target' build/bad-target.out
+          echo 'AICI exact Ike receipt negative controls: PASS'
