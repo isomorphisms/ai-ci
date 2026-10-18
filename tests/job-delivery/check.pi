@@ -331,7 +331,7 @@ def chat_bypass_cases() → None:
             raise ValueError("invalid/duplicate chat bypass case")
         expected[fields[0]] ← fields[1]
 
-    work ∈ Path ← Path(output) / "chat-bypass"
+    work ∈ Path ← output.joinpath("chat-bypass")
     work.mkdir()
     fixture ← Path(root + "/tests/fixtures/chat-bypass/gh.grease")
     fake_bin ∈ Path ← work / "bin"
@@ -342,6 +342,7 @@ def chat_bypass_cases() → None:
     attempts ∈ Path ← work / "transfer-attempts.tsv"
     environment ∈ dict[str, str] ← dict(os.environ)
     environment["KITCHEN_ROOT"] ← kitchen
+    environment["GREASE_BINARY"] ← grease
     environment["AICI_CHAT_BYPASS_ATTEMPTS"] ← str(attempts)
     environment["PATH"] ← str(fake_bin) + ":" + str(Path(grease).parent) + ":" + str(environment.get("PATH", ""))
 
