@@ -102,6 +102,9 @@ header dependencies. It uses DWARF 4 and disables GNU variable-location view
 directives because the NDK assembler does not accept the default encoding;
 normal debug information remains. Clang's `-fno-limit-debug-info` is mapped
 to GNU's `-fno-eliminate-unused-debug-types`, preserving complete type data.
+Source and binary roots pass through `-ffile-prefix-map`, so DWARF paths and
+path-valued macros retain stable canonical roots across clean and relocated
+builds.
 Unsupported compiler flags or hardened headers fail the source stage. The
 compiler emits `-MD` dependencies so user, builtin, overlay, and NDK sysroot
 headers share one compiler-generated closure rather than a second dependency

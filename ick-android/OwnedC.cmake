@@ -272,6 +272,9 @@ function(ick_android_objects output)
     foreach(definition IN LISTS directory_definitions OWNED_DEFINITIONS source_COMPILE_DEFINITIONS)
       list(APPEND definitions "-D${definition}")
     endforeach()
+    set(reproducible_paths
+      "-ffile-prefix-map=${CMAKE_CURRENT_BINARY_DIR}=@binary@"
+      "-ffile-prefix-map=${CMAKE_CURRENT_SOURCE_DIR}=@source@")
     # Preserve the complete inherited NDK flags, including Fortify, stack
     # protection, warnings and build-type optimization. An unsupported flag or
     # header is a compiler failure; do not erase it or retry with stock C.
@@ -303,7 +306,8 @@ function(ick_android_objects output)
     _ick_append_value(material_spec_content api "${ANDROID_PLATFORM_LEVEL}")
     _ick_append_value(material_spec_content standard "c${OWNED_STANDARD}")
     set(profile_index 0)
-    foreach(profile_value IN LISTS ick_support ick_target owned_flags header_overlay includes definitions assembler_target)
+    foreach(profile_value IN LISTS ick_support ick_target owned_flags reproducible_paths
+        header_overlay includes definitions assembler_target)
       _ick_canonicalize("${profile_value}" profile_canonical ${path_mappings})
       _ick_append_value(material_spec_content "profile.${profile_index}" "${profile_canonical}")
       math(EXPR profile_index "${profile_index} + 1")
@@ -354,7 +358,7 @@ function(ick_android_objects output)
       BYPRODUCTS "${assembly}" "${dependencies}" "${material_manifest}" "${receipt}"
       COMMAND "${CMAKE_COMMAND}" -E make_directory "${object_directory}"
       COMMAND "${ICK_COMPILER}" ${ick_support} ${ick_target}
-        ${owned_flags}
+        ${owned_flags} ${reproducible_paths}
         "--sysroot=${CMAKE_SYSROOT}"
         ${header_overlay}
         -nostdinc -isystem "${builtin_include}"
