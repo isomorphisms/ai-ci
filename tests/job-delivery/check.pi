@@ -331,7 +331,7 @@ def chat_bypass_cases() → None:
             raise ValueError("invalid/duplicate chat bypass case")
         expected[fields[0]] ← fields[1]
 
-    work ∈ Path ← output / "chat-bypass"
+    work ∈ Path ← Path(output) / "chat-bypass"
     work.mkdir()
     fixture ← Path(root + "/tests/fixtures/chat-bypass/gh.grease")
     fake_bin ∈ Path ← work / "bin"
