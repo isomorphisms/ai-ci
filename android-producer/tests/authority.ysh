@@ -1,0 +1,29 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+# Preserve the inherited v1 controls as POLICY-REFERENCE ADMISSION evidence.
+# The frozen Bash checker is test material; no producer/action calls it.
+var script = $(/usr/bin/readlink -f "$0")
+var tests = $(/usr/bin/dirname "$script")
+test "$#" = 4 || exit 2
+var work = "$1"
+var event = "$2"
+var run_sha = "$3"
+var pr_head = "$4"
+/usr/bin/mkdir -p "$work/app/ci" "$work/packager/apk"
+printf '' > "$work/candidate.apk"
+printf 'schema\tbogus\n' > "$work/packager.receipt.tsv"
+printf 'header\n' > "$work/app/ci/build-toolchain.tsv"
+printf '# fixture\n' > "$work/packager/apk/build-nativeactivity-apk.sh"
+proc refuses(id, ref, needle) {
+  if AICI_APK="$work/candidate.apk" AICI_ROOT="$work/app" AICI_PACKAGER_RECEIPT="$work/packager.receipt.tsv" AICI_PACKAGER_ROOT="$work/packager" AICI_EXPECTED_ABI=armeabi-v7a AICI_RECEIPT_OUTPUT="$work/approval.tsv" AICI_POLICY_REF="$ref" /usr/bin/bash "$tests/legacy-v1-policy-admission.sh" > "$work/$id.log" 2>&1; then echo 'authority false acceptance' >&2; exit 1; fi
+  /usr/bin/grep -Fq "$needle" "$work/$id.log"
+  test ! -e "$work/approval.tsv"
+  printf '%s\tpolicy-reference-admission-only\tPASS\n' "$id"
+}
+refuses non-sha main 'AICI policy must be pinned by full commit SHA'
+case "$event" in
+  pull_request) refuses exact-unmerged-head "$pr_head" 'AICI policy commit is not merged into isomorphisms/ai-ci main' ;;
+  push) refuses exact-main-push "$run_sha" 'unsupported packager receipt schema: bogus' ;;
+  *) exit 2 ;;
+esac
+refuses known-merged 6a87f20b39a71bd9e875061874c841f68c9db888 'unsupported packager receipt schema: bogus'

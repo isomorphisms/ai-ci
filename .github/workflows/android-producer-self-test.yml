@@ -1,4 +1,4 @@
-name: Android producer gate self-test
+name: Android producer policy-reference admission (legacy scope)
 
 on:
   pull_request:
@@ -26,7 +26,7 @@ jobs:
 
       - name: Shell syntax
         shell: bash
-        run: bash -n android-producer/check.sh
+        run: bash -n android-producer/tests/legacy-v1-policy-admission.sh
 
       - name: Exercise policy-authority boundary
         shell: bash
@@ -56,7 +56,7 @@ jobs:
             ref=$1
             needle=$2
             log=$3
-            if AICI_POLICY_REF="$ref" bash android-producer/check.sh >"$log" 2>&1; then
+            if AICI_POLICY_REF="$ref" bash android-producer/tests/legacy-v1-policy-admission.sh >"$log" 2>&1; then
               echo "unexpected producer-gate success for $ref" >&2
               exit 1
             fi

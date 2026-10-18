@@ -1,0 +1,13 @@
+program	caller_variable	exit	stdout_bytes	diagnostic	scope
+check	AICI_RELEASE_ROOT	1	0	AICI producer: caller override: AICI_RELEASE_ROOT	override-refusal
+check	AICI_DECISION_KEY	1	0	AICI producer: caller override: AICI_DECISION_KEY	override-refusal
+check	AICI_WITNESS_KEY	1	0	AICI producer: caller override: AICI_WITNESS_KEY	override-refusal
+check	AICI_TRUST_ROOT	1	0	AICI producer: caller override: AICI_TRUST_ROOT	override-refusal
+preflight	AICI_RELEASE_ROOT	1	0	BLOCKED: independently qualified producer deployment unavailable	DEPLOYMENT_BLOCKED-before-override-guard
+preflight	AICI_DECISION_KEY	1	0	BLOCKED: independently qualified producer deployment unavailable	DEPLOYMENT_BLOCKED-before-override-guard
+preflight	AICI_WITNESS_KEY	1	0	BLOCKED: independently qualified producer deployment unavailable	DEPLOYMENT_BLOCKED-before-override-guard
+preflight	AICI_TRUST_ROOT	1	0	BLOCKED: independently qualified producer deployment unavailable	DEPLOYMENT_BLOCKED-before-override-guard
+supervise	AICI_RELEASE_ROOT	1	0	AICI producer: caller override: AICI_RELEASE_ROOT	override-refusal
+supervise	AICI_DECISION_KEY	1	0	AICI producer: caller override: AICI_DECISION_KEY	override-refusal
+supervise	AICI_WITNESS_KEY	1	0	AICI producer: caller override: AICI_WITNESS_KEY	override-refusal
+supervise	AICI_TRUST_ROOT	1	0	AICI producer: caller override: AICI_TRUST_ROOT	override-refusal

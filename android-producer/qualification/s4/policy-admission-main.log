@@ -1,0 +1,3 @@
+non-sha	policy-reference-admission-only	PASS
+exact-main-push	policy-reference-admission-only	PASS
+known-merged	policy-reference-admission-only	PASS

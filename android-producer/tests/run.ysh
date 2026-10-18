@@ -1,0 +1,549 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+var GREASE = ENV.GREASE_BIN
+var script = $(/usr/bin/readlink -f "$0")
+var tests = $(/usr/bin/dirname "$script")
+var producer = $(/usr/bin/dirname "$tests")
+var policy = $(/usr/bin/dirname "$producer")
+source "$producer/release.ysh"
+source "$producer/graph.ysh"
+source "$producer/execution.ysh"
+test "$#" = 1 || reject 'expected FRESH_QUALIFICATION_DIRECTORY'
+/usr/bin/mkdir -m 700 "$1"
+var work = $(/usr/bin/readlink -f "$1")
+var release = "$work/release"
+var decision = "$work/decision.tsv"
+var apk = "$work/payload.apk"
+var ndk = ENV.ANDROID_NDK_ROOT
+var sdk = ENV.ANDROID_SDK_ROOT
+var java = ENV.ANDROID_JAVA_HOME
+var packager = ENV.ANDROID_PACKAGER_ROOT
+var host = ENV.AICI_HOST_VERIFIERS
+var approved = ENV.AICI_APPROVED_POLICY_ROOT
+var keystore = ENV.ANDROID_TEST_KEYSTORE
+var signer = 'de9b1d47c5a65e6d46a204b79dd9ee566b9d3c9832ba81ebc4213d3392e92ff9'
+var tab = $(printf '\t')
+var execution_mode = 'HOST_OBSERVATION'
+var update_mode = 'new-install'
+if ! /usr/bin/strace -qq -e trace=execve -o "$work/observer-probe.trace" /usr/bin/true > "$work/observer-probe.stdout" 2> "$work/observer-probe.stderr"; then
+  /usr/bin/grep -Fq 'Operation not permitted' "$work/observer-probe.stderr" || reject 'execution observer failed for unknown reason'
+  setvar execution_mode = 'AUTHENTICATED_FIXTURE'
+fi
+/usr/bin/mkdir -p "$release/runtime" "$release/tools" "$release/source/ci" "$release/inspection-policy/android-signing" "$release/policy/android-producer" "$release/policy/android-signing" "$release/policy/contracts" "$release/materials" "$release/args" "$release/role-arguments" "$release/role-support" "$release/prior"
+# Check external materials before any mutant. No missing material may kill one.
+var packager_commit = $(/usr/bin/git -C "$packager" rev-parse HEAD)
+test "$packager_commit" = 996671d7b73b7151c3212409025c72b97284b35a || reject 'unqualified packager pin'
+var approved_ref = $(/usr/bin/git -C "$approved" rev-parse HEAD)
+test "$approved_ref" = 9fca932be8da84b806727ffc75845df39fa85233 || reject 'unqualified inspection policy pin'
+/usr/bin/cp "$host/aici" "$host/aici_android_signing" "$host/bounded_process" "$release/runtime/"
+/usr/bin/cp "$GREASE" "$release/runtime/ysh"
+/usr/bin/ln -s "$ndk" "$release/tools/ndk"
+/usr/bin/ln -s "$sdk" "$release/tools/sdk"
+/usr/bin/ln -s "$java" "$release/tools/jre"
+/usr/bin/cp -R "$packager/apk" "$release/packager-apk"
+/usr/bin/mkdir "$release/packager"
+/usr/bin/mv "$release/packager-apk" "$release/packager/apk"
+/usr/bin/cp "$approved/android-signing/identities.tsv" "$release/inspection-policy/android-signing/"
+/usr/bin/cp "$policy/android-signing/identities.tsv" "$release/policy/android-signing/"
+/usr/bin/cp "$policy/contracts/build-toolchain-v0.contract.tsv" "$release/policy/contracts/"
+for program in check decision release graph execution supervise; do /usr/bin/cp "$producer/$program.ysh" "$release/policy/android-producer/"; done
+/usr/bin/cp "$tests/fixture-stage.ysh" "$release/source/recipe.ysh"
+/usr/bin/cp "$packager/apk/tests/fixtures/native_activity.c" "$release/source/native.c"
+/usr/bin/cp "$packager/apk/tests/fixtures/AndroidManifest.xml" "$release/source/manifest.xml"
+printf 'build_id\ttarget\ttoolchain\tick_revision\tick_status\tick_evidence\nfixture-compile\tarmv7a-linux-androideabi21\tndk\t79eccb8ff232e05bdbb9e345fc224f251636b43f\tgap:fixture Android NDK C/platform link not qualified through ICK\tissue:isomorphisms/ai-ci#207\nfixture-link\tarmv7a-linux-androideabi21\tndk\t79eccb8ff232e05bdbb9e345fc224f251636b43f\tgap:fixture Android platform link not qualified through ICK\tissue:isomorphisms/ai-ci#207\n' > "$release/source/ci/build-toolchain.tsv"
+/usr/bin/git -C "$release/source" init -q
+/usr/bin/git -C "$release/source" add .
+GIT_AUTHOR_DATE=2026-10-07T00:00:00Z GIT_COMMITTER_DATE=2026-10-07T00:00:00Z /usr/bin/git -C "$release/source" -c user.name=AICI-qualification -c user.email=qualification@invalid commit -qm 'NDK NativeActivity producer fixture'
+var source_commit = $(/usr/bin/git -C "$release/source" rev-parse HEAD)
+cd "$release/source" { /usr/bin/sha256sum recipe.ysh native.c manifest.xml ci/build-toolchain.tsv > "$release/recipe.sha256" }
+# Import the existing PUBLIC persistent test identity; never create a fresh APK signer.
+"$java/bin/keytool" -importkeystore -srckeystore "$keystore" -srcstorepass wegert-debug -srcalias wegert-debug -destkeystore "$release/materials/test-signing.p12" -deststoretype PKCS12 -deststorepass wegert-debug -destkeypass wegert-debug -noprompt > "$work/key-import.log" 2>&1
+/usr/bin/cp /usr/bin/zip "$release/materials/undeclared-packager"
+# Issuer keys are independent fixture keys, kept outside all worker release mounts.
+for issuer_kind in issuer anchor role; do
+  /usr/bin/openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$work/$issuer_kind.private.pem" 2>/dev/null
+  /usr/bin/openssl pkey -in "$work/$issuer_kind.private.pem" -pubout -out "$work/$issuer_kind.public.pem" 2>/dev/null
+done
+trap --add EXIT { /usr/bin/rm -f "$work/issuer.private.pem" "$work/anchor.private.pem" "$work/role.private.pem" "$work/wrong-apk-signer.p12" }
+/usr/bin/cp "$work/issuer.public.pem" "$release/decision-public.pem"
+/usr/bin/cp "$work/issuer.public.pem" "$release/witness-public.pem"
+/usr/bin/cp "$work/role.public.pem" "$release/role-authority.pem"
+printf '%s\n' --target=armv7a-linux-androideabi21 -fPIC -c '@RELEASE@/source/native.c' -o '@WORK@/native.o' > "$release/args/compile"
+printf '%s\n' --target=armv7a-linux-androideabi21 '--ld-path=@RELEASE@/tools/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/ld.lld' -shared '@WORK@/native.o' -Wl,-soname,libfixture.so -landroid -llog -o '@WORK@/unstripped.so' > "$release/args/link"
+printf '%s\n' --strip-unneeded '@WORK@/unstripped.so' -o '@WORK@/libfixture.so' > "$release/args/strip"
+for stage in package inspect build-toolchain signing; do printf '%s\n' '@RELEASE@/source/recipe.ysh' '@RELEASE@' '@WORK@' "$stage" > "$release/args/$stage"; done
+printf 'id\tkind\tdepends_on\texecutable\texecutable_sha256\targv\targv_sha256\toutput\n' > "$release/stages.tsv"
+var previous = '-'
+for stage in compile link strip package inspect build-toolchain signing; do
+  var executable = 'runtime/ysh'
+  var output = "$stage.log"
+  case "$stage" in
+    compile|link)
+      setvar executable = 'tools/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/clang-18'
+      ;;
+    strip)
+      setvar executable = 'tools/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip'
+      ;;
+  esac
+  case "$stage" in
+    compile)
+      setvar output = 'native.o'
+      ;;
+    link)
+      setvar output = 'unstripped.so'
+      ;;
+    strip)
+      setvar output = 'libfixture.so'
+      ;;
+    package)
+      setvar output = 'payload.apk'
+      ;;
+  esac
+  var executable_sha = $(sha "$release/$executable")
+  var argv_sha = $(sha "$release/args/$stage")
+  printf '%s\t%s\t%s\t%s\t%s\targs/%s\t%s\t%s\n' "$stage" "$stage" "$previous" "$executable" "$executable_sha" "$stage" "$argv_sha" "$output" >> "$release/stages.tsv"
+  setvar previous = stage
+done
+# Approved roles are a separate signed object. This fixture signer is
+# disposable test authority only; A03 owns the deployed issuer and role bytes.
+printf 'stage\trole\trequired\texecutable\texecutable_sha256\targuments\targuments_sha256\tsupport\tsupport_sha256\n' > "$release/stage-roles.tsv"
+proc add_role(stage, role, executable, arguments_text, support_paths) {
+  var role_id = "$stage-$role"
+  printf '%s\n' "$arguments_text" > "$release/role-arguments/$role_id"
+  printf '' > "$release/role-support/$role_id.sha256"
+  /usr/bin/printf '%s\n' "$support_paths" | /usr/bin/tr ' ' '\n' | while IFS= read -r support_path; do
+    var support_digest = $(sha "$release/$support_path")
+    printf '%s  %s\n' "$support_digest" "$support_path" >> "$release/role-support/$role_id.sha256"
+  done
+  var executable_digest = $(sha "$release/$executable")
+  var arguments_digest = $(sha "$release/role-arguments/$role_id")
+  var support_digest = $(sha "$release/role-support/$role_id.sha256")
+  printf '%s\t%s\trequired\t%s\t%s\trole-arguments/%s\t%s\trole-support/%s.sha256\t%s\n' "$stage" "$role" "$executable" "$executable_digest" "$role_id" "$arguments_digest" "$role_id" "$support_digest" >> "$release/stage-roles.tsv"
+}
+var clang = 'tools/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/clang-18'
+var linker = 'tools/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/ld.lld'
+var stripper = 'tools/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip'
+add_role compile driver "$clang" '--target=armv7a-linux-androideabi21' "$clang source/native.c"
+add_role compile frontend "$clang" '-cc1' "$clang source/native.c"
+add_role link driver "$clang" '--target=armv7a-linux-androideabi21' "$clang"
+add_role link linker "$linker" '-shared' "$linker"
+add_role strip driver "$stripper" '--strip-unneeded' "$stripper"
+add_role strip stripper "$stripper" '--strip-unneeded' "$stripper"
+add_role package driver runtime/ysh '@RELEASE@/source/recipe.ysh' 'runtime/ysh source/recipe.ysh'
+add_role package package runtime/ysh '@RELEASE@/packager/apk/build-nativeactivity-apk.ysh' 'runtime/ysh packager/apk/build-nativeactivity-apk.ysh packager/apk/common.ysh'
+add_role inspect driver runtime/ysh '@RELEASE@/source/recipe.ysh' 'runtime/ysh source/recipe.ysh'
+add_role inspect inspect runtime/ysh '@RELEASE@/packager/apk/inspect-nativeactivity-apk.ysh' 'runtime/ysh packager/apk/inspect-nativeactivity-apk.ysh packager/apk/common.ysh'
+add_role build-toolchain driver runtime/ysh '@RELEASE@/source/recipe.ysh' 'runtime/ysh source/recipe.ysh'
+add_role build-toolchain build-toolchain runtime/aici verify 'runtime/aici policy/contracts/build-toolchain-v0.contract.tsv'
+add_role signing driver runtime/ysh '@RELEASE@/source/recipe.ysh' 'runtime/ysh source/recipe.ysh'
+add_role signing signing runtime/aici_android_signing verify 'runtime/aici_android_signing policy/android-signing/identities.tsv'
+/usr/bin/openssl dgst -sha256 -sign "$work/role.private.pem" -out "$release/stage-roles.tsv.sig" "$release/stage-roles.tsv"
+printf '' > "$release/exec-allowlist.tsv"
+proc allow(observed, material_path) {
+  var digest = $(sha "$material_path")
+  printf '%s\t%s\t%s\n' "$observed" "$material_path" "$digest" >> "$release/exec-allowlist.tsv"
+}
+for name in env readlink dirname sha256sum awk stat mktemp cp mkdir grep unzip sort uniq sed basename zip rm ln openssl bwrap; do allow "/usr/bin/$name" "/usr/bin/$name"; done
+for relative in runtime/ysh runtime/aici runtime/aici_android_signing tools/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/clang-18 tools/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip tools/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf tools/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/ld.lld tools/sdk/build-tools/35.0.0/aapt2 tools/sdk/build-tools/35.0.0/zipalign tools/jre/bin/java tools/jre/bin/keytool; do allow "$release/$relative" "$release/$relative"; done
+# clang's linker path is canonical rather than through the fixture symlink.
+allow "$ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/ld.lld" "$ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/ld.lld"
+proc closure {
+  cd "$release" {
+    /usr/bin/find policy inspection-policy packager source runtime materials args role-arguments role-support prior -type f ! -path 'source/.git/*' -print | /usr/bin/sort | while read -r path; do /usr/bin/sha256sum "$path"; done > "$work/closure.base"
+  }
+  # Tools are checked by exact packager pins plus executable allowlist here.
+  # This finite fixture material set does not claim complete isolation closure.
+  while IFS="$tab" read -r id kind deps executable digest argv argv_sha output; do
+    case "$id" in id) continue ;; esac
+    printf '%s  %s\n' "$digest" "$executable" >> "$work/closure.base"
+  done < "$release/stages.tsv"
+  var role_header = true
+  while IFS="$tab" read -r role_stage role required executable executable_sha arguments arguments_sha support support_sha; do
+    if test "$role_header" = true; then setvar role_header = false; continue; fi
+    printf '%s  %s\n%s  %s\n%s  %s\n' "$executable_sha" "$executable" "$arguments_sha" "$arguments" "$support_sha" "$support" >> "$work/closure.base"
+    /usr/bin/cat "$release/$support" >> "$work/closure.base"
+  done < "$release/stage-roles.tsv"
+  for file in decision-public.pem witness-public.pem role-authority.pem stage-roles.tsv stage-roles.tsv.sig plan.tsv binding.tsv obligations.tsv payloads.tsv stages.tsv exec-allowlist.tsv recipe.sha256; do
+    var digest = $(sha "$release/$file")
+    printf '%s  %s\n' "$digest" "$file" >> "$work/closure.base"
+  done
+  /usr/bin/sort -u "$work/closure.base" > "$release/files.sha256"
+}
+proc write_release {
+  var native_sha = $(sha "$work/good/worker/libfixture.so")
+  printf 'abi\tlibrary\tsha256\narmeabi-v7a\tlibfixture.so\t%s\n' "$native_sha" > "$release/payloads.tsv"
+  printf 'target\tartifact_group\tabi\trequired\tstate\treason\nmiro-a1\tfixture-apk\tarmeabi-v7a\trequired\tQUALIFIED\tauthenticated-fixture-only\n' > "$release/obligations.tsv"
+  printf 'schema\tqualification-plan-opaque-v1\nsource_commit\t%s\ntarget\tmiro-a1\n' "$source_commit" > "$release/plan.tsv"
+  {
+    printf 'schema\taici-catfood-producer-binding-v1\nsource_repository_id\tfixture:ai-ci-nativeactivity\nsource_commit\t%s\npackage\torg.isomorphisms.pauli\nversion_code\t6\nsigning_lane\ttest\nsigner_cert_sha256\t%s\nupdate_mode\tnew-install\nartifact_group\tfixture-apk\npublication_scope\tretained-private\ncatfood_commit\t609a9628d5a52860f956bf62e0914a0cd03292ae\n' "$source_commit" "$signer"
+    for pair in 'plan_sha256 plan.tsv' 'recipe_sha256 recipe.sha256' 'dependency_material_sha256 recipe.sha256' 'resolver_sha256 plan.tsv' 'obligations_sha256 obligations.tsv' 'payloads_sha256 payloads.tsv'; do
+      var key = $(/usr/bin/printf '%s' "$pair" | /usr/bin/cut -d ' ' -f1)
+      var path = $(/usr/bin/printf '%s' "$pair" | /usr/bin/cut -d ' ' -f2)
+      var digest = $(sha "$release/$path")
+      printf '%s\t%s\n' "$key" "$digest"
+    done
+  } > "$release/binding.tsv"
+  /usr/bin/sed -i "s/^update_mode$tab.*/update_mode$tab$update_mode/" "$release/binding.tsv"
+  closure
+  {
+    printf 'schema\taici-android-release-v3\ngeneration\t3\npolicy_commit\t%s\nacceptance_scope\tandroid-native-package\nevidence_class\t%s\nplan_binding_qualification\tCOORDINATION_PENDING\nexecution_qualification\tNOT_QUALIFIED\nstable_lane_authorization\tFIXTURE_ONLY\npublication_authorization\tDISABLED\n' "$[ENV.AICI_SOURCE_PIN]" "$execution_mode"
+    /usr/bin/awk -F '\t' '$1!="schema"{print}' "$release/binding.tsv"
+    if test "$update_mode" = replacement; then
+      var admitted_prior_sha = $(sha "$release/prior/decision.tsv")
+      printf 'prior_identity_authorization\tAPPROVED\nprior_decision_sha256\t%s\n' "$admitted_prior_sha"
+    fi
+    for pair in 'binding_sha256 binding.tsv' 'files_sha256 files.sha256' 'stage_contract_sha256 stages.tsv' 'stage_roles_sha256 stage-roles.tsv' 'stage_roles_issuer_sha256 role-authority.pem' 'exec_allowlist_sha256 exec-allowlist.tsv'; do
+      setvar key = $(/usr/bin/printf '%s' "$pair" | /usr/bin/cut -d ' ' -f1)
+      setvar path = $(/usr/bin/printf '%s' "$pair" | /usr/bin/cut -d ' ' -f2)
+      setvar digest = $(sha "$release/$path")
+      printf '%s\t%s\n' "$key" "$digest"
+    done
+  } > "$release/release.tsv"
+  /usr/bin/openssl dgst -sha256 -sign "$work/anchor.private.pem" -out "$release/release.tsv.sig" "$release/release.tsv"
+  var active_release_sha = $(sha "$release/release.tsv")
+  printf 'schema\taici-android-current-v1\nstate\tACTIVE\ngeneration\t3\nrelease_sha256\t%s\npublication_scope\tretained-private\n' "$active_release_sha" > "$work/current.tsv"
+  /usr/bin/openssl dgst -sha256 -sign "$work/anchor.private.pem" -out "$work/current.tsv.sig" "$work/current.tsv"
+}
+# First qualify real execution under host observation; do not claim confinement.
+# A temporary manifest supplies graph/material admission before plan artifacts exist.
+cd "$release" { /usr/bin/find args role-arguments role-support runtime -type f -print | /usr/bin/sort | while read -r path; do /usr/bin/sha256sum "$path"; done > "$release/files.sha256" }
+var header = true
+while IFS="$tab" read -r id kind deps executable digest argv argv_sha output; do
+  if test "$header" = true; then setvar header = false; continue; fi
+  printf '%s  %s\n' "$digest" "$executable" >> "$release/files.sha256"
+done < "$release/stages.tsv"
+var temporary_role_header = true
+while IFS="$tab" read -r role_stage role required executable executable_sha arguments arguments_sha support support_sha; do
+  if test "$temporary_role_header" = true; then setvar temporary_role_header = false; continue; fi
+  printf '%s  %s\n%s  %s\n%s  %s\n' "$executable_sha" "$executable" "$arguments_sha" "$arguments" "$support_sha" "$support" >> "$release/files.sha256"
+  /usr/bin/cat "$release/$support" >> "$release/files.sha256"
+done < "$release/stage-roles.tsv"
+/usr/bin/sort -u "$release/files.sha256" -o "$release/files.sha256"
+for role_file in role-authority.pem stage-roles.tsv stage-roles.tsv.sig; do
+  var role_file_digest = $(sha "$release/$role_file")
+  printf '%s  %s\n' "$role_file_digest" "$role_file" >> "$release/files.sha256"
+done
+/usr/bin/sort -u "$release/files.sha256" -o "$release/files.sha256"
+var allow_sha = $(sha "$release/exec-allowlist.tsv")
+printf 'exec_allowlist_sha256\t%s\n' "$allow_sha" > "$release/release.tsv"
+/usr/bin/mkdir "$work/good"
+if test "$execution_mode" = HOST_OBSERVATION; then
+  "$GREASE" "$tests/execute.ysh" "$release" "$work/good" HOST_OBSERVATION > "$work/execution-positive.stdout" 2> "$work/execution-positive.stderr"
+else
+  # Real artifact production with test-authenticated SEMANTIC witness fixtures.
+  # No execution observation is inferred from these handmade trace records.
+  /usr/bin/mkdir "$work/good/worker" "$work/good/evidence"
+  printf 'schema\taici-stage-execution-v1\nmode\tAUTHENTICATED_FIXTURE\nattempt_id\tsemantic-fixture\n' > "$work/good/evidence/execution.tsv"
+  var fixture_header = true
+  while IFS="$tab" read -r fixture_id fixture_kind fixture_deps fixture_executable fixture_executable_sha fixture_argv fixture_argv_sha fixture_output; do
+    if test "$fixture_header" = true; then setvar fixture_header = false; continue; fi
+    var fixture_arguments = []
+    while IFS= read -r fixture_argument; do
+      var fixture_expanded = $(/usr/bin/printf '%s\n' "$fixture_argument" | /usr/bin/sed "s|@WORK@|$work/good/worker|g;s|@RELEASE@|$release|g")
+      call fixture_arguments->append(fixture_expanded)
+    done < "$release/$fixture_argv"
+    "$release/runtime/bounded_process" 120 16777216 "$work/good/evidence/$fixture_id.stdout" "$work/good/evidence/$fixture_id.stderr" "$work/good/evidence/$fixture_id.status" -- "$release/$fixture_executable" @fixture_arguments
+    test -s "$work/good/worker/$fixture_output" || reject 'real fixture stage output missing'
+    /usr/bin/cp "$work/good/worker/$fixture_output" "$work/good/evidence/$fixture_id.output"
+    printf 'execve("%s", ["qualification-semantic-fixture"], []) = 0\n' "$release/$fixture_executable" > "$work/good/evidence/$fixture_id.execve"
+    # Explicit SEMANTIC trace counterparts, never observed execution evidence.
+      case "$fixture_kind" in
+        compile)
+          printf 'execve("%s", ["%s", "--target=armv7a-linux-androideabi21"], []) = 0\n' "$release/tools/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/clang-18" "$release/tools/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/clang-18" >> "$work/good/evidence/$fixture_id.execve"
+          printf 'execve("%s", ["%s", "-cc1", "%s"], []) = 0\n' "$release/tools/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/clang-18" "$release/tools/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/clang-18" "$release/source/native.c" >> "$work/good/evidence/$fixture_id.execve"
+          ;;
+        link)
+          printf 'execve("%s", ["%s", "--target=armv7a-linux-androideabi21"], []) = 0\n' "$release/tools/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/clang-18" "$release/tools/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/clang-18" >> "$work/good/evidence/$fixture_id.execve"
+          printf 'execve("%s", ["%s", "-shared"], []) = 0\n' "$release/tools/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/ld.lld" "$release/tools/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/ld.lld" >> "$work/good/evidence/$fixture_id.execve"
+          ;;
+        strip) printf 'execve("%s", ["%s", "--strip-unneeded"], []) = 0\n' "$release/tools/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip" "$release/tools/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip" >> "$work/good/evidence/$fixture_id.execve" ;;
+        package)
+          printf 'execve("%s", ["%s", "%s"], []) = 0\n' "$release/runtime/ysh" "$release/runtime/ysh" "$release/source/recipe.ysh" >> "$work/good/evidence/$fixture_id.execve"
+          printf 'execve("%s", ["%s", "%s"], []) = 0\n' "$release/runtime/ysh" "$release/runtime/ysh" "$release/packager/apk/build-nativeactivity-apk.ysh" >> "$work/good/evidence/$fixture_id.execve"
+          ;;
+        inspect)
+          printf 'execve("%s", ["%s", "%s"], []) = 0\n' "$release/runtime/ysh" "$release/runtime/ysh" "$release/source/recipe.ysh" >> "$work/good/evidence/$fixture_id.execve"
+          printf 'execve("%s", ["%s", "%s"], []) = 0\n' "$release/runtime/ysh" "$release/runtime/ysh" "$release/packager/apk/inspect-nativeactivity-apk.ysh" >> "$work/good/evidence/$fixture_id.execve"
+          ;;
+        build-toolchain)
+          printf 'execve("%s", ["%s", "%s"], []) = 0\n' "$release/runtime/ysh" "$release/runtime/ysh" "$release/source/recipe.ysh" >> "$work/good/evidence/$fixture_id.execve"
+          printf 'execve("%s", ["%s", "verify"], []) = 0\n' "$release/runtime/aici" "$release/runtime/aici" >> "$work/good/evidence/$fixture_id.execve"
+          ;;
+        signing)
+          printf 'execve("%s", ["%s", "%s"], []) = 0\n' "$release/runtime/ysh" "$release/runtime/ysh" "$release/source/recipe.ysh" >> "$work/good/evidence/$fixture_id.execve"
+          printf 'execve("%s", ["%s", "verify"], []) = 0\n' "$release/runtime/aici_android_signing" "$release/runtime/aici_android_signing" >> "$work/good/evidence/$fixture_id.execve"
+          ;;
+    esac
+    var fixture_output_sha = $(sha "$work/good/evidence/$fixture_id.output")
+    var fixture_trace_sha = $(sha "$work/good/evidence/$fixture_id.execve")
+    /usr/bin/cp "$work/good/evidence/$fixture_id.execve" "$work/good/evidence/$fixture_id.raw.0"
+    printf 'trace_file\tsha256\n%s.raw.0\t%s\n' "$fixture_id" "$fixture_trace_sha" > "$work/good/evidence/$fixture_id.processes"
+    var fixture_processes_sha = $(sha "$work/good/evidence/$fixture_id.processes")
+    printf '%s.result\tPASS\n%s.executable_sha256\t%s\n%s.argv_sha256\t%s\n%s.started\ttrue\n%s.started_ns\t0\n%s.finished_ns\t0\n%s.exit\t0\n%s.output_sha256\t%s\n%s.trace_sha256\t%s\n%s.processes_sha256\t%s\n' "$fixture_id" "$fixture_id" "$fixture_executable_sha" "$fixture_id" "$fixture_argv_sha" "$fixture_id" "$fixture_id" "$fixture_id" "$fixture_id" "$fixture_output_sha" "$fixture_id" "$fixture_trace_sha" "$fixture_id" "$fixture_processes_sha" >> "$work/good/evidence/execution.tsv"
+  done < "$release/stages.tsv"
+fi
+/usr/bin/cp "$work/good/worker/payload.apk" "$apk"
+/usr/bin/cp "$apk" "$release/materials/metadata-template.apk"
+write_release
+proc sign_decision { /usr/bin/openssl dgst -sha256 -sign "$work/issuer.private.pem" -out "$decision.sig" "$decision"; }
+proc sign_witness { /usr/bin/openssl dgst -sha256 -sign "$work/issuer.private.pem" -out "$decision.witness.tsv.sig" "$decision.witness.tsv"; }
+proc reset_decision {
+  /usr/bin/cp "$work/good/evidence/execution.tsv" "$decision.witness.tsv"
+  var release_sha = $(sha "$release/release.tsv")
+  var apk_sha = $(sha "$apk")
+  var apk_size = $(/usr/bin/stat -c %s "$apk")
+  {
+    printf 'release_sha256\t%s\napk_sha256\t%s\n' "$release_sha" "$apk_sha"
+    for key in source_commit plan_sha256 binding_sha256 obligations_sha256 payloads_sha256 stage_contract_sha256 stage_roles_sha256 stage_roles_issuer_sha256; do var value = $(field "$release/release.tsv" "$key"); printf '%s\t%s\n' "$key" "$value"; done
+  } >> "$decision.witness.tsv"
+  sign_witness
+  var witness_sha = $(sha "$decision.witness.tsv")
+  {
+    printf 'schema\taici-android-producer-v2\nbinding_schema\taici-catfood-producer-binding-v1\nresult\tPASS\nevidence_class\t%s\nrelease_sha256\t%s\napk_sha256\t%s\napk_size\t%s\nwitness_sha256\t%s\n' "$execution_mode" "$release_sha" "$apk_sha" "$apk_size" "$witness_sha"
+    var admitted_prior_apk = '-'
+    if test "$update_mode" = replacement; then setvar admitted_prior_apk = $(field "$release/prior/decision.tsv" apk_sha256); fi
+    printf 'prior_apk_sha256\t%s\n' "$admitted_prior_apk"
+    /usr/bin/awk -F '\t' '$1!="schema"{print}' "$release/binding.tsv"
+    for key in generation policy_commit binding_sha256 stage_contract_sha256 stage_roles_sha256 stage_roles_issuer_sha256 acceptance_scope; do setvar value = $(field "$release/release.tsv" "$key"); printf '%s\t%s\n' "$key" "$value"; done
+    for stage in install launch replacement visual physical; do printf '%s_result\tNOT_RUN\n' "$stage"; done
+  } > "$decision"
+  sign_decision
+}
+/usr/bin/mkdir "$decision.evidence"
+for stage in compile link strip package inspect build-toolchain signing; do
+  /usr/bin/cp "$work/good/evidence/$stage.execve" "$decision.evidence/$stage.trace"
+  /usr/bin/cp "$work/good/evidence/$stage.output" "$decision.evidence/$stage.output"
+  /usr/bin/cp "$work/good/evidence/$stage.processes" "$decision.evidence/$stage.processes"
+  var process_header = true
+  while IFS="$tab" read -r process_file process_sha; do
+    if test "$process_header" = true; then setvar process_header = false; continue; fi
+    /usr/bin/cp "$work/good/evidence/$process_file" "$decision.evidence/$process_file"
+  done < "$work/good/evidence/$stage.processes"
+done
+reset_decision
+printf 'case\tclaim\texpected\tresult\n' > "$work/results.tsv"
+"$GREASE" "$tests/inspect.ysh" "$release" "$work/anchor.public.pem" "$decision" "$apk" "$work/current.tsv" > "$work/positive.stdout" 2> "$work/positive.stderr"
+/usr/bin/grep -Fq "AICI_ANDROID_$execution_mode" "$work/positive.stdout"
+printf 'accepted-counterpart\t%s\tPASS\tPASS\n' "$execution_mode" >> "$work/results.tsv"
+proc rejected(id, needle) {
+  if "$GREASE" "$tests/inspect.ysh" "$release" "$work/anchor.public.pem" "$decision" "$apk" "$work/current.tsv" > "$work/$id.stdout" 2> "$work/$id.stderr"; then reject "false acceptance: $id"; fi
+  /usr/bin/grep -Fq "$needle" "$work/$id.stderr" || reject "wrong refusal: $id"
+  test ! -s "$work/$id.stdout" || reject "approval/output on refusal: $id"
+  printf '%s\tauthenticated-fixture\t%s\tPASS\n' "$id" "$needle" >> "$work/results.tsv"
+}
+proc resign_witness {
+  sign_witness
+  var updated_witness_sha = $(sha "$decision.witness.tsv")
+  /usr/bin/sed -i "s/^witness_sha256$tab.*/witness_sha256$tab$updated_witness_sha/" "$decision"
+  sign_decision
+}
+for item in 'wrong-package package org.isomorphisms.wegert' 'wrong-version version_code 7' 'wrong-signer signer_cert_sha256 0000000000000000000000000000000000000000000000000000000000000000' 'wrong-plan plan_sha256 0000000000000000000000000000000000000000000000000000000000000000' 'wrong-publication publication_scope public'; do
+  var id = $(/usr/bin/printf '%s' "$item" | /usr/bin/cut -d ' ' -f1)
+  var key = $(/usr/bin/printf '%s' "$item" | /usr/bin/cut -d ' ' -f2)
+  var value = $(/usr/bin/printf '%s' "$item" | /usr/bin/cut -d ' ' -f3)
+  /usr/bin/sed -i "s|^$key$tab.*|$key$tab$value|" "$decision"
+  sign_decision
+  rejected "$id" "field mismatch: $key"
+  reset_decision
+done
+printf 'result\tPASS\n' >> "$decision"
+rejected forged-decision 'unauthenticated producer object'
+reset_decision
+printf 'compile.exit\t0\n' >> "$decision.witness.tsv"
+rejected forged-witness 'unauthenticated producer object'
+reset_decision
+for stage in compile link strip package inspect build-toolchain signing; do
+  /usr/bin/sed -i "/^$stage.result$tab/d" "$decision.witness.tsv"
+  resign_witness
+  rejected "missing-$stage" "missing, duplicate or malformed field: $stage.result"
+  reset_decision
+done
+for check in started exit executable_sha256 argv_sha256 output_sha256 trace_sha256; do
+  var replacement = '0000000000000000000000000000000000000000000000000000000000000000'
+  case "$check" in
+    started) setvar replacement = 'false'; ;;
+    exit) setvar replacement = '1'; ;;
+  esac
+  /usr/bin/sed -i "s/^compile.$check$tab.*/compile.$check$tab$replacement/" "$decision.witness.tsv"
+  resign_witness
+  rejected "witness-$check" "field mismatch: compile.$check"
+  reset_decision
+done
+# Reauthenticated hostile traces prove that signatures alone cannot substitute
+# for the approved driver/frontend descendants and their successful exits.
+/usr/bin/cp "$decision.evidence/compile.trace" "$work/compile.trace.saved"
+/usr/bin/cp "$decision.evidence/compile.processes" "$work/compile.processes.saved"
+/usr/bin/mkdir "$work/compile-raw.saved"
+/usr/bin/cp "$decision.evidence"/compile.raw.* "$work/compile-raw.saved/"
+proc rebind_compile_trace {
+  /usr/bin/cp "$decision.evidence/compile.trace" "$decision.evidence/compile.raw.0"
+  var rebound_process_sha = $(sha "$decision.evidence/compile.raw.0")
+  printf 'trace_file\tsha256\ncompile.raw.0\t%s\n' "$rebound_process_sha" > "$decision.evidence/compile.processes"
+  var rebound_trace_sha = $(sha "$decision.evidence/compile.trace")
+  var rebound_processes_sha = $(sha "$decision.evidence/compile.processes")
+  /usr/bin/sed -i "s/^compile.trace_sha256$tab.*/compile.trace_sha256$tab$rebound_trace_sha/;s/^compile.processes_sha256$tab.*/compile.processes_sha256$tab$rebound_processes_sha/" "$decision.witness.tsv"
+  resign_witness
+}
+/usr/bin/sed -i '/"-cc1"/d' "$decision.evidence/compile.trace"
+rebind_compile_trace
+rejected absent-frontend 'missing or ambiguous observed role: compile/frontend'
+/usr/bin/cp "$work/compile.trace.saved" "$decision.evidence/compile.trace"
+/usr/bin/cp "$work/compile.processes.saved" "$decision.evidence/compile.processes"
+/usr/bin/rm -f "$decision.evidence"/compile.raw.*
+/usr/bin/cp "$work/compile-raw.saved"/compile.raw.* "$decision.evidence/"
+reset_decision
+printf 'execve("/incomplete" <unfinished ...>\n' >> "$decision.evidence/compile.trace"
+rebind_compile_trace
+rejected truncated-trace 'execution trace refused'
+/usr/bin/cp "$work/compile.trace.saved" "$decision.evidence/compile.trace"
+reset_decision
+printf '+++ exited with 1 +++\n' >> "$decision.evidence/compile.trace"
+rebind_compile_trace
+rejected failed-frontend 'execution trace refused'
+/usr/bin/cp "$work/compile.trace.saved" "$decision.evidence/compile.trace"
+reset_decision
+/usr/bin/sed -i '/"-cc1"/s|execve("[^"]*"|execve("/usr/bin/gcc"|' "$decision.evidence/compile.trace"
+rebind_compile_trace
+rejected swapped-frontend 'execution trace refused'
+/usr/bin/cp "$work/compile.trace.saved" "$decision.evidence/compile.trace"
+/usr/bin/cp "$work/compile.processes.saved" "$decision.evidence/compile.processes"
+/usr/bin/rm -f "$decision.evidence"/compile.raw.*
+/usr/bin/cp "$work/compile-raw.saved"/compile.raw.* "$decision.evidence/"
+reset_decision
+printf 'changed bytes\n' >> "$apk"
+rejected changed-apk 'field mismatch: apk_sha256'
+/usr/bin/cp "$work/good/worker/payload.apk" "$apk"
+reset_decision
+# Build another real canonical APK; a sibling artifact cannot inherit this decision.
+/usr/bin/env -i PATH=/usr/bin:/bin LSAN_OPTIONS=detect_leaks=0 ANDROID_NDK_ROOT="$ndk" ANDROID_SDK_ROOT="$sdk" ANDROID_JAVA_HOME="$java" AICI_ROOT="$approved" ANDROID_MIN_SDK=21 ANDROID_TARGET_SDK=34 ANDROID_PACKAGE_ID=org.isomorphisms.pauli ANDROID_VERSION_CODE=7 ANDROID_VERSION_NAME=qualification ANDROID_KEYSTORE="$release/materials/test-signing.p12" ANDROID_KEY_ALIAS=wegert-debug ANDROID_STORE_PASSWORD=wegert-debug ANDROID_KEY_PASSWORD=wegert-debug "$GREASE" "$packager/apk/build-nativeactivity-apk.ysh" "$release/source/manifest.xml" "$work/good/worker/libfixture.so" armeabi-v7a "$work/sibling.apk" > "$work/sibling-build.log"
+/usr/bin/cp "$work/sibling.apk" "$apk"
+rejected sibling-apk 'field mismatch: apk_sha256'
+/usr/bin/cp "$work/good/worker/payload.apk" "$apk"
+reset_decision
+# Reauthenticate the actual wrong-version bytes AND their witness package output.
+# Only independent actual manifest inspection can now catch the mismatch.
+/usr/bin/cp "$work/sibling.apk" "$apk"
+reset_decision
+/usr/bin/cp "$apk" "$decision.evidence/package.output"
+var sibling_sha = $(sha "$apk")
+/usr/bin/sed -i "s/^package.output_sha256$tab.*/package.output_sha256$tab$sibling_sha/" "$decision.witness.tsv"
+resign_witness
+rejected actual-wrong-version 'actual APK inspection refused'
+/usr/bin/cp "$work/good/worker/payload.apk" "$apk"
+/usr/bin/cp "$work/good/evidence/package.output" "$decision.evidence/package.output"
+reset_decision
+proc rebind_apk(material) {
+  /usr/bin/cp "$material" "$apk"
+  reset_decision
+  /usr/bin/cp "$apk" "$decision.evidence/package.output"
+  var rebound_digest = $(sha "$apk")
+  /usr/bin/sed -i "s/^package.output_sha256$tab.*/package.output_sha256$tab$rebound_digest/" "$decision.witness.tsv"
+  resign_witness
+}
+/usr/bin/env -i PATH=/usr/bin:/bin LSAN_OPTIONS=detect_leaks=0 ANDROID_NDK_ROOT="$ndk" ANDROID_SDK_ROOT="$sdk" ANDROID_JAVA_HOME="$java" AICI_ROOT="$approved" ANDROID_MIN_SDK=21 ANDROID_TARGET_SDK=34 ANDROID_PACKAGE_ID=org.isomorphisms.wegert ANDROID_VERSION_CODE=6 ANDROID_VERSION_NAME=qualification ANDROID_KEYSTORE="$release/materials/test-signing.p12" ANDROID_KEY_ALIAS=wegert-debug ANDROID_STORE_PASSWORD=wegert-debug ANDROID_KEY_PASSWORD=wegert-debug "$GREASE" "$packager/apk/build-nativeactivity-apk.ysh" "$release/source/manifest.xml" "$work/good/worker/libfixture.so" armeabi-v7a "$work/wrong-package.apk" > "$work/wrong-package-build.log"
+rebind_apk "$work/wrong-package.apk"
+rejected actual-wrong-package 'actual APK inspection refused'
+/usr/bin/cp "$work/good/worker/payload.apk" "$apk"
+/usr/bin/cp "$work/good/evidence/package.output" "$decision.evidence/package.output"
+reset_decision
+# Deliberately WRONG test key is a negative fixture only, never a signer migration.
+"$java/bin/keytool" -genkeypair -keyalg RSA -keysize 2048 -validity 1 -dname CN=wrong-qualification-fixture -alias wrong-fixture -storetype PKCS12 -keystore "$work/wrong-apk-signer.p12" -storepass wrong-fixture -keypass wrong-fixture > "$work/wrong-signer-generation.log" 2>&1
+"$java/bin/java" -jar "$sdk/build-tools/35.0.0/lib/apksigner.jar" sign --ks "$work/wrong-apk-signer.p12" --ks-pass pass:wrong-fixture --ks-key-alias wrong-fixture --out "$work/wrong-signer.apk" "$work/good/worker/payload.apk" > "$work/wrong-signer-signing.log"
+rebind_apk "$work/wrong-signer.apk"
+rejected actual-wrong-signer 'actual APK inspection refused'
+/usr/bin/cp "$work/good/worker/payload.apk" "$apk"
+/usr/bin/cp "$work/good/evidence/package.output" "$decision.evidence/package.output"
+reset_decision
+/usr/bin/cp "$decision" "$release/prior/decision.tsv"
+/usr/bin/cp "$decision.sig" "$release/prior/decision.tsv.sig"
+/usr/bin/cp "$decision" "$work/prior.saved"
+/usr/bin/cp "$decision.sig" "$work/prior.signature.saved"
+setvar update_mode = 'replacement'
+write_release
+reset_decision
+"$GREASE" "$tests/inspect.ysh" "$release" "$work/anchor.public.pem" "$decision" "$apk" "$work/current.tsv" > "$work/replacement-positive.stdout" 2> "$work/replacement-positive.stderr"
+printf 'replacement-counterpart\tauthenticated-identity-continuity-only\tPASS\tPASS\n' >> "$work/results.tsv"
+/usr/bin/sed -i 's/^signer_cert_sha256\t.*/signer_cert_sha256\t0000000000000000000000000000000000000000000000000000000000000000/' "$release/prior/decision.tsv"
+/usr/bin/openssl dgst -sha256 -sign "$work/issuer.private.pem" -out "$release/prior/decision.tsv.sig" "$release/prior/decision.tsv"
+write_release
+reset_decision
+rejected prior-wrong-signer 'field mismatch: signer_cert_sha256'
+/usr/bin/cp "$work/prior.saved" "$release/prior/decision.tsv"
+/usr/bin/sed -i 's/^version_code\t6/version_code\t7/' "$release/prior/decision.tsv"
+var previous_apk_sha = $(sha "$work/sibling.apk")
+/usr/bin/sed -i "s/^apk_sha256$tab.*/apk_sha256$tab$previous_apk_sha/" "$release/prior/decision.tsv"
+/usr/bin/openssl dgst -sha256 -sign "$work/issuer.private.pem" -out "$release/prior/decision.tsv.sig" "$release/prior/decision.tsv"
+write_release
+reset_decision
+rejected prior-version-rollback 'versionCode rollback'
+/usr/bin/cp "$work/prior.saved" "$release/prior/decision.tsv"
+/usr/bin/cp "$work/prior.signature.saved" "$release/prior/decision.tsv.sig"
+setvar update_mode = 'new-install'
+write_release
+reset_decision
+/usr/bin/cp "$release/runtime/aici" "$work/aici.saved"
+printf 'changed verifier\n' >> "$release/runtime/aici"
+rejected altered-verifier 'release material changed: runtime/aici'
+/usr/bin/cp "$work/aici.saved" "$release/runtime/aici"
+/usr/bin/sed -i 's/^generation\t3/generation\t2/' "$release/release.tsv"
+/usr/bin/openssl dgst -sha256 -sign "$work/anchor.private.pem" -out "$release/release.tsv.sig" "$release/release.tsv"
+rejected stale-release 'field mismatch: release_sha256'
+write_release
+reset_decision
+# An actually invoked undeclared packager cannot be represented by a forged
+# digest-only witness. Host observation tests this without pretending isolation.
+/usr/bin/cp "$release/args/package" "$work/package.args.saved"
+/usr/bin/sed -i 's/^package$/hostile-package/' "$release/args/package"
+var hostile_args_sha = $(sha "$release/args/package")
+/usr/bin/awk -F '\t' -v OFS='\t' -v digest="$hostile_args_sha" '$1=="package"{$7=digest}{print}' "$release/stages.tsv" > "$work/hostile.stages"
+/usr/bin/cp "$release/stages.tsv" "$work/stages.saved"
+/usr/bin/cp "$work/hostile.stages" "$release/stages.tsv"
+closure
+if test "$execution_mode" = HOST_OBSERVATION; then
+  /usr/bin/mkdir "$work/hostile"
+  if "$GREASE" "$tests/execute.ysh" "$release" "$work/hostile" HOST_OBSERVATION > "$work/hostile.stdout" 2> "$work/hostile.stderr"; then reject 'undeclared packager accepted'; fi
+  /usr/bin/grep -Fq 'undeclared execution:' "$work/hostile.stderr"
+  test ! -s "$work/hostile.stdout" || reject 'hostile execution produced approval'
+  test -s "$work/hostile/evidence/compile.output" && test -s "$work/hostile/evidence/link.output" || reject 'hostile case did not execute NDK first'
+  printf 'NDK-then-undeclared-packager\tactual-host-execution\tundeclared execution\tPASS\n' >> "$work/results.tsv"
+  /usr/bin/cp -R "$producer" "$work/execution-mutant"
+  /usr/bin/sed -i '/^    inspect_trace .*run/d;/^    require_stage_execution .*run/d' "$work/execution-mutant/execution.ysh"
+  /usr/bin/mkdir "$work/hostile-mutant"
+  "$GREASE" "$work/execution-mutant/tests/execute.ysh" "$release" "$work/hostile-mutant" HOST_OBSERVATION > "$work/hostile-mutant.stdout" 2> "$work/hostile-mutant.stderr"
+  /usr/bin/grep -Fq 'qualification_execution' "$work/hostile-mutant.stdout"
+  printf 'execution-observer-disable\tactual-host-execution-mutation\tcorruption accepted by mutant\tKILLED\n' > "$work/execution-mutations.tsv"
+else
+  printf 'NDK-then-undeclared-packager\tactual-host-execution\tPTRACE_UNAVAILABLE\tBLOCKED\n' >> "$work/results.tsv"
+  printf 'execution-observer-disable\tactual-host-execution-mutation\tPTRACE_UNAVAILABLE\tBLOCKED\n' > "$work/execution-mutations.tsv"
+fi
+/usr/bin/cp "$work/package.args.saved" "$release/args/package"
+/usr/bin/cp "$work/stages.saved" "$release/stages.tsv"
+write_release
+reset_decision
+# Production entrypoint refusal is a deployment test, never a mutant kill.
+if AICI_RELEASE_ROOT="$release" "$GREASE" "$producer/check.ysh" > "$work/caller-root.stdout" 2> "$work/caller-root.stderr"; then reject 'caller-selected trust root accepted'; fi
+/usr/bin/grep -Fq 'caller override: AICI_RELEASE_ROOT' "$work/caller-root.stderr"
+test ! -s "$work/caller-root.stdout"
+printf 'caller-selected-root\tpublic-authority\tcaller override\tPASS\n' >> "$work/results.tsv"
+/usr/bin/mkdir "$work/isolated"
+if "$GREASE" "$tests/execute.ysh" "$release" "$work/isolated" ISOLATED > "$work/isolation.stdout" 2> "$work/isolation.stderr"; then
+  printf 'isolated-execution\tisolated-supervisor\tPASS\tPASS\n' >> "$work/results.tsv"
+else
+  /usr/bin/grep -Fq 'ISOLATION_UNAVAILABLE' "$work/isolation.stderr" || reject 'isolated graph failed beyond capability probe'
+  printf 'isolated-execution\tisolated-supervisor\tISOLATION_UNAVAILABLE\tBLOCKED\n' >> "$work/results.tsv"
+fi
+"$GREASE" "$tests/mutations.ysh" "$work" "$work/mutations" > "$work/mutations.log" 2> "$work/mutations.stderr"
+/usr/bin/awk -F '\t' '
+  FNR==NR{if(FNR>1){inventory[$1]=$3;seen_inventory[$1]++};next}
+  FNR==1{if($0!="case\tclaim\texpected\tresult")bad=1;next}
+  {if(NF!=4||!($1 in inventory)||seen[$1]++)bad=1;if(inventory[$1]=="PASS"&&$4!="PASS")bad=1;if(inventory[$1]=="PASS-or-BLOCKED"&&$4!="PASS"&&$4!="BLOCKED")bad=1}
+  END{for(k in inventory)if(seen[k]!=1||seen_inventory[k]!=1)bad=1;if(bad)exit 1}
+' "$tests/cases.tsv" "$work/results.tsv"
+# Do not rely exclusively on the runtime's exit hook for successful runs.
+# No fixture authority key may remain beside the published test receipts.
+/usr/bin/rm -f "$work/issuer.private.pem" "$work/anchor.private.pem" "$work/role.private.pem" "$work/wrong-apk-signer.p12"
+for private in issuer.private.pem anchor.private.pem role.private.pem wrong-apk-signer.p12; do
+  test ! -e "$work/$private" || reject 'fixture private key cleanup failed'
+done
+/usr/bin/cat "$work/results.tsv"
+echo 'DEPLOYMENT_BLOCKED: fixture/host observation cannot activate production promotion'
