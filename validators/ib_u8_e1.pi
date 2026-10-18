@@ -1,0 +1,363 @@
+"""Independent policy checks for the blocked IB-U8-E1 reader-build handoff.
+
+The policy intentionally accepts a composed assignment only as BLOCKED while
+there is no trusted visible-delivery adapter.  It never upgrades that state to
+package, installation, or device acceptance.
+"""
+import hashlib
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path
+from builtins import dict, list, tuple, ValueError, AssertionError, Exception, isinstance, str, bytes, object
+import handoff
+
+
+def digest(data ∈ bytes) → str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def load_policy(path ∈ str) → dict[str, object]:
+    try:
+        policy ∈ dict[str, object] ← dict(json.loads(Path(path).read_bytes()))
+    except Exception:
+        raise ValueError("POLICY_READ")
+    if int(policy.get("schema_version", 0)) != 1:
+        raise ValueError("POLICY_SCHEMA")
+    return policy
+
+
+def expected_records(policy ∈ dict[str, object]) → dict[str, tuple[str, str, str, str]]:
+    empty_rows ∈ list[list[object]] ← []
+    rows ∈ list[list[object]] ← list(policy.get("materials_records", empty_rows))
+    expected ∈ dict[str, tuple[str, str, str, str]] ← {}
+    if len(rows) == 0:
+        raise ValueError("POLICY_MATERIALS")
+    for row in rows:
+        if not isinstance(row, list) or len(row) != 4:
+            raise ValueError("POLICY_MATERIALS")
+        first ∈ str ← str(row[0])
+        second ∈ str ← str(row[1])
+        third ∈ str ← str(row[2])
+        fourth ∈ str ← str(row[3])
+        values ∈ tuple[str, str, str, str] ← (first, second, third, fourth)
+        key ∈ str ← values[0] + "\t" + values[1]
+        duplicate ∈ bool ← expected.__contains__(key)
+        if duplicate:
+            raise ValueError("POLICY_MATERIALS")
+        expected[key] ← values
+    return expected
+
+
+def parse_materials_text(text ∈ str, policy ∈ dict[str, object]) → dict[str, tuple[str, str, str, str]]:
+    schema_name ∈ str ← str(policy.get("materials_schema", ""))
+    schema_version ∈ str ← str(policy.get("materials_version", ""))
+    found_schema ∈ bool ← False
+    actual ∈ dict[str, tuple[str, str, str, str]] ← {}
+    raw_lines ∈ list[str] ← text.splitlines()
+    for raw in raw_lines:
+        line ∈ str ← raw
+        if line == "" or line.startswith("#"):
+            continue
+        fields ∈ list[str] ← line.split("\t")
+        if fields[0] == "schema":
+            if found_schema or fields != ["schema", schema_name, schema_version]:
+                raise ValueError("MATERIALS_SCHEMA")
+            found_schema ← True
+            continue
+        if len(fields) != 4 or "" in fields:
+            raise ValueError("MATERIALS_FORMAT")
+        values ∈ tuple[str, str, str, str] ← (fields[0], fields[1], fields[2], fields[3])
+        key ∈ str ← values[0] + "\t" + values[1]
+        duplicate ∈ bool ← actual.__contains__(key)
+        if duplicate:
+            raise ValueError("MATERIALS_DUPLICATE")
+        actual[key] ← values
+    if not found_schema:
+        raise ValueError("MATERIALS_SCHEMA")
+    return actual
+
+
+def mismatch_code(expected ∈ tuple[str, str, str, str]) → str:
+    if expected[0] == "source" and expected[1] == "idric-compiler":
+        return "COMPILER_MISMATCH"
+    if expected[0] == "identity" and expected[1] == "signer-certificate":
+        return "SIGNER_MISMATCH"
+    if expected[0] == "source":
+        return "SOURCE_EPOCH_MISMATCH"
+    if expected[0] == "artifact" and expected[1] == "android-manifest":
+        return "MANIFEST_HASH_MISMATCH"
+    return "MATERIALS_MISMATCH"
+
+
+def validate_materials_text(text ∈ str, policy ∈ dict[str, object]) → dict[str, tuple[str, str, str, str]]:
+    actual ∈ dict[str, tuple[str, str, str, str]] ← parse_materials_text(text, policy)
+    expected ∈ dict[str, tuple[str, str, str, str]] ← expected_records(policy)
+    expected_keys ∈ list[str] ← list(expected.keys())
+    actual_keys ∈ list[str] ← list(actual.keys())
+    for key in expected_keys:
+        present ∈ bool ← actual.__contains__(key)
+        if not present:
+            raise ValueError("MATERIALS_MISSING")
+        if actual[key] != expected[key]:
+            raise ValueError(mismatch_code(expected[key]))
+    for key in actual_keys:
+        present ∈ bool ← expected.__contains__(key)
+        if not present:
+            raise ValueError("MATERIALS_UNKNOWN")
+    return actual
+
+
+def validate_materials_path(path ∈ str, policy ∈ dict[str, object]) → dict[str, tuple[str, str, str, str]]:
+    try:
+        text ∈ str ← Path(path).read_text()
+    except Exception:
+        raise ValueError("MATERIALS_READ")
+    return validate_materials_text(text, policy)
+
+
+def record_value(records ∈ dict[str, tuple[str, str, str, str]], kind ∈ str, component ∈ str) → tuple[str, str, str, str]:
+    key ∈ str ← kind + "\t" + component
+    present ∈ bool ← records.__contains__(key)
+    if not present:
+        raise ValueError("POLICY_MATERIALS")
+    return records[key]
+
+
+def validate_manifest(data ∈ bytes, records ∈ dict[str, tuple[str, str, str, str]], policy ∈ dict[str, object]) → None:
+    manifest_record ∈ tuple[str, str, str, str] ← record_value(records, "artifact", "android-manifest")
+    if digest(data) != manifest_record[3]:
+        raise ValueError("MANIFEST_HASH_MISMATCH")
+    try:
+        text ∈ str ← data.decode("utf-8")
+    except Exception:
+        raise ValueError("MANIFEST_ENCODING")
+    empty_identity ∈ dict[str, object] ← {}
+    identity ∈ dict[str, object] ← dict(policy.get("manifest", empty_identity))
+    package_name ∈ str ← str(identity.get("package", ""))
+    version_code ∈ str ← str(identity.get("version_code", ""))
+    version_name ∈ str ← str(identity.get("version_name", ""))
+    min_sdk ∈ str ← str(identity.get("min_sdk", ""))
+    target_sdk ∈ str ← str(identity.get("target_sdk", ""))
+    required ∈ list[str] ← [
+        "package=\"" + package_name + "\"",
+        "android:versionCode=\"" + version_code + "\"",
+        "android:versionName=\"" + version_name + "\"",
+        "android:minSdkVersion=\"" + min_sdk + "\"",
+        "android:targetSdkVersion=\"" + target_sdk + "\"",
+        "android:usesCleartextTraffic=\"false\"",
+        "android:name=\"Idric.Generated\""
+    ]
+    for fragment in required:
+        position ∈ int ← text.find(fragment)
+        if position < 0:
+            raise ValueError("MANIFEST_IDENTITY_MISMATCH")
+    permission_tag ∈ int ← text.find("<uses-permission")
+    internet_name ∈ int ← text.find("android.permission.INTERNET")
+    if permission_tag >= 0 or internet_name >= 0:
+        raise ValueError("NETWORK_PERMISSION_CREEP")
+    shared_uid ∈ int ← text.find("android:sharedUserId")
+    root_word ∈ bool ← bool(re.search(r"(?i)\\broot\\b", text))
+    if shared_uid >= 0 or root_word:
+        raise ValueError("ROOT_CREEP")
+
+
+def validate_source_inventory(paths ∈ list[str]) → None:
+    for path in paths:
+        if path.endswith(".java") or path.endswith(".kt") or path.endswith(".kts"):
+            raise ValueError("JAVA_APPLICATION_CREEP")
+        parts ∈ list[str] ← path.rsplit("/", 1)
+        name ∈ str ← parts[-1]
+        if name in ["gradlew", "gradlew.bat", "build.gradle", "settings.gradle", "gradle.properties"]:
+            raise ValueError("JAVA_APPLICATION_CREEP")
+
+
+def validate_workflow(text ∈ str, policy ∈ dict[str, object]) → None:
+    required_action ∈ str ← str(policy.get("ick_action", ""))
+    action_position ∈ int ← text.find(required_action)
+    if required_action == "" or action_position < 0:
+        raise ValueError("ICK_ACTION_MISMATCH")
+    lowered ∈ str ← text.lower()
+    if re.search(r"(^|[^a-z0-9_-])tee([^a-z0-9_-]|$)", lowered):
+        raise ValueError("TEE_MASKED_NONZERO")
+    if re.search(r"(^|[^a-z0-9_-])(sudo|su)([^a-z0-9_-]|$)", lowered):
+        raise ValueError("ROOT_CREEP")
+    if re.search(r"(^|[^a-z0-9_-])(javac|gradle|gradlew|d8)([^a-z0-9_-]|$)", lowered):
+        raise ValueError("JAVA_APPLICATION_CREEP")
+
+
+def git_head(path ∈ str) → str:
+    completed ∈ object ← subprocess.run(
+        ["git", "-C", path, "rev-parse", "HEAD"],
+        text=True,
+        capture_output=True,
+        check=False
+    )
+    returncode ∈ int ← int(completed.returncode)
+    if returncode != 0:
+        raise ValueError("SOURCE_UNMATERIALIZED")
+    head ∈ str ← str(completed.stdout).strip()
+    if not re.fullmatch(r"[0-9a-f]{40}", head):
+        raise ValueError("SOURCE_UNMATERIALIZED")
+    return head
+
+
+def git_inventory(path ∈ str) → list[str]:
+    completed ∈ object ← subprocess.run(
+        ["git", "-C", path, "ls-files"],
+        text=True,
+        capture_output=True,
+        check=False
+    )
+    returncode ∈ int ← int(completed.returncode)
+    if returncode != 0:
+        raise ValueError("SOURCE_UNMATERIALIZED")
+    stdout ∈ str ← str(completed.stdout)
+    raw_lines ∈ list[str] ← stdout.splitlines()
+    paths ∈ list[str] ← []
+    for line in raw_lines:
+        if line != "":
+            paths.append(line)
+    return paths
+
+
+def validate_source_paths(policy ∈ dict[str, object], source_paths ∈ dict[str, str]) → None:
+    records ∈ dict[str, tuple[str, str, str, str]] ← expected_records(policy)
+    expected ∈ dict[str, str] ← {}
+    record_values ∈ list[tuple[str, str, str, str]] ← list(records.values())
+    for record in record_values:
+        if record[0] == "source":
+            expected[record[1]] ← record[3]
+    empty_kitchen ∈ dict[str, object] ← {}
+    kitchen ∈ dict[str, object] ← dict(policy.get("kitchen", empty_kitchen))
+    expected["kitchen"] ← str(kitchen.get("revision", ""))
+    expected_names ∈ list[str] ← list(expected.keys())
+    actual_names ∈ list[str] ← list(source_paths.keys())
+    expected_names.sort()
+    actual_names.sort()
+    if actual_names != expected_names:
+        raise ValueError("SOURCE_BINDING_MISMATCH")
+    for name in expected_names:
+        if git_head(source_paths[name]) != expected[name]:
+            raise ValueError("SOURCE_EPOCH_MISMATCH")
+    ib_path ∈ str ← source_paths["ib-147"]
+    validate_source_inventory(git_inventory(ib_path))
+    targets ∈ str ← Path(source_paths["catfood"]).joinpath("TARGETS.md").read_text()
+    c67_position ∈ int ← targets.find("| `c67` | MIRO C67 | phone | `arm64-v8a` | Android runtime consumer; paired application target |")
+    if c67_position < 0:
+        raise ValueError("C67_PROFILE_MISMATCH")
+    task_path ∈ str ← str(kitchen.get("task_path", ""))
+    if not Path(source_paths["kitchen"]).joinpath(task_path).is_file():
+        raise ValueError("KITCHEN_TASK_MISSING")
+
+
+def input_main() → None:
+    args ∈ list[str] ← list(sys.argv)
+    if len(args) < 6:
+        raise ValueError("usage: check-ib-u8-e1-inputs.pi POLICY MATERIALS WORKFLOW MANIFEST NAME=PATH...")
+    policy ∈ dict[str, object] ← load_policy(args[1])
+    records ∈ dict[str, tuple[str, str, str, str]] ← validate_materials_path(args[2], policy)
+    workflow ∈ str ← Path(args[3]).read_text()
+    validate_workflow(workflow, policy)
+    validate_manifest(Path(args[4]).read_bytes(), records, policy)
+    source_paths ∈ dict[str, str] ← {}
+    for argument in args[5:]:
+        equals ∈ int ← argument.count("=")
+        if equals != 1:
+            raise ValueError("SOURCE_BINDING_FORMAT")
+        binding ∈ list[str] ← argument.split("=", 1)
+        name ∈ str ← binding[0]
+        path ∈ str ← binding[1]
+        duplicate ∈ bool ← source_paths.__contains__(name)
+        if name == "" or path == "" or duplicate:
+            raise ValueError("SOURCE_BINDING_FORMAT")
+        source_paths[name] ← path
+    validate_source_paths(policy, source_paths)
+    outcome ∈ dict[str, str] ← {
+        "status": "PASS",
+        "check_id": "ib-u8-e1-inputs-v1",
+        "materials_sha256": digest(Path(args[2]).read_bytes()),
+        "manifest_sha256": digest(Path(args[4]).read_bytes())
+    }
+    print(json.dumps(outcome, sort_keys=True))
+
+
+def verify_pending(policy ∈ dict[str, object], materials_text ∈ str, receipt ∈ dict[str, object], payload ∈ bytes) → dict[str, object]:
+    validate_materials_text(materials_text, policy)
+    empty_pending ∈ dict[str, object] ← {}
+    pending ∈ dict[str, object] ← dict(policy.get("pending_handoff", empty_pending))
+    payload_digest ∈ str ← digest(payload)
+    expected_job_digest ∈ str ← str(pending.get("job_sha256", ""))
+    if payload_digest != expected_job_digest:
+        raise ValueError("HANDOFF_JOB_DIGEST")
+    observed_pipeline ∈ str ← str(receipt.get("pipeline", ""))
+    expected_pipeline ∈ str ← str(pending.get("pipeline", ""))
+    if observed_pipeline != expected_pipeline:
+        raise ValueError("HANDOFF_PIPELINE")
+    receipt_status ∈ str ← str(receipt.get("status", ""))
+    if receipt_status != "AWAITING_HANDOFF_DELIVERY":
+        raise ValueError("HANDOFF_NOT_PENDING")
+    empty_stages ∈ list[object] ← []
+    stages ∈ list[object] ← list(receipt.get("stages", empty_stages))
+    expected_stage_values ∈ list[object] ← list(pending.get("stages", empty_stages))
+    required_stages ∈ list[str] ← []
+    for raw_stage in expected_stage_values:
+        stage_name ∈ str ← str(raw_stage)
+        required_stages.append(stage_name)
+    observed_stages ∈ list[str] ← []
+    for raw_stage in stages:
+        observed_stage ∈ dict[str, object] ← dict(raw_stage)
+        observed_name ∈ str ← str(observed_stage.get("name", ""))
+        observed_stages.append(observed_name)
+    if observed_stages != required_stages:
+        raise ValueError("HANDOFF_STAGE_SEQUENCE")
+    if len(stages) == 0:
+        raise ValueError("HANDOFF_STAGE_SEQUENCE")
+    stage ∈ dict[str, object] ← dict(stages[-1])
+    stage_exit ∈ int ← int(stage.get("exit_code", -1))
+    stage_name ∈ str ← str(stage.get("name", ""))
+    expected_stage ∈ str ← str(pending.get("stage", ""))
+    if stage_exit != 0 or stage_name != expected_stage:
+        raise ValueError("HANDOFF_STAGE")
+    record ∈ dict[str, object] ← dict(handoff.identity(stage, payload))
+    for field in ["audience", "model", "source_context", "execution_target"]:
+        observed_field ∈ str ← str(record.get(field, ""))
+        expected_field ∈ str ← str(pending.get(field, ""))
+        if observed_field != expected_field:
+            raise ValueError("HANDOFF_CONTRACT")
+    empty_request ∈ dict[str, object] ← {}
+    actual_request ∈ dict[str, object] ← dict(record.get("request", empty_request))
+    expected_request ∈ dict[str, object] ← dict(pending.get("request", empty_request))
+    if actual_request != expected_request:
+        raise ValueError("HANDOFF_REQUEST")
+    delivery_mode ∈ str ← str(record.get("delivery_mode", ""))
+    if delivery_mode != "display-only":
+        raise ValueError("HANDOFF_MODE")
+    visible_state ∈ str ← str(record.get("visible_state", ""))
+    dispatch_state ∈ str ← str(record.get("dispatch_state", ""))
+    if visible_state != "PENDING" or dispatch_state != "NOT_REQUESTED":
+        raise ValueError("HANDOFF_STATE")
+    events ∈ list[object] ← list(record.get("events", empty_stages))
+    if len(events) != 0:
+        raise ValueError("HANDOFF_HIDDEN_EVENT")
+    return {
+        "status": "BLOCKED",
+        "check_id": "ib-u8-e1-pending-handoff-v1",
+        "blocker": "AWAITING_HANDOFF_DELIVERY",
+        "payload_sha256": payload_digest,
+        "materials_sha256": digest(materials_text.encode())
+    }
+
+
+def pending_main() → None:
+    args ∈ list[str] ← list(sys.argv)
+    if len(args) != 6:
+        raise ValueError("usage: check-ib-u8-e1-pending.pi POLICY MATERIALS RECEIPT JOB RESULT")
+    policy ∈ dict[str, object] ← load_policy(args[1])
+    materials ∈ str ← Path(args[2]).read_text()
+    receipt ∈ dict[str, object] ← dict(json.loads(Path(args[3]).read_bytes()))
+    outcome ∈ dict[str, object] ← verify_pending(policy, materials, receipt, Path(args[4]).read_bytes())
+    encoded ∈ str ← json.dumps(outcome, sort_keys=True)
+    Path(args[5]).write_text(encoded + "\n")
+    print(encoded)

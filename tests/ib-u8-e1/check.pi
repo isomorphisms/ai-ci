@@ -1,0 +1,113 @@
+"""Hostile controls for the independent IB-U8-E1 preflight and pending receipt."""
+import copy
+import json
+import sys
+from pathlib import Path
+from typing import Callable
+from builtins import dict, list, tuple, ValueError, AssertionError, str, bytes, object
+import handoff
+import ib_u8_e1
+
+
+def expect_error(label ∈ str, expected ∈ str, action ∈ Callable[[], object]) → None:
+    try:
+        action()
+    except ValueError as error:
+        observed ∈ str ← str(error)
+        if observed != expected:
+            raise AssertionError(label + ": expected " + expected + ", got " + observed)
+        print("PASS " + label + " -> " + observed)
+        return
+    raise AssertionError(label + ": expected " + expected)
+
+
+def material_text(policy ∈ dict[str, object]) → str:
+    schema ∈ str ← str(policy["materials_schema"])
+    version ∈ str ← str(policy["materials_version"])
+    lines ∈ list[str] ← ["schema\t" + schema + "\t" + version]
+    rows ∈ list[object] ← list(policy["materials_records"])
+    for raw in rows:
+        fields ∈ list[object] ← list(raw)
+        first ∈ str ← str(fields[0])
+        second ∈ str ← str(fields[1])
+        third ∈ str ← str(fields[2])
+        fourth ∈ str ← str(fields[3])
+        lines.append(first + "\t" + second + "\t" + third + "\t" + fourth)
+    joined ∈ str ← "\n".join(lines)
+    return joined + "\n"
+
+
+args ∈ list[str] ← list(sys.argv)
+if len(args) != 3:
+    raise ValueError("usage: check.pi AICI_ROOT OUTPUT_DIR")
+root ∈ Path ← Path(args[1])
+out ∈ Path ← Path(args[2])
+out.mkdir(parents=True, exist_ok=False)
+policy_file ∈ Path ← root.joinpath("validators", "ib-u8-e1-reader-build-policy.json")
+policy ∈ dict[str, object] ← ib_u8_e1.load_policy(str(policy_file))
+materials ∈ str ← material_text(policy)
+records ∈ dict[str, tuple[str, str, str, str]] ← ib_u8_e1.validate_materials_text(materials, policy)
+manifest_file ∈ Path ← root.joinpath("tests", "ib-u8-e1", "good-AndroidManifest.xml")
+manifest ∈ bytes ← manifest_file.read_bytes()
+ib_u8_e1.validate_manifest(manifest, records, policy)
+ib_u8_e1.validate_source_inventory(["src/IB/LongViewTask.idric", "android-native/AndroidManifest.xml"])
+ick_action ∈ str ← str(policy["ick_action"])
+workflow ∈ str ← ick_action + "\nrun: python3 scripts/run-pipeline ib-u8-e1-reader-build-handoff\n"
+ib_u8_e1.validate_workflow(workflow, policy)
+print("PASS clean materials, manifest, source inventory and workflow")
+
+wrong_source ∈ str ← materials.replace("912ae8905ae137868ce6e9aff1a82c915c40ee85", "0000000000000000000000000000000000000000")
+expect_error("wrong-source", "SOURCE_EPOCH_MISMATCH", lambda: ib_u8_e1.validate_materials_text(wrong_source, policy))
+wrong_compiler ∈ str ← materials.replace("2734ac5a86610eddfab73b1644d72b4ac85a65ee", "0000000000000000000000000000000000000000")
+expect_error("wrong-compiler", "COMPILER_MISMATCH", lambda: ib_u8_e1.validate_materials_text(wrong_compiler, policy))
+wrong_signer ∈ str ← materials.replace("de9b1d47c5a65e6d46a204b79dd9ee566b9d3c9832ba81ebc4213d3392e92ff9", "0000000000000000000000000000000000000000000000000000000000000000")
+expect_error("wrong-signer", "SIGNER_MISMATCH", lambda: ib_u8_e1.validate_materials_text(wrong_signer, policy))
+expect_error("java-creep", "JAVA_APPLICATION_CREEP", lambda: ib_u8_e1.validate_source_inventory(["src/Reader.java"]))
+expect_error("tee-mask", "TEE_MASKED_NONZERO", lambda: ib_u8_e1.validate_workflow(workflow + "run: producer | tee result.txt\n", policy))
+
+permission_manifest ∈ bytes ← manifest.replace(b"<application", b"<uses-permission android:name=\"android.permission.INTERNET\" />\n    <application")
+permission_records ∈ dict[str, tuple[str, str, str, str]] ← dict(records)
+permission_digest ∈ str ← ib_u8_e1.digest(permission_manifest)
+permission_records["artifact\tandroid-manifest"] = ("artifact", "android-manifest", "android-native/AndroidManifest.xml", permission_digest)
+expect_error("network-permission", "NETWORK_PERMISSION_CREEP", lambda: ib_u8_e1.validate_manifest(permission_manifest, permission_records, policy))
+
+root_manifest ∈ bytes ← manifest.replace(b"<application", b"<application android:sharedUserId=\"root\"")
+root_records ∈ dict[str, tuple[str, str, str, str]] ← dict(records)
+root_digest ∈ str ← ib_u8_e1.digest(root_manifest)
+root_records["artifact\tandroid-manifest"] = ("artifact", "android-manifest", "android-native/AndroidManifest.xml", root_digest)
+expect_error("root-creep", "ROOT_CREEP", lambda: ib_u8_e1.validate_manifest(root_manifest, root_records, policy))
+
+payload ∈ bytes ← b"Prepare the source-pinned native reader build only after the listed gates are satisfied. Display this assignment before any dispatch.\n"
+pending_policy ∈ dict[str, object] ← dict(json.loads(json.dumps(policy)))
+pending ∈ dict[str, object] ← dict(pending_policy["pending_handoff"])
+payload_digest ∈ str ← ib_u8_e1.digest(payload)
+pending["job_sha256"] = payload_digest
+pending_policy["pending_handoff"] = pending
+spec ∈ dict[str, object] ← {
+    "audience": pending["audience"],
+    "model": pending["model"],
+    "source_context": pending["source_context"],
+    "execution_target": pending["execution_target"],
+    "request": pending["request"]
+}
+stage ∈ dict[str, object] ← handoff.compose({"name": pending["stage"], "kind": "command", "exit_code": 0, "stdout_sha256": handoff.digest(payload)}, payload, spec)
+receipt ∈ dict[str, object] ← {
+    "schema_version": 1,
+    "pipeline": pending["pipeline"],
+    "status": "AWAITING_HANDOFF_DELIVERY",
+    "stages": [
+        {"name": "ike-reader-input-preflight", "exit_code": 0},
+        stage
+    ]
+}
+outcome ∈ dict[str, object] ← ib_u8_e1.verify_pending(pending_policy, materials, receipt, payload)
+outcome_status ∈ str ← str(outcome["status"])
+outcome_blocker ∈ str ← str(outcome["blocker"])
+if outcome_status != "BLOCKED" or outcome_blocker != "AWAITING_HANDOFF_DELIVERY":
+    raise AssertionError("pending result was not blocked")
+print("PASS pending receipt is BLOCKED, not visible acceptance")
+expect_error("tampered-job-artifact", "HANDOFF_JOB_DIGEST", lambda: ib_u8_e1.verify_pending(pending_policy, materials, receipt, payload + b"changed"))
+expect_error("wrong-source-epoch", "SOURCE_EPOCH_MISMATCH", lambda: ib_u8_e1.verify_pending(pending_policy, wrong_source, receipt, payload))
+
+out.joinpath("results.tsv").write_text("case\tresult\nclean\tPASS\nwrong-source\tPASS\nwrong-compiler\tPASS\nwrong-signer\tPASS\njava-creep\tPASS\ntee-mask\tPASS\nnetwork-permission\tPASS\nroot-creep\tPASS\npending-blocked\tPASS\ntampered-job-artifact\tPASS\nwrong-source-epoch\tPASS\n")
+print("IB-U8-E1 independent controls PASS: 11")
