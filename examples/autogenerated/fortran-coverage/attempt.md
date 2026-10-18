@@ -19,3 +19,28 @@ The first language capability needed to remove this fallback is the bootstrapped
 direct-host compiler and checked byte/file/subprocess interfaces. A port must pass
 the original corpus and reject the same targeted corruptions. No replacement
 compiler, RefC, unverified semantics or success-only wrapper qualifies.
+# Linked ARM ledger continuation
+
+The successor checker adds a finite annotation-alignment oracle with the same
+read-only Git/binutils/Node host boundary. The consumer retained a fresh real
+Idriç evidence-choice attempt at compiler
+2734ac5a86610eddfab73b1644d72b4ac85a65ee; its one-step emitter returned exit 2,
+compiler not bootstrapped. No Idriç acceptance is inferred from Node results.
+
+New values are pinned ARM specimen/ABI, native record, printed DATA, suppressed
+range and preliminary description. The pure contract maps original bytes and
+mapping symbols to candidate entry equality. File/Git/hash/readelf/receipt
+actions remain effects. The checker imports no producer code.
+
+During self-test development the duplicate-row fixture first failed for the
+wrong diagnostic: REORDERED_LEDGER instead of DROPPED_OR_DUPLICATED_LEDGER_ENTRY.
+The original block helper used
+`slice(e.line-1, es.find(n=>n.line>e.line)?.line-1)`. On the last block the missing
+next line became NaN, silently dropping the final block and offsetting the
+duplicate count. The corrected helper slices by explicit header byte positions
+with the full text length as the final bound. Drop, duplicate and reorder cases
+then failed independently for their intended diagnostics. This was a fixture
+construction defect, not evidence of source corruption.
+
+Removal acceptance remains a bootstrapped direct-host Idriç compiler and checked
+Git/file/hash/binary effects, then intact versus dropped/altered ledger cases.

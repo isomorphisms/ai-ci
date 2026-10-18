@@ -17,3 +17,8 @@ Use --receipt ABSOLUTE_PATH to retain exact leaf/oracle Git identities, source
 pins digest and generated table digest inventory. Refuse a receipt path that
 already exists. Re-run after any material source change. The --self-test cases
 must each fail for their named diagnostic with the original corpus as positive twin.
+# Linked ARM successor
+
+See [ARM-LEDGERS.md](ARM-LEDGERS.md) for the separate independent checker of
+the two linked ARM preliminary English ledgers. Frozen inventory acceptance and
+successor annotation acceptance retain separate receipts and evidence boundaries.
