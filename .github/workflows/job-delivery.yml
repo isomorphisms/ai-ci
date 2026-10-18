@@ -51,7 +51,7 @@ jobs:
         env:
           PYTHONPATH: ${{ github.workspace }}/_fp/scripts:${{ github.workspace }}/validators
           ITHON_CHECK_RECEIPT: ${{ runner.temp }}/job-delivery-checked.jsonl
-        run: _ithon/ithon tests/job-delivery/check.pi "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/_fp" "$RUNNER_TEMP/job-delivery" "$GITHUB_WORKSPACE/_ithon/ithon" "$GITHUB_WORKSPACE/_kitchen" "$RUNNER_TEMP/grease/bin/grease"
+        run: _ithon/ithon tests/job-delivery/check.pi "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/_fp" "$RUNNER_TEMP/job-delivery" "$GITHUB_WORKSPACE/_ithon/ithon" "$GITHUB_WORKSPACE/_kitchen" "$RUNNER_TEMP/grease/_bin/cxx-asan/ysh"
       - name: Retain exact checked inputs and case results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
