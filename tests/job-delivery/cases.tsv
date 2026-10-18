@@ -33,6 +33,7 @@ duplicate-dispatch	a1-c67	duplicate-dispatch	JOB-DUPLICATE-DISPATCH
 incomplete-dispatch	a1-c67	incomplete-dispatch	JOB-DISPATCH-MISSING
 no-op-receipt	young-tableaux	no-op	JOB-VISIBLE-MISSING
 inferred-execution	a1-c67	fake-explicit-dispatch	HANDOFF_DISPATCH_ONLY_NOT_REQUESTED
+requirements-binding-mutated	a1-c67	requirements-binding-mutated	REQ-REQUEST-BINDING: projection digest changed
 attachment-visible	young-tableaux	attachment-visible	PASS
 attachment-archive-member	young-tableaux	attachment-archive-member	PASS
 attachment-link-only	young-tableaux	attachment-link-only	JOB-VISIBLE-MISSING

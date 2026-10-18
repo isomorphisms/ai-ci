@@ -33,6 +33,14 @@ that ChatGPT emitted a real message. Local fixtures establish the bounded
 enforcement contract, not deployed platform adoption. The maintained FP runner
 therefore holds a generated assignment pending a trusted delivery adapter.
 
+When a request carries `requirement_projection` and
+`requirement_projection_sha256`, the delivery validator recomputes the exact
+UTF-8 digest and requires the embedded projection to name the same request ID.
+The source/applicability checker and canonical specimens live in
+[`requirements/`](../requirements/README.md). This binds already-validated
+projection bytes into the immutable request; it does not make their presence
+evidence that the downstream owner/program/target decisions complied.
+
 This extends the exact-artifact boundary of
 [#205](https://github.com/isomorphisms/ai-ci/issues/205) and
 [#176](https://github.com/isomorphisms/ai-ci/issues/176). Their execution/host

@@ -1,0 +1,3 @@
+Expected shape:
+- Grease may build/test/publish NetBSD artifacts;
+- Cat Food owns the NetBSD/SDF matrix cell and selected artifact;

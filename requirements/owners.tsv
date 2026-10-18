@@ -1,0 +1,5 @@
+owner_id	owns	scope	source_path	source_url	source_sha256	status
+isomorphisms/ai-ci	applicability-validation	maintained-requests	sources/bc-a01-s01-scope.txt	https://github.com/isomorphisms/ai-ci/issues/181#issuecomment-6170074997	1fd53d3bcb32836aa72a8895edd29b14576038317620e6152b3d0f89f998a797	authoritative
+isomorphisms/catfood	cross-project-target-matrix	build-distribution	sources/issue-181-ownership.txt	https://github.com/isomorphisms/ai-ci/issues/181	55c8082cc9962ec8c7a381bc3ca71ef238e1f54f271d15cf0a673e2cd6be73fe	authoritative
+isomorphisms/catfood	target-facts	android-companions	sources/issue-218-decision.txt	https://github.com/isomorphisms/ai-ci/issues/218#issuecomment-6020460105	9fb1837a7596e37b516c2693cb06cf78b9b929e09e49309dd6e3df80d23d7086	authoritative
+dilapidated-shed/grease	leaf-build	grease-artifacts	sources/issue-181-ownership.txt	https://github.com/isomorphisms/ai-ci/issues/181	55c8082cc9962ec8c7a381bc3ca71ef238e1f54f271d15cf0a673e2cd6be73fe	authoritative
