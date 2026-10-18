@@ -58,6 +58,30 @@ request/admission, changed visible bytes, and an apology substituted for the
 bytes. The positive fixture preserves an ordinary read-only GitHub query and
 the exact Kitchen display-only program with zero transfer attempts.
 
+The existing FP delivery controller must receive
+`transfer_command.delivery_gate(kitchen_root, grease_runtime, admitted_spec)`
+for this operation. The supervisor supplies the full admitted specification;
+the adapter snapshots it, rather than taking authority from worker-mutated
+metadata. FP requires this operation gate before either its low-level sender or
+resumable controller can call the sink. A generic transport-only gate is not
+transfer acceptance and fails before sending. Source checks independently bind
+Kitchen HEAD and unchanged transfer sources to the admitted revision.
+
+The gate checks the complete proposed response before send, then checks actual
+readback. Only the recipe bytes or their exact empty-summary literal rendering
+are supported; extra surrounding command text is rejected. The complete Kitchen
+recipe contains shell redirections, so FP's generic raw-text/HTML exclusion
+rejects its plain presentation before send. A controller may explicitly choose
+`presentation="literal"`; that fixture result does not establish that the
+Android client supports CodeBlocks. Other payloads retain ordinary-text default.
+
+Controller regressions execute both delivery APIs, operation substitution and
+removal, self-consistent bad recipe bytes, unsupported presentation, added
+summary text, source-pin/dirty-source controls, one accepted presentation, and
+resume without resend. Failed source revalidation also invalidates a saved
+success. These checks extend the established sender/controller; they do not
+create a second controller or a ChatGPT pre-send hook.
+
 This is not a generic natural-language firewall and it does not establish a
 ChatGPT adapter. The resulting fixture comparison proves only the declared
 FP/Kitchen/AICI contract. Platform delivery remains BLOCKED/NOT_VERIFIED; the
@@ -73,7 +97,7 @@ Trackers: [FP #39](https://github.com/isomorphisms/flexible-pipes/issues/39),
 ## Independently admitted and read-back artifacts
 
 `check_authority` compares the stage's request, corrections, model, audience,
-source context and attachment against an independently supplied expected spec.
+source context, attachment and operation against an independently supplied expected spec.
 Required literal text belongs to that admission, not the generating worker.
 This covers explicit constraints; it does not replace grounded semantic review
 for requirements that cannot be reduced to literal checks.

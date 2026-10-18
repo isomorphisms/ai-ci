@@ -148,7 +148,7 @@ def check_authority(stage ∈ dict[str, object], source ∈ bytes, expected ∈ 
     """Compare with the supervisor's admission, not a worker's recomputed hashes."""
     record ∈ dict[str, object] ← handoff.identity(stage, source)
     handoff.validate_spec(expected)
-    for field in ["audience", "model", "source_context", "execution_target", "request", "attachment"]:
+    for field in ["audience", "model", "source_context", "execution_target", "request", "attachment", "operation"]:
         observed_value ∈ str ← json.dumps(record.get(field), sort_keys=True)
         expected_value ∈ str ← json.dumps(expected.get(field), sort_keys=True)
         if observed_value != expected_value:

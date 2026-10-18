@@ -6,6 +6,8 @@ ChatGPT platform adapter.
 """
 import re
 import subprocess
+import json
+from types import SimpleNamespace
 from pathlib import Path
 from builtins import dict, list, ValueError, KeyError, isinstance
 import handoff
@@ -72,6 +74,12 @@ def validate_operation(value ∈ object) → dict[str, object]:
     return operation
 
 def kitchen_program(kitchen ∈ str, grease ∈ str, operation ∈ dict[str, object]) → bytes:
+    revision ∈ object ← subprocess.run(["git", "-C", kitchen, "rev-parse", "HEAD"], capture_output=True)
+    if int(revision.returncode) != 0 or str(revision.stdout.decode().strip()) != str(operation["kitchen_revision"]):
+        raise ValueError("TRANSFER_COMMAND_KITCHEN_REVISION")
+    clean ∈ object ← subprocess.run(["git", "-C", kitchen, "diff", "--quiet", str(operation["kitchen_revision"]), "--", "tasks/github-repository-transfer"], capture_output=True)
+    if int(clean.returncode) != 0:
+        raise ValueError("TRANSFER_COMMAND_KITCHEN_DIRTY")
     generator ∈ Path ← Path(kitchen + "/tasks/github-repository-transfer/render-standalone-github-repository-organization-transfer.ysh")
     if not generator.is_file():
         raise ValueError("TRANSFER_COMMAND_KITCHEN_GENERATOR")
@@ -92,10 +100,9 @@ def kitchen_program(kitchen ∈ str, grease ∈ str, operation ∈ dict[str, obj
         raise ValueError("TRANSFER_COMMAND_KITCHEN_GENERATION")
     return bytes(completed.stdout)
 
-def check(
+def check_candidate(
     stage ∈ dict[str, object],
     payload ∈ bytes,
-    response ∈ bytes,
     kitchen ∈ str,
     grease ∈ str,
     admission ∈ dict[str, object]
@@ -122,9 +129,45 @@ def check(
     for key in expected_request:
         if not record_request.__contains__(key) or not isinstance(record_request[key], str) or not isinstance(expected_request[key], str) or str(record_request[key]) != str(expected_request[key]):
             raise ValueError("TRANSFER_COMMAND_ADMISSION")
+    if kitchen_program(kitchen, grease, operation) != payload:
+        raise ValueError("TRANSFER_COMMAND_KITCHEN_BYTES")
+
+def check(stage ∈ dict[str, object], payload ∈ bytes, response ∈ bytes, kitchen ∈ str, grease ∈ str, admission ∈ dict[str, object]) → None:
+    check_candidate(stage, payload, kitchen, grease, admission)
+    check_response(payload, response)
     try:
         job_delivery.check(stage, payload, response, True)
     except ValueError:
         raise ValueError("TRANSFER_COMMAND_VISIBLE_BYTES")
-    if kitchen_program(kitchen, grease, operation) != payload:
-        raise ValueError("TRANSFER_COMMAND_KITCHEN_BYTES")
+
+def check_response(payload ∈ bytes, response ∈ bytes) → None:
+    if response != payload and response != bytes(handoff.render(payload, "")):
+        raise ValueError("TRANSFER_COMMAND_VISIBLE_BYTES")
+
+def delivery_gate(kitchen ∈ str, grease ∈ str, admission ∈ dict[str, object]) → object:
+    """Bind the existing FP controller gate to supervisor-owned inputs.
+
+    This is an adapter for that controller, not another sender or a platform
+    acknowledgement. The worker cannot change the admitted operation in place.
+    """
+    admitted ∈ dict[str, object] ← json.loads(json.dumps(admission))
+    handoff.validate_spec(admitted)
+    validate_operation(admitted.get("operation"))
+    no_text ∈ list[str] ← []
+    def candidate(stage ∈ dict[str, object], source ∈ bytes, response ∈ bytes = b"") → None:
+        job_delivery.check_authority(stage, source, admitted, no_text)
+        check_candidate(stage, source, kitchen, grease, admitted)
+        if response != b"":
+            check_response(source, response)
+    def authority(stage ∈ dict[str, object], source ∈ bytes, expected ∈ dict[str, object], required_text ∈ list[str]) → None:
+        job_delivery.check_authority(stage, source, admitted, required_text)
+        job_delivery.check_authority(stage, source, expected, required_text)
+        check_candidate(stage, source, kitchen, grease, admitted)
+    def actual(stage ∈ dict[str, object], source ∈ bytes, delivered ∈ bytes, metadata ∈ dict[str, object], expected ∈ dict[str, object], required_text ∈ list[str], complete ∈ bool) → None:
+        authority(stage, source, expected, required_text)
+        check_response(source, delivered)
+        job_delivery.check_actual(stage, source, delivered, metadata, admitted, required_text, complete)
+    def visible(stage ∈ dict[str, object], source ∈ bytes, response ∈ bytes, complete ∈ bool) → None:
+        candidate(stage, source, response)
+        job_delivery.check(stage, source, response, complete)
+    return SimpleNamespace(check_candidate=candidate, check_authority=authority, check_actual=actual, check=visible)
