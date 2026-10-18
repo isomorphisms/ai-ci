@@ -8,6 +8,7 @@ import hashlib
 import json
 import sys
 import re
+import requirement_projection
 from pathlib import Path
 from builtins import dict, list, ValueError
 
@@ -15,7 +16,9 @@ def check(stage ∈ dict[str, object], payload ∈ bytes, response ∈ bytes, co
     record ∈ dict[str, object] ← handoff.identity(stage, payload)
     if int(record["version"]) != 1:
         raise ValueError("JOB-TRANSPORT")
-    requested ∈ str ← handoff.validate_request(dict(record["request"]))
+    request ∈ dict[str, object] ← dict(record["request"])
+    requirement_projection.validate_request_binding(request)
+    requested ∈ str ← handoff.validate_request(request)
     mode ∈ str ← str(record["delivery_mode"])
     events ∈ list[dict[str, object]] ← list(record["events"])
     visible ∈ bool ← False
@@ -58,7 +61,6 @@ def check(stage ∈ dict[str, object], payload ∈ bytes, response ∈ bytes, co
     if mode != requested:
         if not recovery or mode != "display-only" or not dispatched:
             raise ValueError("JOB-MODE-IDENTITY")
-    request ∈ dict[str, object] ← dict(record["request"])
     text ∈ str ← str(request["text"]).lower().replace("’", "'")
     if bool(re.search(r"where(?:'s| is| is the| was).*\b(?:text|job|assignment)\b", text)) and not recovery:
         raise ValueError("JOB-RECOVERY-CONTEXT-MISSING")
@@ -85,7 +87,9 @@ def check_attachment(stage ∈ dict[str, object], source ∈ bytes, complete ∈
         raise ValueError("JOB-TRANSPORT")
     payload ∈ bytes ← handoff.materialize(stage, source)
     attachment ∈ dict[str, object] ← dict(record["attachment"])
-    requested ∈ str ← handoff.validate_request(dict(record["request"]))
+    request ∈ dict[str, object] ← dict(record["request"])
+    requirement_projection.validate_request_binding(request)
+    requested ∈ str ← handoff.validate_request(request)
     mode ∈ str ← str(record["delivery_mode"])
     events ∈ list[dict[str, object]] ← list(record["events"])
     visible ∈ bool ← False

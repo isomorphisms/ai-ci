@@ -1,0 +1,39 @@
+name: Source-bound requirement projection
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  projection:
+    name: ${{ github.event_name == 'pull_request' && 'requirement-projection' || format('requirement-projection-{0}', github.event_name) }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out exact ai-ci source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Check out qualified checked Ithon interface
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: dilapidated-shed/ithon
+          ref: d6e83969f82512e920fb17b44326cb54f31d015c
+          path: _ithon
+          persist-credentials: false
+      - name: Reject stale ambiguous and misplaced obligations
+        env:
+          PYTHONPATH: ${{ github.workspace }}/validators
+          ITHON_CHECK_RECEIPT: ${{ runner.temp }}/requirement-projection-checked.jsonl
+        run: _ithon/ithon tests/requirement-projection/check.pi "$GITHUB_WORKSPACE" "$RUNNER_TEMP/requirement-projection"
+      - name: Retain exact projections and case results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: requirement-projection-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            requirements/projections/
+            ${{ runner.temp }}/requirement-projection/
+            ${{ runner.temp }}/requirement-projection-checked.jsonl
+          if-no-files-found: error

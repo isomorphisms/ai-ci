@@ -2,6 +2,11 @@
 
 `ai-ci` is a shared contract test suite for AI-authored project work.
 
+[Source-bound requirement projection](requirements/README.md) canonically
+binds applicable owner/program/target obligations and explicit corrections to
+maintained request bytes without treating retrieval or copied prose as proof of
+compliance.
+
 [Job delivery](docs/job-delivery.md) checks complete visible assignment bytes
 and first-class binary attachment identity, plus separately bound dispatch,
 using Flexible Pipes' existing stage artifact.

@@ -7,6 +7,7 @@ from pathlib import Path
 from builtins import dict, list, ValueError, Exception, AssertionError
 import handoff
 import job_delivery
+import requirement_projection
 
 args ∈ list[str] ← sys.argv
 root ∈ str ← args[1]
@@ -66,6 +67,9 @@ def run_case(fixture ∈ str, variant ∈ str) → str:
     if variant == "nested-fence":
         payload ← payload + b"\nKeep this embedded example:\n```text\nexample\n```\n"
     request ∈ dict[str, object] ← {"id": fixture, "text": "Make a Sun job"}
+    if fixture == "a1-c67":
+        projection ∈ bytes ← Path(root + "/requirements/projections/a1-grease.tsv").read_bytes()
+        request ← dict(requirement_projection.bind_request(request, projection))
     dispatch_variants ∈ list[str] ← ["visible-dispatch", "dispatched-hidden", "changed-dispatch", "dispatch-first", "duplicate-dispatch", "incomplete-dispatch"]
     if dispatch_variants.__contains__(variant):
         request["delivery_mode"] ← "display-and-dispatch"
@@ -80,6 +84,8 @@ def run_case(fixture ∈ str, variant ∈ str) → str:
             request["text"] ← "Dispatch only; execute directly."
     if variant == "recovery-new":
         request["text"] ← "Where’s the text?"
+    if variant == "requirements-binding-mutated":
+        request["requirement_projection"] ← str(request["requirement_projection"]) + "changed\n"
     stage ∈ dict[str, object] ← {"name": "assignment", "kind": "command", "exit_code": 0, "stdout_sha256": handoff.digest(payload)}
     spec ∈ dict[str, object] ← {"audience": "Sun", "model": "fixture-Sun", "source_context": "sanitized recurrence", "request": request}
     try:

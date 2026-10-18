@@ -1,0 +1,10 @@
+schema	aici-requirement-projection-v1
+request_id	sdf-grease-leaf
+request_body_sha256	2b2181bc126c754d6ce70b4d74826f9837a2345fff567acc35511dfe2fa62725
+owner	dilapidated-shed/grease
+program	grease
+target	sdf-netbsd
+obligation	program	implementation_eligibility=non-cxx-only	req-grease-non-cxx	correction	sources/catfood-131-correction.txt	https://github.com/isomorphisms/catfood/issues/131	dcedafe6ad57c02eb9d325b2d2df6bb19392336dcdef2d3ed62eedfcb6eac858	grease-runtime	isomorphisms/catfood	req-grease-compiled-default	The later human correction makes C++ implementations toolchains executables and runtime dependencies ineligible.
+obligation	owner	leaf_build_owner=dilapidated-shed/grease	req-leaf-build-owner	direct_instruction	sources/issue-181-ownership.txt	https://github.com/isomorphisms/ai-ci/issues/181	55c8082cc9962ec8c7a381bc3ca71ef238e1f54f271d15cf0a673e2cd6be73fe	build-distribution	isomorphisms/ai-ci	-	The selected leaf owns its source build tests and publishable project artifact.
+obligation	owner	matrix_owner=isomorphisms/catfood	req-matrix-owner	direct_instruction	sources/issue-181-ownership.txt	https://github.com/isomorphisms/ai-ci/issues/181	55c8082cc9962ec8c7a381bc3ca71ef238e1f54f271d15cf0a673e2cd6be73fe	build-distribution	isomorphisms/ai-ci	-	The cross-project build and target matrix stays in Cat Food.
+obligation	target	matrix_cell_owner=isomorphisms/catfood	req-sdf-matrix-cell	direct_instruction	sources/issue-181-sdf.txt	https://github.com/isomorphisms/ai-ci/issues/181	17b9f2288e6201b2c06ae1afc0c16a54c0027ceacd71967f079ba7270d1b41ed	netbsd-sdf	isomorphisms/ai-ci	-	SDF and NetBSD are an authoritative Cat Food matrix cell while Grease may emit the leaf artifact.

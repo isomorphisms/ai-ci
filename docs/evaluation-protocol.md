@@ -62,6 +62,22 @@ improved reasoning. See
 `research/repository-context-methodology.md` for the mechanism and the ASE /
 Blackball architecture boundary.
 
+### Source-bound requirement projection
+
+A maintained request that depends on repository or issue history must identify
+the exact applicable requirements before a downstream decision is evaluated.
+Each projected obligation preserves stable identity, source location and digest,
+scope, owner, source kind, explicit supersession and an applicability reason.
+Proposal, observation and executed-result records remain distinct from direct
+instructions and corrections. Unknown authority or applicability blocks only
+the affected owner/program/target choice.
+
+Canonical projection is an input contract, not compliance evidence. Retrieval,
+copied declarations and a valid projection do not show that the selected owner,
+program, command, target or acceptance path obeyed it. Downstream cases must
+compare those actual decisions to the exact projection bytes and preserve the
+usual execution and artifact evidence boundaries.
+
 ## Evaluate four distinct things
 
 Do not collapse these into one impressionistic score:
