@@ -333,7 +333,7 @@ def chat_bypass_cases() → None:
 
     work ∈ Path ← output.joinpath("chat-bypass")
     work.mkdir()
-    fixture ← Path(root + "/tests/fixtures/chat-bypass/gh.grease")
+    fixture ∈ Path ← Path(root + "/tests/fixtures/chat-bypass/gh.grease")
     fake_bin ∈ Path ← work / "bin"
     fake_bin.mkdir()
     fake_gh ∈ Path ← fake_bin / "gh"
