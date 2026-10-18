@@ -16,12 +16,26 @@ header_dir="$subject/android/app/src/main/cpp"
 smoke_test="$subject/tests/test_holomorphic_walk.c"
 oracle="$aici_root/tests/semantic-oracles/holomorphic-t1/independent_reference.c"
 oracle_revision=$(git -C "$aici_root" rev-parse HEAD)
+compiler=${AICI_C_COMPILER:?Set AICI_C_COMPILER to the qualified ICK compiler}
+compiler_revision=${AICI_ICK_REVISION:?Set AICI_ICK_REVISION to the exact qualified ICK source revision}
+compiler_link_flags=${AICI_C_LINK_FLAGS:-}
+case "$compiler_revision" in
+    *[!0123456789abcdef]*|'')
+        echo "AICI-INVALID-ICK-REVISION value=$compiler_revision" >&2
+        exit 2
+        ;;
+esac
+if [ "${#compiler_revision}" -ne 40 ] || [ ! -x "$compiler" ]; then
+    echo "AICI-INVALID-ICK-COMPILER revision=$compiler_revision path=$compiler" >&2
+    exit 2
+fi
+compiler_sha256=$(sha256sum "$compiler" | cut -d ' ' -f 1)
 scratch=$(mktemp -d)
 trap 'rm -rf "$scratch"' EXIT HUP INT TERM
 receipt_dir=${AICI_SEMANTIC_RECEIPT_DIR:-"$scratch"}
 mkdir -p "$receipt_dir"
 receipt="$receipt_dir/aici-holomorphic-t1.tsv"
-printf 'case_id\tsut_revision\taici_revision\tcandidate_sha256\texecutable_sha256\tcandidate_test\toriginal_smoke\tsemantic_result\toracle\tseed\tevidence_boundary\n' > "$receipt"
+printf 'case_id\tsut_revision\taici_revision\tcandidate_sha256\texecutable_sha256\tcandidate_test\toriginal_smoke\tsemantic_result\toracle\tseed\tevidence_boundary\tcompiler_revision\tcompiler_sha256\n' > "$receipt"
 
 check() {
     case_id=$1
@@ -29,7 +43,7 @@ check() {
     expected=$3
     cp "$candidate" "$receipt_dir/$case_id-candidate.c"
     sha=$(sha256sum "$candidate" | cut -d ' ' -f 1)
-    cc -std=c11 -Wall -Wextra -Werror -O2 -I "$header_dir" \
+    "$compiler" $compiler_link_flags -std=c11 -Wall -Wextra -Werror -O2 -I "$header_dir" \
         "$smoke_test" "$candidate" -pthread -lm -o "$scratch/$case_id-worker-smoke"
     "$scratch/$case_id-worker-smoke" > "$receipt_dir/$case_id-smoke.log" 2>&1 || {
         echo "AICI-WEAK-SMOKE-DID-NOT-PASS case=$case_id" >&2
@@ -39,7 +53,7 @@ check() {
         echo "AICI-WEAK-SMOKE-NOT-OBSERVED case=$case_id" >&2
         exit 1
     }
-    cc -std=c11 -Wall -Wextra -Werror -O2 -I "$header_dir" \
+    "$compiler" $compiler_link_flags -std=c11 -Wall -Wextra -Werror -O2 -I "$header_dir" \
         -include "$candidate" "$oracle" -pthread -lm -o "$scratch/$case_id-semantic"
     cp "$scratch/$case_id-semantic" "$receipt_dir/$case_id-semantic.bin"
     executable_sha=$(sha256sum "$scratch/$case_id-semantic" | cut -d ' ' -f 1)
@@ -61,9 +75,10 @@ check() {
         echo "AICI-SEMANTIC-UNEXPECTED-RESULT case=$case_id got=$result wanted=$expected" >&2
         exit 1
     fi
-    printf '%s\t%s\t%s\t%s\t%s\t%s\tPASS\t%s\thand-derived-six-values\tfixed-six\thost-CPU-not-GPU-or-device\n' \
+    printf '%s\t%s\t%s\t%s\t%s\t%s\tPASS\t%s\thand-derived-six-values\tfixed-six\thost-CPU-not-GPU-or-device\t%s\t%s\n' \
         "$case_id" "$observed_revision" "$oracle_revision" "$sha" \
-        "$executable_sha" "$case_id-semantic" "$result" >> "$receipt"
+        "$executable_sha" "$case_id-semantic" "$result" \
+        "$compiler_revision" "$compiler_sha256" >> "$receipt"
     printf 'AICI-T1 case=%s old_smoke=PASS independent=%s source=%s\n' \
         "$case_id" "$result" "$observed_revision"
 }
@@ -108,6 +123,7 @@ fi
 sh "$aici_root/validators/verify_semantic_mutants.sh" \
     "$aici_root/tests/semantic-oracles/holomorphic-t1/cases.tsv" \
     "$receipt_dir" "$observed_revision" "$oracle_revision" \
-    hand-derived-six-values fixed-six host-CPU-not-GPU-or-device
+    hand-derived-six-values fixed-six host-CPU-not-GPU-or-device \
+    "$compiler_revision"
 printf 'AICI-INDEPENDENT-PASS good=1 killed=5 survived=0 cases=6 sut=%s oracle=%s\n' \
     "$observed_revision" "$oracle_revision"

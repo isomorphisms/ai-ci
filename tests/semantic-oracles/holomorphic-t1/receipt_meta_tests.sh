@@ -6,6 +6,7 @@ root=$(CDPATH= cd -- "$(dirname "$0")/../../.." && pwd)
 observations=${1:?Pass the actual independent AICI receipt directory}
 sut=${2:?Immutable Holomorphic source revision required}
 aici=${3:?Immutable AICI verifier revision required}
+compiler=${4:?Immutable ICK compiler revision required}
 case_manifest="$root/tests/semantic-oracles/holomorphic-t1/cases.tsv"
 validator="$root/validators/verify_semantic_mutants.sh"
 scratch=$(mktemp -d)
@@ -13,7 +14,7 @@ trap 'rm -rf "$scratch"' EXIT HUP INT TERM
 
 verify() {
     sh "$validator" "$case_manifest" "$1" "$sut" "$aici" \
-        hand-derived-six-values fixed-six host-CPU-not-GPU-or-device
+        hand-derived-six-values fixed-six host-CPU-not-GPU-or-device "$compiler"
 }
 verify "$observations" > "$scratch/positive.log"
 grep -Fq 'AICI-SEMANTIC-RECEIPT-ACCEPTED' "$scratch/positive.log" || {
@@ -97,4 +98,16 @@ head -n 1 "$scratch/empty-cases/aici-holomorphic-t1.tsv" \
 mv "$scratch/empty-cases/temp.tsv" "$scratch/empty-cases/aici-holomorphic-t1.tsv"
 reject_bad empty-cases
 
-printf 'AICI-META-ACCEPTANCE valid=1 invalid-rejected=11 invalid-accepted=0\n'
+fresh wrong-compiler-revision
+awk -F "$tab" 'BEGIN{OFS="\t"} $1=="good" {$12="0000000000000000000000000000000000000000"} {print}' \
+    "$scratch/wrong-compiler-revision/aici-holomorphic-t1.tsv" > "$scratch/wrong-compiler-revision/temp.tsv"
+mv "$scratch/wrong-compiler-revision/temp.tsv" "$scratch/wrong-compiler-revision/aici-holomorphic-t1.tsv"
+reject_bad wrong-compiler-revision
+
+fresh malformed-compiler-digest
+awk -F "$tab" 'BEGIN{OFS="\t"} $1=="good" {$13="not-a-sha256"} {print}' \
+    "$scratch/malformed-compiler-digest/aici-holomorphic-t1.tsv" > "$scratch/malformed-compiler-digest/temp.tsv"
+mv "$scratch/malformed-compiler-digest/temp.tsv" "$scratch/malformed-compiler-digest/aici-holomorphic-t1.tsv"
+reject_bad malformed-compiler-digest
+
+printf 'AICI-META-ACCEPTANCE valid=1 invalid-rejected=13 invalid-accepted=0\n'

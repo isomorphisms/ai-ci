@@ -6,8 +6,8 @@
 # good/bad control sensitivity. It does NOT certify oracle soundness, prove
 # unforgeability of local files, or replace running an independent evaluator.
 set -eu
-if [ "$#" -ne 7 ]; then
-    echo "usage: $0 cases.tsv receipt-directory exact-sut-sha exact-aici-sha oracle-id seed evidence-boundary" >&2
+if [ "$#" -ne 8 ]; then
+    echo "usage: $0 cases.tsv receipt-directory exact-sut-sha exact-aici-sha oracle-id seed evidence-boundary exact-ick-sha" >&2
     exit 2
 fi
 case_manifest=$1
@@ -17,6 +17,7 @@ expected_aici=$4
 expected_oracle=$5
 expected_seed=$6
 expected_layer=$7
+expected_compiler=$8
 receipt="$receipt_dir/aici-holomorphic-t1.tsv"
 for required in "$case_manifest" "$receipt"; do
     if [ ! -s "$required" ]; then
@@ -28,7 +29,7 @@ LC_ALL=C
 export LC_ALL
 # Malformed or truncated immutable identity arguments block before interpreting
 # any report. sha256 is for identity only, not mathematical truth.
-for revision in "$expected_sut" "$expected_aici"; do
+for revision in "$expected_sut" "$expected_aici" "$expected_compiler"; do
     case "$revision" in
         *[!0123456789abcdef]*|'') echo "AICI-INVALID-REVISION" >&2; exit 1 ;;
     esac
@@ -40,7 +41,7 @@ done
 
 awk -F '\t' -v sut="$expected_sut" -v aici="$expected_aici" \
     -v oracle="$expected_oracle" -v seed="$expected_seed" \
-    -v layer="$expected_layer" '
+    -v layer="$expected_layer" -v compiler="$expected_compiler" '
     function bad(message) {
         print "AICI-SEMANTIC-RECEIPT-REJECT " message > "/dev/stderr"
         errors++
@@ -62,11 +63,11 @@ awk -F '\t' -v sut="$expected_sut" -v aici="$expected_aici" \
     }
     FILENAME == ARGV[2] {
         if (FNR == 1) {
-            if ($0 != "case_id\tsut_revision\taici_revision\tcandidate_sha256\texecutable_sha256\tcandidate_test\toriginal_smoke\tsemantic_result\toracle\tseed\tevidence_boundary")
+            if ($0 != "case_id\tsut_revision\taici_revision\tcandidate_sha256\texecutable_sha256\tcandidate_test\toriginal_smoke\tsemantic_result\toracle\tseed\tevidence_boundary\tcompiler_revision\tcompiler_sha256")
                 bad("receipt-header")
             next
         }
-        if (NF != 11) { bad("receipt-column-count"); next }
+        if (NF != 13) { bad("receipt-column-count"); next }
         if (!($1 in cases)) bad("extra-case " $1)
         if (++observed[$1] != 1) bad("duplicate-case " $1)
         if ($2 != sut || $3 != aici) bad("stale-or-wrong-source " $1)
@@ -76,6 +77,8 @@ awk -F '\t' -v sut="$expected_sut" -v aici="$expected_aici" \
         if ($7 != "PASS") bad("original-smoke-not-observed " $1)
         if ($8 != cases[$1]) bad("surviving-or-wrong-mutant " $1)
         if ($9 != oracle || $10 != seed || $11 != layer) bad("wrong-oracle-seed-or-target " $1)
+        if ($12 != compiler) bad("wrong-compiler-revision " $1)
+        if (length($13) != 64 || $13 !~ /^[0-9a-f]+$/) bad("invalid-compiler-digest " $1)
         total++
         next
     }

@@ -16,18 +16,6 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
-      - name: Compile independent verifiers
-        shell: sh
-        run: |
-          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici src/aici.c
-          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-build-preflight tests/build_preflight_oracle.c
-          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-host-context src/aici_host_context.c
-      - name: Prove bad fixtures are rejected
-        shell: sh
-        run: /tmp/aici self-test tests/cases.tsv
-      - name: Keep historical backend probes off the recurring queue
-        shell: sh
-        run: /tmp/aici verify compiler_backends/historical.contract.tsv .
       - name: Refuse new first-party Python source
         shell: sh
         run: |
@@ -41,6 +29,21 @@ jobs:
             'tests/fixtures/language-bad-python/ci/hidden.py' \
             > "$RUNNER_TEMP/python-source.expected"
           diff -u "$RUNNER_TEMP/python-source.expected" "$RUNNER_TEMP/python-source.actual"
+      - name: Select the qualified ICK C compiler
+        uses: isomorphisms/ai-ci/ick-host@903b2cb27ea572c9c6cb2ffa9f39e0fbf06ec9f8
+        id: ick
+      - name: Compile independent verifiers
+        shell: sh
+        run: |
+          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici src/aici.c
+          "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-build-preflight tests/build_preflight_oracle.c
+          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-host-context src/aici_host_context.c
+      - name: Prove bad fixtures are rejected
+        shell: sh
+        run: /tmp/aici self-test tests/cases.tsv
+      - name: Keep historical backend probes off the recurring queue
+        shell: sh
+        run: /tmp/aici verify compiler_backends/historical.contract.tsv .
       - name: Prove APK and DEX release shelf classification
         shell: sh
         run: sh release-shelf/tests/self-test.sh
@@ -55,7 +58,7 @@ jobs:
         shell: sh
         run: |
           cc -std=c11 -Wall -Wextra -Wpedantic -O2 _ike/ike.c -o /tmp/ike
-          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 \
+          "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2 \
             ike/verify_receipt.c -o /tmp/aici-ike-receipt
       - name: Prove mutated Ike receipts are rejected
         shell: sh
@@ -169,11 +172,14 @@ jobs:
       - name: Require FFmpeg probes
         shell: sh
         run: command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null
+      - name: Select the qualified ICK C compiler
+        uses: isomorphisms/ai-ci/ick-host@903b2cb27ea572c9c6cb2ffa9f39e0fbf06ec9f8
+        id: ick
       - name: Compile video verifier and fixture generator
         shell: sh
         run: |
-          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-video src/aici_video.c -lm
-          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-video-fixtures video/tests/make_video_fixtures.c
+          "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-video src/aici_video.c -lm
+          "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-video-fixtures video/tests/make_video_fixtures.c
       - name: Generate real MP4 fixtures
         shell: sh
         run: /tmp/aici-video-fixtures "$RUNNER_TEMP/aici-video-fixtures"
@@ -197,11 +203,14 @@ jobs:
       - name: Require APK receipt probes
         shell: sh
         run: command -v git >/dev/null && command -v jq >/dev/null && command -v sha256sum >/dev/null && command -v zip >/dev/null && command -v unzip >/dev/null
+      - name: Select the qualified ICK C compiler
+        uses: isomorphisms/ai-ci/ick-host@903b2cb27ea572c9c6cb2ffa9f39e0fbf06ec9f8
+        id: ick
       - name: Compile F-Droid verifier and fixture generator
         shell: sh
         run: |
-          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-fdroid src/aici_fdroid.c
-          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-fdroid-fixtures fdroid/tests/make_receipt_fixtures.c
+          "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-fdroid src/aici_fdroid.c
+          "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-fdroid-fixtures fdroid/tests/make_receipt_fixtures.c
       - name: Prove candidate receipt producer derives evidence
         shell: sh
         run: |
@@ -236,12 +245,15 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --yes --no-install-recommends libxml2-utils
+      - name: Select the qualified ICK C compiler
+        uses: isomorphisms/ai-ci/ick-host@903b2cb27ea572c9c6cb2ffa9f39e0fbf06ec9f8
+        id: ick
       - name: Compile verifier and deterministic fixture server
         shell: sh
         run: |
-          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 \
+          "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2 \
             -o /tmp/aici-ingestion ingestion/src/aici_ingestion.c
-          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 \
+          "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2 \
             -o /tmp/aici-ingestion-server ingestion/src/fixture_server.c
       - name: Verify canonical corpus bytes
         shell: sh
@@ -334,14 +346,20 @@ jobs:
           ref: 7041b262c553e295b9769ebb84b7cb626e2ce50e
           path: _holomorphic
           persist-credentials: false
+      - name: Select the qualified ICK C compiler
+        uses: isomorphisms/ai-ci/ick-host@903b2cb27ea572c9c6cb2ffa9f39e0fbf06ec9f8
+        id: ick
       - name: Independently execute source evaluator against good and bad controls
         env:
           AICI_SEMANTIC_RECEIPT_DIR: ${{ runner.temp }}/aici-holomorphic-t1
+          AICI_C_COMPILER: ${{ steps.ick.outputs.compiler }}
+          AICI_C_LINK_FLAGS: ${{ steps.ick.outputs.link_flags }}
+          AICI_ICK_REVISION: c61e448251744a2f40ad743ebef1a027bdcd2f9d
         run: |
           set -euo pipefail
           sh tests/semantic-oracles/holomorphic-t1/run.sh \
             _holomorphic 7041b262c553e295b9769ebb84b7cb626e2ce50e
-      - name: Prove acceptance gate rejects eleven hostile semantic receipts
+      - name: Prove acceptance gate rejects thirteen hostile semantic receipts
         env:
           AICI_EXACT_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
@@ -349,11 +367,38 @@ jobs:
           sh tests/semantic-oracles/holomorphic-t1/receipt_meta_tests.sh \
             "$RUNNER_TEMP/aici-holomorphic-t1" \
             7041b262c553e295b9769ebb84b7cb626e2ce50e \
-            "$AICI_EXACT_REVISION"
+            "$AICI_EXACT_REVISION" \
+            c61e448251744a2f40ad743ebef1a027bdcd2f9d
       - name: Preserve independently observed semantic case logs and receipt
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: aici-holomorphic-t1-${{ github.event.pull_request.head.sha || github.sha }}
           path: ${{ runner.temp }}/aici-holomorphic-t1/
+          if-no-files-found: error
+
+  oracle-meta-corpus:
+    name: oracle-meta-corpus-semantic-result
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out exact AICI verifier head
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Select the qualified ICK C compiler
+        uses: isomorphisms/ai-ci/ick-host@903b2cb27ea572c9c6cb2ffa9f39e0fbf06ec9f8
+        id: ick
+      - name: Execute bounded oracle meta-corpus
+        run: >-
+          make -f tests/semantic-oracles/meta-corpus/Makefile test
+          ICK="${{ steps.ick.outputs.compiler }}"
+          ICK_LINK_FLAGS="${{ steps.ick.outputs.link_flags }}"
+          BUILD="$RUNNER_TEMP/aici-meta-corpus"
+      - name: Preserve raw observations and canonical semantic results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: aici-oracle-meta-corpus-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/aici-meta-corpus/
           if-no-files-found: error
