@@ -15,6 +15,6 @@ jobs:
       - uses: ./transfer-handoff
         with:
           catfood_ref: c16dcf0ab5057cbfd9cc7b0fedad587300724873
-          kitchen_ref: 6f2870f0c614f46b2bd45d66f549799d50534ddf
-          fp_ref: 41598f0f795e6b377f42af7f3da82186cb35ec81
+          kitchen_ref: 32c3bf2d7c6268b50f1e48395dc972cfbafec7a9
+          fp_ref: 9d3c0ea0d30275a068d6cfa08caf76751e81cbfa
           aici_ref: ${{ github.event.pull_request.head.sha || github.sha }}

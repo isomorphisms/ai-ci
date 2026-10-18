@@ -18,7 +18,7 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           repository: isomorphisms/flexible-pipes
-          ref: f422a4568da709d7528e7177a791a5592bb38636
+          ref: 9d3c0ea0d30275a068d6cfa08caf76751e81cbfa
           path: _fp
           persist-credentials: false
       - name: Check out exact Kitchen generator
