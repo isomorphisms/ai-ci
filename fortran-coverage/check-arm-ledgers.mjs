@@ -72,7 +72,7 @@ function check(expected,files,relocations,manifest){
    assert.deepEqual(g,[source.name,r.section,String(r.address),String(r.address+r.bytes.length/2),String(r.offset),String(r.bytes.length/2),r.kind,r.isa,r.bytes,r.id],'EXECUTABLE_RANGE_MISMATCH');ci++;
    if(r.kind==='INSTRUCTION'){
     count++;const mm=/^(\S+)\s*(.*)$/s.exec(r.assembly),effect=field(e,'Preliminary effect'),title=field(e,'Preliminary operation');
-    demand(title?.length>8&&effect?.length>30&&field(e,'Exact operands')===mm[2],'MISSING_OR_UNBOUND_PRELIMINARY_DESCRIPTION');
+    demand(title?.length>8&&effect?.length>30&&field(e,'Exact operands')===(mm[2]||'(none)'),'MISSING_OR_UNBOUND_PRELIMINARY_DESCRIPTION');
     demand(field(e,'Meaning status')==='ANNOTATED_ONLY; complete effects UNVERIFIED.'&&c[12]==='ANNOTATED_ONLY'&&c[13]==='UNVERIFIED','UNVERIFIED_SEMANTICS_MARKED_COMPLETE');
     demand(field(e,'Sequential successor only')===`0x${(r.address+r.bytes.length/2).toString(16)} (${r.bytes.length/2} encoded bytes). Actual control and faults remain separate.`,'WRONG_INSTRUCTION_WIDTH_OR_SUCCESSOR');
     const predicate=field(e,'Predicate evidence');if(r.isa==='A32'){const code=parseInt(r.bytes.match(/../g).reverse().join(''),16)>>>28;demand(predicate?.startsWith(['EQ:','NE:','CS:','CC:','MI:','PL:','VS:','VC:','HI:','LS:','GE:','LT:','GT:','LE:','AL:','UNCONDITIONAL_ENCODING_SPACE'][code]),'WRONG_A32_PREDICATE');}else demand(predicate?.includes('ITSTATE')&&!predicate.includes('AL: unconditional'),'THUMB_CONTEXT_ERASED');
