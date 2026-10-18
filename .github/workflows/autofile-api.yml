@@ -1,0 +1,35 @@
+name: Autofile API independent acceptance
+
+on:
+  pull_request:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  independent-api:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Exact ai-ci candidate
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Exact autofile API candidate
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: isomorphisms/autofile-chatgpt-threads
+          ref: 3da7ebe92435a7267a28e9e199e3baeeeddd74f9
+          path: autofile-api/producer
+          persist-credentials: false
+      - name: Exact ICK source producer
+        id: ick
+        uses: isomorphisms/ai-ci/ick-host@2843a804fea1bbc4e3e40b6c236064bb1d41f316
+      - name: Independent behavioral acceptance
+        run: make -C autofile-api check ICK="${{ steps.ick.outputs.compiler }}"
+      - name: Compile shared toolchain verifier through ICK
+        run: '"${{ steps.ick.outputs.compiler }}" -fno-link-libatomic -std=c11 -O2 src/aici.c -o autofile-api/build/toolchain-check'
+      - name: Require declared ICK toolchain
+        run: autofile-api/build/toolchain-check verify contracts/build-toolchain-v0.contract.tsv autofile-api
