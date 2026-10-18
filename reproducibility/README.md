@@ -46,7 +46,8 @@ differ.
 
 On success the verifier emits `aici-independent-build-verdict-v1`. The verdict
 binds both attempt and witness hashes, both executed-case hashes, the exact
-contract, every approved material identity and all four output stages. Any
+package receipts, contract, every approved material identity and all four
+output stages. Any
 source, dependency, tool, profile, recipe or policy change makes that verdict
 inapplicable and requires a new comparison.
 
