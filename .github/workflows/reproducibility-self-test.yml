@@ -80,8 +80,9 @@ jobs:
         env:
           VERDICT: ${{ steps.reproducibility.outputs.verdict }}
         run: |
+          tab="$(printf '\t')"
           test -s "$VERDICT"
-          grep -F $'schema\taici-independent-build-verdict-v1' "$VERDICT"
-          grep -F $'ndk_packager_revision\t75d2c6b88443c9cf865c30146a06b89868a182c5' "$VERDICT"
-          grep -F $'result\tPASS' "$VERDICT"
+          grep -F "schema${tab}aici-independent-build-verdict-v1" "$VERDICT"
+          grep -F "ndk_packager_revision${tab}75d2c6b88443c9cf865c30146a06b89868a182c5" "$VERDICT"
+          grep -F "result${tab}PASS" "$VERDICT"
 
