@@ -1,0 +1,49 @@
+#!/usr/bin/env grease
+# Independent observation of bytes and destination; no producer success import.
+set -eu
+fail() { printf 'FAIL AICI transfer handoff: %s\n' "$*" >&2; exit 1; }
+test "$#" -eq 7 || fail 'usage: check|destination|publication PROGRAM SHA256 STATE DESTINATION ID UPSTREAM'
+mode=$1
+program=$2
+expected_hash=$3
+state=$4
+destination=$5
+expected_id=$6
+upstream=$7
+hash=$(sha256sum "$program" | cut -d ' ' -f1)
+test "$hash" = "$expected_hash" || fail 'handed-off command differs from tested bytes'
+test -s "$state/fp-envelope.tsv" || fail 'missing Flexible Pipes envelope'
+grep -Fx "program_sha256=$expected_hash" "$state/fp-envelope.tsv" >/dev/null || fail 'program not bound to FP envelope'
+grep -Fx "repository_id=$expected_id" "$state/fp-envelope.tsv" >/dev/null || fail 'identity not bound to FP envelope'
+grep -Fx "destination=$destination" "$state/fp-envelope.tsv" >/dev/null || fail 'destination not bound to FP envelope'
+grep -Fx "upstream=$upstream" "$state/fp-envelope.tsv" >/dev/null || fail 'upstream not bound to FP envelope'
+case $mode in
+    check) printf 'PASS AICI delivered bytes and local execution record; trusted admission NOT_VERIFIED\n'; exit 0;;
+    publication) fail 'protected FP admission and visible delivery are not implemented; local records cannot authorize publication';;
+    destination) true;;
+    *) fail 'invalid verification mode';;
+esac
+setglobal ENV.GH_TOKEN = null
+setglobal ENV.GITHUB_TOKEN = null
+setglobal ENV.GH_HOST = 'github.com'
+record=$(mktemp -d "$state/independent.XXXXXX")
+try { timeout 25 gh api "repos/$destination" --jq '[.id, .full_name, .fork, (.parent.full_name // "-"), (.source.full_name // "-"), (.permissions.admin // false)] | @tsv' > "$record/response.tsv" 2> "$record/stderr" }
+var code = _error.code
+printf '%s\n' "$code" > "$record/exit"
+if (code !== 0) { cat "$record/response.tsv" "$record/stderr" >&2; fail 'destination cannot be independently read' }
+actual_id=$(cut -f1 "$record/response.tsv")
+actual_name=$(cut -f2 "$record/response.tsv" | tr '[:upper:]' '[:lower:]')
+expected_name=$(printf '%s' "$destination" | tr '[:upper:]' '[:lower:]')
+actual_parent=$(cut -f4 "$record/response.tsv" | tr '[:upper:]' '[:lower:]')
+actual_source=$(cut -f5 "$record/response.tsv" | tr '[:upper:]' '[:lower:]')
+expected_parent=$(printf '%s' "$upstream" | tr '[:upper:]' '[:lower:]')
+test "$actual_id" = "$expected_id" || fail 'independent repository ID mismatch'
+test "$actual_name" = "$expected_name" || fail 'independent canonical destination mismatch'
+test "$actual_parent" = "$expected_parent" && test "$actual_source" = "$expected_parent" || fail 'independent original upstream mismatch'
+actual_fork=$(cut -f3 "$record/response.tsv")
+if test "$upstream" = '-'; then
+    test "$actual_fork" = false || fail 'independent nonfork identity mismatch'
+else
+    test "$actual_fork" = true || fail 'independent fork identity mismatch'
+fi
+printf 'PASS AICI independently observed destination, immutable ID and upstream\n'

@@ -1,0 +1,23 @@
+key	value
+ick_repository	dilapidated-shed/ick
+ick_revision	fbe86e23d55cfec2000c08e61deea2a407fd7175
+compiler_pr	https://github.com/dilapidated-shed/ick/pull/85
+gcc_reference	6294f1d9e7536e5ffcde09d1528c918d63abfef5
+cause	floating complex extraction-only functions could skip lowering and expose physical polar slots as Cartesian components
+old_frontend_sha256	a181082f120a906c86ebd8c7a2378bcc83d9694a8c533438536768f180ad1b17
+old_extraction_control	FAIL at all O0/O1/O2/O3/Os; exit 10 at O0 and 12 at other levels
+new_frontend_sha256	3c3886708a382cb4aff03d5d8a5fd0986f8a73359277f7bd39d71feaca7a452c
+local_build	isolated incremental current-source object closure; modified tree-complex object built with owned headers; executable checksum regenerated; old compiler retained
+native_extraction_layout_round	PASS; 15 executions across O0/O1/O2/O3/Os
+native_compile_controls	PASS; Float16 compilation and both object-byte-fold constant results
+native_action_qualifier	PASS; glyph O0/O2; static stdio and no interpreter; wrong-division exit 2; intended preprocessor rejection
+bionic_x86_profile	NDK r27c API26; FORTIFY_SOURCE=2; PIC; DWARF4; compiler builtin headers before Bionic
+bionic_x86_extraction	PASS; actual static Bionic runtime O0/O1/O2/O3/Os
+bionic_x86_existing_qualifier	PASS; glyphs and metadata; atomics O0/O2; all four optimized Fortify runtime checks and unsupported-function/API controls; COPY negative
+actual_consumer_r29_x86	PASS; Coefficient Root Dance actual renderer-state tests Debug and Release; full unchanged Debug library compile/assembly/link
+new_armv7_aarch64_local	NOT_RUN; retained older target stages are c61 and are not relabeled as fixed
+clean_hosted_builds	PENDING at publication; exact-source native and three-ABI action workflows produce separate receipts
+consumer_emulator	PENDING at publication; retained unchanged emulator acceptance remains a consumer responsibility
+float128_limitation	preexisting assertion reproduced with old and new compilers; separate ICK PR81, not claimed repaired
+cross_compiler_complex_abi	NOT_CLAIMED
+physical_device	NOT_RUN

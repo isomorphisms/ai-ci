@@ -1,0 +1,32 @@
+"""Independently recompute all retained exact relations without grading labels."""
+import sys
+from pathlib import Path
+from builtins import ValueError
+import rhs_findings
+
+arguments ∈ list[str] ← sys.argv
+root ∈ str ← arguments[1]
+contracts ∈ list[str] ← Path(root + "/contracts.tsv").read_text().splitlines()
+findings ∈ list[str] ← Path(root + "/exact/findings.tsv").read_text().splitlines()
+if len(contracts) != 105 or len(findings) != 105:
+    raise ValueError("Missing baseline contract or finding evidence")
+reported ∈ dict[str, list[str]] ← {}
+for line in findings[1:]:
+    fields ∈ list[str] ← line.split("\t")
+    if len(fields) != 4 or fields[0] in reported:
+        raise ValueError("Invalid baseline finding identity")
+    reported[fields[0]] ← fields
+counts ∈ dict[str, int] ← {"agreement-tested": 0, "contradiction": 0, "unknown": 0}
+for line in contracts[1:]:
+    contract ∈ list[str] ← line.split("\t")
+    identifier ∈ str ← contract[0]
+    observation ∈ str ← Path(root + "/exact-input/" + identifier + "/observation.tsv").read_text()
+    independent ∈ str ← rhs_findings.decide(contract[1], observation)
+    packet ∈ bytes ← Path(root + "/candidate/" + identifier + ".txt").read_bytes()
+    hash ∈ str ← rhs_findings.digest(packet)
+    if hash != reported[identifier][1] or independent != reported[identifier][3]:
+        raise ValueError("Baseline finding disagrees with independent evidence")
+    counts[independent] ← counts[independent] + 1
+if counts["agreement-tested"] != 48 or counts["contradiction"] != 48 or counts["unknown"] != 8:
+    raise ValueError("Baseline exact observation scope changed")
+print("PASS independent 48 agreements, 48 witnessed contradictions and eight unsupported observations; labels not read")

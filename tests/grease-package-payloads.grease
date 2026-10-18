@@ -1,0 +1,39 @@
+#!/usr/bin/env grease
+# Uses real published ARM payloads; does not execute ARM or claim device tests.
+set -eu
+test "$#" -eq 4 || exit 2
+catfood=$1
+a1=$2
+c67=$3
+output=$4
+test ! -e "$output" || exit 2
+mkdir -p "$output"
+verifier=$catfood/android/verify-grease-package.sh
+sh "$verifier" "$a1" grease-phone > "$output/a1.txt"
+sh "$verifier" "$c67" grease-tablet > "$output/c67.txt"
+expect_rejection() {
+    label=$1
+    directory=$2
+    package=$3
+    diagnostic=$4
+    try { sh "$verifier" "$directory" "$package" > "$output/$label.stdout" 2> "$output/$label.stderr" }
+    var code = _error.code
+    test "$code" = 3 || { echo "FAIL $label status=$code"; exit 1; }
+    grep -F "$diagnostic" "$output/$label.stderr" >/dev/null
+    printf 'PASS\t%s\trejected-before-execution\n' "$label"
+}
+expect_rejection wrong-abi "$a1" grease-tablet 'wrong ELF class'
+for case_name in corrupt-engine corrupt-wrapper corrupt-receipt missing-engine symlink-engine; do
+    cp -a "$c67" "$output/$case_name"
+done
+printf X >> "$output/corrupt-engine/bin/ysh"
+printf X >> "$output/corrupt-wrapper/bin/grease"
+printf X >> "$output/corrupt-receipt/receipts/build.tsv"
+rm "$output/missing-engine/bin/ysh" "$output/symlink-engine/bin/ysh"
+ln -s "$c67/bin/ysh" "$output/symlink-engine/bin/ysh"
+expect_rejection corrupt-engine "$output/corrupt-engine" grease-tablet 'corrupt native engine'
+expect_rejection corrupt-wrapper "$output/corrupt-wrapper" grease-tablet 'stale or corrupt launcher'
+expect_rejection corrupt-receipt "$output/corrupt-receipt" grease-tablet 'corrupt packaging receipt'
+expect_rejection missing-engine "$output/missing-engine" grease-tablet 'missing or redirected payload'
+expect_rejection symlink-engine "$output/symlink-engine" grease-tablet 'missing or redirected payload'
+printf 'PASS two real published package payloads and six rejection controls; ARM runtime NOT_RUN\n'

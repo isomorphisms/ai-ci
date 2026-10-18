@@ -1,0 +1,11 @@
+pole_dimension=1
+pole_radical_equals_original=true
+pole_groebner=matrix {{cosA-1, sinA, axisZ-10, axisY, axisX, sinC^2+cosC^2-1}}
+near_dimension=0
+near_length_over_QQ=2
+ambient_minors_groebner=matrix {{sinA, sinC^2+cosC^2-1, cosA^2-1}}
+whole_special_dimension=1
+punctured_limit_dimension=0
+punctured_limit_length=2
+punctured_limit_groebner=matrix {{inverseDenominator-1, sinC, cosA-1, sinA, h, cosC^2-1}}
+PASS case-b: reduced pole, two-point nearby fiber, minors, limiting settings
