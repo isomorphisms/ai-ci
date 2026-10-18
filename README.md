@@ -16,6 +16,12 @@ branches. It compiles the real `Network.SMS` parser, drives the filesystem
 service through that executable, and proves four hostile service mutations are
 rejected. See [`sms/README.md`](sms/README.md).
 
+The optional [`reproducibility/`](reproducibility/) gate independently compares
+two complete consumer builds made in disjoint roots. It consumes the exact
+NativeActivity receipt v2 contract, rehashes retained outputs and evidence, and
+rejects material drift, reused execution witnesses, omitted stages and unequal
+promised bytes without equating ARMv7 output with AArch64 output.
+
 The initial kernel is a small native C verifier. It has no package-manager
 bootstrap and does not treat file existence alone as acceptance. A consumer pins
 this repository by full commit SHA, supplies a tab-separated contract, and
