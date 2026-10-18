@@ -72,7 +72,7 @@ def validate_operation(value ∈ object) → dict[str, object]:
     return operation
 
 def kitchen_program(kitchen ∈ str, grease ∈ str, operation ∈ dict[str, object]) → bytes:
-    generator ∈ Path ← Path(kitchen) / "tasks/github-repository-transfer/render-standalone-github-repository-organization-transfer.ysh"
+    generator ∈ Path ← Path(kitchen + "/tasks/github-repository-transfer/render-standalone-github-repository-organization-transfer.ysh")
     if not generator.is_file():
         raise ValueError("TRANSFER_COMMAND_KITCHEN_GENERATOR")
     completed ∈ object ← subprocess.run(

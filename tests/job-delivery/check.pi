@@ -334,12 +334,12 @@ def chat_bypass_cases() → None:
     work ∈ Path ← output.joinpath("chat-bypass")
     work.mkdir()
     fixture ∈ Path ← Path(root + "/tests/fixtures/chat-bypass/gh.grease")
-    fake_bin ∈ Path ← work / "bin"
+    fake_bin ∈ Path ← work.joinpath("bin")
     fake_bin.mkdir()
-    fake_gh ∈ Path ← fake_bin / "gh"
+    fake_gh ∈ Path ← fake_bin.joinpath("gh")
     fake_gh.write_bytes(fixture.read_bytes())
     os.chmod(str(fake_gh), 448)
-    attempts ∈ Path ← work / "transfer-attempts.tsv"
+    attempts ∈ Path ← work.joinpath("transfer-attempts.tsv")
     environment ∈ dict[str, str] ← dict(os.environ)
     environment["KITCHEN_ROOT"] ← kitchen
     environment["GREASE_BINARY"] ← grease
@@ -387,7 +387,7 @@ def chat_bypass_cases() → None:
             "upstream": "conanwu777/Museum_of_Shaders"
         }
     }
-    run_root ∈ Path ← work / "runs"
+    run_root ∈ Path ← work.joinpath("runs")
     pipeline_command ∈ list[str] ← [
         sys.executable,
         fp + "/scripts/run-pipeline",
