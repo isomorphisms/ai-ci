@@ -46,9 +46,15 @@ function(run command_name)
 endfunction()
 
 function(configure_wegert source build api)
+  set(path_policy "${build}-path-policy.cmake")
+  file(WRITE "${path_policy}"
+    "add_compile_options(\n"
+    "  \"-ffile-prefix-map=${source}/_/build=@consumer-source@\"\n"
+    "  \"-ffile-prefix-map=${build}=@consumer-build@\")\n")
   run("Wegert configure"
     "${CMAKE_COMMAND}" -S "${source}/_/build" -B "${build}" -G Ninja
     "-DCMAKE_TOOLCHAIN_FILE=${toolchain}"
+    "-DCMAKE_PROJECT_INCLUDE=${path_policy}"
     -DANDROID_ABI=x86_64 "-DANDROID_PLATFORM=android-${api}"
     -DCMAKE_BUILD_TYPE=Release
     -DWEGERT_USE_ICK_PREBUILT=OFF -DWEGERT_USE_ICK_COMPLEX_SOURCE=ON
@@ -106,6 +112,32 @@ function(compare_receipts label left right)
   endforeach()
 endfunction()
 
+function(consumer_object_identity build output)
+  file(GLOB_RECURSE objects "${build}/CMakeFiles/*.o")
+  list(FILTER objects INCLUDE REGEX "/[^/]+\\.dir/")
+  list(SORT objects)
+  if(NOT objects)
+    message(FATAL_ERROR "Wegert build retained no native consumer objects")
+  endif()
+  set(combined)
+  foreach(object IN LISTS objects)
+    file(RELATIVE_PATH relative "${build}" "${object}")
+    file(SHA256 "${object}" object_sha)
+    string(APPEND combined "${relative}\t${object_sha}\n")
+  endforeach()
+  string(SHA256 identity "${combined}")
+  set(${output} "${identity}" PARENT_SCOPE)
+endfunction()
+
+function(compare_consumer_objects label left right)
+  consumer_object_identity("${left}" left_identity)
+  consumer_object_identity("${right}" right_identity)
+  if(NOT left_identity STREQUAL right_identity)
+    message(FATAL_ERROR
+      "${label} incremental and clean native consumer objects differ")
+  endif()
+endfunction()
+
 function(compare_incremental_with_clean label api)
   build_wegert("${incremental}")
   material_identity("${incremental}" observed_material)
@@ -117,6 +149,7 @@ function(compare_incremental_with_clean label api)
   configure_wegert("${WEGERT_SOURCE}" "${clean}" "${api}")
   build_wegert("${clean}")
   compare_receipts("${label}" "${incremental}" "${clean}")
+  compare_consumer_objects("${label}" "${incremental}" "${clean}")
   file(SHA256 "${incremental}/libwegert.so" incremental_sha)
   file(SHA256 "${clean}/libwegert.so" clean_sha)
   if(NOT incremental_sha STREQUAL clean_sha)
@@ -169,6 +202,7 @@ set(clean_baseline "${TEST_ROOT}/clean-baseline")
 configure_wegert("${WEGERT_SOURCE}" "${clean_baseline}" 26)
 build_wegert("${clean_baseline}")
 compare_receipts(baseline "${incremental}" "${clean_baseline}")
+compare_consumer_objects(baseline "${incremental}" "${clean_baseline}")
 file(SHA256 "${incremental}/libwegert.so" incremental_sha)
 file(SHA256 "${clean_baseline}/libwegert.so" clean_sha)
 if(NOT incremental_sha STREQUAL clean_sha)
@@ -242,6 +276,7 @@ if(NOT relocated_material STREQUAL incremental_material)
   message(FATAL_ERROR "Benign Wegert source/build relocation changed canonical material identity")
 endif()
 compare_receipts(relocation "${incremental}" "${relocated_build}")
+compare_consumer_objects(relocation "${incremental}" "${relocated_build}")
 file(SHA256 "${relocated_build}/libwegert.so" relocated_sha)
 file(SHA256 "${incremental}/libwegert.so" incremental_sha)
 if(NOT relocated_sha STREQUAL incremental_sha)
