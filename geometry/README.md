@@ -69,11 +69,12 @@ insertions. These are finite joined-round annular constructions.
 Printed per-parent instructions are parsed independently back into the material
 ledger. Missing work, changed parent, counted lifting chain and wrong seam are
 rejected. Two drawing scales must preserve the ledger/instructions byte for
-byte and the SVG's exact material/foundation/incidence/seam identifiers. A
-duplicated diagram identity fails. Ten real mutated native ledgers must exit 1;
-nine independent in-memory ledger mutations exercise the checker's own refusal.
-The SVG test checks semantic labels and density invariance, not optical image
-quality or full geometric placement of every line.
+byte and the SVG's exact material/foundation/incidence/seam identifiers. It also
+checks parent-line endpoints, material and foundation positions, increase marks
+and cyclic seam paths. A duplicated identity and a rewired parent line whose ID
+is unchanged both fail. Ten real mutated native ledgers must exit 1; nine
+independent in-memory ledger mutations exercise the checker's own refusal. This
+is semantic diagram acceptance, not an optical image-quality claim.
 
 This contract establishes discrete construction/instruction agreement only.
 It does not measure yarn, crochet gauge, stretching, Gaussian curvature,
