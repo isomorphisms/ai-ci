@@ -45,8 +45,11 @@ static int workflow(const char *bytes)
         && strstr(bytes, "check-capture") && strstr(bytes, "check-capture-mutants")
         && strstr(bytes, "npm run check") && strstr(bytes, "check-store") && strstr(bytes, "check-https");
 }
-static int fail(const char *message) { fprintf(stderr, "FAIL %s\n", message); return 1; }
-int main(int argc, char **argv)
+static const char *last_error;
+static const char *location_name = "capture-success";
+static const char *expected_source;
+static int fail(const char *message) { last_error = message; fprintf(stderr, "FAIL %s\n", message); return 1; }
+static int run(int argc, char **argv)
 {
     if (argc == 3 && !strcmp(argv[1], "--check-workflow")) {
         char bytes[32768];
@@ -61,7 +64,7 @@ int main(int argc, char **argv)
     }
     if (argc != 4) return fail("usage: check NATIVE_DIRECTORY FIXTURE_DIRECTORY EXPORTER_WORKFLOW");
     char path[2048], location[512], root[2048], bytes[32768];
-    (void)snprintf(path, sizeof(path), "%s/build/capture-success.path", argv[1]);
+    (void)snprintf(path, sizeof(path), "%s/build/%s.path", argv[1], location_name);
     size_t n = read_file(path, location, sizeof(location), 1);
     if (!n || location[n - 1] != '\n') return fail("capture location is missing or not private");
     location[--n] = 0;
@@ -71,6 +74,12 @@ int main(int argc, char **argv)
     char workspace_hash[65]; (void)hash("selected_fixture_workspace", strlen("selected_fixture_workspace"), workspace_hash);
     if (snprintf(path, sizeof(path), "%s/validation-%s.tsv", root, workspace_hash) >= (int)sizeof(path)
         || !read_file(path, bytes, sizeof(bytes), 1)) return fail("validation report missing or not private");
+    if (expected_source) {
+        char required[80]; (void)snprintf(required, sizeof(required), "\nsource\t%s\n", expected_source);
+        if (!strstr(bytes, required)) return fail("validation report is not bound to the qualified source head");
+    }
+    if (strstr(bytes, "\nexpected\t4\n") && strstr(bytes, "\ncompleted\t4\n") && strstr(bytes, "\nscope_result\tCOMPLETE_BOUNDED_MAIN_ARCHIVED\n")) return fail("premature inventory completion");
+    if (strstr(bytes, "\nexpected\t5\n") && strstr(bytes, "\ncompleted\t4\n") && strstr(bytes, "\nscope_result\tCOMPLETE_BOUNDED_MAIN_ARCHIVED\n")) return fail("silent expected-record omission");
     if (!strstr(bytes, "\nfull_account_export_complete\tfalse\n") || !strstr(bytes, "\nexpected\t5\n")
         || !strstr(bytes, "\ncompleted\t5\n") || !strstr(bytes, "\nscope_result\tCOMPLETE_BOUNDED_MAIN_ARCHIVED\n")
         || !strstr(bytes, "\natomic_provider_snapshot_proven\tfalse\n")) return fail("completion/report scope is wrong");
@@ -90,7 +99,8 @@ int main(int argc, char **argv)
         if (!expected_size || !hash(expected, expected_size, object_hash) || !hash(ids[i], strlen(ids[i]), id_hash)) { result = fail("independent oracle missing"); break; }
         if (snprintf(path, sizeof(path), "%s/objects/%s", root, object_hash) >= (int)sizeof(path)) { result = fail("object path exceeds bound"); break; }
         size_t actual_size = read_file(path, actual, sizeof(actual), 1);
-        if (actual_size != expected_size || memcmp(actual, expected, expected_size)) { result = fail("expected raw graph omitted or changed"); break; }
+        if (actual_size != expected_size) { result = fail("expected raw graph omitted or truncated"); break; }
+        if (memcmp(actual, expected, expected_size)) { result = fail("corrupt immutable raw graph"); break; }
         char measured[65]; (void)hash(actual, actual_size, measured);
         if (strcmp(measured, object_hash)) { result = fail("object SHA-256 differs from independent oracle"); break; }
         if (snprintf(path, sizeof(path), "%s/complete-%s-%s.tsv", root, workspace_hash, id_hash) >= (int)sizeof(path)) { result = fail("marker path exceeds bound"); break; }
@@ -106,4 +116,24 @@ int main(int argc, char **argv)
     if (!read_file(argv[3], bytes, sizeof(bytes), 0) || !workflow(bytes)) return fail("required workflow can skip a material capture change");
     printf("PASS independent raw oracle, expected IDs, markers, private modes, report scope and trigger coverage\nvalidation_sha256\t%s\nevidence\thost-loopback-artifacts-only\nfull_account_export_complete\tfalse\n", report_hash);
     return 0;
+}
+int main(int argc, char **argv)
+{
+    if (argc >= 3 && !strcmp(argv[1], "--source")) {
+        if (strlen(argv[2]) != 40 || strspn(argv[2], "0123456789abcdef") != 40) return fail("expected source must be an exact commit");
+        expected_source = argv[2]; argc -= 2; argv += 2;
+    }
+    if (argc == 5 && !strcmp(argv[1], "--reject-mutants")) {
+        const char *cases[] = { "mutant-premature", "mutant-omission", "mutant-marker" };
+        const char *diagnostics[] = { "premature inventory completion", "silent expected-record omission", "corrupt immutable raw graph" };
+        char *inputs[] = { argv[0], argv[2], argv[3], argv[4] };
+        for (unsigned i = 0; i < 3; ++i) {
+            location_name = cases[i]; last_error = NULL;
+            int status = run(4, inputs);
+            if (status != 1 || !last_error || strcmp(last_error, diagnostics[i])) return fail("behavioral mutant did not fail its independent diagnostic");
+            printf("PASS independent mutant rejection\t%s\t%s\n", cases[i], diagnostics[i]);
+        }
+        return 0;
+    }
+    return run(argc, argv);
 }

@@ -20,3 +20,7 @@ jobs:
         run: sudo apt-get install -y libssl-dev
       - name: Independent verifier positive and skipped-trigger mutant
         run: make -C native-capture check ICK="${{ steps.ick.outputs.compiler }}"
+      - name: Compile the shared source-toolchain verifier through ICK
+        run: '"${{ steps.ick.outputs.compiler }}" -fno-link-libatomic -std=c11 -O2 src/aici.c -o native-capture/build/toolchain-check'
+      - name: Require the independent verifier toolchain declaration
+        run: native-capture/build/toolchain-check verify contracts/build-toolchain-v0.contract.tsv native-capture

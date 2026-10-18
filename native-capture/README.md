@@ -17,3 +17,14 @@ No account, credential, network operation, device or controller is exercised.
 The caller must bind exact exporter, verifier, fixture and workflow source
 hashes. These checks do not certify a deployed FP controller or visible sink,
 physical disk survival, Android, browserless authentication or account export.
+
+Run `check --reject-mutants NATIVE_DIRECTORY FIXTURE_DIRECTORY EXPORTER_WORKFLOW`
+after the three compiled native mutants. It checks their retained actual disk
+outputs and requires distinct independent diagnostics for prematurely completed
+inventory, a silently omitted expected record and corrupt immutable raw data
+behind a reused completion marker. A missing artifact or unrelated failure does
+not count as rejection of the intended mutant. No native self-test status is
+used as the independent acceptance decision.
+The qualified Kitchen/Ike path additionally supplies `--source EXACT_COMMIT`
+for both the positive capture and every bad artifact. A host/unbound or stale
+report cannot stand in for a source-qualified producer result.
