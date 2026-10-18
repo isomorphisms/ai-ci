@@ -26,4 +26,6 @@ runs:
       env:
         AICI_STAGE_PLAN: ${{ inputs.plan }}
         AICI_STAGE_OBSERVATIONS: ${{ inputs.observations }}
-      run: "$RUNNER_TEMP/aici-stage-verdict" normalize "$AICI_STAGE_PLAN" "$AICI_STAGE_OBSERVATIONS"
+      run: >-
+        "$RUNNER_TEMP/aici-stage-verdict" normalize
+        "$AICI_STAGE_PLAN" "$AICI_STAGE_OBSERVATIONS"
