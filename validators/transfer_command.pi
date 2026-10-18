@@ -113,8 +113,15 @@ def check(
         raise ValueError("TRANSFER_COMMAND_OPERATION")
     if str(operation["repository_id"]) != str(expected_operation["repository_id"]):
         raise ValueError("TRANSFER_COMMAND_REPOSITORY_ID")
-    if operation != expected_operation or dict(record["request"]) != expected_request:
+    for field in FIELDS:
+        if str(operation[field]) != str(expected_operation[field]):
+            raise ValueError("TRANSFER_COMMAND_ADMISSION")
+    record_request ∈ dict[str, object] ← dict(record["request"])
+    if len(record_request) != len(expected_request):
         raise ValueError("TRANSFER_COMMAND_ADMISSION")
+    for key in expected_request:
+        if not record_request.__contains__(key) or not isinstance(record_request[key], str) or not isinstance(expected_request[key], str) or str(record_request[key]) != str(expected_request[key]):
+            raise ValueError("TRANSFER_COMMAND_ADMISSION")
     try:
         job_delivery.check(stage, payload, response, True)
     except ValueError:

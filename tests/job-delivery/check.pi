@@ -6,7 +6,7 @@ import zipfile
 import os
 import subprocess
 from pathlib import Path
-from builtins import dict, list, ValueError, Exception, AssertionError
+from builtins import dict, list, ValueError, Exception, AssertionError, isinstance
 import handoff
 import job_delivery
 import transfer_command
@@ -359,13 +359,21 @@ def chat_bypass_cases() → None:
 
     public_pipeline ∈ dict[str, object] ← json.loads(Path(fp + "/pipelines/how-to-move-the-users-github-repository-to-a-different-organization.json").read_bytes())
     execute_pipeline ∈ dict[str, object] ← json.loads(Path(fp + "/pipelines/execute-github-repository-organization-transfer.json").read_bytes())
-    public_stage ∈ dict[str, object] ← dict(list(public_pipeline["stages"])[0])
-    execute_stage ∈ dict[str, object] ← dict(list(execute_pipeline["stages"])[0])
+    public_stages ∈ list[object] ← list(public_pipeline["stages"])
+    execute_stages ∈ list[object] ← list(execute_pipeline["stages"])
+    if len(public_stages) != 1 or len(execute_stages) != 1:
+        raise AssertionError("transfer pipelines must each declare one stage")
+    public_stage ∈ dict[str, object] ← dict(public_stages[0])
+    execute_stage ∈ dict[str, object] ← dict(execute_stages[0])
+    public_argv ∈ list[object] ← list(public_stage["argv"])
+    execute_argv ∈ list[object] ← list(execute_stage["argv"])
+    if len(public_argv) < 2 or len(execute_argv) < 2:
+        raise AssertionError("transfer pipeline stage argv is incomplete")
     structural_failure ∈ bool ← str(public_stage["name"]) != "prepare-kitchen-display-only-handoff"
-    structural_failure ← structural_failure or str(list(public_stage["argv"])[1]) != "scripts/how-to-move-the-users-github-repository-to-a-different-organization.ysh"
+    structural_failure ← structural_failure or str(public_argv[1]) != "scripts/how-to-move-the-users-github-repository-to-a-different-organization.ysh"
     structural_failure ← structural_failure or not isinstance(public_stage.get("handoff"), dict)
     structural_failure ← structural_failure or str(execute_stage["name"]) != "protected-six-argument-execution"
-    structural_failure ← structural_failure or str(list(execute_stage["argv"])[1]) != "scripts/execute-github-repository-organization-transfer.grease"
+    structural_failure ← structural_failure or str(execute_argv[1]) != "scripts/execute-github-repository-organization-transfer.grease"
 
     revision ∈ str ← "32c3bf2d7c6268b50f1e48395dc972cfbafec7a9"
     admission ∈ dict[str, object] ← {
@@ -417,7 +425,10 @@ def chat_bypass_cases() → None:
     generated ∈ dict[str, object] ← json.loads(child.stdout)
     if int(child.returncode) == 0 or str(generated["status"]) != "AWAITING_HANDOFF_DELIVERY" or structural_failure:
         raise AssertionError("public transfer pipeline did not stop at the display handoff")
-    stage ∈ dict[str, object] ← dict(list(generated["stages"])[0])
+    generated_stages ∈ list[object] ← list(generated["stages"])
+    if len(generated_stages) != 1:
+        raise AssertionError("display pipeline did not return one stage")
+    stage ∈ dict[str, object] ← dict(generated_stages[0])
     response_artifact ∈ Path ← Path(str(generated["response_artifact"]))
     payload ∈ bytes ← response_artifact.parent.joinpath("stdout.bin").read_bytes()
     response ∈ bytes ← handoff.render(payload, "")
@@ -434,7 +445,7 @@ def chat_bypass_cases() → None:
     correction_record ∈ dict[str, object] ← dict(incident["later_correction"])
     if str(incident["original_prompt"]) != "GH script to move considered to Fuego ironworks" or str(identity["requested_repository"]) != "considered" or str(identity["selected_repository"]) != "consider" or str(identity["status"]) != "UNRESOLVED" or str(incident["historical_execution_evidence"]) != "ABSENT":
         raise AssertionError("sanitized incident metadata changed")
-    if str(forbidden_record["sha256"]) != handoff.digest(forbidden) or str(correction_record["sha256"]) != handoff.digest(correction):
+    if str(forbidden_record["sha256"]) != str(handoff.digest(forbidden)) or str(correction_record["sha256"]) != str(handoff.digest(correction)):
         raise AssertionError("sanitized incident fixture bytes changed")
     observed["unadmitted-direct-transfer"] ← command_result({}, forbidden, forbidden, admission)
 

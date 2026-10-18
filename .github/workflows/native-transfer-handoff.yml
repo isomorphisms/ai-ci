@@ -16,5 +16,5 @@ jobs:
         with:
           catfood_ref: c16dcf0ab5057cbfd9cc7b0fedad587300724873
           kitchen_ref: 32c3bf2d7c6268b50f1e48395dc972cfbafec7a9
-          fp_ref: 7d252a904fa6bc8e7282db7f83bc33a3bdf7256f
+          fp_ref: 2519405a746ae883247ce29fa45991cccda4087c
           aici_ref: ${{ github.event.pull_request.head.sha || github.sha }}
