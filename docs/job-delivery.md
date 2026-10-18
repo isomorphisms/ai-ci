@@ -46,6 +46,24 @@ positive twins. `tests/job-delivery/check.pi` builds its own capture evidence
 without calling the producer's `deliver()`; expected outcomes and diagnostics
 are in `cases.tsv`. FP's separate suite executes effects and the real runner.
 
+## GitHub transfer display commands
+
+`validators/transfer_command.pi` is the narrow companion check for the
+registered FP GitHub repository-transfer display operation. It compares the
+actual displayed bytes with a fresh invocation of Kitchen's pinned Grease
+generator, then checks the independently supplied original request and transfer
+metadata. It rejects an unadmitted direct response, routing a script-only
+request to execute, missing or substituted immutable repository ID, recomputed
+request/admission, changed visible bytes, and an apology substituted for the
+bytes. The positive fixture preserves an ordinary read-only GitHub query and
+the exact Kitchen display-only program with zero transfer attempts.
+
+This is not a generic natural-language firewall and it does not establish a
+ChatGPT adapter. The resulting fixture comparison proves only the declared
+FP/Kitchen/AICI contract. Platform delivery remains BLOCKED/NOT_VERIFIED; the
+separate execute operation remains subject to protected admission before
+preflight or an external effect.
+
 Trackers: [FP #39](https://github.com/isomorphisms/flexible-pipes/issues/39),
 [#219](https://github.com/isomorphisms/ai-ci/issues/219),
 [FP #35](https://github.com/isomorphisms/flexible-pipes/issues/35),

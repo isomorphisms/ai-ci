@@ -21,6 +21,13 @@ jobs:
           ref: f422a4568da709d7528e7177a791a5592bb38636
           path: _fp
           persist-credentials: false
+      - name: Check out exact Kitchen generator
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: isomorphisms/kitchen
+          ref: 32c3bf2d7c6268b50f1e48395dc972cfbafec7a9
+          path: _kitchen
+          persist-credentials: false
       - name: Check out qualified checked Ithon interface
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -28,11 +35,23 @@ jobs:
           ref: d6e83969f82512e920fb17b44326cb54f31d015c
           path: _ithon
           persist-credentials: false
+      - name: Acquire exact native Grease runtime for command-byte comparison
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          mkdir -p "$RUNNER_TEMP/grease/bin"
+          gh api repos/dilapidated-shed/grease/actions/artifacts/11727693085/zip > "$RUNNER_TEMP/grease.zip"
+          printf '%s  %s\n' 20c526c8bae5dc32a7b3d01a39eca5bdb7ee4c63fe540f34a07af7ba8b0d0039 "$RUNNER_TEMP/grease.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/grease.zip" '_bin/cxx-asan/ysh' -d "$RUNNER_TEMP/grease"
+          printf '%s  %s\n' 7e31cd05b7a9d8fb2a4a9e003a7f3fcb0159138506d17f0fb28da8cbe22aa85c "$RUNNER_TEMP/grease/_bin/cxx-asan/ysh" | sha256sum -c -
+          chmod 755 "$RUNNER_TEMP/grease/_bin/cxx-asan/ysh"
+          ln -s ../_bin/cxx-asan/ysh "$RUNNER_TEMP/grease/bin/grease"
       - name: Independently reject hidden and mutated surfaces
         env:
           PYTHONPATH: ${{ github.workspace }}/_fp/scripts:${{ github.workspace }}/validators
           ITHON_CHECK_RECEIPT: ${{ runner.temp }}/job-delivery-checked.jsonl
-        run: _ithon/ithon tests/job-delivery/check.pi "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/_fp" "$RUNNER_TEMP/job-delivery"
+        run: _ithon/ithon tests/job-delivery/check.pi "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/_fp" "$RUNNER_TEMP/job-delivery" "$GITHUB_WORKSPACE/_ithon/ithon" "$GITHUB_WORKSPACE/_kitchen" "$RUNNER_TEMP/grease/bin/grease"
       - name: Retain exact checked inputs and case results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
