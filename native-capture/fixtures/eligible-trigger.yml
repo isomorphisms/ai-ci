@@ -1,0 +1,10 @@
+name: capture trigger positive
+on:
+  pull_request:
+  push:
+jobs:
+  candidate:
+    steps:
+      - run: npm run check
+      - run: make -C native check-capture check-capture-mutants check-store check-https
+      - run: echo '${{ github.event.pull_request.head.sha || github.sha }}'
