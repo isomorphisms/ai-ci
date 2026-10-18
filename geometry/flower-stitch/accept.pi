@@ -151,6 +151,17 @@ def diagram(text ∈ str, rows ∈ list[list[str]], scale ∈ int) → None:
     parent_edges ∈ list[int] ← []
     foundations ∈ list[int] ← []
     seams ∈ list[int] ← []
+    stitches ∈ dict[int,list[str]] ← {}
+    rounds ∈ dict[int,list[str]] ← {}
+    for row in rows:
+        if row[0]=="stitch":
+            stitches[int(row[1])] ← row
+        elif row[0]=="round":
+            rounds[int(row[1])] ← row
+
+    def page_x(index ∈ int, count ∈ int) → int:
+        return 85+1000*index//(count-1)
+
     elements ∈ list[object] ← list(root.iter())
     for element in elements:
         for attribute in ["data-material-id","data-child-id","data-foundation-id","data-seam-round"]:
@@ -159,12 +170,50 @@ def diagram(text ∈ str, rows ∈ list[list[str]], scale ∈ int) → None:
                 identity ∈ int ← int(value)
                 if attribute=="data-material-id":
                     materials.append(identity)
+                    require(identity in stitches,"diagram unknown material identity")
+                    stitch ∈ list[str] ← stitches[identity]
+                    round_index ∈ int ← int(stitch[2])
+                    index ∈ int ← int(stitch[3])
+                    height ∈ int ← 230+125*round_index
+                    children ∈ list[object] ← list(element)
+                    require(len(children)==2,"diagram material marker")
+                    circle ∈ object ← children[0]
+                    label ∈ object ← children[1]
+                    require(int(str(circle.get("cx")))==page_x(index,int(rounds[round_index][3])) and int(str(circle.get("cy")))==height,"diagram material position")
+                    increase ∈ bool ← stitch[7]=="1"
+                    expected_fill ∈ str ← "#a02d3e" if increase else "#164b62"
+                    require(str(circle.get("fill"))==expected_fill,"diagram increase color")
+                    expected_label ∈ str ← "S"+str(identity)+( "+" if increase else "")
+                    require(str(label.text)==expected_label,"diagram increase mark")
                 elif attribute=="data-child-id":
                     parent_edges.append(identity)
+                    require(identity in stitches,"diagram unknown child identity")
+                    stitch ← stitches[identity]
+                    round_index ← int(stitch[2])
+                    index ← int(stitch[3])
+                    parent_index ∈ int ← int(stitch[5])
+                    parent_count ∈ int ← int(rows[2][1])
+                    if stitch[4]=="stitch":
+                        require(parent_index in stitches,"diagram unknown parent identity")
+                        parent_index ← int(stitches[parent_index][3])
+                        parent_count ← int(rounds[round_index-1][3])
+                    child_count ∈ int ← int(rounds[round_index][3])
+                    child_y ∈ int ← 230+125*round_index
+                    require(int(str(element.get("x1")))==page_x(parent_index,parent_count) and int(str(element.get("y1")))==child_y-125 and int(str(element.get("x2")))==page_x(index,child_count) and int(str(element.get("y2")))==child_y,"diagram parent incidence geometry")
                 elif attribute=="data-foundation-id":
                     foundations.append(identity)
+                    children ← list(element)
+                    require(len(children)==2,"diagram foundation marker")
+                    circle ← children[0]
+                    label ← children[1]
+                    require(int(str(circle.get("cx")))==page_x(identity,8) and int(str(circle.get("cy")))==105,"diagram foundation position")
+                    require(str(label.text)=="F"+str(identity),"diagram foundation label")
                 else:
                     seams.append(identity)
+                    require(identity in rounds,"diagram unknown seam identity")
+                    height ← 230+125*identity
+                    expected_path ∈ str ← "M85 "+str(height)+" Q585 "+str(height+76)+" 1085 "+str(height)
+                    require(str(element.get("d"))==expected_path,"diagram cyclic seam geometry")
     materials.sort()
     parent_edges.sort()
     foundations.sort()
@@ -217,10 +266,17 @@ def rejection_controls(ledger_text ∈ str, instructions ∈ str, diagram_text �
     try:
         diagram(diagram_text.replace("data-material-id=\"0\"","data-material-id=\"1\"",1),rows,1)
     except ValueError as failure:
-        require(str(failure)=="diagram material identities","diagram wrong rejection")
+        require(str(failure)=="diagram material position","diagram wrong rejection")
         rejected ← True
     require(rejected,"accepted changed display material identity")
-    print("REJECT four instruction corruptions and one diagram identity corruption",pattern)
+    rejected ← False
+    try:
+        diagram(diagram_text.replace('data-child-id="0" x1="85"','data-child-id="0" x1="86"',1),rows,1)
+    except ValueError as failure:
+        require(str(failure)=="diagram parent incidence geometry","diagram incidence wrong rejection")
+        rejected ← True
+    require(rejected,"accepted rewired display incidence with unchanged IDs")
+    print("REJECT four instruction corruptions, one diagram identity corruption and one rewired incidence",pattern)
 
 def real_mutants(executable ∈ str) → None:
     cases ∈ list[str] ← ["missing-increase","duplicate-stitch","seam-misjoin","counted-chain","broken-parent","wrong-adjacency","extra-stitch","foundation-misjoin","counted-foundation","turned-round"]
@@ -253,4 +309,4 @@ else:
     diagram(other_picture,rows,2)
     rejection_controls(first,instructions,picture,pattern)
     real_mutants(arguments[3])
-    print("PASS",pattern,"printed instructions reconstruct complete material ledger; two display densities preserve IDs and counts; physical construction NOT_RUN")
+    print("PASS",pattern,"printed instructions reconstruct complete material ledger; two display densities preserve IDs, incidence, seams and increase marks; physical construction NOT_RUN")
