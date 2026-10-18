@@ -745,10 +745,12 @@ static int verify_pair(const char *contract_path, const char *left_attempt_path,
         printf("left_attempt_sha256\t%s\n", left.file_sha256);
         printf("left_witness_sha256\t%s\n", left.witness_sha256);
         printf("left_executed_cases_sha256\t%s\n", left.cases_sha256);
+        printf("left_package_receipt_sha256\t%s\n", left.package.receipt_sha256);
         printf("right_attempt_id\t%s\n", table_value(&right.table, "attempt_id"));
         printf("right_attempt_sha256\t%s\n", right.file_sha256);
         printf("right_witness_sha256\t%s\n", right.witness_sha256);
         printf("right_executed_cases_sha256\t%s\n", right.cases_sha256);
+        printf("right_package_receipt_sha256\t%s\n", right.package.receipt_sha256);
         printf("consumer_repository\t%s\n", table_value(&contract, "consumer_repository"));
         printf("source_revision\t%s\n", table_value(&contract, "source_revision"));
         printf("dependency_closure_sha256\t%s\n", table_value(&contract, "dependency_closure_sha256"));
