@@ -159,11 +159,13 @@ For a required semantic gate, `uncertain` also blocks.
 
 ## Seed cases
 
-`evals/cases.tsv` records the first incident-derived case
-families: invented continuity, false completion, sycophancy, lost constraints,
-generic source-free notes, omitted explanatory geometry, model-judge bias, and
-single-run reliability. The rows are specifications for a runner, not claims
-that a semantic runner already exists.
+`evals/cases.tsv` records the first incident-derived case families: invented
+continuity, false completion, sycophancy, lost constraints, generic source-free
+notes, omitted explanatory geometry, model-judge bias, and single-run
+reliability. Most original rows remain specifications for a future runner. The
+`oracle-meta-*` rows are executed by `tests/semantic-oracles/meta-corpus/` for
+the bounded M01, M02, M04, M06, M09 and M23 scenarios only; that runner does
+not establish execution or soundness for the other rows.
 
 ## Sources
 

@@ -16,12 +16,18 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+      - name: Qualify the pinned ICK host compiler
+        id: ick
+        uses: isomorphisms/ai-ci/ick-host@903b2cb27ea572c9c6cb2ffa9f39e0fbf06ec9f8
       - name: Build independent RGB24 screenshot oracle and fixture producer
         shell: sh
+        env:
+          AICI_CC: ${{ steps.ick.outputs.compiler }}
         run: |
           set -eu
-          cc -std=c17 -O2 -Wall -Wextra -Werror -pedantic framebuffer/verify_android_screens.c -o "$RUNNER_TEMP/aici-android-frame-diff"
-          cc -std=c17 -O2 -Wall -Wextra -Werror -pedantic framebuffer/tests/make_screen_fixtures.c -o "$RUNNER_TEMP/make-screen-fixtures"
+          test -x "${AICI_CC:?qualified ICK compiler required}"
+          "$AICI_CC" -fno-link-libatomic -std=c17 -O2 -Wall -Wextra -Werror -pedantic framebuffer/verify_android_screens.c -o "$RUNNER_TEMP/aici-android-frame-diff"
+          "$AICI_CC" -fno-link-libatomic -std=c17 -O2 -Wall -Wextra -Werror -pedantic framebuffer/tests/make_screen_fixtures.c -o "$RUNNER_TEMP/make-screen-fixtures"
           mkdir -p "$RUNNER_TEMP/frames"
           "$RUNNER_TEMP/make-screen-fixtures" "$RUNNER_TEMP/frames"
       - name: Require actual changed-image witness

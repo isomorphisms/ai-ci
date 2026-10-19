@@ -1,0 +1,383 @@
+"""Typed finding admission against independent capture, never an RHS PASS flag."""
+import hashlib
+import re
+from fractions import Fraction
+from math import prod
+from builtins import ValueError, KeyError, ZeroDivisionError, bytes
+
+COMMON ∈ list[str] ← ["schema", "source.repository", "source.commit", "source.path", "source.sha256", "claim.id", "claim.sha256", "observation.encoding", "observation.sha256", "execution.target", "execution.actor", "execution.id", "execution.scope", "binary.sha256", "stdout.sha256", "stderr.sha256", "execution.sha256", "created_epoch", "expires_epoch", "evidence.kind", "status"]
+BOUND ∈ list[str] ← ["source.repository", "source.commit", "source.path", "source.sha256", "claim.id", "claim.sha256", "observation.encoding", "observation.sha256", "execution.target", "execution.actor", "execution.id", "execution.scope", "binary.sha256", "stdout.sha256", "stderr.sha256", "execution.sha256"]
+
+def digest(data ∈ bytes) → str:
+    result ∈ str ← hashlib.sha256(data).hexdigest()
+    return result
+
+def rows(text ∈ str) → dict[str, str]:
+    result ∈ dict[str, str] ← {}
+    lines ∈ list[str] ← text.splitlines()
+    for line in lines:
+        fields ∈ list[str] ← line.split("\t")
+        if len(fields) != 2 or fields[0] == "" or fields[0] in result:
+            raise ValueError("Evidence requires unique two-field scalar rows")
+        result[fields[0]] ← fields[1]
+    return result
+
+def verify(fields ∈ dict[str, str], authority ∈ dict[str, str], reference_status ∈ str, now ∈ int) → str:
+    required ∈ list[str] ← COMMON.copy()
+    kind ∈ str ← fields.get("evidence.kind", "")
+    if kind == "exact-observed":
+        required.append("relation")
+    elif kind == "model-estimated":
+        required.extend(["model.revision", "prompt.sha256", "response.sha256"])
+    else:
+        raise ValueError("Unsupported evidence kind; no estimate-to-exact promotion")
+    if len(fields) != len(required):
+        raise ValueError("Missing or extra receipt fields")
+    for key in required:
+        if not (key in fields):
+            raise ValueError("Missing receipt field: " + key)
+    if fields["schema"] != "rhs-finding-v1":
+        raise ValueError("Unsupported finding schema")
+    if not re.fullmatch("[0-9a-f]{40}", fields["source.commit"]):
+        raise ValueError("Invalid source revision")
+    path_parts ∈ list[str] ← fields["source.path"].split("/")
+    if fields["source.path"].startswith("/") or ".." in path_parts or fields["source.path"] == "":
+        raise ValueError("Invalid source path")
+    authority_kind ∈ str ← authority.get("evidence.kind", "")
+    if kind != authority_kind:
+        raise ValueError("Evidence kind disagrees with independent execution scope")
+    if kind == "exact-observed" and fields["execution.actor"] != "native-process":
+        raise ValueError("Exact findings require independent native observation")
+    for key in BOUND:
+        if not (key in authority) or fields[key] != authority[key]:
+            raise ValueError("Independent identity or evidence hash mismatch: " + key)
+        if key.endswith(".sha256") and not re.fullmatch("[0-9a-f]{64}", fields[key]):
+            raise ValueError("Invalid evidence digest: " + key)
+    created ∈ int ← int(fields["created_epoch"])
+    expires ∈ int ← int(fields["expires_epoch"])
+    if created > now or created < 0 or expires <= now or expires <= created or expires - created > 86400:
+        raise ValueError("Expired or invalid receipt validity interval")
+    status ∈ str ← fields["status"]
+    if kind == "exact-observed":
+        specified_relation ∈ str ← authority.get("relation", "")
+        if fields["relation"] != specified_relation:
+            raise ValueError("Finding relation was not independently specified")
+        if not (status in ["agreement-tested", "contradiction", "unknown", "execution-failure"]):
+            raise ValueError("Invalid exact status")
+        if status != reference_status:
+            raise ValueError("Finding disagrees with independent observed judgment")
+        if status == "unknown":
+            return "UNKNOWN"
+        if status == "execution-failure":
+            return "EXECUTION_FAILURE"
+        return "EXACT_OBSERVED"
+    for key in ["model.revision", "prompt.sha256", "response.sha256"]:
+        if not (key in authority) or fields[key] != authority[key]:
+            raise ValueError("Model evidence provenance mismatch: " + key)
+    if not re.fullmatch("[0-9a-f]{40}", fields["model.revision"]):
+        raise ValueError("Invalid model revision")
+    for key in ["prompt.sha256", "response.sha256"]:
+        if not re.fullmatch("[0-9a-f]{64}", fields[key]):
+            raise ValueError("Invalid model evidence digest")
+    if not (status in ["agreement-estimated", "contradiction-estimated", "unknown", "execution-failure", "parse-failure"]) or status != reference_status:
+        raise ValueError("Model inference cannot claim exact mathematical or behavioral verification")
+    if status == "unknown":
+        return "UNKNOWN"
+    if status == "execution-failure":
+        return "EXECUTION_FAILURE"
+    return "MODEL_ESTIMATED"
+
+def add(left ∈ Fraction, right ∈ Fraction) → Fraction:
+    result ∈ Fraction ← left.__add__(right)
+    return result
+
+def multiply(left ∈ Fraction, right ∈ Fraction) → Fraction:
+    result ∈ Fraction ← left.__mul__(right)
+    return result
+
+def subtract(left ∈ Fraction, right ∈ Fraction) → Fraction:
+    result ∈ Fraction ← left.__sub__(right)
+    return result
+
+def divide(left ∈ Fraction, right ∈ Fraction) → Fraction:
+    result ∈ Fraction ← left.__truediv__(right)
+    return result
+
+def equal(left ∈ Fraction, right ∈ Fraction) → bool:
+    result ∈ bool ← left.__eq__(right)
+    return result
+
+def vector(text ∈ str, denominator ∈ int) → list[Fraction]:
+    if denominator <= 0:
+        raise ValueError("Unsupported denominator")
+    values ∈ list[Fraction] ← []
+    entries ∈ list[str] ← text.split(",")
+    for entry in entries:
+        values.append(Fraction(int(entry), denominator))
+    if len(values) < 1 or len(values) > 8:
+        raise ValueError("Unsupported vector dimension")
+    return values
+
+def pairing(first ∈ list[Fraction], second ∈ list[Fraction]) → Fraction:
+    if len(first) != len(second):
+        raise ValueError("Incomplete coordinate observation")
+    result ∈ Fraction ← Fraction(0)
+    for index in range(len(first)):
+        result ← add(result, multiply(first[index], second[index]))
+    return result
+
+def determinant(matrix ∈ list[list[Fraction]]) → Fraction:
+    # Fraction-valued Gaussian elimination, independent of RHS cofactor expansion.
+    size ∈ int ← len(matrix)
+    work ∈ list[list[Fraction]] ← []
+    for source_row in matrix:
+        row_copy ∈ list[Fraction] ← source_row.copy()
+        work.append(row_copy)
+    result ∈ Fraction ← Fraction(1)
+    for column in range(size):
+        pivot_row ∈ int ← column
+        while pivot_row < size and equal(work[pivot_row][column], Fraction(0)):
+            pivot_row ← pivot_row + 1
+        if pivot_row == size:
+            return Fraction(0)
+        if pivot_row != column:
+            temporary ∈ list[Fraction] ← work[column]
+            work[column] ← work[pivot_row]
+            work[pivot_row] ← temporary
+            result ← multiply(result, Fraction(-1))
+        pivot ∈ Fraction ← work[column][column]
+        result ← multiply(result, pivot)
+        for row in range(column + 1, size):
+            factor ∈ Fraction ← divide(work[row][column], pivot)
+            for position in range(column, size):
+                work[row][position] ← subtract(work[row][position], multiply(factor, work[column][position]))
+    return result
+
+
+def exact_integer_side(value ∈ Fraction) → int:
+    integer ∈ int ← int(value)
+    if not equal(value, Fraction(integer)):
+        raise ValueError("Affine classification requires an integral score")
+    if integer < 0:
+        return -1
+    if integer > 0:
+        return 1
+    return 0
+
+def affine_predicate(relation ∈ str, fields ∈ dict[str, str]) → bool:
+    point ∈ list[Fraction] ← vector(fields["point"], 1)
+    normal ∈ list[Fraction] ← vector(fields["normal"], 1)
+    if len(normal) != len(point) or equal(pairing(normal, normal), Fraction(0)):
+        raise ValueError("Invalid affine normal")
+    offset ∈ Fraction ← Fraction(int(fields["offset"]))
+    base ∈ Fraction ← add(pairing(normal, point), offset)
+    if relation == "hyperplane/affine-side":
+        return int(fields["side"]) == exact_integer_side(base)
+    if relation == "hyperplane/scale-and-side":
+        scale ∈ int ← int(fields["scale"])
+        if scale == 0:
+            raise ValueError("Nonzero affine scaling required")
+        revised_normal ∈ list[Fraction] ← vector(fields["scaled.normal"], 1)
+        if len(revised_normal) != len(normal):
+            raise ValueError("Incomplete scaled normal")
+        for index in range(len(normal)):
+            if not equal(revised_normal[index], multiply(Fraction(scale), normal[index])):
+                return False
+        if not equal(Fraction(int(fields["scaled.offset"])), multiply(Fraction(scale), offset)):
+            return False
+        return int(fields["side.before"]) == exact_integer_side(base) and int(fields["side.after"]) == exact_integer_side(multiply(Fraction(scale), base))
+    if relation == "hyperplane/orthogonal-frame":
+        dimensions ∈ int ← len(point)
+        if dimensions > 6:
+            raise ValueError("Unsupported orthogonal frame dimension")
+        denominator ∈ int ← int(fields["basis.denominator"])
+        if denominator <= 0:
+            raise ValueError("Unsupported basis denominator")
+        matrix ∈ list[list[Fraction]] ← []
+        encoded_rows ∈ list[str] ← fields["basis.numerators"].split(";")
+        for encoded_row in encoded_rows:
+            matrix.append(vector(encoded_row, denominator))
+        if len(matrix) != dimensions:
+            raise ValueError("Incomplete orthogonal frame")
+        for matrix_row in matrix:
+            if len(matrix_row) != dimensions:
+                raise ValueError("Incomplete matrix row")
+        for first in range(dimensions):
+            for second in range(dimensions):
+                column_inner ∈ Fraction ← Fraction(0)
+                for row_index in range(dimensions):
+                    column_inner ← add(column_inner, multiply(matrix[row_index][first], matrix[row_index][second]))
+                if not equal(column_inner, Fraction(int(first == second))):
+                    return False
+        rotated_point ∈ list[Fraction] ← vector(fields["point.after.numerators"], denominator)
+        rotated_normal ∈ list[Fraction] ← vector(fields["normal.after.numerators"], denominator)
+        if len(rotated_point) != dimensions or len(rotated_normal) != dimensions:
+            raise ValueError("Incomplete transformed point or normal")
+        for row_index in range(dimensions):
+            if not equal(pairing(matrix[row_index], point), rotated_point[row_index]):
+                return False
+            if not equal(pairing(matrix[row_index], normal), rotated_normal[row_index]):
+                return False
+        transformed ∈ Fraction ← add(pairing(rotated_normal, rotated_point), offset)
+        return equal(transformed, base) and int(fields["side.before"]) == exact_integer_side(base) and int(fields["side.after"]) == exact_integer_side(transformed)
+    raise ValueError("Unsupported affine relation")
+
+def predicate(relation ∈ str, fields ∈ dict[str, str]) → bool:
+    if relation == "hyperplane/affine-side" or relation == "hyperplane/scale-and-side" or relation == "hyperplane/orthogonal-frame":
+        return affine_predicate(relation, fields)
+    if relation == "exchange/preserve-alias" or relation == "exchange/zero-alias":
+        exchanged ∈ bool ← fields["distinct.after.left"] == fields["distinct.before.right"] and fields["distinct.after.right"] == fields["distinct.before.left"]
+        if relation == "exchange/zero-alias":
+            return exchanged and fields["alias.after"] == "0"
+        return exchanged and fields["alias.after"] == fields["alias.before"]
+    if relation == "width/equivalent":
+        return fields["width.first"] == fields["width.second"]
+    if relation == "width/context-dependent":
+        return fields["width.first"] != fields["width.second"]
+    if relation == "redaction/independent":
+        return fields["first.output"] == fields["second.output"]
+    if relation == "redaction/digit-width":
+        first_zeroes ∈ str ← ""
+        second_zeroes ∈ str ← ""
+        for index in range(len(fields["first.input"])):
+            first_zeroes ← first_zeroes + "0"
+        for index in range(len(fields["second.input"])):
+            second_zeroes ← second_zeroes + "0"
+        return fields["first.output"] == first_zeroes and fields["second.output"] == second_zeroes
+    if relation == "difference/boolean":
+        return int(fields["output"]) == int(int(fields["input.contents"]) != 0 and int(fields["input.location"]) != 0)
+    if relation == "difference/masks":
+        return int(fields["output"]) == (int(fields["input.contents"]) & int(fields["input.location"]))
+    if relation == "copy/state":
+        return fields["after.id"] == fields["source.id"] and fields["after.distance"] == fields["source.distance"]
+    if relation == "copy/equal-id-skip":
+        return fields["after.id"] == fields["before.id"] and fields["after.distance"] == fields["before.distance"]
+    if relation == "audit/once":
+        return int(fields["audit.after"]) - int(fields["audit.before"]) == 1
+    if relation == "audit/per-divisor":
+        year ∈ int ← int(fields["input.year"])
+        checks ∈ int ← 1
+        if year % 4 == 0:
+            checks ← checks + 1
+            if year % 100 == 0:
+                checks ← checks + 1
+        return int(fields["audit.after"]) - int(fields["audit.before"]) == checks
+    if relation == "score/finite" or relation == "score/lower-bound-only":
+        if fields["input.score"] != "nan" or fields["input.unordered"] != "1":
+            raise ValueError("Unsupported unordered-number scope")
+        if relation == "score/finite":
+            return fields["output"] == "0"
+        return fields["output"] == "1"
+    if relation == "count/nonnegative":
+        return int(fields["output"]) == int(int(fields["input.count"]) >= 0)
+    if relation == "count/accept-all":
+        return fields["output"] == "1"
+    if relation == "counts/bytes-elements":
+        count ∈ int ← int(fields["element_count"])
+        width ∈ int ← int(fields["element_width_bytes"])
+        reported ∈ int ← int(fields["reported_bytes"])
+        if count < 0 or width <= 0 or reported < 0:
+            raise ValueError("Unsupported count domain")
+        return reported == count × width
+    if relation == "calls/count-order-effects":
+        recorded ∈ list[str] ← []
+        if fields["observed_order"] != "":
+            recorded ← fields["observed_order"].split(",")
+        count ∈ int ← int(fields["call_count"])
+        effect_width ∈ int ← int(fields["effects_per_call"])
+        if count < 0 or effect_width < 0:
+            raise ValueError("Unsupported call domain")
+        return fields["observed_order"] == fields["required_order"] and len(recorded) == count and int(fields["effects.after"]) - int(fields["effects.before"]) == count × effect_width
+    if relation == "dimensions/scalar-vector" or relation == "dimensions/row-vectors":
+        if fields["scalar_field"] != "real":
+            raise ValueError("Unsupported scalar carrier")
+        shape ∈ list[int] ← []
+        if fields["array.shape"] != "":
+            entries ∈ list[str] ← fields["array.shape"].split(",")
+            for entry in entries:
+                extent ∈ int ← int(entry)
+                if extent < 0:
+                    raise ValueError("Unsupported array extent")
+                shape.append(extent)
+        size ∈ int ← prod(shape)
+        rank ∈ int ← int(fields["array.rank"])
+        dimension ∈ int ← int(fields["vector.dimension"])
+        if rank < 0 or dimension < 0 or int(fields["coordinates.count"]) < 0:
+            raise ValueError("Unsupported array domain")
+        if rank != len(shape) or size != int(fields["coordinates.count"]):
+            return False
+        if relation == "dimensions/row-vectors":
+            if rank != 2:
+                raise ValueError("Unsupported row-vector encoding")
+            return dimension == shape[1]
+        return dimension == size
+    if relation == "transform/reflection":
+        before ∈ list[Fraction] ← vector(fields["input"], 1)
+        normal ∈ list[Fraction] ← vector(fields["normal"], 1)
+        after ∈ list[Fraction] ← vector(fields["output.numerators"], int(fields["output.denominator"]))
+        norm ∈ Fraction ← pairing(normal, normal)
+        if equal(norm, Fraction(0)) or len(after) != len(before):
+            raise ValueError("Unsupported reflection normal or dimension")
+        factor ∈ Fraction ← divide(multiply(Fraction(2), pairing(before, normal)), norm)
+        for index in range(len(before)):
+            if not equal(after[index], subtract(before[index], multiply(factor, normal[index]))):
+                return False
+        return True
+    if relation == "transform/linear" or relation == "transform/rotation":
+        before ∈ list[Fraction] ← vector(fields["input"], 1)
+        after ∈ list[Fraction] ← vector(fields["output.numerators"], int(fields["output.denominator"]))
+        matrix ∈ list[list[Fraction]] ← []
+        encoded_rows ∈ list[str] ← fields["matrix.numerators"].split(";")
+        for encoded_row in encoded_rows:
+            matrix.append(vector(encoded_row, int(fields["matrix.denominator"])))
+        if len(matrix) != len(after):
+            raise ValueError("Incomplete linear action")
+        for matrix_row in matrix:
+            if len(matrix_row) != len(before):
+                raise ValueError("Incomplete matrix row")
+        if relation == "transform/rotation":
+            if len(matrix) != len(before) or len(matrix) > 6:
+                raise ValueError("Unsupported rotation dimensions")
+            columns ∈ list[list[Fraction]] ← []
+            for column in range(len(before)):
+                values ∈ list[Fraction] ← []
+                for matrix_row in matrix:
+                    values.append(matrix_row[column])
+                columns.append(values)
+            for first in range(len(columns)):
+                for second in range(len(columns)):
+                    expected ∈ Fraction ← Fraction(int(first == second))
+                    if not equal(pairing(columns[first], columns[second]), expected):
+                        return False
+            if not equal(determinant(matrix), Fraction(1)):
+                return False
+        for index in range(len(matrix)):
+            if not equal(pairing(matrix[index], before), after[index]):
+                return False
+        return True
+    if relation == "repeat/idempotent" or relation == "repeat/pure":
+        if fields["call_count"] != "2":
+            raise ValueError("Unsupported repeated-call count")
+        stable ∈ bool ← fields["state.after.1"] == fields["state.after.2"] and fields["serialized.1"] == fields["serialized.2"]
+        if relation == "repeat/pure":
+            return stable and fields["state.before"] == fields["state.after.1"]
+        return stable
+    if relation == "serialization/state-canonical-int":
+        if fields["call_count"] != "2" or fields["encoding"] != "decimal-utf8-hex":
+            raise ValueError("Unsupported state serializer")
+        first_state ∈ int ← int(fields["state.after.1"])
+        second_state ∈ int ← int(fields["state.after.2"])
+        first_text ∈ str ← bytes.fromhex(fields["serialized.1"]).decode("utf-8")
+        second_text ∈ str ← bytes.fromhex(fields["serialized.2"]).decode("utf-8")
+        increment ∈ int ← int(fields["increment"])
+        return first_state == int(fields["state.before"]) + increment and second_state - first_state == increment and first_text == str(first_state) and second_text == str(second_state)
+    raise ValueError("Unsupported independently declared relation")
+
+def decide(relation ∈ str, observation ∈ str) → str:
+    try:
+        result ∈ bool ← predicate(relation, rows(observation))
+    except (ValueError, KeyError, ZeroDivisionError):
+        return "unknown"
+    if result:
+        return "agreement-tested"
+    return "contradiction"

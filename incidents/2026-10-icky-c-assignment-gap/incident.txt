@@ -1,0 +1,1 @@
+Expected Icky C ← assignment had gone unverified; the owned C frontend rejected it when exercised by FastChat on 2026-10-07. The user warns of a long-hidden gap and possible assignment drift throughout hundreds of repositories. Exact onset and total impact are UNKNOWN.
