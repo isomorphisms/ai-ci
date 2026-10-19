@@ -14,6 +14,17 @@ Exact revisions in historical receipts, old PRs, reproductions, or independent
 toolchain pins remain exact for the claim they originally supported. They must
 not silently become checkout selectors for current work.
 
+The 2026-10-19 source-inventory reconciliation follows Coxeter's canonical
+repository identity into `walnut-burgundy` and adds that owner to discovery.
+Existing source policies are preserved. Newly discovered sources are explicitly
+`review-only` until their owners review their role and intended language
+following; inventory presence does not claim compilation or semantic acceptance.
+The starting hosted discovery is run 39329219095, artifact 12223932047, ZIP
+SHA-256 `325f5fe4f82ef8ec28f27af2cac771bef961bbc65f2ed27032993c7b79dae7dc`.
+Canonical moved-owner tree discovery adds the retained Coxeter source and four
+other Idriç files. Both the normal comparison and drift-rejection self-test
+remain required; this is a data reconciliation, not a relaxed comparator.
+
 The DEX lane intentionally selects
 `isomorphisms/idric-arm-thumb@dex/sibling-backend-boundary`. That is the current
 DEX sibling-backend boundary, not the old ARM/Thumb implementation lane. The
