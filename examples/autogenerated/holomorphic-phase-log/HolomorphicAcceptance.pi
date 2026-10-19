@@ -729,6 +729,7 @@ def gpu_audit(log_path ∈ Path, fixture_math ∈ bool, qualify ∈ bool) → in
         expected ∈ tuple[float, float, int, int, int] ← evaluate(case, "reference")
         actual ∈ tuple[float, float, int, int, int] ← (float(measurement["phase"]), float(measurement["log_modulus"]), integer_order, expected[3], expected[4])
         diagnosis ∈ str ← "PASS"
+        details ∈ str ← ""
         if fixture_math:
             diagnosis ← compare_values(expected, actual, HOST_TOLERANCE)
         elif qualify:
@@ -747,12 +748,35 @@ def gpu_audit(log_path ∈ Path, fixture_math ∈ bool, qualify ∈ bool) → in
             expected_rgba ∈ list[int] ← canonical_rgba8(expected)
             channel_names ∈ list[str] ← ["red", "green", "blue", "alpha"]
             channel_budget ∈ int ← 1 if expected[2] == 0 else 0
+            violations ∈ list[str] ← []
+            if diagnosis != "PASS":
+                violations.append(diagnosis)
+            observed_rgba ∈ list[int] ← []
             for channel in range(4):
                 observed_channel ∈ int ← int(colour_row[channel_names[channel]])
+                observed_rgba.append(observed_channel)
                 channel_difference ∈ int ← abs(observed_channel - expected_rgba[channel])
                 allowed ∈ int ← 0 if channel == 3 else channel_budget
                 if observed_channel < 0 or observed_channel > 255 or channel_difference > allowed:
-                    diagnosis ← "SEMANTIC-RGBA8-" + channel_names[channel]
+                    channel_diagnosis ∈ str ← "SEMANTIC-RGBA8-" + channel_names[channel]
+                    violations.append(channel_diagnosis)
+                    if diagnosis == "PASS":
+                        diagnosis ← channel_diagnosis
+            if diagnosis != "PASS":
+                violation_text ∈ str ← ",".join(violations)
+                details ← " violations=" + violation_text
+                details ← details + " phase_observed=" + decimal(actual[0]) + " log_observed=" + decimal(actual[1])
+                if expected[2] == 0:
+                    phase_is_finite ∈ bool ← math.isfinite(actual[0])
+                    phase_abs_error ∈ float ← abs(math.remainder(actual[0] - expected[0], TAU)) if phase_is_finite else float("nan")
+                    raw_log_abs_error ∈ float ← abs(actual[1] - expected[1])
+                    diagnostic_source_bound ∈ float ← log_roundoff_bound(case)
+                    diagnostic_log_budget ∈ float ← diagnostic_source_bound if diagnostic_source_bound < GPU_LOG_BUDGET else GPU_LOG_BUDGET
+                    details ← details + " phase_expected=" + decimal(expected[0]) + " phase_circular_error=" + decimal(phase_abs_error) + " phase_budget=" + decimal(GPU_PHASE_BUDGET)
+                    details ← details + " log_expected=" + decimal(expected[1]) + " log_error=" + decimal(raw_log_abs_error) + " log_budget=" + decimal(diagnostic_log_budget)
+                else:
+                    details ← details + " phase_log_class=UNDEFINED_TRUE_SINGULARITY"
+                details ← details + " rgba_observed=" + str(observed_rgba) + " rgba_expected=" + str(expected_rgba) + " rgb8_budget=" + str(channel_budget) + " alpha_budget=0"
         else:
             if not math.isfinite(actual[0]) or not math.isfinite(actual[1]):
                 raise ValueError("GPU-NONFINITE-READBACK:" + name)
@@ -760,7 +784,7 @@ def gpu_audit(log_path ∈ Path, fixture_math ∈ bool, qualify ∈ bool) → in
                 diagnosis ← "SEMANTIC-CLASS-OR-MULTIPLICITY"
         if fixture_math or qualify or diagnosis != "PASS":
             classification ∈ str ← boundary_classification(expected)
-            print(case["case_id"] + "\t" + diagnosis + (" class=" + classification if qualify else ""))
+            print(case["case_id"] + "\t" + diagnosis + (" class=" + classification if qualify else "") + details)
         else:
             phase_error ∈ float ← 0.0 if expected[2] != 0 else abs(math.remainder(actual[0] - expected[0], TAU))
             log_error ∈ float ← 0.0 if expected[2] != 0 else abs(actual[1] - expected[1])
@@ -1195,6 +1219,10 @@ def gpu_policy_fixture(source ∈ Path, target ∈ Path, variant ∈ str) → No
             logarithm ∈ float ← float(row["log_modulus"])
             if variant == "phase-over-budget":
                 row["phase"] ← decimal(phase + GPU_PHASE_BUDGET * 1.01)
+            elif variant == "phase-and-colour-over-budget":
+                row["phase"] ← decimal(phase + GPU_PHASE_BUDGET * 1.01)
+            elif variant == "nonfinite-phase-diagnostic":
+                row["phase"] ← "inf"
             elif variant == "phase-reversed":
                 row["phase"] ← decimal(-phase)
             elif variant == "phase-wrap-positive":
@@ -1209,7 +1237,7 @@ def gpu_policy_fixture(source ∈ Path, target ∈ Path, variant ∈ str) → No
                 row["produced"] ← "0"
         if event == "HOLO_GPU_COLOR" and name == "one_exact" and sample == "0":
             red ∈ int ← int(row["red"])
-            if variant == "colour-two-levels":
+            if variant == "colour-two-levels" or variant == "phase-and-colour-over-budget":
                 row["red"] ← str(red + 2 if red < 253 else red - 2)
             elif variant == "colour-one-level-positive":
                 row["red"] ← str(red + 1 if red < 254 else red - 1)
@@ -1224,7 +1252,7 @@ def gpu_policy_fixture(source ∈ Path, target ∈ Path, variant ∈ str) → No
     target.write_text(text + "\n")
 
 def gpu_policy_selftest(directory ∈ Path, positive ∈ Path) → None:
-    variants ∈ list[str] ← ["unchanged-positive", "phase-wrap-positive", "colour-one-level-positive", "phase-over-budget", "phase-reversed", "raw-log-colour-period", "raw-log-source-bound", "colour-two-levels", "missing-produced-marker", "missing-colour-row", "wrong-uploaded-multiplicity", "singularity-endpoint"]
+    variants ∈ list[str] ← ["unchanged-positive", "phase-wrap-positive", "colour-one-level-positive", "phase-over-budget", "phase-reversed", "raw-log-colour-period", "raw-log-source-bound", "colour-two-levels", "missing-produced-marker", "missing-colour-row", "wrong-uploaded-multiplicity", "singularity-endpoint", "phase-and-colour-over-budget", "nonfinite-phase-diagnostic"]
     with directory.joinpath("gpu-policy-mutations.tsv").open("w") as receipt:
         receipt.write("variant\tresult\tevidence_kind\n")
         for variant in variants:
@@ -1250,6 +1278,17 @@ def gpu_policy_selftest(directory ∈ Path, positive ∈ Path) → None:
                 location ∈ int ← transcript.find(expected_diagnostic)
                 if location < 0:
                     raise AssertionError("GPU-POLICY-WRONG-REJECTION:" + variant + ":" + diagnosis)
+            if variant == "phase-and-colour-over-budget":
+                first_rejection ∈ int ← transcript.find("one_exact:0\tSEMANTIC-PHASE class=")
+                both_rejections ∈ int ← transcript.find("violations=SEMANTIC-PHASE,SEMANTIC-RGBA8-red")
+                phase_details ∈ int ← transcript.find("phase_circular_error=")
+                colour_details ∈ int ← transcript.find("rgba_expected=")
+                if first_rejection < 0 or both_rejections < 0 or phase_details < 0 or colour_details < 0:
+                    raise AssertionError("GPU-POLICY-MASKED-FIRST-REJECTION")
+            if variant == "nonfinite-phase-diagnostic":
+                nonfinite_rejection ∈ int ← transcript.find("one_exact:0\tSEMANTIC-NONFINITE class=")
+                if nonfinite_rejection < 0:
+                    raise AssertionError("GPU-POLICY-MASKED-NONFINITE-REJECTION")
             receipt.write(variant + "\t" + diagnosis + "\tsynthetic-checker-fixture\n")
             print(variant + "\t" + diagnosis + "\tsynthetic-checker-fixture")
     print("PASS predeclared GPU policy controls; no actual GPU execution inferred")
