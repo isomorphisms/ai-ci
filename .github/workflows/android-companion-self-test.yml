@@ -15,5 +15,12 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
-      - name: Run syntax and negative input fixtures
-        run: sh tests/android-companion-smoke.sh
+      - name: Check out the accepted mandatory Ithon host frontend
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: dilapidated-shed/ithon
+          ref: 9d530f4ad51f5b0a09c3e74dbe45cac5bb6d52d3
+          path: .ithon
+          persist-credentials: false
+      - name: Run existing refusals and checked compiler-selection negatives
+        run: ./.ithon/ithon tests/android-companion-toolchain.pi

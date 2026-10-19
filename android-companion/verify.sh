@@ -14,7 +14,9 @@ for f in "$contract" "$plan" "$map"; do [[ -f "$f" ]] || fail "missing input: $f
 for d in "$catfood" "$app"; do [[ -d "$d/.git" ]] || fail "not a Git checkout: $d"; done
 : "${AICI_COMPANION_RECEIPT:?exact receipt output path required}"
 [[ ! -e "$AICI_COMPANION_RECEIPT" ]] || fail 'refuse to overwrite an accepted receipt'
-for command in git awk sha256sum unzip readelf cc; do command -v "$command" >/dev/null || fail "missing $command"; done
+: "${ICK:?qualified absolute ICK compiler required}"
+[[ "$ICK" == /* && -x "$ICK" ]] || fail 'ICK must name an executable absolute compiler'
+for command in git awk sha256sum unzip readelf; do command -v "$command" >/dev/null || fail "missing $command"; done
 sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
 [[ -n "$sdk" ]] || fail 'Android SDK path is required'
 buildtools="${AICI_ANDROID_BUILD_TOOLS:-$sdk/build-tools/36.0.0}"
@@ -67,7 +69,7 @@ min_sdk=$(get min_sdk)
 [[ -n "$package" && -n "$label" && "$min_sdk" =~ ^[0-9]+$ ]] ||
     fail 'missing immutable package, launcher label or SDK'
 [[ "$packaging" == split || "$packaging" == shared ]] || fail 'unknown packaging shape'
-cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 "$aici/src/aici_android_signing.c" \
+"$ICK" -fno-link-libatomic -std=c17 -Wall -Wextra -Werror -pedantic -O2 "$aici/src/aici_android_signing.c" \
     -o "$tmp/signing-verifier"
 declare -a verified=()
 for target in phone c67; do
