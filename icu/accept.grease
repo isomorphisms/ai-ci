@@ -70,6 +70,12 @@ fails status-digits http://127.0.0.1:28080/status-digits 'ICU malformed or unsup
 for path in bad-length duplicate-length chunked {
   fails "$path" "http://127.0.0.1:28080/$path" 'ICU malformed or unsupported HTTP framing'
 }
+succeeds chunk-valid text http://127.0.0.1:28080/chunk-valid b'200\thello'
+for path in chunk-truncated chunk-overflow chunk-trailer chunk-extra chunk-extension chunk-duplicate chunk-conflict {
+  var reason = 'ICU malformed or unsupported HTTP framing'
+  if (path === 'chunk-overflow') { setvar reason = 'ICU captured response exceeds 8 MiB' }
+  fails "$path" "http://127.0.0.1:28080/$path" "$reason"
+}
 fails truncated http://127.0.0.1:28080/truncated 'ICU response body length mismatch'
 fails limit http://127.0.0.1:28080/limit 'ICU captured response exceeds 8 MiB'
 fails limit-stream http://127.0.0.1:28080/limit-stream 'ICU captured response exceeds 8 MiB'

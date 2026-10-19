@@ -15,6 +15,14 @@ status-digits	PASS
 bad-length	PASS
 duplicate-length	PASS
 chunked	PASS
+chunk-valid	PASS
+chunk-truncated	PASS
+chunk-overflow	PASS
+chunk-trailer	PASS
+chunk-extra	PASS
+chunk-extension	PASS
+chunk-duplicate	PASS
+chunk-conflict	PASS
 truncated	PASS
 limit	PASS
 limit-stream	PASS

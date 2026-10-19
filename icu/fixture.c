@@ -62,6 +62,41 @@ static void respond(int fd, SSL *tls, const char *request, int port) {
     int status = 200;
     if (!strncmp(path, "/status/", 8)) status = atoi(path + 8);
     if (!strcmp(path, "/empty")) status = 204;
+    if (!strncmp(path, "/range-", 7)) {
+        int requested = strstr(request, "Range: bytes=10-14\r\n") != NULL &&
+            strstr(request, " HTTP/1.1\r\n") != NULL;
+        const char *range = "Content-Range: bytes 10-14/100\r\n";
+        const char *encoding = "identity";
+        int range_status = requested ? 206 : 400;
+        if (!strcmp(path, "/range-wrong-status")) range_status = 200;
+        if (!strcmp(path, "/range-wrong-offset")) range = "Content-Range: bytes 11-15/100\r\n";
+        if (!strcmp(path, "/range-wrong-total")) range = "Content-Range: bytes 10-14/14\r\n";
+        if (!strcmp(path, "/range-missing")) range = "";
+        if (!strcmp(path, "/range-duplicate")) range = "Content-Range: bytes 10-14/100\r\nContent-Range: bytes 10-14/100\r\n";
+        if (!strcmp(path, "/range-encoding")) encoding = "gzip";
+        char response[512];
+        int count = snprintf(response, sizeof(response), "HTTP/1.1 %d Fixture\r\nContent-Length: 5\r\n%sContent-Encoding: %s\r\nConnection: close\r\n\r\n", range_status, range, encoding);
+        if (send_all(fd, tls, response, (size_t)count))
+            (void)send_all(fd, tls, "hello", !strcmp(path, "/range-truncated") ? 4 : 5);
+        return;
+    }
+    if (!strncmp(path, "/chunk-", 7)) {
+        const char *chunked = "3\r\nhel\r\n2\r\nlo\r\n0\r\n\r\n";
+        const char *framing = "Transfer-Encoding: chunked\r\n";
+        if (!strcmp(path, "/chunk-truncated")) chunked = "5\r\nhell";
+        if (!strcmp(path, "/chunk-overflow")) chunked = "FFFFFFFFFFFFFFFF\r\n";
+        if (!strcmp(path, "/chunk-trailer")) chunked = "0\r\nTrailer: x\r\n\r\n";
+        if (!strcmp(path, "/chunk-extra")) chunked = "0\r\n\r\nextra";
+        if (!strcmp(path, "/chunk-extension")) chunked = "5;ignored=x\r\nhello\r\n0\r\n\r\n";
+        if (!strcmp(path, "/chunk-duplicate")) framing = "Transfer-Encoding: chunked\r\nTransfer-Encoding: chunked\r\n";
+        if (!strcmp(path, "/chunk-conflict")) framing = "Transfer-Encoding: chunked\r\nContent-Length: 5\r\n";
+        char chunk_head[512];
+        int count = snprintf(chunk_head, sizeof(chunk_head),
+            "HTTP/1.1 200 Fixture\r\n%sContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n", framing);
+        if (send_all(fd, tls, chunk_head, (size_t)count))
+            (void)send_all(fd, tls, chunked, strlen(chunked));
+        return;
+    }
     int large = !strcmp(path, "/limit") || !strcmp(path, "/limit-stream") || !strcmp(path, "/exact-limit");
     if (large) size = 8u * 1024u * 1024u + (strcmp(path, "/exact-limit") != 0);
     char length[100];
