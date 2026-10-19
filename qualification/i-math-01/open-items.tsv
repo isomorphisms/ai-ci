@@ -1,0 +1,99 @@
+repository	number	kind	title	url
+isomorphismes/algebraic-variety-explorer-mobile	26	issue	Cross-reference Eisenbud–Harris, Fulton, Stacks, and Econometrician in a Box	https://github.com/isomorphismes/algebraic-variety-explorer-mobile/issues/26
+isomorphismes/algebraic-variety-explorer-mobile	25	issue	Textbook bridge: render polynomial varieties from Fulton and Eisenbud–Harris	https://github.com/isomorphismes/algebraic-variety-explorer-mobile/issues/25
+isomorphismes/algebraic-variety-explorer-mobile	23	issue	Run the full MIRO A1 physical Android acceptance through peer-phone ADB	https://github.com/isomorphismes/algebraic-variety-explorer-mobile/issues/23
+isomorphismes/algebraic-variety-explorer-mobile	20	issue	Recover SURFER's ray, transform, and normal contract from the original renderer	https://github.com/isomorphismes/algebraic-variety-explorer-mobile/issues/20
+isomorphismes/algebraic-variety-explorer-mobile	18	issue	If SURFER adopts shader lowering, require a real SURFER-owned consumer boundary	https://github.com/isomorphismes/algebraic-variety-explorer-mobile/issues/18
+isomorphismes/algebraic-variety-explorer-mobile	17	issue	Preserve original SURFER root behavior through whole-program translation	https://github.com/isomorphismes/algebraic-variety-explorer-mobile/issues/17
+isomorphismes/algebraic-variety-explorer-mobile	15	issue	Repair unavailable pinned F-Droid buildserver image	https://github.com/isomorphismes/algebraic-variety-explorer-mobile/issues/15
+isomorphismes/algebraic-variety-explorer-mobile	13	issue	Deform coefficients through a singular surface and measure the renderer	https://github.com/isomorphismes/algebraic-variety-explorer-mobile/issues/13
+isomorphismes/algebraic-variety-explorer-mobile	9	issue	single precision	https://github.com/isomorphismes/algebraic-variety-explorer-mobile/issues/9
+isomorphismes/algebraic-variety-explorer-mobile	8	issue	Out of bounds warning	https://github.com/isomorphismes/algebraic-variety-explorer-mobile/issues/8
+isomorphismes/algebraic-variety-explorer-mobile	7	issue	Video render	https://github.com/isomorphismes/algebraic-variety-explorer-mobile/issues/7
+isomorphismes/algebraic-variety-explorer-mobile	6	issue	Render and export obscured in bottom bar on tablet	https://github.com/isomorphismes/algebraic-variety-explorer-mobile/issues/6
+isomorphismes/algebraic-variety-explorer-mobile	5	issue	its written in Java	https://github.com/isomorphismes/algebraic-variety-explorer-mobile/issues/5
+isomorphismes/algebraic-variety-explorer-mobile	4	issue	descriptive export title	https://github.com/isomorphismes/algebraic-variety-explorer-mobile/issues/4
+isomorphismes/algebraic-variety-explorer-mobile	3	issue	video render	https://github.com/isomorphismes/algebraic-variety-explorer-mobile/issues/3
+isomorphismes/algebraic-variety-explorer-mobile	2	issue	√–1	https://github.com/isomorphismes/algebraic-variety-explorer-mobile/issues/2
+isomorphismes/algebraic-variety-explorer-mobile	1	issue	single superscript characters	https://github.com/isomorphismes/algebraic-variety-explorer-mobile/issues/1
+isomorphismes/wegert	72	pull_request	SUN 2: build separate A1/C67 ICK-hybrid Wegert APKs without Gradle	https://github.com/isomorphismes/wegert/pull/72
+isomorphismes/wegert	71	pull_request	Keep zero & infinity as the launcher name in test and ICK APKs	https://github.com/isomorphismes/wegert/pull/71
+isomorphismes/wegert	70	pull_request	Qualify the complete ICK ARMv7 NativeActivity library and APK	https://github.com/isomorphismes/wegert/pull/70
+isomorphismes/wegert	68	issue	F-Droid 0.2.0 release gate	https://github.com/isomorphismes/wegert/issues/68
+isomorphismes/wegert	65	issue	Use FFmpeg for movies assembled from Wegert stills	https://github.com/isomorphismes/wegert/issues/65
+isomorphismes/wegert	57	issue	Make Wegert a checked Idriç → GLSL consumer	https://github.com/isomorphismes/wegert/issues/57
+isomorphismes/wegert	56	issue	Implement the accepted Google Play release boundary	https://github.com/isomorphismes/wegert/issues/56
+isomorphismes/wegert	28	issue	Support old Android without coupling installation to GLES 3	https://github.com/isomorphismes/wegert/issues/28
+isomorphismes/wegert	27	issue	Accept the math-only renderer on an ARMv7 PowerVR device	https://github.com/isomorphismes/wegert/issues/27
+isomorphismes/wegert	26	issue	Freeze refC: do not add new dependencies	https://github.com/isomorphismes/wegert/issues/26
+isomorphismes/wegert	19	issue	Expose the coloring core as an embeddable periodic complex-plane shader	https://github.com/isomorphismes/wegert/issues/19
+isomorphismes/wegert	18	issue	Expose Wegert's Android renderer as a reusable live shell for Manimi scenes	https://github.com/isomorphismes/wegert/issues/18
+isomorphismes/wegert	4	issue	Dogfood ICK polar `_Complex` representation	https://github.com/isomorphismes/wegert/issues/4
+isomorphismes/holomorphic	60	issue	Explore signal-driven control of holomorphic coefficient space	https://github.com/isomorphismes/holomorphic/issues/60
+isomorphismes/holomorphic	56	issue	Reorganize GPU backends before more Mali/PowerVR tuning	https://github.com/isomorphismes/holomorphic/issues/56
+isomorphismes/holomorphic	55	issue	Audit math-to-GPU lowering: live renderer is still handwritten GLSL, not generated from the math	https://github.com/isomorphismes/holomorphic/issues/55
+isomorphismes/holomorphic	54	issue	Physical PowerVR evidence: zero/pole cancellation path is not trustworthy yet	https://github.com/isomorphismes/holomorphic/issues/54
+isomorphismes/holomorphic	53	issue	Wide-view correctness bugs also affect canonical/Mali renderer	https://github.com/isomorphismes/holomorphic/issues/53
+isomorphismes/holomorphic	40	issue	Repair the release version and source-tag identity	https://github.com/isomorphismes/holomorphic/issues/40
+isomorphismes/holomorphic	37	issue	Repair GPU-flow CI gates and run the random-holomorphic PowerVR sweep	https://github.com/isomorphismes/holomorphic/issues/37
+isomorphismes/holomorphic	35	issue	Freeze refC: do not add new dependencies	https://github.com/isomorphismes/holomorphic/issues/35
+isomorphismes/holomorphic	33	issue	Treat the flowing mode as a whole-plane holomorphic field with canonical local directions	https://github.com/isomorphismes/holomorphic/issues/33
+isomorphismes/holomorphic	32	issue	Make the random holomorphic factor GPU-native after the mathematical contract is fixed	https://github.com/isomorphismes/holomorphic/issues/32
+isomorphismes/holomorphic	25	issue	Reuse Wegert zero/pole interaction components	https://github.com/isomorphismes/holomorphic/issues/25
+isomorphismes/coefficient-root-dance	5	issue	Track root permutation, collisions, and quotient witnesses	https://github.com/isomorphismes/coefficient-root-dance/issues/5
+isomorphismes/Conway	4	issue	Freeze refC: do not add new dependencies	https://github.com/isomorphismes/Conway/issues/4
+isomorphismes/soap	6	issue	Freeze refC: do not add new dependencies	https://github.com/isomorphismes/soap/issues/6
+isomorphismes/soap	3	issue	Make every museum surface a playable file	https://github.com/isomorphismes/soap/issues/3
+isomorphismes/ortho	3	issue	Freeze refC: do not add new dependencies	https://github.com/isomorphismes/ortho/issues/3
+isomorphismes/yt-shorts	6	issue	Redo theta Short source pass in smart mode	https://github.com/isomorphismes/yt-shorts/issues/6
+isomorphismes/yt-shorts	5	issue	Reusable fundamental parallelogram → torus animation	https://github.com/isomorphismes/yt-shorts/issues/5
+isomorphismes/yt-shorts	4	issue	Manimi blocker: textured lattice quotient geometry for plane → torus	https://github.com/isomorphismes/yt-shorts/issues/4
+isomorphismes/yt-shorts	3	issue	Animate the Wegert plane becoming a torus with Manimi	https://github.com/isomorphismes/yt-shorts/issues/3
+isomorphismes/indras-pearls	12	issue	Emulator counterexample: controls mutate but Schottky framebuffer stays black/static	https://github.com/isomorphismes/indras-pearls/issues/12
+isomorphismes/coxeter	8	issue	Inventory reflection, rotation, sphere, and projective carriers	https://github.com/isomorphismes/coxeter/issues/8
+isomorphismes/coxeter	7	issue	Inventory reflection, rotation, sphere, and projective carriers	https://github.com/isomorphismes/coxeter/issues/7
+isomorphismes/coxeter	6	issue	Type A is sorting: connect reduced words and 0-Hecke operators to concrete reorder plans	https://github.com/isomorphismes/coxeter/issues/6
+isomorphismes/coxeter	5	issue	Householder reflections for high-dimensional alignment	https://github.com/isomorphismes/coxeter/issues/5
+isomorphismes/coxeter	4	issue	Freeze refC: do not add new dependencies	https://github.com/isomorphismes/coxeter/issues/4
+isomorphismes/coxeter	1	issue	Survey existing CAS before reimplementing Coxeter/reflection-group machinery	https://github.com/isomorphismes/coxeter/issues/1
+isomorphismes/lacunary	3	issue	Path continuation, branches, sheets, and monodromy	https://github.com/isomorphismes/lacunary/issues/3
+isomorphismes/lacunary	2	issue	Lasso and deformed-domain explorer	https://github.com/isomorphismes/lacunary/issues/2
+isomorphismes/lacunary	1	issue	Overlapping convergence-disc and reveal experiments	https://github.com/isomorphismes/lacunary/issues/1
+isomorphismes/pauli	21	issue	Use FFmpeg for Pauli movies assembled from rendered stills	https://github.com/isomorphismes/pauli/issues/21
+isomorphismes/pauli	11	issue	Find plain language for harmonic analysis	https://github.com/isomorphismes/pauli/issues/11
+isomorphismes/knot-complement	9	issue	Make scenery composable without coupling it to geometry	https://github.com/isomorphismes/knot-complement/issues/9
+isomorphismes/knot-complement	8	issue	Survey UNESCO World Heritage Sites for fly-through terrain candidates	https://github.com/isomorphismes/knot-complement/issues/8
+isomorphismes/knot-complement	7	issue	Add John Muir landscapes to the U.S. terrain corpus	https://github.com/isomorphismes/knot-complement/issues/7
+isomorphismes/knot-complement	6	issue	Add historically significant mountain landscapes to the terrain corpus	https://github.com/isomorphismes/knot-complement/issues/6
+isomorphismes/knot-complement	5	issue	Add New Zealand / Lord of the Rings landscapes to the terrain corpus	https://github.com/isomorphismes/knot-complement/issues/5
+isomorphismes/Fourier-sound	32	pull_request	Compose the Fourier Horner leaf in Icky C	https://github.com/isomorphismes/Fourier-sound/pull/32
+isomorphismes/Fourier-sound	31	issue	Star A1: startup discards coefficient and ICK polynomial self-test failures	https://github.com/isomorphismes/Fourier-sound/issues/31
+isomorphismes/Fourier-sound	15	issue	Use FFmpeg for Fourier Voice movies instead of custom movie encoding	https://github.com/isomorphismes/Fourier-sound/issues/15
+isomorphismes/Fourier-sound	11	issue	Use the Fourier spectrum as a high-dimensional controller	https://github.com/isomorphismes/Fourier-sound/issues/11
+isomorphismes/Fourier-sound	5	issue	Build a phyphox-like experiment shell without freezing the mathematics	https://github.com/isomorphismes/Fourier-sound/issues/5
+isomorphismes/Fourier-sound	4	issue	Implement Wegert-style complex phase renderer	https://github.com/isomorphismes/Fourier-sound/issues/4
+isomorphismes/Fourier-sound	3	issue	Reproduce diproton voice → FFT → q-series experiment	https://github.com/isomorphismes/Fourier-sound/issues/3
+isomorphismes/Fourier-sound	2	issue	Add transparent direct DFT reference and transform interface	https://github.com/isomorphismes/Fourier-sound/issues/2
+isomorphismes/Fourier-sound	1	issue	Wire Fourier-sound to reusable native Android audio	https://github.com/isomorphismes/Fourier-sound/issues/1
+isomorphismes/sprott	3	pull_request	Compose Sprott phase points and velocities in Icky C	https://github.com/isomorphismes/sprott/pull/3
+isomorphismes/sprott	1	issue	Serve as a concrete interactive counterpart to Walnut/Burgundy mathematics	https://github.com/isomorphismes/sprott/issues/1
+isomorphismes/spinor	1	issue	Direct manipulation: grab the body/ribbons and explore the 4π state	https://github.com/isomorphismes/spinor/issues/1
+isomorphismes/seifert	6	issue	SUN I-MATH-01-S1: reconcile ribbon/Idriç PR stack and qualify the nonvisual math	https://github.com/isomorphismes/seifert/issues/6
+isomorphismes/seifert	5	pull_request	Define Idriç arithmetic-topology readouts and fail-closed invariants	https://github.com/isomorphismes/seifert/pull/5
+isomorphismes/seifert	2	pull_request	Source-style pass: compositional ICKY C and explicit compiler boundary	https://github.com/isomorphismes/seifert/pull/2
+isomorphismes/seifert	1	pull_request	Three orthant blocks, attached L-shaped ribbons and broader sticky touch	https://github.com/isomorphismes/seifert/pull/1
+isomorphismes/mostow	2	issue	SUN I-MATH-01-S2: requalify existing Mostow sheet after merged signer fix	https://github.com/isomorphismes/mostow/issues/2
+isomorphismes/mostow	1	pull_request	Living hyperbolic sheet with bounded motion and paired Android builds	https://github.com/isomorphismes/mostow/pull/1
+isomorphismes/flower	2	issue	Use Crystal's geometric net work to sharpen Flower's topology/geometry boundary	https://github.com/isomorphismes/flower/issues/2
+isomorphismes/crystal	9	issue	Make zoom and wireframe failures observable and reproducible on the identified MIRO APK	https://github.com/isomorphismes/crystal/issues/9
+isomorphismes/crystal	8	issue	Repair MIRO APK build policy and Android update identity after PR #7	https://github.com/isomorphismes/crystal/issues/8
+isomorphismes/crystal	6	issue	MIRO crystal APK: Pyrite cube/pyritohedron/octahedron competition	https://github.com/isomorphismes/crystal/issues/6
+isomorphismes/crystal	5	issue	MIRO crystal APK: Bismuth A7 net with hopper terraces	https://github.com/isomorphismes/crystal/issues/5
+isomorphismes/crystal	4	issue	MIRO crystal APK: chiral alpha Quartz	https://github.com/isomorphismes/crystal/issues/4
+isomorphismes/crystal	3	issue	MIRO vertical slice: Halite fixed-net APK	https://github.com/isomorphismes/crystal/issues/3
+isomorphismes/crystal	2	issue	Build the shared fixed-net crystal engine and MIRO per-material APK harness	https://github.com/isomorphismes/crystal/issues/2
+isomorphismes/young-tableaux	18	PR	Qualify existing embedded Icky Lua and pin verified runtime	https://github.com/isomorphismes/young-tableaux/pull/18
+isomorphismes/young-tableaux	17	PR	Independently audit all 44 Young Tableaux operations	https://github.com/isomorphismes/young-tableaux/pull/17
+isomorphismes/young-tableaux	7	issue	Explore Pauli visualization for Schur-Weyl and quantum spin sectors	https://github.com/isomorphismes/young-tableaux/issues/7
+isomorphismes/young-tableaux	4	issue	Delete stale merged branches	https://github.com/isomorphismes/young-tableaux/issues/4
+isomorphismes/mock-theta	3	PR	Qualify whole-panel interaction and prepare maintained-build handoff	https://github.com/isomorphismes/mock-theta/pull/3
