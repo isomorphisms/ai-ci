@@ -1,0 +1,335 @@
+"""Independent output oracle for Flower's declared reduced annular model."""
+import math
+import pathlib
+import sys
+from builtins import ValueError, OSError, IndexError, SystemExit, int, float, str, list
+
+PI ∈ float ← math.pi
+
+def as_text(value ∈ object) → str:
+    return str(value)
+
+def absolute(value ∈ float) → float:
+    if value < 0:
+        return -value
+    return value
+
+def total(values ∈ list[float]) → float:
+    result ∈ float ← 0
+    for value in values:
+        result ← result + value
+    return result
+
+def require(condition ∈ bool, reason ∈ str) → None:
+    if not condition:
+        raise ValueError(reason)
+
+def close(actual ∈ float, wanted ∈ float, tolerance ∈ float, reason ∈ str) → None:
+    require(math.isfinite(actual) and absolute(actual - wanted) <= tolerance, reason)
+
+def read_report(path ∈ str) → dict[str, list[float]]:
+    content ∈ str ← pathlib.Path(path).read_text(encoding="utf-8")
+    require(len(content) < 65536, "report-limit")
+    lines ∈ list[str] ← content.splitlines()
+    require(len(lines) == 26 and lines[0] == "FLOWER_ANNULAR_MECHANICS\t1", "report-schema")
+    cases ∈ dict[str, list[float]] ← {}
+    for line in lines[1:]:
+        fields ∈ list[str] ← line.split("\t")
+        empty ∈ list[float] ← []
+        require(len(fields) >= 2, "record-schema")
+        previous ∈ list[float] ← cases.get(fields[1], empty)
+        if fields[0] == "case":
+            require(len(fields) == 14 and len(previous) == 0, "case-schema")
+            values ∈ list[float] ← []
+            for word in fields[2:]:
+                value ∈ float ← float(word)
+                require(math.isfinite(value), "nonfinite-report")
+                values.append(value)
+            cases[fields[1]] ← values
+        else:
+            require(fields[0] == "ring" and len(fields) == 6 and len(previous) > 0, "ring-schema")
+            ring ∈ int ← int(fields[2])
+            values ← cases[fields[1]]
+            require(ring >= 0 and ring < 4 and len(values) == 12 + 3 * ring, "ring-order")
+            for word in fields[3:]:
+                value ← float(word)
+                require(math.isfinite(value), "nonfinite-report")
+                values.append(value)
+    require(len(cases) == 5, "case-population")
+    for name in ["cylinder", "increasing", "perturbed", "scaled", "thick"]:
+        empty_case ∈ list[float] ← []
+        found ∈ list[float] ← cases.get(name, empty_case)
+        require(len(found) == 24, "case-population")
+    return cases
+
+def coordinates(case ∈ list[float]) → list[float]:
+    state ∈ list[float] ← []
+    for ring in range(4):
+        state.append(case[13 + 3 * ring])
+        state.append(case[14 + 3 * ring])
+    return state
+
+def energy(case ∈ list[float], state ∈ list[float]) → list[float]:
+    require(len(case) == 24 and len(state) == 8, "case-size")
+    height ∈ float ← case[2]
+    thickness ∈ float ← case[4]
+    require(case[0] == 0 or case[0] == 1, "pattern")
+    require(height > 0 and thickness > 0 and thickness <= 0.2 * height and case[3] > 0, "model-parameters")
+    counts ∈ list[int] ← [8, 12, 18, 27]
+    if case[0] == 1:
+        counts ← [8, 8, 8, 8]
+    reference ∈ list[float] ← []
+    for ring in range(4):
+        require(case[12 + 3 * ring] == counts[ring], "material-counts")
+        reference.append(counts[ring] * case[1] / (2 * PI))
+    close(state[0], reference[0], 1e-13, "inner-boundary")
+    close(state[1], 0, 0, "inner-boundary")
+    for ring in range(4):
+        require(state[2 * ring] >= 3e-5 * height and math.isfinite(state[2 * ring + 1]), "admissibility")
+    lengths ∈ list[float] ← []
+    angles ∈ list[float] ← []
+    areas ∈ list[float] ← []
+    stretch ∈ float ← 0
+    bend ∈ float ← 0
+    for band in range(3):
+        delta_radius ∈ float ← state[2 * band + 2] - state[2 * band]
+        delta_height ∈ float ← state[2 * band + 3] - state[2 * band + 1]
+        require(delta_height > 3e-5 * height, "admissibility")
+        length ∈ float ← math.sqrt(delta_radius ** 2 + delta_height ** 2)
+        lengths.append(length)
+        angles.append(math.atan2(delta_height, delta_radius))
+        area ∈ float ← 2 * PI * reference[band] * height
+        if case[0] == 0:
+            growth_log ∈ float ← math.log(1.5)
+            rate ∈ float ← growth_log / height
+            area ← 2 * PI * (reference[band + 1] - reference[band]) / rate
+        areas.append(area)
+        stretch ← stretch + area * (length / height - 1) ** 2 / 2
+        hoop ∈ float ← delta_height / length * 2 / (state[2 * band] + state[2 * band + 2])
+        bend ← bend + area * hoop ** 2 / 2
+    for ring in range(4):
+        weight ∈ float ← 0
+        if ring > 0:
+            weight ← weight + areas[ring - 1] / 2
+        if ring < 3:
+            weight ← weight + areas[ring] / 2
+        stretch ← stretch + weight * (state[2 * ring] / reference[ring] - 1) ** 2 / 2
+        if ring > 0 and ring < 3:
+            meridian ∈ float ← 2 * (angles[ring] - angles[ring - 1]) / (lengths[ring] + lengths[ring - 1])
+            bend ← bend + weight * meridian ** 2 / 2
+    stretch ← stretch / total(areas)
+    bend ← bend / total(areas) * thickness ** 2 / 12
+    return [stretch, bend]
+
+def gradient(case ∈ list[float], step ∈ float) → float:
+    state ∈ list[float] ← coordinates(case)
+    squared ∈ float ← 0
+    scale ∈ float ← 3 * case[2]
+    for index in range(2, 8):
+        plus ∈ list[float] ← state.copy()
+        minus ∈ list[float] ← state.copy()
+        plus[index] ← plus[index] + step * scale
+        minus[index] ← minus[index] - step * scale
+        high ∈ list[float] ← energy(case, plus)
+        low ∈ list[float] ← energy(case, minus)
+        derivative ∈ float ← (total(high) - total(low)) / (2 * step)
+        squared ← squared + derivative ** 2
+    return math.sqrt(squared)
+
+def check_case(case ∈ list[float]) → None:
+    measured ∈ list[float] ← energy(case, coordinates(case))
+    close(case[9], measured[0], 1e-11, "energy-stretching")
+    close(case[10], measured[1], 1e-11, "energy-bending")
+    require(total(measured) <= case[8] + 1e-14, "energy-descent")
+    require(case[11] >= 0 and case[11] <= case[5] and case[5] <= 1e-7, "reported-convergence")
+    first ∈ float ← gradient(case, 1e-5)
+    second ∈ float ← gradient(case, 2e-5)
+    require(first < 3e-6 and second < 3e-6 and absolute(first - second) < 1e-6, "independent-stationarity")
+
+def read_mesh(path ∈ str) → list[list[list[float]]]:
+    content ∈ str ← pathlib.Path(path).read_text(encoding="utf-8")
+    require(len(content) < 2000000, "mesh-limit")
+    vertices ∈ list[list[float]] ← []
+    faces ∈ list[list[float]] ← []
+    lines ∈ list[str] ← content.splitlines()
+    for line in lines:
+        fields ∈ list[str] ← line.split()
+        if len(fields) == 0 or fields[0].startswith("#"):
+            continue
+        require(len(fields) == 4, "mesh-schema")
+        row ∈ list[float] ← [float(fields[1]), float(fields[2]), float(fields[3])]
+        for value in row:
+            require(math.isfinite(value), "mesh-nonfinite")
+        if fields[0] == "v":
+            vertices.append(row)
+        else:
+            require(fields[0] == "f", "mesh-record")
+            faces.append(row)
+    return [vertices, faces]
+
+def check_mesh(mesh ∈ list[list[list[float]]], case ∈ list[float], density ∈ int) → None:
+    vertices ∈ list[list[float]] ← mesh[0]
+    faces ∈ list[list[float]] ← mesh[1]
+    around ∈ int ← 216 * density
+    require(len(vertices) == (3 * density + 1) * around and len(faces) == 6 * density * around, "mesh-size")
+    for row in range(3 * density + 1):
+        band ∈ int ← row // density
+        if band > 2:
+            band ← 2
+        fraction ∈ float ← (row - band * density) / density
+        radius ∈ float ← (1 - fraction) * case[13 + 3 * band] + fraction * case[16 + 3 * band]
+        height ∈ float ← (1 - fraction) * case[14 + 3 * band] + fraction * case[17 + 3 * band]
+        for col in range(around):
+            angle ∈ float ← 2 * PI * col / around
+            cosine ∈ float ← math.cos(angle)
+            sine ∈ float ← math.sin(angle)
+            expected ∈ list[float] ← [radius * cosine, radius * sine, height]
+            for axis in range(3):
+                close(vertices[row * around + col][axis], expected[axis], 2e-12, "mesh-position")
+    cursor ∈ int ← 0
+    for row in range(3 * density):
+        for col in range(around):
+            first ∈ int ← row * around + col + 1
+            second ∈ int ← (row + 1) * around + col + 1
+            third ∈ int ← (row + 1) * around + (col + 1) % around + 1
+            fourth ∈ int ← row * around + (col + 1) % around + 1
+            expected_first ∈ list[int] ← [first, second, third]
+            expected_second ∈ list[int] ← [first, third, fourth]
+            for corner in range(3):
+                require(faces[cursor][corner] == expected_first[corner] and faces[cursor + 1][corner] == expected_second[corner], "mesh-incidence")
+            cursor ← cursor + 2
+
+def read_markers(path ∈ str) → list[list[str]]:
+    lines ∈ list[str] ← pathlib.Path(path).read_text(encoding="utf-8").splitlines()
+    require(len(lines) == 66 and lines[0] == "material_id\tround\tindex\tparent_kind\tparent\tx\ty\tz", "marker-schema")
+    rows ∈ list[list[str]] ← []
+    for line in lines[1:]:
+        row ∈ list[str] ← line.split("\t")
+        require(len(row) == 8, "marker-schema")
+        rows.append(row)
+    return rows
+
+def check_markers(markers ∈ list[list[str]], case ∈ list[float]) → None:
+    first_ids ∈ list[int] ← [0, 8, 20, 38]
+    counts ∈ list[int] ← [8, 12, 18, 27]
+    for ring in range(4):
+        index ∈ int ← 0
+        parents ∈ int ← 8
+        if ring > 0:
+            parents ← counts[ring - 1]
+        for parent in range(parents):
+            children ∈ int ← 1
+            if ring > 0 and parent % 2 == 1:
+                children ← 2
+            for child in range(children):
+                row ∈ list[str] ← markers[first_ids[ring] + index]
+                material_id ∈ int ← int(row[0])
+                round_id ∈ int ← int(row[1])
+                row_index ∈ int ← int(row[2])
+                actual_parent ∈ int ← int(row[4])
+                require(material_id == first_ids[ring] + index and round_id == ring and row_index == index, "marker-id")
+                role ∈ str ← "foundation"
+                parent_id ∈ int ← parent
+                if ring > 0:
+                    role ← "stitch"
+                    parent_id ← parent + first_ids[ring - 1]
+                require(row[3] == role and actual_parent == parent_id, "marker-parent")
+                angle ∈ float ← 2 * PI * index / counts[ring]
+                cosine ∈ float ← math.cos(angle)
+                sine ∈ float ← math.sin(angle)
+                expected ∈ list[float] ← [case[13 + 3 * ring] * cosine, case[13 + 3 * ring] * sine, case[14 + 3 * ring]]
+                for axis in range(3):
+                    position ∈ float ← float(row[5 + axis])
+                    close(position, expected[axis], 2e-12, "marker-position")
+                index ← index + 1
+        require(index == counts[ring], "marker-row-count")
+
+def reject_case(case ∈ list[float], reason ∈ str) → None:
+    try:
+        check_case(case)
+    except ValueError as error:
+        require(as_text(error) == reason, "wrong-rejection:" + as_text(error))
+        print("REJECT\t" + reason)
+        return
+    raise ValueError("accepted-mutant:" + reason)
+
+def self_test(cases ∈ dict[str, list[float]]) → None:
+    good ∈ list[float] ← cases["increasing"]
+    bad ∈ list[float] ← good.copy()
+    bad[9] ← bad[9] + 0.01
+    reject_case(bad, "energy-stretching")
+    bad ← good.copy()
+    bad[10] ← 0
+    reject_case(bad, "energy-bending")
+    bad ← good.copy()
+    bad[19] ← bad[19] * 1.02
+    actual ∈ list[float] ← energy(bad, coordinates(bad))
+    bad[9] ← actual[0]
+    bad[10] ← actual[1]
+    bad[8] ← total(actual) + 1
+    bad[11] ← 0
+    reject_case(bad, "independent-stationarity")
+    bad ← good.copy()
+    bad[20] ← bad[17] - 0.01
+    reject_case(bad, "admissibility")
+    bad ← good.copy()
+    bad[18] ← 17
+    reject_case(bad, "material-counts")
+    bad ← good.copy()
+    bad[11] ← 1
+    reject_case(bad, "reported-convergence")
+    bad ← good.copy()
+    bad[8] ← 0
+    reject_case(bad, "energy-descent")
+
+def main() → None:
+    argv ∈ list[str] ← sys.argv
+    arguments ∈ list[str] ← argv[1:]
+    require(len(arguments) == 4, "usage: accept.pi REPORT.tsv MESH.obj FINE.obj MARKERS.tsv")
+    cases ∈ dict[str, list[float]] ← read_report(arguments[0])
+    for name in cases:
+        check_case(cases[name])
+        print("PASS\tenergy-and-stationarity\t" + name)
+    base ∈ list[float] ← cases["increasing"]
+    for ring in range(4):
+        close(cases["perturbed"][13 + 3 * ring], base[13 + 3 * ring], 2e-5, "initialization-sensitivity")
+        close(cases["perturbed"][14 + 3 * ring], base[14 + 3 * ring], 2e-5, "initialization-sensitivity")
+        close(cases["scaled"][13 + 3 * ring], 2 * base[13 + 3 * ring], 2e-5, "unit-scaling")
+        close(cases["scaled"][14 + 3 * ring], 2 * base[14 + 3 * ring], 2e-5, "unit-scaling")
+    require(absolute(cases["thick"][22] - base[22]) > 1e-5, "thickness-coupling")
+    mesh ∈ list[list[list[float]]] ← read_mesh(arguments[1])
+    fine ∈ list[list[list[float]]] ← read_mesh(arguments[2])
+    check_mesh(mesh, base, 1)
+    check_mesh(fine, base, 2)
+    markers ∈ list[list[str]] ← read_markers(arguments[3])
+    check_markers(markers, base)
+    self_test(cases)
+    mesh[0][0][0] ← mesh[0][0][0] + 0.01
+    try:
+        check_mesh(mesh, base, 1)
+        raise ValueError("accepted-mutant:mesh-position")
+    except ValueError as error:
+        require(as_text(error) == "mesh-position", "wrong-mesh-rejection:" + as_text(error))
+        print("REJECT\tmesh-position")
+    fine[1][0][0] ← 2
+    try:
+        check_mesh(fine, base, 2)
+        raise ValueError("accepted-mutant:mesh-incidence")
+    except ValueError as error:
+        require(as_text(error) == "mesh-incidence", "wrong-mesh-rejection:" + as_text(error))
+        print("REJECT\tmesh-incidence")
+    markers[10][4] ← "0"
+    try:
+        check_markers(markers, base)
+        raise ValueError("accepted-mutant:marker-parent")
+    except ValueError as error:
+        require(as_text(error) == "marker-parent", "wrong-marker-rejection:" + as_text(error))
+        print("REJECT\tmarker-parent")
+    print("PASS\tindependent finite mechanics\t5 states\t2 display densities\t65 material IDs\t10 targeted rejections")
+    print("scope\tsynthetic reduced annulus; no arbitrary cloth, calibrated yarn, finite-thickness contact, GPU, device, or handmade acceptance")
+
+try:
+    main()
+except (ValueError, OSError, IndexError) as error:
+    print("FAIL\t" + as_text(error), file=sys.stderr)
+    raise SystemExit(1)
