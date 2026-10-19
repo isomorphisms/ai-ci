@@ -158,7 +158,7 @@ def validate_manifest(data ∈ bytes, records ∈ dict[str, tuple[str, str, str,
     if permission_tag >= 0 or internet_name >= 0:
         raise ValueError("NETWORK_PERMISSION_CREEP")
     shared_uid ∈ int ← text.find("android:sharedUserId")
-    root_word ∈ bool ← bool(re.search(r"(?i)\\broot\\b", text))
+    root_word ∈ bool ← bool(re.search(r"(?i)\broot\b", text))
     if shared_uid >= 0 or root_word:
         raise ValueError("ROOT_CREEP")
 

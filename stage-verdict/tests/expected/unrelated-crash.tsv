@@ -1,0 +1,8 @@
+meta	schema	aici-stage-verdict-v1
+summary	selected_complete	yes
+summary	first_required_failure	none
+summary	first_required_incomplete	none
+summary	disposition	ACCEPT_SCOPE
+kind	stage_id	attempt	actor	required	selected	depends_on	claim	observation	declared_evidence_validity	evidence_validity	diagnosis	disposition	exit	signal	command	source_identity	producer_digest	log_digest	native_code	detail
+verdict	runner_health	1	runner	no	no	-	runner_health	FAIL	VALID	VALID	UNKNOWN	REJECT_SCOPE	139	SIGSEGV	runner-sidecar	2222222222222222222222222222222222222222	dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd	eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee	runner_crash	unrelated actor crashed
+verdict	application	1	application	yes	yes	-	application_behavior	PASS	VALID	VALID	UNKNOWN	ACCEPT_SCOPE	0	-	run-application	1111111111111111111111111111111111111111	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb	behavior_ok	application behavior demonstrated

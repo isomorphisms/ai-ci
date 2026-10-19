@@ -77,6 +77,13 @@ root_digest ∈ str ← ib_u8_e1.digest(root_manifest)
 root_records["artifact\tandroid-manifest"] = ("artifact", "android-manifest", "android-native/AndroidManifest.xml", root_digest)
 expect_error("root-creep", "ROOT_CREEP", lambda: ib_u8_e1.validate_manifest(root_manifest, root_records, policy))
 
+# Exercise the lexical guard separately from the sharedUserId attribute guard.
+root_word_manifest ∈ bytes ← manifest.replace(b"<application", b"<application android:label=\"Root\"")
+root_word_records ∈ dict[str, tuple[str, str, str, str]] ← dict(records)
+root_word_digest ∈ str ← ib_u8_e1.digest(root_word_manifest)
+root_word_records["artifact\tandroid-manifest"] = ("artifact", "android-manifest", "android-native/AndroidManifest.xml", root_word_digest)
+expect_error("root-word-boundary", "ROOT_CREEP", lambda: ib_u8_e1.validate_manifest(root_word_manifest, root_word_records, policy))
+
 payload ∈ bytes ← b"Prepare the source-pinned native reader build only after the listed gates are satisfied. Display this assignment before any dispatch.\n"
 pending_policy ∈ dict[str, object] ← dict(json.loads(json.dumps(policy)))
 pending ∈ dict[str, object] ← dict(pending_policy["pending_handoff"])
@@ -109,5 +116,5 @@ print("PASS pending receipt is BLOCKED, not visible acceptance")
 expect_error("tampered-job-artifact", "HANDOFF_JOB_DIGEST", lambda: ib_u8_e1.verify_pending(pending_policy, materials, receipt, payload + b"changed"))
 expect_error("wrong-source-epoch", "SOURCE_EPOCH_MISMATCH", lambda: ib_u8_e1.verify_pending(pending_policy, wrong_source, receipt, payload))
 
-out.joinpath("results.tsv").write_text("case\tresult\nclean\tPASS\nwrong-source\tPASS\nwrong-compiler\tPASS\nwrong-signer\tPASS\njava-creep\tPASS\ntee-mask\tPASS\nnetwork-permission\tPASS\nroot-creep\tPASS\npending-blocked\tPASS\ntampered-job-artifact\tPASS\nwrong-source-epoch\tPASS\n")
-print("IB-U8-E1 independent controls PASS: 11")
+out.joinpath("results.tsv").write_text("case\tresult\nclean\tPASS\nwrong-source\tPASS\nwrong-compiler\tPASS\nwrong-signer\tPASS\njava-creep\tPASS\ntee-mask\tPASS\nnetwork-permission\tPASS\nroot-creep\tPASS\nroot-word-boundary\tPASS\npending-blocked\tPASS\ntampered-job-artifact\tPASS\nwrong-source-epoch\tPASS\n")
+print("IB-U8-E1 independent controls PASS: 12")

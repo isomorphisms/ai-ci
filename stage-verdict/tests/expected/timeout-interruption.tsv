@@ -1,0 +1,10 @@
+meta	schema	aici-stage-verdict-v1
+summary	selected_complete	yes
+summary	first_required_failure	build
+summary	first_required_incomplete	build
+summary	disposition	REJECT_SCOPE
+kind	stage_id	attempt	actor	required	selected	depends_on	claim	observation	declared_evidence_validity	evidence_validity	diagnosis	disposition	exit	signal	command	source_identity	producer_digest	log_digest	native_code	detail
+verdict	build	1	compiler	yes	yes	-	build	TIMEOUT	VALID	VALID	UNKNOWN	REJECT_SCOPE	124	SIGTERM	compile	1111111111111111111111111111111111111111	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb	timeout	compiler timed out
+verdict	test	1	test-runner	yes	yes	build	semantic_test	INTERRUPTED	VALID	VALID	UNKNOWN	REJECT_SCOPE	130	SIGINT	run-tests	1111111111111111111111111111111111111111	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc	interrupted	test interrupted
+verdict	package	1	packager	yes	yes	test	package	NOT_RUN	VALID	VALID	UNKNOWN	HOLD_FOR_EVIDENCE	-	-	package	1111111111111111111111111111111111111111	-	-	blocked_by_build	dependent stage did not run
+verdict	publish	1	publisher	yes	yes	package	publication	NOT_RUN	VALID	VALID	UNKNOWN	HOLD_FOR_EVIDENCE	-	-	publish	1111111111111111111111111111111111111111	-	-	blocked_by_package	dependent stage did not run
