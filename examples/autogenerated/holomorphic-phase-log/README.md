@@ -30,12 +30,20 @@ Commands (arguments are ordinary files/directories):
   missing numerical markers, graphics errors and changed corpus inputs fail.
   Self-tests use explicitly synthetic binary64 logs and never count as GPU
   execution. No binary32 tolerance has been inferred from successful fixtures.
-- `gpu-audit RUNTIME_LOG` runs those structural assertions, then returns exit 2
-  with `BLOCKED GPU-NUMERICAL-POLICY-MISSING`. A reviewed, predeclared binary32
-  phase/log error budget is absent. The binary64 host budget must not classify
-  ordinary binary32 roundoff as a shader defect, and a budget must not be loosened
-  in response to a failing measurement. A separate precision contract is required
-  before this command can grant mathematical GPU qualification.
+- `gpu-audit RUNTIME_LOG` additionally enforces the predeclared
+  [bounded GPU policy](gpu-policy.tsv) and its
+  [source/precision rationale](gpu-policy-rationale.md): circular phase error
+  ≤10⁻⁴ radians, unreduced log error ≤min(10⁻⁴, source roundoff envelope),
+  regular RGBA8 error ≤one level per channel, exact singular endpoints and alpha.
+  It requires all 34 same-program RGBA8 rows, their produced markers and no
+  graphics errors. Seams are classified with the same budgets. These are
+  application quality requirements fixed before viewing GPU output; Khronos
+  does not guarantee this atan accuracy. They must not be relaxed after failure.
+  Bounded shader acceptance still needs separate provenance and target-identity
+  receipts; a synthetic fixture never proves GPU or physical execution.
+- `palette-check CORE.glsl FIXTURES.json` verifies the independent binary64
+  palette against the six retained shared-Wegert fixtures, unchanged 2×10⁻⁵
+  agreement and canonical source digest.
 
 The case header is `case_id world_x world_y time pan_x pan_y zoom coefficients
 zeros poles remote_count`, separated by tabs. Coordinate lists use `x,y;x,y`;

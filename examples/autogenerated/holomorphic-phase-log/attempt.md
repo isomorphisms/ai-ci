@@ -62,10 +62,19 @@ colours or increasing the host tolerance. Actual generated-shader readbacks,
 binary32 accuracy qualification, ICK host sampling, emulator execution and all
 physical-device acceptance remain NOT_RUN.
 
-The actual GPU path reports unclassified phase/log errors and checks the exact
-corpus, cancellation, counts, singularity, finite output and produced markers.
-`gpu-audit` then fails closed with `GPU-NUMERICAL-POLICY-MISSING`: no reviewed
-predeclared binary32 error budget was supplied. The 2×10⁻¹² binary64 budget is
-used only for host comparison and explicitly synthetic binary64 checker
-fixtures. It neither rejects ordinary binary32 roundoff as a shader defect nor
-grants GPU qualification from such fixtures.
+The initial actual GPU classifier failed closed with
+`GPU-NUMERICAL-POLICY-MISSING`. That implementation was deliberately incomplete.
+The follow-up predeclared `gpu-policy.tsv` and its primary-source rationale
+before observing any Holomorphic GPU output. Actual `gpu-audit` now jointly
+requires circular phase, raw nonperiodic log modulus, exact structural semantics
+and actual RGBA8 output from the same selected program. The binary64 2×10⁻¹²
+budget remains host-only. The independent palette passed all six retained
+shared-Wegert fixtures at their existing 2×10⁻⁵ budget.
+
+The extended policy self-test executes three passing controls (unchanged,
+phase plus 2π, and one RGB8 level) and nine targeted failures: phase outside the
+predeclared budget, reversed phase, raw log shifted by a colour period, raw log
+outside the source envelope, two RGB8 levels, missing produced marker, missing
+colour output, changed uploaded multiplicity and a wrong singular endpoint.
+Every observation in these tests is explicitly a synthetic checker fixture.
+No GPU execution or physical acceptance follows from those passes.

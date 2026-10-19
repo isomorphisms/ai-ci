@@ -5,6 +5,9 @@ import sys
 import csv
 import re
 import struct
+import json
+import io
+import contextlib
 from pathlib import Path
 from builtins import dict, list, tuple, ValueError, ZeroDivisionError, Exception, AssertionError, format, abs, sum, enumerate, zip, reversed
 
@@ -14,6 +17,10 @@ HOST_TOLERANCE ∈ float ← 2.0e-12
 TAU ∈ float ← math.tau
 INFINITY ∈ float ← math.inf
 NAN ∈ float ← math.nan
+GPU_PHASE_BUDGET ∈ float ← 0.0001
+GPU_LOG_BUDGET ∈ float ← 0.0001
+BINARY32_EPSILON ∈ float ← 2.0 ** -23
+CANONICAL_PALETTE_DIGEST ∈ str ← "f30991435214135aa8a4c42798ff4ccc10ebc28db3b03d275d546ba203bad364"
 
 def repeat_text(value ∈ str, count ∈ int) → str:
     return value.__mul__(count)
@@ -400,6 +407,143 @@ def analytic_anchors() → None:
     if compare_values(expected, shifted, HOST_TOLERANCE) != "SEMANTIC-LOG-MODULUS":
         raise AssertionError("COLOUR-PERIOD-IS-NOT-FIELD-PARITY")
 
+def positive_fraction(value ∈ float) → float:
+    lower ∈ float ← math.floor(value)
+    return value - lower
+
+def srgb_component(linear ∈ float) → float:
+    value ∈ float ← linear if linear > 0.0 else 0.0
+    converted ∈ float ← 12.92 * value if value <= 0.0031308 else 1.055 * value ** (1.0 / 2.4) - 0.055
+    return 0.0 if converted < 0.0 else 1.0 if converted > 1.0 else converted
+
+def canonical_rgb(phase ∈ float, logarithm ∈ float) → list[float]:
+    hue_degrees ∈ float ← 360.0 * positive_fraction(phase / TAU)
+    log_ten ∈ float ← math.log(10.0)
+    lightness ∈ float ← 66.0 + 4.0 * positive_fraction(logarithm / log_ten) + 3.0 * positive_fraction(hue_degrees / 100.0)
+    hue ∈ float ← hue_degrees * TAU / 360.0
+    cosine ∈ float ← math.cos(hue)
+    sine ∈ float ← math.sin(hue)
+    u_star ∈ float ← 45.0 * cosine
+    v_star ∈ float ← 45.0 * sine
+    cie_y ∈ float ← ((lightness + 16.0) / 116.0) ** 3.0
+    u_prime ∈ float ← u_star / (13.0 * lightness) + 0.19783982482140777
+    v_prime ∈ float ← v_star / (13.0 * lightness) + 0.46833630293240974
+    cie_x ∈ float ← 9.0 * cie_y * u_prime / (4.0 * v_prime)
+    cie_z ∈ float ← cie_y * (12.0 - 3.0 * u_prime - 20.0 * v_prime) / (4.0 * v_prime)
+    red ∈ float ← 3.2404542 * cie_x - 1.5371385 * cie_y - 0.4985314 * cie_z
+    green ∈ float ← -0.9692660 * cie_x + 1.8760108 * cie_y + 0.0415560 * cie_z
+    blue ∈ float ← 0.0556434 * cie_x - 0.2040259 * cie_y + 1.0572252 * cie_z
+    return [srgb_component(red), srgb_component(green), srgb_component(blue)]
+
+def canonical_rgba8(expected ∈ tuple[float, float, int, int, int]) → list[int]:
+    if expected[2] > 0:
+        return [0, 0, 0, 255]
+    if expected[2] < 0:
+        return [255, 255, 255, 255]
+    rgb ∈ list[float] ← canonical_rgb(expected[0], expected[1])
+    result ∈ list[int] ← []
+    for value in rgb:
+        quantized ∈ int ← int(math.floor(value * 255.0 + 0.5))
+        result.append(quantized)
+    result.append(255)
+    return result
+
+def palette_check(core_path ∈ Path, fixture_path ∈ Path) → None:
+    digest ∈ str ← hashlib.sha256(core_path.read_bytes()).hexdigest()
+    fixture ∈ dict[str, object] ← json.loads(fixture_path.read_text())
+    fixture_digest ∈ str ← str(fixture["canonical_core_sha256"])
+    tolerance ∈ float ← float(fixture["color_tolerance"])
+    if digest != CANONICAL_PALETTE_DIGEST or fixture_digest != digest or tolerance != 0.00002:
+        raise ValueError("PALETTE-PIN-OR-EXISTING-TOLERANCE")
+    cases ∈ list[dict[str, object]] ← list(fixture["cases"])
+    if len(cases) != 6:
+        raise ValueError("PALETTE-FIXTURE-COUNT")
+    for case in cases:
+        fixture_point ∈ list[float] ← list(case["value"])
+        rgb ∈ list[float] ← list(case["rgb"])
+        phase ∈ float ← math.atan2(fixture_point[1], fixture_point[0])
+        radius ∈ float ← math.hypot(fixture_point[0], fixture_point[1])
+        logarithm ∈ float ← math.log(radius if radius > 1.0e-12 else 1.0e-12)
+        actual ∈ list[float] ← canonical_rgb(phase, logarithm)
+        for channel in range(3):
+            error ∈ float ← abs(actual[channel] - rgb[channel])
+            if error > tolerance:
+                raise ValueError("PALETTE-CPU-REFERENCE")
+    print("PASS independent binary64 shared Wegert reference: six retained fixtures, unchanged 2e-5 budget")
+
+def gamma(operations ∈ int) → float:
+    return operations * BINARY32_EPSILON / (1.0 - operations * BINARY32_EPSILON)
+
+def log_roundoff_bound(case ∈ dict[str, str]) → float:
+    point ∈ complex ← complex(float(case["world_x"]), float(case["world_y"]))
+    zeros ∈ list[complex] ← coordinates(case["zeros"])
+    poles ∈ list[complex] ← coordinates(case["poles"])
+    remote_count ∈ int ← int(case["remote_count"])
+    for index in range(remote_count):
+        poles.append(remote_position(index, float(case["time"])))
+    orders ∈ dict[complex, int] ← reduced_orders(zeros, poles, "reference")
+    positions ∈ list[complex] ← list(orders)
+    absolute_log_terms ∈ float ← 0.0
+    total_multiplicity ∈ int ← 0
+    for position in positions:
+        delta ∈ complex ← point - position
+        radius ∈ float ← math.hypot(delta.real, delta.imag)
+        if radius == 0.0:
+            continue
+        logarithm ∈ float ← math.log(radius)
+        magnitude ∈ float ← abs(orders[position] * logarithm)
+        multiplicity ∈ int ← abs(orders[position])
+        absolute_log_terms ← absolute_log_terms + magnitude
+        total_multiplicity ← total_multiplicity + multiplicity
+    coefficients ∈ list[complex] ← coordinates(case["coefficients"])
+    polynomial_condition ∈ float ← 0.0
+    polynomial_real ∈ float ← 0.0
+    normalized ∈ complex ← point / 3.0
+    for index in range(5):
+        term ∈ complex ← coefficients[index] * normalized ** (index + 1)
+        magnitude ∈ float ← abs(term)
+        real_part ∈ float ← term.real
+        polynomial_real ← polynomial_real + real_part
+        polynomial_condition ← polynomial_condition + (index + 2) * magnitude
+    absolute_polynomial_real ∈ float ← abs(polynomial_real)
+    bound ∈ float ← 64.0 * BINARY32_EPSILON * total_multiplicity + 8.0 * BINARY32_EPSILON * absolute_log_terms + gamma(len(orders) + 2) * (absolute_polynomial_real + absolute_log_terms) + gamma(128) * polynomial_condition
+    return bound if bound > HOST_TOLERANCE else HOST_TOLERANCE
+
+def boundary_classification(expected ∈ tuple[float, float, int, int, int]) → str:
+    if expected[2] != 0:
+        return "TRUE_ZERO" if expected[2] > 0 else "TRUE_POLE"
+    hue ∈ float ← 360.0 * positive_fraction(expected[0] / TAU)
+    hue_phase ∈ float ← hue * TAU / 360.0
+    hue_seams ∈ list[float] ← [0.0, 100.0 * TAU / 360.0, 200.0 * TAU / 360.0, 300.0 * TAU / 360.0, TAU]
+    for seam in hue_seams:
+        distance ∈ float ← abs(hue_phase - seam)
+        if distance <= GPU_PHASE_BUDGET:
+            return "COLOUR_SEAM_SAME_BUDGET"
+    log_ten ∈ float ← math.log(10.0)
+    log_distance ∈ float ← abs(math.remainder(expected[1], log_ten))
+    return "COLOUR_SEAM_SAME_BUDGET" if log_distance <= GPU_LOG_BUDGET else "REGULAR"
+
+def load_gpu_policy() → str:
+    source_path ∈ Path ← Path(__file__)
+    policy_path ∈ Path ← source_path.parent.joinpath("gpu-policy.tsv")
+    policy ∈ dict[str, str] ← {}
+    lines ∈ list[str] ← policy_path.read_text().splitlines()
+    for line in lines:
+        fields ∈ list[str] ← line.split("\t")
+        if len(fields) != 2:
+            raise ValueError("GPU-POLICY-SCHEMA")
+        previous ∈ str ← policy.get(fields[0], "")
+        if previous:
+            raise ValueError("GPU-POLICY-DUPLICATE")
+        policy[fields[0]] ← fields[1]
+    required ∈ dict[str, str] ← {"schema": "holomorphic-gpu-acceptance-v1", "declaration_order": "before-first-observed-holomorphic-gpu-readback", "gpu_circular_phase_absolute_error_radians": "0.0001", "gpu_raw_log_modulus_absolute_error": "0.0001", "regular_rgba8_channel_absolute_error": "1", "singular_rgba8_channel_absolute_error": "0", "raw_log_period_reduction": "forbidden", "canonical_wegert_glsl_sha256": CANONICAL_PALETTE_DIGEST}
+    names ∈ list[str] ← list(required)
+    for name in names:
+        actual ∈ str ← policy.get(name, "")
+        if actual != required[name]:
+            raise ValueError("GPU-POLICY-UNREVIEWED-CHANGE:" + name)
+    return hashlib.sha256(policy_path.read_bytes()).hexdigest()
+
 def gpu_cases() → list[dict[str, str]]:
     names ∈ list[str] ← ["one_exact", "one_displaced", "24_exact", "24_displaced", "multiplicity", "moving0", "moving7_5", "moving7_5_zoom", "24_displaced_large", "24_displaced_small"]
     coefficients ∈ list[complex] ← [complex(0.125,-0.0625), complex(-0.03125,0.015625), complex(0.0078125,0.00390625), complex(-0.001953125,0.0009765625), complex(0.00048828125,-0.000244140625)]
@@ -452,10 +596,12 @@ def gpu_records(path ∈ Path) → list[dict[str, str]]:
 def position_from_row(row ∈ dict[str, str], x_name ∈ str, y_name ∈ str) → complex:
     return complex(float32(float(row[x_name])), float32(float(row[y_name])))
 
-def gpu_audit(log_path ∈ Path, fixture_math ∈ bool) → int:
+def gpu_audit(log_path ∈ Path, fixture_math ∈ bool, qualify ∈ bool) → int:
     records ∈ list[dict[str, str]] ← gpu_records(log_path)
     expected_cases ∈ list[dict[str, str]] ← gpu_cases()
     summaries ∈ list[dict[str, str]] ← []
+    colour_summaries ∈ list[dict[str, str]] ← []
+    colours ∈ dict[str, dict[str, str]] ← {}
     measures ∈ dict[str, dict[str, str]] ← {}
     headers ∈ dict[str, dict[str, str]] ← {}
     inputs ∈ dict[str, dict[str, str]] ← {}
@@ -466,6 +612,8 @@ def gpu_audit(log_path ∈ Path, fixture_math ∈ bool) → int:
         event ∈ str ← row["event"]
         if event == "HOLO_GPU_NUMERIC":
             summaries.append(row)
+        elif event == "HOLO_GPU_COLOR_OUTPUT":
+            colour_summaries.append(row)
         else:
             name ∈ str ← row["case"]
             key ∈ str ← name
@@ -473,6 +621,9 @@ def gpu_audit(log_path ∈ Path, fixture_math ∈ bool) → int:
             if event == "HOLO_GPU_MEASURE":
                 key ← name + ":" + row["sample"]
                 destination ← measures
+            elif event == "HOLO_GPU_COLOR":
+                key ← name + ":" + row["sample"]
+                destination ← colours
             elif event == "HOLO_GPU_INPUT":
                 key ← name + ":" + row["kind"] + ":" + row["index"]
                 destination ← inputs
@@ -493,6 +644,14 @@ def gpu_audit(log_path ∈ Path, fixture_math ∈ bool) → int:
     summary ∈ dict[str, str] ← summaries[0]
     if summary["status"] != "OUTPUT_READY" or summary["samples"] != "34" or summary["expected"] != "34" or summary["reference_acceptance"] != "NOT_RUN":
         raise ValueError("GPU-NUMERICAL-OUTPUT-NOT-READY")
+    if qualify:
+        policy_digest ∈ str ← load_gpu_policy()
+        print("GPU_POLICY sha256=" + policy_digest + " phase_abs=0.0001 raw_log_abs=0.0001 regular_rgb8_abs=1")
+        if len(colours) != 34 or len(colour_summaries) != 1:
+            raise ValueError("GPU-MISSING-COLOUR-OUTPUT")
+        colour_summary ∈ dict[str, str] ← colour_summaries[0]
+        if colour_summary["status"] != "OUTPUT_READY" or colour_summary["samples"] != "34" or colour_summary["expected"] != "34" or colour_summary["reference_acceptance"] != "NOT_RUN":
+            raise ValueError("GPU-COLOUR-OUTPUT-NOT-READY")
     failures ∈ int ← 0
     expected_input_total ∈ int ← 0
     expected_factor_total ∈ int ← 0
@@ -567,13 +726,36 @@ def gpu_audit(log_path ∈ Path, fixture_math ∈ bool) → int:
         diagnosis ∈ str ← "PASS"
         if fixture_math:
             diagnosis ← compare_values(expected, actual, HOST_TOLERANCE)
+        elif qualify:
+            diagnosis ← compare_values(expected, actual, GPU_PHASE_BUDGET)
+            if expected[2] == 0 and diagnosis == "PASS":
+                actual_log_error ∈ float ← abs(actual[1] - expected[1])
+                source_bound ∈ float ← log_roundoff_bound(case)
+                log_budget ∈ float ← source_bound if source_bound < GPU_LOG_BUDGET else GPU_LOG_BUDGET
+                if actual_log_error > log_budget:
+                    diagnosis ← "SEMANTIC-LOG-ROUNDOFF-BOUND"
+            colour_row ∈ dict[str, str] ← colours[case["case_id"]]
+            colour_produced ∈ float ← float(colour_row["produced"])
+            colour_error ∈ int ← int(colour_row["gl_error"])
+            if colour_produced != 1.0 or colour_error != 0 or colour_row["framebuffer_format"] != "RGBA8" or colour_row["conversion"] != "glReadPixels":
+                raise ValueError("GPU-COLOUR-SUBMISSION-OR-READBACK:" + name)
+            expected_rgba ∈ list[int] ← canonical_rgba8(expected)
+            channel_names ∈ list[str] ← ["red", "green", "blue", "alpha"]
+            channel_budget ∈ int ← 1 if expected[2] == 0 else 0
+            for channel in range(4):
+                observed_channel ∈ int ← int(colour_row[channel_names[channel]])
+                channel_difference ∈ int ← abs(observed_channel - expected_rgba[channel])
+                allowed ∈ int ← 0 if channel == 3 else channel_budget
+                if observed_channel < 0 or observed_channel > 255 or channel_difference > allowed:
+                    diagnosis ← "SEMANTIC-RGBA8-" + channel_names[channel]
         else:
             if not math.isfinite(actual[0]) or not math.isfinite(actual[1]):
                 raise ValueError("GPU-NONFINITE-READBACK:" + name)
             if actual[2:] != expected[2:]:
                 diagnosis ← "SEMANTIC-CLASS-OR-MULTIPLICITY"
-        if fixture_math or diagnosis != "PASS":
-            print(case["case_id"] + "\t" + diagnosis)
+        if fixture_math or qualify or diagnosis != "PASS":
+            classification ∈ str ← boundary_classification(expected)
+            print(case["case_id"] + "\t" + diagnosis + (" class=" + classification if qualify else ""))
         else:
             phase_error ∈ float ← 0.0 if expected[2] != 0 else abs(math.remainder(actual[0] - expected[0], TAU))
             log_error ∈ float ← 0.0 if expected[2] != 0 else abs(actual[1] - expected[1])
@@ -624,20 +806,23 @@ def gpu_fixture(path ∈ Path) → None:
         phase ∈ float ← expected[0] if expected[2] == 0 else 0.0
         logarithm ∈ float ← expected[1] if expected[2] == 0 else 0.0
         lines.append(log_line("HOLO_GPU_MEASURE", {"case": name, "sample": pieces[1], "point_x": case["world_x"], "point_y": case["world_y"], "time": case["time"], "zoom": case["zoom"], "zero_count": str(len(zeros)), "pole_count": str(len(poles)), "remote_count": str(remote_count), "phase": decimal(phase), "log_modulus": decimal(logarithm), "singular_order": str(expected[2]), "produced": "1", "gl_error": "0", "readback_cpu_ms": "0"}))
+        rgba ∈ list[int] ← canonical_rgba8(expected)
+        lines.append(log_line("HOLO_GPU_COLOR", {"case": name, "sample": pieces[1], "red": str(rgba[0]), "green": str(rgba[1]), "blue": str(rgba[2]), "alpha": str(rgba[3]), "produced": "1", "gl_error": "0", "framebuffer_format": "RGBA8", "conversion": "glReadPixels"}))
     lines.append("HOLO_GPU_NUMERIC status=OUTPUT_READY samples=34 expected=34 reference_acceptance=NOT_RUN")
+    lines.append("HOLO_GPU_COLOR_OUTPUT status=OUTPUT_READY samples=34 expected=34 reference_acceptance=NOT_RUN")
     text ∈ str ← "\n".join(lines)
     path.write_text(text + "\n")
 
 def gpu_selftest(directory ∈ Path) → None:
     positive ∈ Path ← directory.joinpath("synthetic-gpu-reference.log")
     gpu_fixture(positive)
-    if gpu_audit(positive, True) != 0:
+    if gpu_audit(positive, True, False) != 0:
         raise AssertionError("GPU-PARSER-GOOD-REFERENCE-REJECTED")
     good ∈ str ← positive.read_text()
     missing ∈ Path ← directory.joinpath("synthetic-gpu-missing.log")
     missing.write_text("HOLO_GPU_NUMERIC status=OUTPUT_READY samples=34 expected=34 reference_acceptance=NOT_RUN\n")
     try:
-        gpu_audit(missing, True)
+        gpu_audit(missing, True, False)
     except ValueError as error:
         message ∈ str ← str(error)
         if message != "GPU-MISSING-NUMERICAL-OUTPUT":
@@ -646,7 +831,7 @@ def gpu_selftest(directory ∈ Path) → None:
         raise AssertionError("GPU-MISSING-OUTPUT-PASSED")
     missing.write_text(good.replace("produced=1", "produced=0", 1))
     try:
-        gpu_audit(missing, True)
+        gpu_audit(missing, True, False)
     except ValueError as error:
         message ← str(error)
         if message != "GPU-MISSING-OR-FAILED-READBACK:one_exact":
@@ -654,6 +839,81 @@ def gpu_selftest(directory ∈ Path) → None:
     else:
         raise AssertionError("GPU-MISSING-MARKER-PASSED")
     print("PASS GPU log checker fixtures; synthetic binary64 observations are not GPU execution")
+    gpu_policy_selftest(directory, positive)
+
+def gpu_policy_fixture(source ∈ Path, target ∈ Path, variant ∈ str) → None:
+    records ∈ list[dict[str, str]] ← gpu_records(source)
+    lines ∈ list[str] ← []
+    first_cases ∈ list[dict[str, str]] ← gpu_cases()
+    for record in records:
+        event ∈ str ← record["event"]
+        row ∈ dict[str, str] ← dict(record)
+        row.pop("event")
+        name ∈ str ← row.get("case", "")
+        sample ∈ str ← row.get("sample", "")
+        if event == "HOLO_GPU_MEASURE" and name == "one_exact" and sample == "0":
+            phase ∈ float ← float(row["phase"])
+            logarithm ∈ float ← float(row["log_modulus"])
+            if variant == "phase-over-budget":
+                row["phase"] ← decimal(phase + GPU_PHASE_BUDGET * 1.01)
+            elif variant == "phase-reversed":
+                row["phase"] ← decimal(-phase)
+            elif variant == "phase-wrap-positive":
+                row["phase"] ← decimal(phase + TAU)
+            elif variant == "raw-log-colour-period":
+                log_ten ∈ float ← math.log(10.0)
+                row["log_modulus"] ← decimal(logarithm + log_ten)
+            elif variant == "raw-log-source-bound":
+                bound ∈ float ← log_roundoff_bound(first_cases[0])
+                row["log_modulus"] ← decimal(logarithm + bound * 1.01)
+            elif variant == "missing-produced-marker":
+                row["produced"] ← "0"
+        if event == "HOLO_GPU_COLOR" and name == "one_exact" and sample == "0":
+            red ∈ int ← int(row["red"])
+            if variant == "colour-two-levels":
+                row["red"] ← str(red + 2 if red < 253 else red - 2)
+            elif variant == "colour-one-level-positive":
+                row["red"] ← str(red + 1 if red < 254 else red - 1)
+            elif variant == "missing-colour-row":
+                continue
+        if event == "HOLO_GPU_COLOR" and name == "multiplicity" and sample == "1" and variant == "singularity-endpoint":
+            row["red"] ← "1"
+        if event == "HOLO_GPU_FACTOR" and name == "one_displaced" and variant == "wrong-uploaded-multiplicity":
+            row["order"] ← "2"
+        lines.append(log_line(event, row))
+    text ∈ str ← "\n".join(lines)
+    target.write_text(text + "\n")
+
+def gpu_policy_selftest(directory ∈ Path, positive ∈ Path) → None:
+    variants ∈ list[str] ← ["unchanged-positive", "phase-wrap-positive", "colour-one-level-positive", "phase-over-budget", "phase-reversed", "raw-log-colour-period", "raw-log-source-bound", "colour-two-levels", "missing-produced-marker", "missing-colour-row", "wrong-uploaded-multiplicity", "singularity-endpoint"]
+    with directory.joinpath("gpu-policy-mutations.tsv").open("w") as receipt:
+        receipt.write("variant\tresult\tevidence_kind\n")
+        for variant in variants:
+            path ∈ Path ← directory.joinpath(variant + ".log")
+            gpu_policy_fixture(positive, path, variant)
+            output ∈ object ← io.StringIO()
+            diagnosis ∈ str ← ""
+            try:
+                with contextlib.redirect_stdout(output):
+                    failures ∈ int ← gpu_audit(path, False, True)
+                diagnosis ← "PASS" if failures == 0 else "REJECTED-SEMANTIC"
+            except ValueError as error:
+                diagnosis ← str(error)
+            transcript ∈ str ← output.getvalue()
+            directory.joinpath(variant + ".audit.txt").write_text(transcript + "\n" + diagnosis + "\n")
+            positive_variant ∈ bool ← variant == "unchanged-positive" or variant == "phase-wrap-positive" or variant == "colour-one-level-positive"
+            if positive_variant and diagnosis != "PASS":
+                raise AssertionError("GPU-POLICY-POSITIVE-REJECTED:" + variant + ":" + diagnosis)
+            if not positive_variant and diagnosis == "PASS":
+                raise AssertionError("GPU-POLICY-MUTANT-SURVIVED:" + variant)
+            expected_diagnostic ∈ str ← "SEMANTIC-PHASE" if variant == "phase-over-budget" or variant == "phase-reversed" else "SEMANTIC-LOG-MODULUS" if variant == "raw-log-colour-period" else "SEMANTIC-LOG-ROUNDOFF-BOUND" if variant == "raw-log-source-bound" else "SEMANTIC-RGBA8-red" if variant == "colour-two-levels" or variant == "singularity-endpoint" else ""
+            if expected_diagnostic:
+                location ∈ int ← transcript.find(expected_diagnostic)
+                if location < 0:
+                    raise AssertionError("GPU-POLICY-WRONG-REJECTION:" + variant + ":" + diagnosis)
+            receipt.write(variant + "\t" + diagnosis + "\tsynthetic-checker-fixture\n")
+            print(variant + "\t" + diagnosis + "\tsynthetic-checker-fixture")
+    print("PASS predeclared GPU policy controls; no actual GPU execution inferred")
 
 def selftest(directory ∈ Path) → None:
     analytic_anchors()
@@ -740,16 +1000,18 @@ def main(arguments ∈ list[str]) → int:
         print(diagnosis)
         return int(diagnosis != "PASS")
     if len(arguments) == 3 and arguments[1] == "gpu-structure":
-        failures ∈ int ← gpu_audit(Path(arguments[2]), False)
+        failures ∈ int ← gpu_audit(Path(arguments[2]), False, False)
         if failures == 0:
             print("PASS numerical readback structure and corpus; GPU numerical acceptance NOT_RUN")
         return int(failures != 0)
     if len(arguments) == 3 and arguments[1] == "gpu-audit":
-        failures ← gpu_audit(Path(arguments[2]), False)
-        if failures != 0:
-            return 1
-        print("BLOCKED GPU-NUMERICAL-POLICY-MISSING: no reviewed predeclared binary32 phase/log error budget")
-        return 2
+        failures ← gpu_audit(Path(arguments[2]), False, True)
+        if failures == 0:
+            print("PASS bounded generated GPU field and same-program RGBA8 corpus; physical identity and provenance require separate receipts")
+        return int(failures != 0)
+    if len(arguments) == 4 and arguments[1] == "palette-check":
+        palette_check(Path(arguments[2]), Path(arguments[3]))
+        return 0
     raise ValueError("USAGE selftest OUTDIR | corpus OUTDIR | compare CASES.tsv READBACK.tsv | provenance EXPECTED_FRAGMENT SUBMITTED_FRAGMENT RUNTIME_LOG")
 
 sys.exit(main(sys.argv))
