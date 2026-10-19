@@ -325,7 +325,15 @@ def main() → None:
     except ValueError as error:
         require(as_text(error) == "marker-parent", "wrong-marker-rejection:" + as_text(error))
         print("REJECT\tmarker-parent")
-    print("PASS\tindependent finite mechanics\t5 states\t2 display densities\t65 material IDs\t10 targeted rejections")
+    markers[10][4] ← "1"
+    markers[0][5] ← "0"
+    try:
+        check_markers(markers, base)
+        raise ValueError("accepted-mutant:marker-position")
+    except ValueError as error:
+        require(as_text(error) == "marker-position", "wrong-marker-rejection:" + as_text(error))
+        print("REJECT\tmarker-position")
+    print("PASS\tindependent finite mechanics\t5 states\t2 display densities\t65 material IDs\t11 targeted rejections")
     print("scope\tsynthetic reduced annulus; no arbitrary cloth, calibrated yarn, finite-thickness contact, GPU, device, or handmade acceptance")
 
 try:
