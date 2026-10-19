@@ -1,0 +1,220 @@
+module Accept
+
+import Data.List
+import Data.Text
+import System
+import System.File
+
+
+covering
+capture : List Text → IO (Int, Text)
+capture command = do
+  opened ← Escaped.popen command Read
+  case opened of
+    Left error ⇒ die ("cannot launch acceptance subprocess: " ++ show error)
+    Right stream ⇒ do
+      contents ← fRead stream
+      status ← pclose stream
+      case contents of
+        Left error ⇒ die ("cannot read subprocess output: " ++ show error)
+        Right output ⇒ pure (status, output)
+
+finite : Double → Bool
+finite value = value ≟ value && abs value <= 1.7976931348623157e308
+
+rows : Text → List (List Text)
+rows = map words . lines
+
+field : Text → Text → Maybe (List Text)
+field key output = case filter (\row ⇒ case row of first :: rest ⇒ first ≟ key; _ ⇒ False) (rows output) of
+  [first :: rest] ⇒ Just rest
+  _ ⇒ Nothing
+
+numbers : List Text → Maybe (List Double)
+numbers [] = Just []
+numbers (first :: rest) = do
+  number ← parseDouble first
+  if finite number then pure () else Nothing
+  remaining ← numbers rest
+  pure (number :: remaining)
+
+numeric_field : Text → Text → Maybe (List Double)
+numeric_field key output = field key output >>= numbers
+
+near : Double → Double → Double → Bool
+near tolerance actual expected = finite actual && abs (actual - expected) <= tolerance
+
+exact_integer : Text → Integer → Bool
+exact_integer value expected =
+  let (numerator_text, remainder) = break (≟ '/') value
+      denominator_text = pack (drop 1 (unpack remainder)) in
+  case (parseInteger {a=Integer} numerator_text, parseInteger {a=Integer} denominator_text) of
+    (Just numerator, Just denominator) ⇒ denominator > 0 && numerator ≟ expected × denominator
+    _ ⇒ False
+
+exact_ratio : Text → Integer → Integer → Bool
+exact_ratio value expected_numerator expected_denominator =
+  let (numerator_text, remainder) = break (≟ '/') value
+      denominator_text = pack (drop 1 (unpack remainder)) in
+  case (parseInteger {a=Integer} numerator_text, parseInteger {a=Integer} denominator_text) of
+    (Just numerator, Just denominator) ⇒ denominator > 0 &&
+      numerator × expected_denominator ≟ expected_numerator × denominator
+    _ ⇒ False
+
+accept_algebra : Text → Bool
+accept_algebra output = and $ map (\(key,x,y,z) ⇒ case field key output of
+  Just [actual_x,actual_y,actual_z] ⇒ exact_ratio actual_x x 2 && exact_ratio actual_y y 2 && exact_ratio actual_z z 2
+  _ ⇒ False)
+  [("product",-6,8,3),("dilated_product",-18,24,27),("product_of_dilations",-18,24,27),
+   ("dilated_X",6,0,27),("dilated_Y",0,6,18)]
+
+accept_models : Text → Bool
+accept_models output =
+  (case field "heisenberg_bracket" output of
+     Just [x,y,z] ⇒ exact_integer x 0 && exact_integer y 0 && exact_integer z 1
+     _ ⇒ False) &&
+  field "heisenberg_flag" output ≟ Just ["[2,", "3]"] &&
+  field "integrable_flag" output ≟ Just ["[2,", "2,", "2]"] &&
+  field "martinet_surface_flag" output ≟ Just ["[2,", "2,", "3]"] &&
+  field "martinet_off_surface_flag" output ≟ Just ["[2,", "3]"]
+
+accept_loop : Double → Double → Number → Text → Bool
+accept_loop radius orientation count output =
+  let area = orientation × cast count × radius × radius × sin (2 × pi ÷ cast count) ÷ 2
+      length = 2 × cast count × radius × sin (pi ÷ cast count) in
+  case (numeric_field "endpoint" output, numeric_field "signed_area" output,
+        numeric_field "gauge_endpoint" output, numeric_field "length" output) of
+    (Just [x,y,z], Just [observed_area], Just [gauge_x,gauge_y,gauge_z], Just [observed_length]) ⇒
+      near 1.0e-9 x 0 && near 1.0e-9 y 0 && near 1.0e-9 z area &&
+      near 1.0e-9 observed_area area && near 1.0e-9 gauge_x 0 && near 1.0e-9 gauge_y 0 &&
+      near 1.0e-9 gauge_z area && near 1.0e-9 observed_length length
+    _ ⇒ False
+
+accept_open_gauge : Double → Text → Bool
+accept_open_gauge strength output = case numeric_field "gauge_endpoint" output of
+  Just [x,y,z] ⇒ near 1.0e-10 x 1 && near 1.0e-10 y 1 && near 1.0e-10 z (-4 × strength)
+  _ ⇒ False
+
+state_energy : List Double → Maybe Double
+state_energy [x,y,z,px,py,pz] =
+  let horizontal_x = px - y × pz ÷ 2
+      horizontal_y = py + x × pz ÷ 2 in
+  Just ((horizontal_x × horizontal_x + horizontal_y × horizontal_y) ÷ 2)
+state_energy _ = Nothing
+
+sample_states : Text → Maybe (List (List Double))
+sample_states output = traverse numbers (mapMaybe sample (rows output))
+  where
+  sample : List Text → Maybe (List Text)
+  sample ("sample" :: values) = Just values
+  sample _ = Nothing
+
+-- Independent closed-form evaluation; no import of the producer's solver or formula.
+accept_geodesic : Double → Double → Double → Double → Number → Text → Maybe Double
+accept_geodesic first_speed second_speed curvature duration count output = do
+  [x,y,z] ← numeric_field "endpoint" output
+    | _ ⇒ Nothing
+  states ← sample_states output
+  energies ← traverse state_energy states
+  let expected_x = if curvature ≟ 0 then first_speed × duration
+        else (first_speed × sin (curvature × duration) - second_speed × (1 - cos (curvature × duration))) ÷ curvature
+      expected_y = if curvature ≟ 0 then second_speed × duration
+        else (first_speed × (1 - cos (curvature × duration)) + second_speed × sin (curvature × duration)) ÷ curvature
+      expected_z = if curvature ≟ 0 then 0
+        else (first_speed × first_speed + second_speed × second_speed) ×
+          (curvature × duration - sin (curvature × duration)) ÷ (2 × curvature × curvature)
+      expected_energy = (first_speed × first_speed + second_speed × second_speed) ÷ 2
+      drift = foldl max 0 (map (\energy ⇒ abs (energy - expected_energy)) energies)
+      error = foldl max 0 [abs (x - expected_x), abs (y - expected_y), abs (z - expected_z)]
+  if length states ≟ S count && drift < 1.0e-7 && error < 1.0e-4
+    then Just error else Nothing
+
+covering
+checked : Text → List Text → (Text → Bool) → IO ()
+checked name command predicate = do
+  (status, output) ← capture command
+  if status ≟ 0 && predicate output then putStrLn ("PASS\t" ++ name)
+    else die ("FAIL " ++ name ++ ": executable output or process status disagrees with independent oracle\n" ++ output)
+
+covering
+reject_invalid : Text → List Text → IO ()
+reject_invalid name command = do
+  (status, output) ← capture command
+  if not (status ≟ 0) then putStrLn ("PASS\treject " ++ name)
+    else die ("FAIL " ++ name ++ ": invalid input returned success")
+
+covering
+convergence : Text → Double → IO ()
+convergence executable curvature = do
+  let command = [executable, "geodesic", "0.4", "-0.6", show curvature, "1.3"]
+  (coarse_status, coarse_output) ← capture (command ++ ["24"])
+  (medium_status, medium_output) ← capture (command ++ ["48"])
+  (fine_status, fine_output) ← capture (command ++ ["96"])
+  case (accept_geodesic 0.4 (-0.6) curvature 1.3 24 coarse_output,
+        accept_geodesic 0.4 (-0.6) curvature 1.3 48 medium_output,
+        accept_geodesic 0.4 (-0.6) curvature 1.3 96 fine_output) of
+    (Just coarse, Just medium, Just fine) ⇒
+      if coarse_status ≟ 0 && medium_status ≟ 0 && fine_status ≟ 0 &&
+         coarse > 10 × medium && medium > 10 × fine
+        then putStrLn ("PASS\tindependent geodesic convergence " ++ show curvature)
+        else die "FAIL convergence rate or process exit"
+    _ ⇒ die "FAIL geodesic samples, endpoint, or Hamiltonian conservation"
+
+covering
+run : List Text → IO ()
+run [build_root] = do
+  if isPrefixOf "/" build_root then pure () else die "absolute artifact root required"
+  let artifact_directory = build_root ++ "/subriemannian_app"
+      artifact = artifact_directory ++ "/subriemannian.so"
+  receipt ← readFile (build_root ++ "/producer.sha256")
+  case receipt of
+    Left error ⇒ die ("FAIL artifact receipt unavailable: " ++ show error)
+    Right contents ⇒ case words contents of
+      [digest, declared_path] ⇒ do
+        if declared_path ≟ artifact then pure () else die "FAIL receipt points at a different artifact"
+        ignore $ setEnv "LD_LIBRARY_PATH" artifact_directory True
+        ignore $ setEnv "IDRIS2_INC_SRC" artifact_directory True
+        run [artifact,artifact,digest]
+        written ← writeFile (build_root ++ "/aici.receipt.tsv")
+          ("schema\tsubriemannian-aici-v1\nartifact\t" ++ artifact ++ "\nsha256\t" ++ digest ++
+           "\nevidence\tcompiled Idriç/Chez executable and independent formula oracle\nstatus\tPASS\n")
+        case written of Left error ⇒ die ("FAIL acceptance receipt write: " ++ show error); Right () ⇒ pure ()
+      _ ⇒ die "FAIL malformed artifact receipt"
+run [executable, compiled_artifact, expected_digest] = do
+  if executable ≟ compiled_artifact then pure () else die "FAIL acceptance must execute the hashed compiled artifact directly"
+  (hash_status, observed_hash) ← capture ["sha256sum", compiled_artifact]
+  case words observed_hash of
+    digest :: _ ⇒ if hash_status ≟ 0 && digest ≟ expected_digest then pure () else die "FAIL compiled-artifact digest"
+    _ ⇒ die "FAIL compiled-artifact digest unavailable"
+  checked "exact brackets and flags" [executable, "models"] accept_models
+  checked "group law and weighted dilations" [executable, "algebra"] accept_algebra
+  traverse_ (\(radius, orientation, count, gauge) ⇒ checked "loop area, orientation, length and gauge"
+    [executable,"loop",show radius,show orientation,show count,show gauge]
+    (accept_loop radius orientation count))
+    [(0.4,1.0,8,5.0),(1.0,-1.0,256,-8.0),(1.7,1.0,64,0.3)]
+  checked "open gauge change" [executable,"segment","3"] (accept_open_gauge 3)
+  convergence executable 1.7
+  convergence executable (-1.7)
+  traverse_ (\(name, arguments) ⇒ reject_invalid name (executable :: arguments))
+    [("zero radius",["loop","0","1","64","0"]),
+     ("bad orientation",["loop","1","0","64","0"]),
+     ("overflowing loop",["loop","1e200","1","64","0"]),
+     ("too few sides",["loop","1","1","2","0"]),
+     ("zero steps",["geodesic","1","0","1","1","0"]),
+     ("negative duration",["geodesic","1","0","1","-1","64"]),
+     ("invalid number",["geodesic","garbage","0","1","1","64"])]
+  let wrong_sign = "endpoint\t0\t0\t-2\nsigned_area\t-2\ngauge_endpoint\t0\t0\t-2\nlength\t5.656854249492381\n"
+      gauge_ignored = "gauge_endpoint\t1\t1\t0\n"
+      nonfinite = "endpoint\t0\t0\t1e999\n"
+  if not (accept_loop 1 1 4 wrong_sign) && not (accept_open_gauge 3 gauge_ignored) &&
+     not (accept_loop 1 1 4 nonfinite) && not (accept_models "")
+    then putStrLn "PASS\treject sign, gauge, nonfinite and empty-output mutants"
+    else die "FAIL independent-oracle negative controls"
+  putStrLn "PASS\tAICI compiled Idriç/Chez artifact execution"
+run _ = die "usage: accept ARTIFACT_ROOT | COMPILED_SO COMPILED_SO EXPECTED_SHA256"
+
+covering
+main : IO ()
+main = do
+  arguments ← getArgs
+  run (drop 1 arguments)
