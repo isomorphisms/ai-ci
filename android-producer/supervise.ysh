@@ -1,0 +1,85 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+# Registered finite graph, independently admitted plan and materials. An
+# application name or a caller-supplied target list never selects commands.
+var script = $(/usr/bin/readlink -f "$0")
+var producer = $(/usr/bin/dirname "$script")
+source "$producer/release.ysh"
+no_overrides
+test "$#" = 0 || reject 'bound operation accepts no executable parameters'
+var release = '/opt/aici/android-producer/current'
+var anchor = '/opt/aici/keys/android-producer-release.pem'
+var decision_key = '/opt/aici/keys/android-producer-decision.private.pem'
+var witness_key = '/opt/aici/keys/android-producer-witness.private.pem'
+for prerequisite in "$anchor" "$release/release.tsv" "$decision_key" "$witness_key"; do
+  test -f "$prerequisite" || reject "DEPLOYMENT_BLOCKED: unavailable trusted producer prerequisite: $prerequisite"
+done
+verify_release "$release" "$anchor"
+verify_current "$release" '/opt/aici/android-producer/authority/current.tsv' "$anchor"
+require_deployment "$release"
+equal_field "$release/release.tsv" evidence_class ISOLATED
+var own_sha = $(sha "$script")
+equal_field "$release/release.tsv" supervisor_sha256 "$own_sha"
+source "$release/policy/android-producer/graph.ysh"
+source "$release/policy/android-producer/execution.ysh"
+source "$release/policy/android-producer/decision.ysh"
+verify_coverage "$release"
+verify_graph "$release"
+var run = $(/usr/bin/mktemp -d /var/lib/aici/android-producer/run.XXXXXXXX)
+printf 'state\tADMITTED\n' > "$run/journal.tsv"
+trap --add INT { printf 'state\tINTERRUPTED\n' > "$run/journal.tsv"; exit 130 }
+trap --add TERM { printf 'state\tINTERRUPTED\n' > "$run/journal.tsv"; exit 143 }
+run_graph "$release" "$run" ISOLATED
+# Namespace teardown precedes sealing. Workers never see keys, traces, decisions
+# or final publication storage. The graph output paths are all release-owned.
+var apk_path = $(/usr/bin/awk -F '\t' '$2=="package"{n++;p=$8} END{if(n!=1)exit 1;print p}' "$release/stages.tsv")
+/usr/bin/mkdir "$run/sealed"
+/usr/bin/cp "$run/worker/$apk_path" "$run/sealed/payload.apk"
+var apk = "$run/sealed/payload.apk"
+var decision = "$run/sealed/decision.tsv"
+var apk_digest = $(sha "$apk")
+var apk_size = $(/usr/bin/stat -c %s "$apk")
+var release_digest = $(sha "$release/release.tsv")
+/usr/bin/cp "$run/evidence/execution.tsv" "$decision.witness.tsv"
+{
+  printf 'release_sha256\t%s\napk_sha256\t%s\n' "$release_digest" "$apk_digest"
+  for key in source_commit plan_sha256 binding_sha256 obligations_sha256 payloads_sha256 stage_contract_sha256 stage_roles_sha256 stage_roles_issuer_sha256; do
+    var value = $(field "$release/release.tsv" "$key")
+    printf '%s\t%s\n' "$key" "$value"
+  done
+} >> "$decision.witness.tsv"
+/usr/bin/mkdir "$decision.evidence"
+var tab = $(printf '\t')
+var header = true
+while IFS="$tab" read -r id kind deps executable executable_sha argv argv_sha output; do
+  if test "$header" = true; then setvar header = false; continue; fi
+  /usr/bin/cp "$run/evidence/$id.output" "$decision.evidence/$id.output"
+  /usr/bin/cp "$run/evidence/$id.execve" "$decision.evidence/$id.trace"
+  /usr/bin/cp "$run/evidence/$id.processes" "$decision.evidence/$id.processes"
+  var process_header = true
+  while IFS="$tab" read -r process_file process_sha; do
+    if test "$process_header" = true; then setvar process_header = false; continue; fi
+    /usr/bin/cp "$run/evidence/$process_file" "$decision.evidence/$process_file"
+  done < "$run/evidence/$id.processes"
+done < "$release/stages.tsv"
+/usr/bin/openssl dgst -sha256 -sign "$witness_key" -out "$decision.witness.tsv.sig" "$decision.witness.tsv"
+var witness_digest = $(sha "$decision.witness.tsv")
+{
+  printf 'schema\taici-android-producer-v2\nbinding_schema\taici-catfood-producer-binding-v1\nresult\tPASS\nevidence_class\tISOLATED\nrelease_sha256\t%s\napk_sha256\t%s\napk_size\t%s\nwitness_sha256\t%s\n' "$release_digest" "$apk_digest" "$apk_size" "$witness_digest"
+  for key in generation policy_commit source_repository_id source_commit dependency_material_sha256 recipe_sha256 catfood_commit resolver_sha256 plan_sha256 binding_sha256 obligations_sha256 payloads_sha256 stage_contract_sha256 stage_roles_sha256 stage_roles_issuer_sha256 publication_scope package version_code signing_lane signer_cert_sha256 update_mode artifact_group acceptance_scope; do
+    var value = $(field "$release/release.tsv" "$key")
+    printf '%s\t%s\n' "$key" "$value"
+  done
+  var prior = '-'
+  var update = $(field "$release/release.tsv" update_mode)
+  if test "$update" = replacement; then setvar prior = $(field "$release/prior/decision.tsv" apk_sha256); fi
+  printf 'prior_apk_sha256\t%s\n' "$prior"
+  for stage in install launch replacement visual physical; do printf '%s_result\tNOT_RUN\n' "$stage"; done
+} > "$decision"
+/usr/bin/openssl dgst -sha256 -sign "$decision_key" -out "$decision.sig" "$decision"
+var source_commit = $(field "$release/release.tsv" source_commit)
+var target = $(/usr/bin/awk -F '\t' 'NR==2{print $1}' "$release/obligations.tsv")
+var scope = $(field "$release/release.tsv" acceptance_scope)
+verify_decision "$release" "$decision" "$apk" "$source_commit" "$target" "$scope" > "$run/validation.log"
+printf 'state\tVERIFIED\npublication\tNOT_RUN\n' > "$run/journal.tsv"
+printf 'verified_storage\t%s\n' "$run/sealed"

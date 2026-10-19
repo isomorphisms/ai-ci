@@ -1,0 +1,7 @@
+SELF_TEST_PASS case=good_pauli_test
+SELF_TEST_PASS case=wrong_pauli_signer
+SELF_TEST_PASS case=unregistered_package
+SELF_TEST_PASS case=unregistered_release_lane
+SELF_TEST_PASS case=malformed_digest
+SELF_TEST_PASS case=good_holomorphic_test
+SELF_TEST_SUMMARY cases=6 failures=0
