@@ -22,3 +22,11 @@ must each fail for their named diagnostic with the original corpus as positive t
 See [ARM-LEDGERS.md](ARM-LEDGERS.md) for the separate independent checker of
 the two linked ARM preliminary English ledgers. Frozen inventory acceptance and
 successor annotation acceptance retain separate receipts and evidence boundaries.
+
+`check-cmov-claims.mjs` adds a separate finite primary-reference/byte/English claim
+check for eight repaired x86 conditional-move occurrences. It reads the pinned
+Intel CMOVcc blob, independently decodes original ELF bytes and checks 256 flag
+assignments with three disclosed operand pairs (768 modeled transitions).
+Eleven corruptions must fail, including predicate/source mistakes, false
+completion and altered primary evidence. It does not run a specimen or certify
+complete effects. The other 117 historical partial descriptions remain unverified.
