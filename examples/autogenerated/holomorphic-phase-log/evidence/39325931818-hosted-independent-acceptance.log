@@ -1,0 +1,42 @@
+PASS
+GPU_POLICY sha256=5c5a90912823dd6a1d75fc09f04bd161c6521dd9c4844e3a399b333b4bbe0f21 phase_abs=0.0001 raw_log_abs=0.0001 regular_rgb8_abs=1
+one_exact:0	PASS class=REGULAR
+one_exact:1	PASS class=REGULAR
+one_exact:2	PASS class=REGULAR
+one_exact:3	PASS class=REGULAR
+one_displaced:0	PASS class=REGULAR
+one_displaced:1	PASS class=TRUE_ZERO
+one_displaced:2	PASS class=REGULAR
+one_displaced:3	PASS class=TRUE_POLE
+24_exact:0	PASS class=REGULAR
+24_exact:1	PASS class=REGULAR
+24_exact:2	PASS class=REGULAR
+24_exact:3	PASS class=REGULAR
+24_displaced:0	PASS class=REGULAR
+24_displaced:1	PASS class=REGULAR
+24_displaced:2	PASS class=TRUE_ZERO
+24_displaced:3	PASS class=REGULAR
+multiplicity:0	PASS class=REGULAR
+multiplicity:1	PASS class=TRUE_ZERO
+multiplicity:2	PASS class=REGULAR
+multiplicity:3	PASS class=REGULAR
+moving0:0	PASS class=REGULAR
+moving0:1	PASS class=REGULAR
+moving0:2	PASS class=REGULAR
+moving0:3	PASS class=REGULAR
+moving7_5:0	PASS class=REGULAR
+moving7_5:1	PASS class=REGULAR
+moving7_5:2	PASS class=REGULAR
+moving7_5:3	PASS class=REGULAR
+moving7_5_zoom:0	PASS class=REGULAR
+moving7_5_zoom:1	PASS class=REGULAR
+moving7_5_zoom:2	PASS class=REGULAR
+moving7_5_zoom:3	PASS class=REGULAR
+24_displaced_large:0	PASS class=REGULAR
+24_displaced_small:0	PASS class=REGULAR
+PASS bounded generated GPU field and same-program RGBA8 corpus; physical identity and provenance require separate receipts
+LARGE_Q_POLICY sha256=62876c6fd69b1bb22267d316690d15843fab9acb705a1e83a886178eb2084124 delta_abs=0.000002 raw_pair_domain=RANGE_REJECTED_UNQUALIFIED
+large_q_raw_pair_domain=RANGE_REJECTED_UNQUALIFIED
+large_q_phase_delta=-1.9966999999954105e-05 expected=-2.0000399558280618e-05 absolute_error=3.3399558326513261e-08
+large_q_log_delta=2.0027000000033546e-05 expected=1.9999999547628643e-05 absolute_error=2.7000452404903205e-08
+PASS separate large-q guard, precolour delta and same-program RGBA8; raw pair RANGE_REJECTED_UNQUALIFIED

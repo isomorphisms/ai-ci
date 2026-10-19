@@ -1,0 +1,27 @@
+name: Icky C source regression
+on:
+  push:
+    paths:
+      - 'c-source/**'
+      - 'ick-host/**'
+      - '.github/workflows/icky-c-source.yml'
+  pull_request:
+    paths:
+      - 'c-source/**'
+      - 'ick-host/**'
+      - '.github/workflows/icky-c-source.yml'
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: ./ick-host
+        id: ick
+      - name: Prove owned assignment source and targeted rejection fixtures
+        run: make -f c-source/Makefile test ICK="${{ steps.ick.outputs.compiler }}" ICK_LINK_FLAGS="${{ steps.ick.outputs.link_flags }}"

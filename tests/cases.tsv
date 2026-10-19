@@ -68,3 +68,9 @@ pass	contracts/blackball-verdict-v0.contract.tsv	tests/fixtures/blackball-verdic
 fail	contracts/blackball-verdict-v0.contract.tsv	tests/fixtures/blackball-verdicts-empty	BLACKBALL-VERDICTS-EMPTY
 fail	contracts/blackball-verdict-v0.contract.tsv	tests/fixtures/blackball-verdicts-bad-header	BLACKBALL-VERDICTS-HEADER
 fail	contracts/blackball-verdict-v0.contract.tsv	tests/fixtures/blackball-verdicts-bad-fields	BLACKBALL-VERDICTS-FIELDS
+pass	contracts/amazon-jobs-cli-v0.contract.tsv	tests/fixtures/amazon-jobs-good	-
+fail	contracts/amazon-jobs-cli-v0.contract.tsv	tests/fixtures/amazon-jobs-bad-amazon-census-fail	AMAZON-CENSUS-FAIL
+fail	contracts/amazon-jobs-cli-v0.contract.tsv	tests/fixtures/amazon-jobs-bad-amazon-business-field	AMAZON-BUSINESS-FIELD
+fail	contracts/amazon-jobs-cli-v0.contract.tsv	tests/fixtures/amazon-jobs-bad-amazon-team-field	AMAZON-TEAM-FIELD
+fail	contracts/amazon-jobs-cli-v0.contract.tsv	tests/fixtures/amazon-jobs-bad-amazon-source-id	AMAZON-SOURCE-ID
+fail	contracts/amazon-jobs-cli-v0.contract.tsv	tests/fixtures/amazon-jobs-bad-amazon-provider	AMAZON-PROVIDER

@@ -1,0 +1,67 @@
+#!/usr/bin/env grease
+# External GitHub fixture. The program and its interpreter are never mocked.
+set -eu
+state=$[ENV.AICI_TRANSFER_FIXTURE]
+scenario=$[get(ENV,'AICI_TRANSFER_SCENARIO','normal')]
+if test "$1" = auth; then exit 0; fi
+test "$1" = api || exit 98
+shift
+method=GET
+if test "$1" = --method; then method=$2; shift 2; fi
+endpoint=$1
+case $endpoint in
+    user) if test "$scenario" = wrong-login; then echo other; else echo isomorphisms; fi; exit 0;;
+    orgs/functorial-games)
+        if test "${3:-}" = '.members_can_create_repositories'; then
+            if test "$scenario" = member-can-create; then echo true; else echo false; fi
+        else echo functorial-games; fi
+        exit 0;;
+    user/memberships/orgs/functorial-games)
+        if test "$scenario" = inactive; then printf 'pending\tmember\n';
+        elif test "$scenario" = cannot-create; then printf 'active\tmember\n';
+        elif test "$scenario" = member-can-create; then printf 'active\tmember\n';
+        else printf 'active\tadmin\n'; fi
+        exit 0;;
+esac
+if test "$method" = POST; then
+    printf 'POST\n' >> "$state/posts"
+    if test "$scenario" = interrupted; then exit 124; fi
+    touch "$state/moved"
+    exit 0
+fi
+id=1412731191
+upstream=conanwu777/Museum_of_Shaders
+fork=true
+if test "$scenario" = nonfork; then upstream=-; fork=false; fi
+if test "$scenario" = nonfork-marked-fork; then upstream=-; fi
+if test "$scenario" = changed-id; then id=999; fi
+if test "$scenario" = changed-upstream; then upstream=other/Museum_of_Shaders; fi
+if test -f "$state/moved"; then
+    if test "$scenario" = changed-id-after; then id=999; fi
+    if test "$scenario" = changed-upstream-after; then upstream=other/Museum_of_Shaders; fi
+    if test "$scenario" = changed-fork-after; then fork=false; fi
+fi
+source=isomorphisms/Museum_of_Shaders
+destination=functorial-games/Museum_of_Shaders
+if test "$endpoint" = "repos/$source"; then
+    if test "$scenario" = unrelated-redirect; then source=elsewhere/Museum_of_Shaders; fi
+    admin=true
+    if test "$scenario" = no-admin; then admin=false; fi
+    printf '%s\t%s\ttrue\t%s\t%s\t%s\n' "$id" "$source" "$upstream" "$upstream" "$admin"
+    exit 0
+fi
+test "$endpoint" = "repos/$destination" || exit 97
+if test "$scenario" = destination-redirect && test ! -f "$state/moved"; then
+    printf '%s\telsewhere/Museum_of_Shaders\ttrue\t%s\t%s\ttrue\n' "$id" "$upstream" "$upstream"
+    exit 0
+fi
+if test "$scenario" = collision; then
+    printf '888\t%s\ttrue\t%s\t%s\ttrue\n' "$destination" "$upstream" "$upstream"
+    exit 0
+fi
+if test -f "$state/moved" || test "$scenario" = already; then
+    printf '%s\t%s\t%s\t%s\t%s\ttrue\n' "$id" "$destination" "$fork" "$upstream" "$upstream"
+    exit 0
+fi
+printf '{"message":"Not Found","status":"404"}\n'
+exit 1

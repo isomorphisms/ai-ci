@@ -1,0 +1,9 @@
+id	expected
+read-only-github-query	PASS
+exact-kitchen-display-only-bytes	PASS
+unadmitted-direct-transfer	TRANSFER_COMMAND_UNADMITTED
+script-request-routed-to-execute	TRANSFER_COMMAND_OPERATION
+missing-or-substituted-repository-id	TRANSFER_COMMAND_REPOSITORY_ID
+recomputed-request-or-admission	TRANSFER_COMMAND_ADMISSION
+changed-visible-bytes	TRANSFER_COMMAND_VISIBLE_BYTES
+apology-as-acceptance	TRANSFER_COMMAND_VISIBLE_BYTES

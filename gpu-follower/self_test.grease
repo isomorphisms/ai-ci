@@ -31,6 +31,20 @@ rg -q 'decode mismatch' "$OUTPUT/numeric-wrong.log"
 rg -q 'decode mismatch' "$OUTPUT/numeric-fnuz.log"
 rg -q 'incomplete arithmetic corpus' "$OUTPUT/numeric-truncated.log"
 rg -q 'duplicate numerical record' "$OUTPUT/numeric-duplicate.log"
+# Preserve the total row counts while replacing a required semantic case.
+# Raw-line uniqueness alone accepted both of these damaged corpora.
+sed '2s/\t1\t256$/\t00\t0/' "$PRODUCER_TSV" > "$OUTPUT/numeric-semantic-duplicate.tsv"
+sed '/^round\te4m3\t0\t1\t1$/s/\t1\t1$/\t2\t1/' "$PRODUCER_TSV" > "$OUTPUT/numeric-unexpected-midpoint.tsv"
+awk -F '\t' -v OFS='\t' '{ if ($1=="arith" && $2=="e4m3" && $3=="0" && $4=="0" && $5=="sub") { $3="00"; $5="add" } print }' "$PRODUCER_TSV" > "$OUTPUT/numeric-arithmetic-duplicate.tsv"
+for name in semantic-duplicate unexpected-midpoint arithmetic-duplicate {
+  if "$ITHON" "$AICI_ROOT/gpu-follower/verify_numeric.pi" "$OUTPUT/numeric-${name}.tsv" > "$OUTPUT/numeric-${name}.log" 2>&1 {
+    printf '\033[31mFAIL incomplete semantic corpus accepted: %s\033[0m\n' "$name"
+    exit 1
+  }
+}
+rg -q 'duplicate numerical record' "$OUTPUT/numeric-semantic-duplicate.log"
+rg -q 'unexpected midpoint case' "$OUTPUT/numeric-unexpected-midpoint.log"
+rg -q 'duplicate numerical record' "$OUTPUT/numeric-arithmetic-duplicate.log"
 sed 's/final_result\tPASS/final_result\tFAIL/' "$IKE_RECEIPT_FILE" > "$OUTPUT/ike-final.tsv"
 sed '/^recipe\t/s/\t0$/\t57/' "$IKE_RECEIPT_FILE" > "$OUTPUT/ike-status.tsv"
 sed 's/^ikefile_identity_hex.*/ikefile_identity_hex\t00/' "$IKE_RECEIPT_FILE" > "$OUTPUT/ike-identity.tsv"
@@ -41,4 +55,4 @@ for name in final status identity {
   }
   rg -q 'Ike receipt mismatch' "$OUTPUT/ike-${name}.log"
 }
-printf '\033[32mPASS independent numeric and Ike gates; four numerical and three receipt mutations rejected\033[0m\n'
+printf '\033[32mPASS independent numeric and Ike gates; seven numerical and three receipt mutations rejected\033[0m\n'

@@ -54,6 +54,53 @@ def render(value ∈ float) → str:
             return "-0"
     return str(int(value × 131072))
 
+def payload_count(format_name ∈ str) → int:
+    if format_name == "e2m1":
+        return 16
+    if format_name == "e2m3":
+        return 64
+    if format_name == "e3m2":
+        return 64
+    dtype_for(format_name)
+    return 256
+
+def maximum_positive_finite_code(format_name ∈ str) → int:
+    if format_name == "e4m3":
+        return 126
+    if format_name == "e5m2":
+        return 123
+    if format_name == "e4m3fnuz":
+        return 127
+    if format_name == "e5m2fnuz":
+        return 127
+    if format_name == "e2m1":
+        return 7
+    if format_name == "e2m3":
+        return 31
+    if format_name == "e3m2":
+        return 31
+    fail("unknown scalar format")
+    return 0
+
+def arithmetic_samples(format_name ∈ str) → list[int]:
+    last ∈ int ← maximum_positive_finite_code(format_name)
+    if format_name == "e4m3":
+        return [0, 1, 2, last, 128, 129, 130, 128 + last]
+    if format_name == "e5m2":
+        return [0, 1, 2, last, 128, 129, 130, 128 + last]
+    if format_name == "e4m3fnuz":
+        return [0, 1, 2, last, 129, 130, 128 + last]
+    if format_name == "e5m2fnuz":
+        return [0, 1, 2, last, 129, 130, 128 + last]
+    fail("unexpected arithmetic format")
+    return []
+
+def require_new_case(observed ∈ set[str], key ∈ str) → None:
+    already ∈ bool ← observed.__contains__(key)
+    if already:
+        fail("duplicate numerical record: semantic case " + key)
+    observed.add(key)
+
 def main() → None:
     arguments ∈ list[str] ← sys.argv
     path_text ∈ str ← arguments.pop(1)
@@ -63,16 +110,17 @@ def main() → None:
     round_count ← 0
     arithmetic_count ← 0
     for line in lines:
-        already ∈ bool ← observed.__contains__(line)
-        if already:
-            fail("duplicate numerical record")
-        observed.add(line)
         fields ∈ list[str] ← line.split("\t")
         record_kind ∈ str ← fields.pop(0)
         format_name ∈ str ← fields.pop(0)
         code_text ∈ str ← fields.pop(0)
         code ← int(code_text)
         if record_kind == "decode":
+            if code < 0:
+                fail("unexpected decode case")
+            if code >= payload_count(format_name):
+                fail("unexpected decode case")
+            require_new_case(observed, "decode\t" + format_name + "\t" + str(code))
             actual ∈ str ← fields.pop(0)
             expected ← render(decode(format_name, code))
             if actual != expected:
@@ -82,6 +130,15 @@ def main() → None:
             offset_text ∈ str ← fields.pop(0)
             actual_text ∈ str ← fields.pop(0)
             offset ← int(offset_text)
+            if code < 0:
+                fail("unexpected midpoint case")
+            if code >= maximum_positive_finite_code(format_name):
+                fail("unexpected midpoint case")
+            if offset < -1:
+                fail("unexpected midpoint case")
+            if offset > 1:
+                fail("unexpected midpoint case")
+            require_new_case(observed, "round\t" + format_name + "\t" + str(code) + "\t" + str(offset))
             first ← decode(format_name, code)
             second ← decode(format_name, code + 1)
             sample ← (first + second) ÷ 2.0 + offset ÷ 1048576.0
@@ -94,6 +151,14 @@ def main() → None:
             operation ∈ str ← fields.pop(0)
             actual_text ∈ str ← fields.pop(0)
             second_code ← int(second_text)
+            samples ∈ list[int] ← arithmetic_samples(format_name)
+            first_allowed ∈ bool ← samples.__contains__(code)
+            second_allowed ∈ bool ← samples.__contains__(second_code)
+            if first_allowed == False:
+                fail("unexpected arithmetic operands")
+            if second_allowed == False:
+                fail("unexpected arithmetic operands")
+            require_new_case(observed, "arith\t" + format_name + "\t" + str(code) + "\t" + str(second_code) + "\t" + operation)
             first ← decode(format_name, code)
             second ← decode(format_name, second_code)
             result ∈ float ← 0.0

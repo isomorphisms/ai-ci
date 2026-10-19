@@ -1,0 +1,82 @@
+"""Receipt/domain fixtures; source-looking hashes here are explicit unit data."""
+import rhs_findings
+from builtins import ValueError
+
+def repeated(value ∈ str, count ∈ int) → str:
+    result ∈ str ← ""
+    for index in range(count):
+        result ← result + value
+    return result
+
+def check(relation ∈ str, observation ∈ str, expected ∈ str) → None:
+    actual ∈ str ← rhs_findings.decide(relation, observation)
+    if actual != expected:
+        raise ValueError("Independent rational oracle disagrees with the declared fixture")
+
+def main() → None:
+    hash ∈ str ← rhs_findings.digest(b"explicit receipt unit fixture")
+    record ∈ dict[str, str] ← {"schema": "rhs-finding-v1", "source.repository": "fixture", "source.commit": repeated("a", 40), "source.path": "source.c", "source.sha256": hash, "claim.id": "claim", "claim.sha256": hash, "observation.encoding": "utf8-tsv", "observation.sha256": hash, "execution.target": "fixture-host", "execution.actor": "native-process", "execution.id": "case", "execution.scope": "explicit-unit-fixture", "binary.sha256": hash, "stdout.sha256": hash, "stderr.sha256": hash, "execution.sha256": hash, "created_epoch": "10", "expires_epoch": "20", "evidence.kind": "exact-observed", "status": "contradiction", "relation": "counts/bytes-elements"}
+    authority ∈ dict[str, str] ← record.copy()
+    accepted ∈ str ← rhs_findings.verify(record, authority, "contradiction", 11)
+    if accepted != "EXACT_OBSERVED":
+        raise ValueError("Valid receipt fixture rejected")
+    cases ∈ list[list[str]] ← [["source.sha256", repeated("f", 64), "hash mismatch"], ["source.commit", repeated("b", 40), "hash mismatch"], ["status", "agreement-tested", "independent observed judgment"], ["expires_epoch", "11", "Expired"], ["created_epoch", "12", "Expired"], ["execution.sha256", "forged", "hash mismatch"], ["evidence.kind", "model-estimated", "Missing or extra"], ["source.path", "../source.c", "Invalid source path"]]
+    for case in cases:
+        bad ∈ dict[str, str] ← record.copy()
+        bad[case[0]] ← case[1]
+        rejected ∈ bool ← False
+        try:
+            rhs_findings.verify(bad, authority, "contradiction", 11)
+        except ValueError as error:
+            rejected ← case[2] in str(error)
+        if not rejected:
+            raise ValueError("Receipt mutant lacks its expected rejection: " + case[0])
+    missing ∈ dict[str, str] ← record.copy()
+    missing.pop("execution.sha256")
+    extra ∈ dict[str, str] ← record.copy()
+    extra["rhs_success"] ← "PASS"
+    for bad in [missing, extra]:
+        rejected ∈ bool ← False
+        try:
+            rhs_findings.verify(bad, authority, "contradiction", 11)
+        except ValueError:
+            rejected ← True
+        if not rejected:
+            raise ValueError("Missing evidence or RHS success flag admitted")
+    unknown ∈ dict[str, str] ← record.copy()
+    unknown["status"] ← "unknown"
+    unknown["relation"] ← "unsupported"
+    unknown_authority ∈ dict[str, str] ← authority.copy()
+    unknown_authority["relation"] ← "unsupported"
+    unknown_result ∈ str ← rhs_findings.verify(unknown, unknown_authority, "unknown", 11)
+    if unknown_result != "UNKNOWN":
+        raise ValueError("Unsupported relation was promoted")
+    model ∈ dict[str, str] ← record.copy()
+    model.pop("relation")
+    model["evidence.kind"] ← "model-estimated"
+    model["execution.actor"] ← "recorded-model-output"
+    model["status"] ← "contradiction-estimated"
+    model["model.revision"] ← repeated("c", 40)
+    model["prompt.sha256"] ← hash
+    model["response.sha256"] ← hash
+    model_authority ∈ dict[str, str] ← model.copy()
+    model_result ∈ str ← rhs_findings.verify(model, model_authority, "contradiction-estimated", 11)
+    if model_result != "MODEL_ESTIMATED":
+        raise ValueError("Model receipt lost its inference boundary")
+    model["status"] ← "contradiction"
+    rejected ∈ bool ← False
+    try:
+        rhs_findings.verify(model, model_authority, "contradiction", 11)
+    except ValueError:
+        rejected ← True
+    if not rejected:
+        raise ValueError("Model receipt was promoted to exact evidence")
+    check("transform/rotation", "input\t5,0\nmatrix.numerators\t3,-4;4,3\nmatrix.denominator\t5\noutput.numerators\t3,4\noutput.denominator\t1\n", "agreement-tested")
+    check("transform/rotation", "input\t3,4\nmatrix.numerators\t-1,0;0,1\nmatrix.denominator\t1\noutput.numerators\t-3,4\noutput.denominator\t1\n", "contradiction")
+    check("transform/reflection", "input\t3,4\nnormal\t1,1\noutput.numerators\t-8,-6\noutput.denominator\t2\n", "agreement-tested")
+    check("transform/reflection", "input\t3,4\nnormal\t0,0\noutput.numerators\t3,4\noutput.denominator\t1\n", "unknown")
+    check("transform/linear", "input\t3,4\nmatrix.numerators\t1,1\nmatrix.denominator\t1\noutput.numerators\t7\noutput.denominator\t1\n", "agreement-tested")
+    check("claim/name-only", "output\t1\n", "unknown")
+    print("PASS receipt validity, missing/expired/forged evidence, estimate boundaries and independent rational controls")
+
+main()

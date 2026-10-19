@@ -16,6 +16,9 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+      - name: Select the qualified ICK C compiler
+        uses: isomorphisms/ai-ci/ick-host@903b2cb27ea572c9c6cb2ffa9f39e0fbf06ec9f8
+        id: ick
       - name: Prove exact follower-ledger checkout
         shell: sh
         env:
@@ -30,11 +33,14 @@ jobs:
           }
       - name: Prove follower state cannot overclaim acceptance
         shell: sh
+        env:
+          ICK: ${{ steps.ick.outputs.compiler }}
+          ICK_LINK_FLAGS: ${{ steps.ick.outputs.link_flags }}
         run: sh tests/followers.sh
       - name: Verify repository follower ledger
         shell: sh
         run: |
-          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 \
+          "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2 \
             -o /tmp/aici-followers src/aici_followers.c
           /tmp/aici-followers verify followers/jobs followers/receipts
           /tmp/aici-followers pending followers/jobs followers/receipts
