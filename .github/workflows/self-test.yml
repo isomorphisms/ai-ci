@@ -255,6 +255,27 @@ jobs:
             -o /tmp/aici-ingestion ingestion/src/aici_ingestion.c
           "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2 \
             -o /tmp/aici-ingestion-server ingestion/src/fixture_server.c
+          "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2 \
+            -o /tmp/aici-stage-verdict stage-verdict/src/aici_stage_verdict.c
+      - name: Prove lossless stage verdicts and independent expected bytes
+        shell: sh
+        run: |
+          /tmp/aici-stage-verdict self-test \
+            stage-verdict/tests/cases.tsv stage-verdict/tests
+          /tmp/aici-stage-verdict ingestion \
+            ingestion/tests/fixtures/good-candidate.tsv \
+            > "$RUNNER_TEMP/ingestion-good.verdict.tsv"
+          cmp stage-verdict/tests/expected/ingestion-good.tsv \
+            "$RUNNER_TEMP/ingestion-good.verdict.tsv"
+          /tmp/aici-ingestion verify ingestion/corpus-v1 \
+            stage-verdict/tests/fixtures/ingestion-failed.tsv \
+            implementation-under-test \
+            ingestion/tests/fixtures/good-candidate.execve
+          if /tmp/aici-stage-verdict ingestion \
+              stage-verdict/tests/fixtures/ingestion-failed.tsv; then
+            echo 'valid failed ingestion receipt was accepted as successful scope' >&2
+            exit 1
+          fi
       - name: Verify canonical corpus bytes
         shell: sh
         run: |
@@ -329,3 +350,8 @@ jobs:
           role: implementation-under-test
           exec_trace: ingestion/tests/fixtures/good-candidate.execve
           oracle_receipt: ingestion/tests/fixtures/good-oracle.tsv
+      - name: Exercise the published stage verdict action
+        uses: ./stage-verdict
+        with:
+          plan: stage-verdict/tests/plans/single.tsv
+          observations: stage-verdict/tests/observations/correct.tsv

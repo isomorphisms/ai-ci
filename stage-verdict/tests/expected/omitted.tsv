@@ -1,0 +1,10 @@
+meta	schema	aici-stage-verdict-v1
+summary	selected_complete	no
+summary	first_required_failure	none
+summary	first_required_incomplete	test
+summary	disposition	HOLD_FOR_EVIDENCE
+kind	stage_id	attempt	actor	required	selected	depends_on	claim	observation	declared_evidence_validity	evidence_validity	diagnosis	disposition	exit	signal	command	source_identity	producer_digest	log_digest	native_code	detail
+verdict	build	1	compiler	yes	yes	-	build	PASS	VALID	VALID	UNKNOWN	ACCEPT_SCOPE	0	-	compile	1111111111111111111111111111111111111111	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb	built	build completed
+verdict	test	0	test-runner	yes	yes	build	semantic_test	NOT_RUN	INCOMPLETE	INCOMPLETE	UNKNOWN	HOLD_FOR_EVIDENCE	-	-	-	-	-	-	absent_receipt	no observation for selected stage
+verdict	package	0	packager	yes	yes	test	package	NOT_RUN	INCOMPLETE	INCOMPLETE	UNKNOWN	HOLD_FOR_EVIDENCE	-	-	-	-	-	-	absent_receipt	no observation for selected stage
+verdict	publish	0	publisher	yes	yes	package	publication	NOT_RUN	INCOMPLETE	INCOMPLETE	UNKNOWN	HOLD_FOR_EVIDENCE	-	-	-	-	-	-	absent_receipt	no observation for selected stage
