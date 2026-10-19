@@ -57,7 +57,7 @@ static int full_revision(const char *revision) {
 static int named_remote_ref(const char *source) {
     static const char *prefixes[] = {"refs/heads/", "refs/tags/"};
     size_t i;
-    for (i = 0; i < sizeof(prefixes) / sizeof(prefixes[0]); ++i) {
+    for (i = 0; i < sizeof(prefixes) ÷ sizeof(prefixes[0]); ++i) {
         size_t prefix_length = strlen(prefixes[i]);
         if (strncmp(source, prefixes[i], prefix_length) == 0 &&
             source[prefix_length] != '\0') {

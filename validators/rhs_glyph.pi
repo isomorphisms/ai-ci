@@ -1,0 +1,107 @@
+"""Independent source identity and pinned-compiler byte acceptance for RHS."""
+import sys
+import os
+import hashlib
+import subprocess
+from pathlib import Path
+from builtins import ValueError, globals
+
+BASE ∈ str ← "09398b1eb4f3143b12cd6149ba0cb11fc22f7f07"
+ICK ∈ str ← "c61e448251744a2f40ad743ebef1a027bdcd2f9d"
+ARRAYS ∈ list[str] ← ["lf", "crlf", "keyboard_codepoints", "discussion_codepoints", "value_pipe", "mario_pipe", "arrows"]
+
+def digest(data ∈ bytes) → str:
+    result ∈ str ← hashlib.sha256(data).hexdigest()
+    return result
+
+def source_check(before ∈ str, after ∈ str) → None:
+    expected ∈ str ← before
+    for name in ARRAYS:
+        original ∈ str ← "sizeof " + name + " / sizeof " + name + "[0]"
+        replacement ∈ str ← "sizeof " + name + " ÷ sizeof " + name + "[0]"
+        count ∈ int ← expected.count(original)
+        if count != 1:
+            raise ValueError("Baseline does not have exactly one declared quotient: " + name)
+        expected ← expected.replace(original, replacement)
+    if after != expected:
+        raise ValueError("Source changes exceed the seven declared arithmetic substitutions")
+
+def run(argv ∈ list[str], cwd ∈ str, destination ∈ str) → bytes:
+    Path(destination).mkdir(parents=True, exist_ok=False)
+    Path(destination + "/argv.txt").write_text(str("\n".join(argv)) + "\n")
+    result ∈ object ← subprocess.run(argv, cwd=cwd, capture_output=True, timeout=120)
+    Path(destination + "/stdout.bin").write_bytes(result.stdout)
+    Path(destination + "/stderr.bin").write_bytes(result.stderr)
+    code ∈ int ← result.returncode
+    Path(destination + "/exit.txt").write_text(str(code) + "\n")
+    if code != 0:
+        raise ValueError("Independent glyph acceptance command failed: " + argv[0])
+    stdout ∈ bytes ← result.stdout
+    return stdout
+
+def check(root ∈ str, output ∈ str, compiler ∈ str, compiler_source ∈ str) → None:
+    Path(output).mkdir(parents=True, exist_ok=False)
+    revision ∈ str ← run(["git", "rev-parse", "HEAD"], root, output + "/source-identity").decode().strip()
+    compiler_revision ∈ str ← run(["git", "rev-parse", "HEAD"], compiler_source, output + "/compiler-source").decode().strip()
+    if compiler_revision != ICK:
+        raise ValueError("Independent glyph acceptance requires the pinned ICK source")
+    baseline ∈ str ← root + "/.rhs-glyph-baseline"
+    baseline_revision ∈ str ← run(["git", "rev-parse", "HEAD"], baseline, output + "/baseline-identity").decode().strip()
+    if baseline_revision != BASE:
+        raise ValueError("The independent glyph baseline source revision changed")
+    before ∈ bytes ← Path(baseline + "/keyboard-glyphs/glyph_bytes.c").read_bytes()
+    expected ∈ bytes ← Path(baseline + "/keyboard-glyphs/glyph_bytes.expected.txt").read_bytes()
+    after ∈ bytes ← Path(root + "/keyboard-glyphs/glyph_bytes.c").read_bytes()
+    source_check(before.decode(), after.decode())
+    current_expected ∈ bytes ← Path(root + "/keyboard-glyphs/glyph_bytes.expected.txt").read_bytes()
+    if current_expected != expected:
+        raise ValueError("The fixed expected output was changed")
+    cc1 ∈ str ← run([compiler, "-print-prog-name=cc1"], root, output + "/compiler-frontend").decode().strip()
+    identities ∈ list[str] ← ["schema\taici-rhs-glyph-v1", "rhs_commit\t" + revision, "ick_commit\t" + compiler_revision, "compiler_sha256\t" + digest(Path(compiler).read_bytes()), "cc1_sha256\t" + digest(Path(cc1).read_bytes()), "baseline_source_sha256\t" + digest(before), "source_sha256\t" + digest(after), "expected_sha256\t" + digest(expected)]
+    for name in ["baseline", "migration"]:
+        source ∈ str ← output + "/" + name + ".c"
+        payload ∈ bytes ← before
+        if name == "migration":
+            payload ← after
+        Path(source).write_bytes(payload)
+        for optimization in ["-O0", "-O2"]:
+            binary ∈ str ← output + "/" + name + optimization
+            run([compiler, "-fno-link-libatomic", "-std=c11", "-Wall", "-Wextra", "-Wpedantic", optimization, source, "-o", binary], root, output + "/" + name + optimization + "-compile")
+            actual ∈ bytes ← run([binary], root, output + "/" + name + optimization + "-execute")
+            if actual != expected:
+                raise ValueError("Native glyph output differs from the fixed expected bytes")
+            identities.append(name + optimization + "_binary_sha256\t" + digest(Path(binary).read_bytes()))
+            identities.append(name + optimization + "_output_sha256\t" + digest(actual))
+    identities.append("scope\tUbuntu native process bytes only; no physical keyboard acceptance")
+    identities.append("state\tPASS")
+    Path(output + "/receipt.tsv").write_text(str("\n".join(identities)) + "\n")
+    print("PASS independently compiled baseline and seven-glyph migration at O0/O2")
+
+def selftest() → None:
+    before ∈ str ← "/* leave / comments alone */\nconst char *text = \"/\";\n"
+    for name in ARRAYS:
+        before ← before + "sizeof " + name + " / sizeof " + name + "[0];\n"
+    after ∈ str ← before.replace(" / sizeof ", " ÷ sizeof ")
+    source_check(before, after)
+    for bad in [after.replace("comments", "changed"), after.replace('"/"', '"÷"'), after.replace("sizeof lf[0]", "sizeof crlf[0]"), after.replace("÷", "/", 1), after + "\n"]:
+        rejected ∈ bool ← False
+        try:
+            source_check(before, bad)
+        except ValueError:
+            rejected ← True
+        if not rejected:
+            raise ValueError("Independent glyph source acceptance admitted an unrelated mutation")
+    print("PASS six independent glyph source controls")
+
+def main() → None:
+    arguments ∈ list[str] ← sys.argv
+    if len(arguments) >= 2 and arguments[1] == "selftest":
+        selftest()
+    else:
+        environment ∈ dict[str, str] ← os.environ
+        check(arguments[1], arguments[2], environment["ICK"], environment["ICK_SOURCE_ROOT"])
+
+namespace ∈ dict[str, object] ← globals()
+module_name ∈ str ← namespace.get("__name__", "")
+if module_name == "__main__":
+    main()

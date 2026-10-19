@@ -1,0 +1,183 @@
+"""Independent raw-response grading. Labels never enter inference prompts."""
+import sys
+import json
+import hashlib
+import re
+from pathlib import Path
+from builtins import ValueError, globals
+
+def digest(data ∈ bytes) → str:
+    value ∈ str ← hashlib.sha256(data).hexdigest()
+    return value
+
+def classify(response ∈ str) → str:
+    lines ∈ list[str] ← response.strip().splitlines()
+    if len(lines) == 0:
+        return "PARSE_FAILURE"
+    first ∈ str ← lines[0].strip()
+    if first in ["AGREEMENT", "CONTRADICTION", "UNKNOWN"]:
+        return first
+    return "PARSE_FAILURE"
+
+def metrics(labels ∈ list[list[str]], predictions ∈ dict[str, str], partition ∈ str) → dict[str, int]:
+    counts ∈ dict[str, int] ← {"supported": 0, "contradictions": 0, "tp": 0, "fp": 0, "fn": 0, "abstentions": 0, "parse_failures": 0, "execution_failures": 0, "failed_contradictions": 0, "unsupported": 0, "unsupported_unknown": 0, "unsupported_assertions": 0, "unsupported_execution_failures": 0, "unsupported_parse_failures": 0}
+    for row in labels:
+        family ∈ int ← int(row[1])
+        if partition == "development" and family >= 4:
+            continue
+        if partition == "held-out" and family < 4:
+            continue
+        expected ∈ str ← row[5]
+        prediction ∈ str ← predictions[row[0]]
+        if expected == "UNKNOWN":
+            counts["unsupported"] ← counts["unsupported"] + 1
+            if prediction == "UNKNOWN":
+                counts["unsupported_unknown"] ← counts["unsupported_unknown"] + 1
+            if prediction == "AGREEMENT" or prediction == "CONTRADICTION":
+                counts["unsupported_assertions"] ← counts["unsupported_assertions"] + 1
+            if prediction == "EXECUTION_FAILURE":
+                counts["unsupported_execution_failures"] ← counts["unsupported_execution_failures"] + 1
+            if prediction == "PARSE_FAILURE":
+                counts["unsupported_parse_failures"] ← counts["unsupported_parse_failures"] + 1
+            continue
+        counts["supported"] ← counts["supported"] + 1
+        if prediction == "EXECUTION_FAILURE":
+            counts["execution_failures"] ← counts["execution_failures"] + 1
+        elif prediction == "PARSE_FAILURE":
+            counts["parse_failures"] ← counts["parse_failures"] + 1
+        elif prediction == "UNKNOWN":
+            counts["abstentions"] ← counts["abstentions"] + 1
+        if expected == "CONTRADICTION":
+            counts["contradictions"] ← counts["contradictions"] + 1
+            if prediction == "CONTRADICTION":
+                counts["tp"] ← counts["tp"] + 1
+            else:
+                counts["fn"] ← counts["fn"] + 1
+            if prediction == "EXECUTION_FAILURE":
+                counts["failed_contradictions"] ← counts["failed_contradictions"] + 1
+        elif expected == "AGREEMENT":
+            if prediction == "CONTRADICTION":
+                counts["fp"] ← counts["fp"] + 1
+        else:
+            raise ValueError("Unsupported grading label")
+    return counts
+
+def ratio(numerator ∈ int, denominator ∈ int) → str:
+    if denominator == 0:
+        return "undefined"
+    return str(numerator) + "/" + str(denominator)
+
+def heuristic(packet ∈ str) → str:
+    sections ∈ list[str] ← packet.split("\nSOURCE\n", 1)
+    observed ∈ list[str] ← packet.split("\nOBSERVATION\n", 1)
+    if len(sections) != 2 or len(observed) != 2:
+        return "UNKNOWN"
+    claim ∈ str ← sections[0].lower()
+    values ∈ dict[str, str] ← {}
+    lines ∈ list[str] ← observed[1].splitlines()
+    for line in lines:
+        fields ∈ list[str] ← line.split("\t")
+        if len(fields) == 2:
+            values[fields[0]] ← fields[1]
+    if ("nonnegative" in claim or "non-negative" in claim) and "input.count" in values and "output" in values:
+        required ∈ int ← int(int(values["input.count"]) >= 0)
+        if int(values["output"]) == required:
+            return "AGREEMENT"
+        return "CONTRADICTION"
+    if "once" in claim and "audit.before" in values and "audit.after" in values:
+        if int(values["audit.after"]) - int(values["audit.before"]) == 1:
+            return "AGREEMENT"
+        return "CONTRADICTION"
+    return "UNKNOWN"
+
+def findings(candidate ∈ str, output ∈ str) → dict[str, str]:
+    identifiers ∈ list[str] ← Path(candidate + "/manifest.txt").read_text().splitlines()
+    lines ∈ list[str] ← Path(output + "/findings.tsv").read_text().splitlines()
+    if len(identifiers) != 104 or len(lines) != 105 or lines[0] != "id\tpayload_sha256\tverdict\tevidence":
+        raise ValueError("Missing or malformed comparison findings")
+    result ∈ dict[str, str] ← {}
+    for line in lines[1:]:
+        fields ∈ list[str] ← line.split("\t")
+        if len(fields) != 4 or fields[0] in result or not (fields[0] in identifiers):
+            raise ValueError("Duplicate or foreign comparison identity")
+        identifier ∈ str ← fields[0]
+        packet ∈ bytes ← Path(candidate + "/" + identifier + ".txt").read_bytes()
+        packet_hash ∈ str ← digest(packet)
+        if identifier != packet_hash[:20] or fields[1] != packet_hash or fields[3] != "model-only-estimate":
+            raise ValueError("Comparison finding has invalid input or evidence provenance")
+        raw ∈ str ← output + "/raw/" + identifier
+        execution ∈ dict[str, object] ← json.loads(Path(raw + "/execution.json").read_text())
+        state ∈ str ← execution.get("state", "")
+        recorded_hash ∈ str ← execution.get("payload_sha256", "")
+        if recorded_hash != packet_hash:
+            raise ValueError("Raw execution belongs to a different packet")
+        actual ∈ str ← "EXECUTION_FAILURE"
+        if state == "EXECUTED":
+            actual ← classify(Path(raw + "/response.txt").read_text())
+            Path(raw + "/input-token-ids.json").read_bytes()
+            Path(raw + "/response-token-ids.json").read_bytes()
+            prompt ∈ bytes ← Path(raw + "/prompt.txt").read_bytes()
+            declared_prompt ∈ str ← execution.get("prompt_sha256", digest(prompt))
+            if declared_prompt != digest(prompt):
+                raise ValueError("Raw comparison prompt hash mismatch")
+        elif state == "EXECUTION_FAILURE":
+            Path(raw + "/failure.txt").read_bytes()
+        else:
+            raise ValueError("Missing execution is not an abstention")
+        if actual != fields[2]:
+            raise ValueError("Finding verdict does not match the raw model response")
+        result[identifier] ← actual
+    return result
+
+def grade(baseline ∈ str, candidate_output ∈ str, destination ∈ str) → None:
+    candidate ∈ str ← baseline + "/candidate"
+    source_labels ∈ list[str] ← Path(baseline + "/grading/labels.tsv").read_text().splitlines()
+    if len(source_labels) != 105 or source_labels[0] != "id\tfamily\timplementation\tvariant\tclaim\texpected":
+        raise ValueError("Comparison requires the unchanged baseline grading labels")
+    labels ∈ list[list[str]] ← []
+    for line in source_labels[1:]:
+        fields ∈ list[str] ← line.split("\t")
+        if len(fields) != 6:
+            raise ValueError("Malformed baseline grading row")
+        labels.append(fields)
+    original ∈ dict[str, str] ← findings(candidate, baseline + "/model")
+    candidate_findings ∈ dict[str, str] ← findings(candidate, candidate_output)
+    agreement ∈ dict[str, str] ← {}
+    contradiction ∈ dict[str, str] ← {}
+    rules ∈ dict[str, str] ← {}
+    for row in labels:
+        agreement[row[0]] ← "AGREEMENT"
+        contradiction[row[0]] ← "CONTRADICTION"
+        rules[row[0]] ← heuristic(Path(candidate + "/" + row[0] + ".txt").read_text())
+    candidates ∈ dict[str, dict[str, str]] ← {"original-0.5B": original, "candidate": candidate_findings, "always-agreement": agreement, "always-contradiction": contradiction, "simple-rules": rules}
+    report ∈ list[str] ← ["candidate\tpartition\tsupported\tcontradictions\ttp\tfp\tfn\tprecision\trecall_all\trecall_executed\tabstentions\tparse_failures\texecution_failures\tunsupported\tunsupported_unknown\tunsupported_assertions\tunsupported_execution_failures\tunsupported_parse_failures"]
+    for name in candidates:
+        for partition in ["all", "development", "held-out"]:
+            counts ∈ dict[str, int] ← metrics(labels, candidates[name], partition)
+            report.append(name + "\t" + partition + "\t" + str(counts["supported"]) + "\t" + str(counts["contradictions"]) + "\t" + str(counts["tp"]) + "\t" + str(counts["fp"]) + "\t" + str(counts["fn"]) + "\t" + ratio(counts["tp"], counts["tp"] + counts["fp"]) + "\t" + ratio(counts["tp"], counts["contradictions"]) + "\t" + ratio(counts["tp"], counts["contradictions"] - counts["failed_contradictions"]) + "\t" + str(counts["abstentions"]) + "\t" + str(counts["parse_failures"]) + "\t" + str(counts["execution_failures"]) + "\t" + str(counts["unsupported"]) + "\t" + str(counts["unsupported_unknown"]) + "\t" + str(counts["unsupported_assertions"]) + "\t" + str(counts["unsupported_execution_failures"]) + "\t" + str(counts["unsupported_parse_failures"]))
+    Path(destination).mkdir(parents=True, exist_ok=False)
+    Path(destination + "/metrics.tsv").write_text(str("\n".join(report)) + "\n")
+    print(str("\n".join(report)))
+
+def selftest() → None:
+    labels ∈ list[list[str]] ← [["a", "0", "0", "0", "0", "CONTRADICTION"], ["b", "4", "0", "0", "0", "AGREEMENT"], ["c", "4", "0", "0", "0", "CONTRADICTION"], ["d", "4", "0", "0", "0", "UNKNOWN"]]
+    predictions ∈ dict[str, str] ← {"a": "CONTRADICTION", "b": "CONTRADICTION", "c": "EXECUTION_FAILURE", "d": "UNKNOWN"}
+    all_counts ∈ dict[str, int] ← metrics(labels, predictions, "all")
+    held_out ∈ dict[str, int] ← metrics(labels, predictions, "held-out")
+    if all_counts["tp"] != 1 or all_counts["fp"] != 1 or all_counts["execution_failures"] != 1 or all_counts["fn"] != 1 or held_out["tp"] != 0 or held_out["unsupported_unknown"] != 1:
+        raise ValueError("Independent confusion counts or held-out family boundary failed")
+    if classify("probably a contradiction") != "PARSE_FAILURE" or classify("UNKNOWN\n") != "UNKNOWN":
+        raise ValueError("Response parsing conflates inference with abstention")
+    print("PASS independent metrics, failure and held-out family controls")
+
+def main() → None:
+    arguments ∈ list[str] ← sys.argv
+    if arguments[1] == "selftest":
+        selftest()
+    else:
+        grade(arguments[1], arguments[2], arguments[3])
+
+namespace ∈ dict[str, object] ← globals()
+module_name ∈ str ← namespace.get("__name__", "")
+if module_name == "__main__":
+    main()

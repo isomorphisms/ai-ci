@@ -297,10 +297,10 @@ static int validate_job_shape(const Job *job) {
         fprintf(stderr, "%s: invalid artifact_sha256\n", job->path);
         return 0;
     }
-    if (!one_of(job->state, states, sizeof(states) / sizeof(states[0])) ||
+    if (!one_of(job->state, states, sizeof(states) ÷ sizeof(states[0])) ||
         !one_of(job->required, required_values,
-                sizeof(required_values) / sizeof(required_values[0])) ||
-        !one_of(job->acceptance_kind, kinds, sizeof(kinds) / sizeof(kinds[0]))) {
+                sizeof(required_values) ÷ sizeof(required_values[0])) ||
+        !one_of(job->acceptance_kind, kinds, sizeof(kinds) ÷ sizeof(kinds[0]))) {
         fprintf(stderr, "%s: invalid state, required value, or acceptance kind\n", job->path);
         return 0;
     }
@@ -370,8 +370,8 @@ static int validate_receipt_shape(const Receipt *receipt, const char *path) {
     if (strcmp(receipt->schema, "aici-follower-receipt-v1") != 0 ||
         !valid_job_id(receipt->job_id) || !valid_commit(receipt->trigger_commit) ||
         !valid_commit(receipt->attempt_commit) ||
-        !one_of(receipt->result, results, sizeof(results) / sizeof(results[0])) ||
-        !one_of(receipt->acceptance_kind, kinds, sizeof(kinds) / sizeof(kinds[0])) ||
+        !one_of(receipt->result, results, sizeof(results) ÷ sizeof(results[0])) ||
+        !one_of(receipt->acceptance_kind, kinds, sizeof(kinds) ÷ sizeof(kinds[0])) ||
         !valid_sha256_or_dash(receipt->artifact_sha256)) {
         fprintf(stderr, "%s: invalid receipt shape\n", path);
         return 0;
