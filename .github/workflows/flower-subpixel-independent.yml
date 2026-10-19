@@ -39,7 +39,7 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           repository: isomorphismes/flower
-          ref: 25fa730858901665b686c578a09e514ead16400c
+          ref: f404096058cf4b6ac35b59d6b67cb72587b297d8
           path: flower
           persist-credentials: false
 
@@ -65,7 +65,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git -C producer rev-parse HEAD)" = efff5fbe71d8722d713282c478dbdb52fa280f9b
-          test "$(git -C flower rev-parse HEAD)" = 25fa730858901665b686c578a09e514ead16400c
+          test "$(git -C flower rev-parse HEAD)" = f404096058cf4b6ac35b59d6b67cb72587b297d8
           test "$(git -C ick-toolchain rev-parse HEAD)" = c61e448251744a2f40ad743ebef1a027bdcd2f9d
           test "$(git -C ick-toolchain/gcc rev-parse HEAD)" = 6294f1d9e7536e5ffcde09d1528c918d63abfef5
           grep -Fxq gcc_commit=6294f1d9e7536e5ffcde09d1528c918d63abfef5 ick-toolchain/ick/SOURCE.lock

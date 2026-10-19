@@ -123,6 +123,15 @@ static void check_alpha(void) {
 enum { WIDTH=160, HEIGHT=160, STRIDE=164 };
 static uint64_t chart[STRIDE*HEIGHT], saved[STRIDE*HEIGHT];
 static Flower flower,before;
+static void check_pane_ownership(void) {
+    TEST(flower_construction_pane_contains(true,576,366,88),"pane-blocks-growth");
+    TEST(flower_construction_pane_contains(true,576,559,304),"pane-caption-blocks-growth");
+    TEST(!flower_construction_pane_contains(false,576,400,100),"disabled-pane-restores-growth");
+    TEST(!flower_construction_pane_contains(true,576,364,100),"pane-left-boundary");
+    TEST(!flower_construction_pane_contains(true,576,400,305),"pane-bottom-boundary");
+    TEST(flower_construction_pane_contains(true,100,12,100),"pane-small-viewport");
+    TEST(!flower_construction_pane_contains(true,576,NAN,100),"pane-invalid-pointer");
+}
 static void check_material(void) {
     flower_init(&flower);
     before=flower;
@@ -196,6 +205,7 @@ static void check_material(void) {
     TEST(sample5.occupied_pixels>100,"material-5x5-coverage");
 }
 int main(void) {
+    check_pane_ownership();
     check_diagonal();
     check_stride_and_union();
     check_alpha();
