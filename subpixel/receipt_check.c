@@ -1,4 +1,4 @@
-/* Independent, schema-exact verifier for the one-step Sublixel Ike receipt.
+/* Independent, schema-exact verifier for the one-step Subpixel Ike receipt.
  * Do not trust the producer's terminal PASS or the recipe's own stdout.
  * Compiled by ICK together with the independent curvature oracle.
  */
@@ -7,7 +7,7 @@
 #include <string.h>
 
 static void error(const char *description) {
-    fprintf(stderr, "AICI_SUBLIXEL_RECEIPT_REJECT %s\n", description);
+    fprintf(stderr, "AICI_SUBPIXEL_RECEIPT_REJECT %s\n", description);
     exit(1);
 }
 
@@ -77,6 +77,6 @@ int main(int argc, char **argv) {
 
     if (fgetc(input) != EOF || ferror(input)) error("unexpected trailing bytes");
     if (fclose(input) != 0) error("cannot close receipt");
-    puts("AICI_SUBLIXEL_RECEIPT independent exact Ike receipt: PASS");
+    puts("AICI_SUBPIXEL_RECEIPT independent exact Ike receipt: PASS");
     return 0;
 }

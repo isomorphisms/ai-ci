@@ -1,9 +1,9 @@
-# Independent Sublixel numerical and owned-toolchain acceptance
+# Independent Subpixel numerical and owned-toolchain acceptance
 
 AICI tests the **actual** 3×3/5×5 C implementation in `isomorphisms/rough.framebuffer` against its own rational-integer midpoint oracle. The producer's numerical test arrays and product build scripts are **not** used.
 
-Current immutable acceptance target: `49aa03cdeabbc57dbac758e0a9470579c3af0015` from
-[isomorphisms/rough.framebuffer PR #13, “Render real Sublixel 3×3/5×5 slanted-curve coverage through ICK/Ike”](https://github.com/isomorphisms/rough.framebuffer/pull/13).
+Current immutable acceptance target: `0a09edede932ba80feb7f35addede3eb17baf6f3` from
+[isomorphisms/rough.framebuffer PR #18, “Add bounded whole-path subpixel rendering and sampled font previews”](https://github.com/isomorphisms/rough.framebuffer/pull/18).
 It includes the quadratic/cubic library and repaired build policy. The source
 checkout must match that exact revision. Updating the target requires a new
 review/run, not silently following a branch.
@@ -18,7 +18,7 @@ Two mutant builds change **real implementation source** while leaving the indepe
 
 The [source-built ICK](https://github.com/dilapidated-shed/ick) compiler is pinned to `c61e448251744a2f40ad743ebef1a027bdcd2f9d`; its retained GCC reference submodule is pinned to `6294f1d9e7536e5ffcde09d1528c918d63abfef5`. Only its authenticated staged x86_64 compiler and `cc1` compile **both producer curve sources, AICI's independent oracle, AICI's receipt checker, and both mutants**.
 
-The acceptance orchestrator is [Ike](https://github.com/dilapidated-shed/ike) at `a92fe68bf8aad8dfcfe9f7a7abd84e07290f7fe0`, built by ICK. AICI uses its own literal `sublixel/Ikefile` to run the oracle and demands `ike-build-v1` with exact target, source digest, rule, recipe, runner, status and no trailing bytes. The receipt checker is **also compiled by ICK**. Two mutated receipts (wrong target and false final result) must be rejected, not passed along by simply testing for the word `PASS`.
+The acceptance orchestrator is [Ike](https://github.com/dilapidated-shed/ike) at `a92fe68bf8aad8dfcfe9f7a7abd84e07290f7fe0`, built by ICK. AICI uses its own literal `subpixel/Ikefile` to run the oracle and demands `ike-build-v1` with exact target, source digest, rule, recipe, runner, status and no trailing bytes. The receipt checker is **also compiled by ICK**. Two mutated receipts (wrong target and false final result) must be rejected, not passed along by simply testing for the word `PASS`.
 
 The ICK stage-zero build still explicitly uses GNU Make and host GCC/G++ to construct the GCC-derived compiler. The final system link driver consumes **only ICK-produced object files**, supplying CRT/libc/libm. These are not consumer source compilation alternatives or claims of self-hosted ICK. The CI workflow does not run any producer-owned Makefile, native test program or consumer CC fallback.
 
@@ -38,3 +38,37 @@ arithmetic for every coverage count 0..64, rather than copying producer tests.
 Two additional real compiled mutants overwrite union masks or stamp partial
 coverage opaquely; both must fail the unchanged oracle. This adds bounded host
 framebuffer integration evidence, not streaming-kernel or Android acceptance.
+
+## Whole paths and glyphs
+
+`path_verify.c` independently checks finite-line masks using long-double squared
+distances and cross products, varied oblique lines, reflection/rotation/shear,
+nonuniform scale, endpoint caps, clipping, split joins and degree elevation. It
+checks OR union, padded rows, malformed inputs, exact work-budget boundaries,
+immediate/mid-work/final cancellation and unchanged destination/report on failure.
+A direct Bernstein curve oracle bounds uncertainty between dense parameter
+samples; it does not call producer jet, distance or reference helpers. The
+baseline run executes 408 assertions. Four actual source mutants alter both
+producer/reference half-width, overwrite rather than OR, transpose an affine
+coefficient, or ignore cancellation. All must compile and fail the same oracle.
+
+`font_verify.c` reads O/C/S/8 source master controls, then derives its own dense
+long-double Bernstein polyline tubes. It never calls the didactic font sampler
+or producer reference helper. Seventy-six cases cover scales 1/2/4, phases ±1/8,
+forced and automatic strategies, padding and known 40×56 counters. A declared
+1/64-pixel boundary strip is excluded from binary classification; definite
+samples must agree. False C closure and merged 8 counters are deliberately
+rendered and must fail both geometry and independent empty-component counts.
+These negative input shapes complement the compiled implementation mutants.
+
+The former active typo is removed from include paths, symbols, diagnostics,
+directories and workflow names. Historical branch names and remote receipt
+identities are not rewritten. Native baseline behavior stays with the producer;
+independent acceptance does not assert that its per-segment alpha semantics
+equal per-shape mask union.
+
+Both source-built and exact artifact installations of the same c61e448 ICK
+revision can run this verifier. The artifact route independently authenticates
+the archive, driver and frontend hashes rather than trusting producer scripts.
+Ike's literal POSIX recipe is the existing compatibility boundary. Device,
+registered FP dispatch and final integration remain separate acceptance levels.

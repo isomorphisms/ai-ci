@@ -1,4 +1,4 @@
 # Independent AICI acceptance: exact pinned Ike v1 grammar.
 # One recipe, no GNU Make, no producer-owned build/test scripts.
-accept depends on accept.sh verify.c receipt_check.c
+accept depends on accept.sh verify.c receipt_check.c path_verify.c font_verify.c
     sh accept.sh
