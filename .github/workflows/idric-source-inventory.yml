@@ -1,0 +1,58 @@
+name: Idriç source inventory
+
+on:
+  push:
+    paths:
+      - 'idric/**'
+      - '.github/workflows/idric-source-inventory.yml'
+  pull_request:
+    paths:
+      - 'idric/**'
+      - '.github/workflows/idric-source-inventory.yml'
+  schedule:
+    - cron: '41 9 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-inventory:
+    name: ${{ github.event_name == 'pull_request' && 'source-inventory' || format('source-inventory-{0}', github.event_name) }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Exercise drift rejection
+        shell: sh
+        run: sh idric/tests/source-inventory-check.sh
+
+      - name: Discover Idriç source on current default branches
+        shell: sh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          sh idric/discover-source-files.sh \
+            idric/source-owners-v1.tsv \
+            "$RUNNER_TEMP/idric-discovered-sources.tsv"
+
+      - name: Compare discovery with canonical inventory
+        shell: sh
+        run: |
+          sh idric/check-source-inventory.sh \
+            idric/source-inventory-v1.tsv \
+            "$RUNNER_TEMP/idric-discovered-sources.tsv" \
+            "$RUNNER_TEMP/idric-source-inventory.receipt.tsv"
+
+      - name: Retain source discovery evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: idric-source-inventory
+          path: |
+            ${{ runner.temp }}/idric-discovered-sources.tsv
+            ${{ runner.temp }}/idric-source-inventory.receipt.tsv
+          if-no-files-found: warn
