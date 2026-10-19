@@ -1,0 +1,130 @@
+import csv
+import hashlib
+import html
+import io
+import re
+import sys
+from pathlib import Path
+from builtins import dict, list, tuple, ValueError, Exception
+
+
+def require(condition ∈ bool, reason ∈ str) → None:
+    if not condition:
+        raise ValueError(reason)
+
+
+def normalize(value ∈ str) → str:
+    decoded ∈ str ← html.unescape(value)
+    return ' '.join(decoded.split())
+
+
+def child(root ∈ Path, name ∈ str) → Path:
+    result ∈ Path ← root.joinpath(name)
+    return result
+
+
+def table(path ∈ Path) → list[dict[str, str]]:
+    text ∈ str ← path.read_text(encoding='utf-8')
+    reader ∈ object ← csv.DictReader(io.StringIO(text), delimiter='\t')
+    rows ∈ list[dict[str, str]] ← list(reader)
+    return rows
+
+
+def validate(root ∈ Path, course ∈ dict[str, str], rows ∈ list[dict[str, str]]) → None:
+    require(course['status'] == 'PARTIAL', 'coverage: unsupported completion')
+    require(course['whole_population_complete'] == 'false', 'coverage: population completion')
+    require(course['course_population'] == 'unknown', 'coverage: fabricated denominator')
+    absence ∈ str ← course.get('absence_claim', 'false')
+    require(absence == 'false', 'absence: original document exists')
+    raw ∈ bytes ← child(root, course['source_document']).read_bytes()
+    observed_hash ∈ str ← hashlib.sha256(raw).hexdigest()
+    require(observed_hash == course['source_sha256'], 'source: digest mismatch')
+    require(observed_hash == 'eb038eb7ac76f2e82809fafae57e44c78fa2cc1e8f23c2615c7d2735eb38e608', 'source: wrong original')
+    require(len(raw) == 72077, 'source: byte length')
+    decoded ∈ str ← raw.decode('utf-8')
+    blocks ∈ str ← re.sub(r'</(?:p|div|li|h[1-6])[^>]*>|<br[^>]*>', ' ', decoded)
+    untagged ∈ str ← re.sub(r'<[^>]+>', '', blocks)
+    text ∈ str ← normalize(untagged)
+    require(course['institution'] == 'University of South Florida', 'course: institution')
+    require(course['discipline'] == 'philosophy', 'course: discipline')
+    for field in ('course', 'section', 'instructor', 'term'):
+        require(course[field] in text, 'course: unsupported ' + field)
+    require(course['course'] == 'PHM 6267', 'course: fabricated course')
+    require(len(rows) == 5, 'reading: work count')
+    seen ∈ list[str] ← []
+    required_count ∈ int ← 0
+    for reading in rows:
+        evidence ∈ str ← normalize(reading['source_text'])
+        require(evidence in text, 'reading: unsupported evidence')
+        title ∈ str ← reading['title']
+        require(title in evidence, 'reading: unsupported title')
+        require(reading['author'] in text, 'reading: unsupported author')
+        require(reading['edition'] == 'unknown', 'reading: unsupported edition')
+        isbn ∈ str ← reading['isbn']
+        if isbn != 'unknown':
+            compact ∈ str ← re.sub(r'[^0-9X]', '', evidence)
+            require(isbn in compact, 'reading: unsupported ISBN')
+        requirement ∈ str ← reading['requirement']
+        section ∈ str ← reading['source_section']
+        if section == 'Required Texts and/or Readings and Course Materials':
+            require(requirement == 'required', 'reading: required/recommended mismatch')
+            required_count ← required_count + 1
+        else:
+            require(section == 'Major Topics and Course Schedule' and requirement == 'scheduled_assignment', 'reading: unsupported requirement')
+        bookshelf ∈ str ← reading['bookshelf']
+        require(not (bookshelf in seen), 'reading: duplicate canonical target')
+        seen.append(bookshelf)
+        exists ∈ bool ← child(root, bookshelf).is_file()
+        require(exists, 'reading: missing canonical record')
+    require(required_count == 4, 'reading: required work count')
+
+
+def main() → None:
+    arguments ∈ list[str] ← sys.argv
+    require(len(arguments) == 2, 'requires consumer repository root')
+    root ∈ Path ← Path(arguments[1]).resolve()
+    directory ∈ Path ← child(root, 'course information/usf/fall-2026/philosophy')
+    metadata ∈ list[dict[str, str]] ← table(child(directory, 'verified-course.tsv'))
+    course ∈ dict[str, str] ← {}
+    for row in metadata:
+        course.__setitem__(row['field'], row['value'])
+    readings ∈ list[dict[str, str]] ← table(child(directory, 'verified-readings.tsv'))
+    validate(root, course, readings)
+    failures ∈ list[tuple[str, str, str]] ← [
+        ('status', 'COMPLETE', 'coverage:'),
+        ('whole_population_complete', 'true', 'coverage:'),
+        ('course_population', '1', 'coverage:'),
+        ('absence_claim', 'true', 'absence:'),
+        ('source_sha256', 'fabricated', 'source:'),
+        ('course', 'PHI 9999', 'course:')]
+    for failure in failures:
+        changed ∈ dict[str, str] ← dict(course)
+        changed.__setitem__(failure[0], failure[1])
+        rejected ∈ bool ← False
+        try:
+            validate(root, changed, readings)
+        except ValueError as error:
+            reason ∈ str ← str(error)
+            rejected ← reason.startswith(failure[2])
+        require(rejected, 'negative control: ' + failure[0])
+    reading_failures ∈ list[tuple[str, str, str]] ← [
+        ('title', 'Fabricated Reading', 'reading: unsupported title'),
+        ('source_text', 'Never assigned here', 'reading: unsupported evidence'),
+        ('edition', 'fourth edition', 'reading: unsupported edition'),
+        ('requirement', 'recommended', 'reading: required/recommended mismatch')]
+    for failure in reading_failures:
+        replacement ∈ dict[str, str] ← dict(readings[0])
+        replacement.__setitem__(failure[0], failure[1])
+        changed_rows ∈ list[dict[str, str]] ← list(readings)
+        changed_rows.__setitem__(0, replacement)
+        rejected ∈ bool ← False
+        try:
+            validate(root, course, changed_rows)
+        except ValueError as error:
+            reason ∈ str ← str(error)
+            rejected ← reason.startswith(failure[2])
+        require(rejected, 'negative control: ' + failure[0])
+    print('PASS: original USF source, five distinct works, four required texts and ten independent rejection controls')
+
+
+main()
