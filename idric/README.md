@@ -23,3 +23,32 @@ backend execution or physical-phone acceptance has already occurred.
 The superseded August fleet/backend survey remains in Git history. It is not
 part of the active tree and no scheduled job compares that frozen survey with
 current repository heads.
+
+## Source migration inventory
+
+`source-inventory-v1.tsv` is the canonical list of Idriç source files that must
+be considered when the language surface or semantics changes.
+`source-index.md` is the same inventory in human-readable form with direct
+GitHub links.
+
+Entries marked `follow` are migration/revalidation obligations. Entries marked
+`review-only` are historical specimens that must be inspected but should not
+be mechanically rewritten.
+
+`source-owners-v1.tsv` defines the GitHub owner namespaces included in
+mechanical discovery. `discover-source-files.sh` enumerates every non-empty
+repository in those namespaces, walks each current default-branch tree, and
+emits every `*.idric` path. It fails closed if a recursive tree is truncated.
+
+`check-source-inventory.sh` compares that discovered repository/ref/path set
+with the canonical inventory. A new source file, a deleted or moved source file,
+or a default-branch/ref change makes the check fail until the inventory is
+deliberately reconciled. Its positive and adversarial cases are exercised by
+`tests/source-inventory-check.sh`.
+
+The `Idriç source inventory` workflow runs this check for relevant ai-ci
+changes and once per day. Cross-repository changes therefore cannot silently
+leave the canonical list stale indefinitely.
+
+The source inventory is intentionally distinct from `current-heads-v1.tsv`:
+dependency-head selection and source migration are different questions.

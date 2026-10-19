@@ -1,0 +1,7 @@
+# Structural admission for Amazon.jobs CLI. Runtime behavior, executable identity,
+# external HTTPS, and exact population belong to separate FP/AICI stages.
+contains	AMAZON-CENSUS-FAIL	checkpoints/amazon-jobs/AmazonJobs.idric	incomplete census:
+contains	AMAZON-BUSINESS-FIELD	checkpoints/amazon-jobs/AmazonJobs.idric	("business_category", JString (business_category job))
+contains	AMAZON-TEAM-FIELD	checkpoints/amazon-jobs/AmazonJobs.idric	("team", JString (team_label job))
+contains	AMAZON-SOURCE-ID	checkpoints/amazon-jobs/AmazonJobs.idric	source_record_id : Text
+contains	AMAZON-PROVIDER	checkpoints/amazon-jobs/AmazonJobs.idric	https://www.amazon.jobs/en/search.json

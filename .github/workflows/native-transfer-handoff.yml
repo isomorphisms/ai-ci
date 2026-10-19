@@ -1,0 +1,20 @@
+name: Native Grease handoff checks
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  acceptance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: ./transfer-handoff
+        with:
+          catfood_ref: c16dcf0ab5057cbfd9cc7b0fedad587300724873
+          kitchen_ref: 32c3bf2d7c6268b50f1e48395dc972cfbafec7a9
+          fp_ref: 146408ab64fe52c62edaa414126cae5ec952b3ca
+          aici_ref: ${{ github.event.pull_request.head.sha || github.sha }}

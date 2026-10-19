@@ -1,0 +1,8 @@
+meta	schema	aici-stage-verdict-v1
+summary	selected_complete	yes
+summary	first_required_failure	task
+summary	first_required_incomplete	task
+summary	disposition	REJECT_SCOPE
+kind	stage_id	attempt	actor	required	selected	depends_on	claim	observation	declared_evidence_validity	evidence_validity	diagnosis	disposition	exit	signal	command	source_identity	producer_digest	log_digest	native_code	detail
+verdict	task	1	application	yes	yes	-	application_behavior	FAIL	VALID	VALID	UNKNOWN	REJECT_SCOPE	7	-	run-control	1111111111111111111111111111111111111111	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb	exit_7	first attempt failed
+verdict	task	2	application	yes	yes	-	application_behavior	PASS	VALID	VALID	UNKNOWN	ACCEPT_SCOPE	0	-	run-control	1111111111111111111111111111111111111111	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc	ok	second attempt passed
