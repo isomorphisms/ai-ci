@@ -44,6 +44,18 @@ Commands (arguments are ordinary files/directories):
 - `palette-check CORE.glsl FIXTURES.json` verifies the independent binary64
   palette against the six retained shared-Wegert fixtures, unchanged 2×10⁻⁵
   agreement and canonical source digest.
+- `large-q-audit RUNTIME_LOG` enforces the separately predeclared
+  [large-q diagnostic policy](large-q-policy.tsv) and
+  [range/delta rationale](large-q-policy-rationale.md). It requires the exact
+  baseline/pair inputs, actual raw mode one, actual pre-Wegert mode three and
+  actual RGBA8 mode two from the same selected program. The raw baseline must
+  produce marker one; the finite, executed pair must produce marker zero and
+  demonstrate an erased increment. The pair remains `RANGE_REJECTED_UNQUALIFIED`.
+  Both precolour samples must produce marker one, meet the existing absolute
+  budget and preserve the independently signed divisor increments within
+  2×10⁻⁶. Colour keeps the one-level channel budget. Missing rows, clear-buffer
+  sentinels, always-zero/forced-one markers, wrong signs and lost increments
+  fail. The original 31 host cases, 34 GPU samples and policy stay unchanged.
 
 The case header is `case_id world_x world_y time pan_x pan_y zoom coefficients
 zeros poles remote_count`, separated by tabs. Coordinate lists use `x,y;x,y`;

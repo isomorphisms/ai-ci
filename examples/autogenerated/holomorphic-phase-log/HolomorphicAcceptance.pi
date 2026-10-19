@@ -19,6 +19,8 @@ INFINITY ∈ float ← math.inf
 NAN ∈ float ← math.nan
 GPU_PHASE_BUDGET ∈ float ← 0.0001
 GPU_LOG_BUDGET ∈ float ← 0.0001
+LARGE_Q_DELTA_BUDGET ∈ float ← 0.000002
+LARGE_Q_RAW_BUDGET ∈ float ← 8.0 * 2.0 ** -14
 BINARY32_EPSILON ∈ float ← 2.0 ** -23
 CANONICAL_PALETTE_DIGEST ∈ str ← "f30991435214135aa8a4c42798ff4ccc10ebc28db3b03d275d546ba203bad364"
 
@@ -610,6 +612,9 @@ def gpu_audit(log_path ∈ Path, fixture_math ∈ bool, qualify ∈ bool) → in
     empty_record ∈ dict[str, str] ← {}
     for row in records:
         event ∈ str ← row["event"]
+        separate_large_q ∈ bool ← event.startswith("HOLO_GPU_LARGE_Q_")
+        if separate_large_q:
+            continue
         if event == "HOLO_GPU_NUMERIC":
             summaries.append(row)
         elif event == "HOLO_GPU_COLOR_OUTPUT":
@@ -764,6 +769,340 @@ def gpu_audit(log_path ∈ Path, fixture_math ∈ bool, qualify ∈ bool) → in
     if len(inputs) != expected_input_total or len(factors) != expected_factor_total:
         raise ValueError("GPU-UNEXPECTED-INPUT-OR-FACTOR")
     return failures
+
+def large_q_cases() → list[dict[str, str]]:
+    empty ∈ list[complex] ← []
+    coefficients ∈ list[complex] ← [complex(3.0,0.0),0j,0j,0j,0j]
+    baseline ∈ dict[str, str] ← make_case("baseline", complex(1000.0,1000.0), empty, empty, coefficients)
+    pair ∈ dict[str, str] ← make_case("pair", complex(1000.0,1000.0), [0j], [complex(float32(0.04),0.0)], coefficients)
+    return [baseline, pair]
+
+def large_q_reference() → tuple[float, float, float, float]:
+    point ∈ complex ← complex(1000.0,1000.0)
+    pole ∈ complex ← complex(float32(0.04),0.0)
+    ratio ∈ complex ← point / (point - pole)
+    phase_increment ∈ float ← math.atan2(ratio.imag, ratio.real)
+    logarithmic_increment ∈ float ← math.log(math.hypot(ratio.real, ratio.imag))
+    phase_turns ∈ float ← math.floor(1000.0 / TAU)
+    phase_residue ∈ float ← 1000.0 - TAU * phase_turns
+    log_ten ∈ float ← math.log(10.0)
+    log_turns ∈ float ← math.floor(1000.0 / log_ten)
+    log_residue ∈ float ← 1000.0 - log_ten * log_turns
+    return (phase_residue, log_residue, phase_increment, logarithmic_increment)
+
+def load_large_q_policy() → str:
+    source_path ∈ Path ← Path(__file__)
+    policy_path ∈ Path ← source_path.parent.joinpath("large-q-policy.tsv")
+    old_policy ∈ Path ← source_path.parent.joinpath("gpu-policy.tsv")
+    old_digest ∈ str ← hashlib.sha256(old_policy.read_bytes()).hexdigest()
+    if old_digest != "5c5a90912823dd6a1d75fc09f04bd161c6521dd9c4844e3a399b333b4bbe0f21":
+        raise ValueError("LARGE-Q-EXISTING-POLICY-CHANGED")
+    policy ∈ dict[str, str] ← {}
+    lines ∈ list[str] ← policy_path.read_text().splitlines()
+    for line in lines:
+        fields ∈ list[str] ← line.split("\t")
+        if len(fields) != 2:
+            raise ValueError("LARGE-Q-POLICY-SCHEMA")
+        previous ∈ str ← policy.get(fields[0], "")
+        if previous:
+            raise ValueError("LARGE-Q-POLICY-DUPLICATE")
+        policy[fields[0]] ← fields[1]
+    required ∈ dict[str, str] ← {"schema": "holomorphic-large-q-diagnostic-v1", "declaration_order": "before-first-observed-holomorphic-gpu-readback", "raw_q_component_maximum_binary32_ulps": "8", "raw_baseline_produced": "1", "raw_pair_produced": "0", "raw_pair_domain": "RANGE_REJECTED_UNQUALIFIED", "precolour_baseline_produced": "1", "precolour_pair_produced": "1", "precolour_phase_absolute_error_radians": "0.0001", "precolour_log_coordinate_absolute_error": "0.0001", "precolour_delta_absolute_error": "0.000002", "regular_rgba8_channel_absolute_error": "1"}
+    names ∈ list[str] ← list(required)
+    for name in names:
+        actual ∈ str ← policy.get(name, "")
+        if actual != required[name]:
+            raise ValueError("LARGE-Q-POLICY-UNREVIEWED-CHANGE:" + name)
+    return hashlib.sha256(policy_path.read_bytes()).hexdigest()
+
+def large_q_numeric(row ∈ dict[str, str], mode ∈ int, marker ∈ float, label ∈ str) → tuple[float, float]:
+    phase ∈ float ← float(row["phase"])
+    logarithm ∈ float ← float(row["log_modulus"])
+    order ∈ float ← float(row["singular_order"])
+    produced ∈ float ← float(row["produced"])
+    graphics_error ∈ int ← int(row["gl_error"])
+    output_mode ∈ int ← int(row["output_mode"])
+    framebuffer_status ∈ int ← int(row["framebuffer_status"])
+    if not math.isfinite(phase) or not math.isfinite(logarithm) or order != 0.0:
+        raise ValueError("LARGE-Q-NONFINITE-OR-SENTINEL:" + label)
+    if produced != marker:
+        raise ValueError("LARGE-Q-WRONG-PRODUCED-MARKER:" + label)
+    if graphics_error != 0 or output_mode != mode or framebuffer_status != 36053 or row["framebuffer_format"] != "RGBA32F" or row["conversion"] != "glReadPixels":
+        raise ValueError("LARGE-Q-GRAPHICS-OR-MODE:" + label)
+    return (phase, logarithm)
+
+def large_q_audit(path ∈ Path) → None:
+    policy_digest ∈ str ← load_large_q_policy()
+    records ∈ list[dict[str, str]] ← gpu_records(path)
+    summaries ∈ list[dict[str, str]] ← []
+    headers ∈ dict[str, dict[str, str]] ← {}
+    coefficient_rows ∈ dict[str, dict[str, str]] ← {}
+    inputs ∈ dict[str, dict[str, str]] ← {}
+    factors ∈ dict[str, dict[str, str]] ← {}
+    raw_rows ∈ dict[str, dict[str, str]] ← {}
+    precolour_rows ∈ dict[str, dict[str, str]] ← {}
+    colour_rows ∈ dict[str, dict[str, str]] ← {}
+    empty ∈ dict[str, str] ← {}
+    for row in records:
+        event ∈ str ← row["event"]
+        is_large_q ∈ bool ← event.startswith("HOLO_GPU_LARGE_Q_")
+        if not is_large_q:
+            continue
+        if event == "HOLO_GPU_LARGE_Q_OUTPUT":
+            summaries.append(row)
+            continue
+        name ∈ str ← row["case"]
+        if name != "baseline" and name != "pair":
+            raise ValueError("LARGE-Q-UNEXPECTED-CASE")
+        key ∈ str ← name
+        destination ∈ dict[str, dict[str, str]] ← headers
+        if event == "HOLO_GPU_LARGE_Q_COEFFICIENT":
+            key ← name + ":" + row["index"]
+            destination ← coefficient_rows
+        elif event == "HOLO_GPU_LARGE_Q_INPUT":
+            key ← name + ":" + row["kind"] + ":" + row["index"]
+            destination ← inputs
+        elif event == "HOLO_GPU_LARGE_Q_FACTOR":
+            key ← name + ":" + row["index"]
+            destination ← factors
+        elif event == "HOLO_GPU_LARGE_Q_RAW":
+            destination ← raw_rows
+        elif event == "HOLO_GPU_LARGE_Q_PRECOLOR":
+            destination ← precolour_rows
+        elif event == "HOLO_GPU_LARGE_Q_COLOR":
+            destination ← colour_rows
+        elif event != "HOLO_GPU_LARGE_Q_CASE":
+            raise ValueError("LARGE-Q-UNEXPECTED-EVENT")
+        previous ∈ dict[str, str] ← destination.get(key, empty)
+        if previous:
+            raise ValueError("LARGE-Q-DUPLICATE-OBSERVATION")
+        destination[key] ← row
+    if len(summaries) != 1 or len(headers) != 2 or len(coefficient_rows) != 10 or len(inputs) != 2 or len(factors) != 2 or len(raw_rows) != 2 or len(precolour_rows) != 2 or len(colour_rows) != 2:
+        raise ValueError("LARGE-Q-MISSING-OBSERVATIONS")
+    summary ∈ dict[str, str] ← summaries[0]
+    required_summary ∈ dict[str, str] ← {"status": "OUTPUT_READY", "raw_samples": "2", "precolor_samples": "2", "color_samples": "2", "expected_cases": "2", "raw_pair_domain": "RANGE_REJECTED_UNQUALIFIED", "reference_acceptance": "NOT_RUN"}
+    summary_fields ∈ list[str] ← list(required_summary)
+    for field in summary_fields:
+        if summary[field] != required_summary[field]:
+            raise ValueError("LARGE-Q-OUTPUT-NOT-READY:" + field)
+    cases ∈ list[dict[str, str]] ← large_q_cases()
+    reference ∈ tuple[float, float, float, float] ← large_q_reference()
+    raw_values ∈ list[tuple[float, float]] ← []
+    precolour_values ∈ list[tuple[float, float]] ← []
+    print("LARGE_Q_POLICY sha256=" + policy_digest + " delta_abs=0.000002 raw_pair_domain=RANGE_REJECTED_UNQUALIFIED")
+    for case in cases:
+        name ← case["case_id"]
+        header ∈ dict[str, str] ← headers[name]
+        is_pair ∈ bool ← name == "pair"
+        expected_header ∈ dict[str, str] ← {"coefficient_count": "5", "zero_count": "1" if is_pair else "0", "pole_count": "1" if is_pair else "0", "remote_count": "0", "factor_count": "2" if is_pair else "0", "point_x": "1000", "point_y": "1000", "time": "0", "zoom": "1"}
+        header_fields ∈ list[str] ← list(expected_header)
+        for field in header_fields:
+            if header[field] != expected_header[field]:
+                raise ValueError("LARGE-Q-INPUT-METADATA:" + name + ":" + field)
+        coefficients ∈ list[complex] ← coordinates(case["coefficients"])
+        for index in range(5):
+            row ∈ dict[str, str] ← coefficient_rows[name + ":" + str(index)]
+            if position_from_row(row, "real", "imag") != coefficients[index]:
+                raise ValueError("LARGE-Q-CHANGED-COEFFICIENTS")
+        if is_pair:
+            zero_row ∈ dict[str, str] ← inputs["pair:zero:0"]
+            pole_row ∈ dict[str, str] ← inputs["pair:pole:0"]
+            zero ∈ complex ← position_from_row(zero_row, "x", "y")
+            pole ∈ complex ← position_from_row(pole_row, "x", "y")
+            expected_pole ∈ complex ← complex(float32(0.04),0.0)
+            if zero != 0j or pole != expected_pole:
+                raise ValueError("LARGE-Q-CHANGED-DIVISOR")
+            actual_orders ∈ dict[complex, int] ← {}
+            for index in range(2):
+                factor ∈ dict[str, str] ← factors["pair:" + str(index)]
+                position ∈ complex ← position_from_row(factor, "x", "y")
+                order_value ∈ float ← float(factor["order"])
+                order ∈ int ← int(order_value)
+                if float(order) != order_value or (order != 1 and order != -1):
+                    raise ValueError("LARGE-Q-INVALID-UPLOADED-ORDER")
+                previous_order ∈ int ← actual_orders.get(position, 0)
+                if previous_order != 0:
+                    raise ValueError("LARGE-Q-DUPLICATE-FACTOR")
+                actual_orders[position] ← order
+            expected_orders ∈ dict[complex, int] ← {0j: 1, expected_pole: -1}
+            if actual_orders != expected_orders:
+                raise ValueError("LARGE-Q-CHANGED-UPLOADED-DIVISOR")
+        raw_marker ∈ float ← 0.0 if is_pair else 1.0
+        raw ∈ tuple[float, float] ← large_q_numeric(raw_rows[name], 1, raw_marker, name + ":RAW")
+        raw_values.append(raw)
+        for channel in range(2):
+            raw_q_error ∈ float ← abs(raw[channel] - 1000.0)
+            if raw_q_error > LARGE_Q_RAW_BUDGET:
+                raise ValueError("LARGE-Q-RAW-NOT-Q-SIZED:" + name)
+        precolour ∈ tuple[float, float] ← large_q_numeric(precolour_rows[name], 3, 1.0, name + ":PRECOLOR")
+        precolour_values.append(precolour)
+        expected_pre_phase ∈ float ← reference[0] + (reference[2] if is_pair else 0.0)
+        expected_pre_log ∈ float ← reference[1] + (reference[3] if is_pair else 0.0)
+        phase_error ∈ float ← abs(math.remainder(precolour[0] - expected_pre_phase, TAU))
+        log_error ∈ float ← abs(precolour[1] - expected_pre_log)
+        if phase_error > GPU_PHASE_BUDGET or log_error > GPU_LOG_BUDGET:
+            raise ValueError("LARGE-Q-PRECOLOUR-ABSOLUTE-PARITY:" + name)
+        colour ∈ dict[str, str] ← colour_rows[name]
+        colour_marker ∈ float ← float(colour["produced"])
+        colour_gl_error ∈ int ← int(colour["gl_error"])
+        colour_mode ∈ int ← int(colour["output_mode"])
+        colour_framebuffer ∈ int ← int(colour["framebuffer_status"])
+        if colour_marker != 1.0 or colour_gl_error != 0 or colour_mode != 2 or colour_framebuffer != 36053 or colour["framebuffer_format"] != "RGBA8" or colour["conversion"] != "glReadPixels" or colour["dither"] != "disabled":
+            raise ValueError("LARGE-Q-COLOUR-MODE-OR-READBACK:" + name)
+        expected_measure ∈ tuple[float, float, int, int, int] ← evaluate(case, "reference")
+        expected_rgba ∈ list[int] ← canonical_rgba8(expected_measure)
+        channel_names ∈ list[str] ← ["red", "green", "blue", "alpha"]
+        for channel in range(4):
+            actual_channel ∈ int ← int(colour[channel_names[channel]])
+            error ∈ int ← abs(actual_channel - expected_rgba[channel])
+            allowance ∈ int ← 0 if channel == 3 else 1
+            if actual_channel < 0 or actual_channel > 255 or error > allowance:
+                raise ValueError("LARGE-Q-RGBA8-PARITY:" + name + ":" + channel_names[channel])
+    if raw_values[0][0] != raw_values[1][0] and raw_values[0][1] != raw_values[1][1]:
+        raise ValueError("LARGE-Q-RAW-ERASURE-NOT-OBSERVED")
+    actual_phase_delta ∈ float ← math.remainder(precolour_values[1][0] - precolour_values[0][0], TAU)
+    actual_log_delta ∈ float ← precolour_values[1][1] - precolour_values[0][1]
+    if actual_phase_delta * reference[2] <= 0.0 or actual_log_delta * reference[3] <= 0.0:
+        raise ValueError("LARGE-Q-DROPPED-OR-REVERSED-PRECOLOUR-INCREMENT")
+    phase_delta_error ∈ float ← abs(math.remainder(actual_phase_delta - reference[2], TAU))
+    log_delta_error ∈ float ← abs(actual_log_delta - reference[3])
+    if phase_delta_error > LARGE_Q_DELTA_BUDGET or log_delta_error > LARGE_Q_DELTA_BUDGET:
+        raise ValueError("LARGE-Q-PRECOLOUR-DELTA-BUDGET")
+    print("large_q_raw_pair_domain=RANGE_REJECTED_UNQUALIFIED")
+    print("large_q_phase_delta=" + decimal(actual_phase_delta) + " expected=" + decimal(reference[2]) + " absolute_error=" + decimal(phase_delta_error))
+    print("large_q_log_delta=" + decimal(actual_log_delta) + " expected=" + decimal(reference[3]) + " absolute_error=" + decimal(log_delta_error))
+
+def large_q_fixture(path ∈ Path) → None:
+    lines ∈ list[str] ← []
+    cases ∈ list[dict[str, str]] ← large_q_cases()
+    reference ∈ tuple[float, float, float, float] ← large_q_reference()
+    for case in cases:
+        name ∈ str ← case["case_id"]
+        pair ∈ bool ← name == "pair"
+        lines.append(log_line("HOLO_GPU_LARGE_Q_CASE", {"case": name, "point_x": "1000", "point_y": "1000", "coefficient_count": "5", "zero_count": "1" if pair else "0", "pole_count": "1" if pair else "0", "remote_count": "0", "factor_count": "2" if pair else "0", "time": "0", "zoom": "1"}))
+        coefficients ∈ list[complex] ← coordinates(case["coefficients"])
+        for index in range(5):
+            lines.append(log_line("HOLO_GPU_LARGE_Q_COEFFICIENT", {"case": name, "index": str(index), "real": decimal(coefficients[index].real), "imag": decimal(coefficients[index].imag)}))
+        if pair:
+            positions ∈ list[complex] ← [0j, complex(float32(0.04),0.0)]
+            kinds ∈ list[str] ← ["zero", "pole"]
+            orders ∈ list[int] ← [1, -1]
+            for index in range(2):
+                position ∈ complex ← positions[index]
+                lines.append(log_line("HOLO_GPU_LARGE_Q_INPUT", {"case": name, "kind": kinds[index], "index": "0", "x": decimal(position.real), "y": decimal(position.imag)}))
+                lines.append(log_line("HOLO_GPU_LARGE_Q_FACTOR", {"case": name, "index": str(index), "x": decimal(position.real), "y": decimal(position.imag), "order": str(orders[index])}))
+        lines.append(log_line("HOLO_GPU_LARGE_Q_RAW", {"case": name, "output_mode": "1", "phase": "1000", "log_modulus": "1000", "singular_order": "0", "produced": "0" if pair else "1", "gl_error": "0", "framebuffer_status": "36053", "framebuffer_format": "RGBA32F", "conversion": "glReadPixels", "readback_cpu_ms": "0"}))
+        phase ∈ float ← float32(reference[0] + (reference[2] if pair else 0.0))
+        logarithm ∈ float ← float32(reference[1] + (reference[3] if pair else 0.0))
+        lines.append(log_line("HOLO_GPU_LARGE_Q_PRECOLOR", {"case": name, "output_mode": "3", "phase": decimal(phase), "log_modulus": decimal(logarithm), "singular_order": "0", "produced": "1", "gl_error": "0", "framebuffer_status": "36053", "framebuffer_format": "RGBA32F", "conversion": "glReadPixels", "readback_cpu_ms": "0"}))
+        expected ∈ tuple[float, float, int, int, int] ← evaluate(case, "reference")
+        rgba ∈ list[int] ← canonical_rgba8(expected)
+        lines.append(log_line("HOLO_GPU_LARGE_Q_COLOR", {"case": name, "output_mode": "2", "red": str(rgba[0]), "green": str(rgba[1]), "blue": str(rgba[2]), "alpha": "255", "produced": "1", "gl_error": "0", "framebuffer_status": "36053", "framebuffer_format": "RGBA8", "conversion": "glReadPixels", "dither": "disabled"}))
+    lines.append("HOLO_GPU_LARGE_Q_OUTPUT status=OUTPUT_READY raw_samples=2 precolor_samples=2 color_samples=2 expected_cases=2 raw_pair_domain=RANGE_REJECTED_UNQUALIFIED reference_acceptance=NOT_RUN")
+    text ∈ str ← "\n".join(lines)
+    path.write_text(text + "\n")
+
+def large_q_mutant(source ∈ Path, target ∈ Path, variant ∈ str) → None:
+    records ∈ list[dict[str, str]] ← gpu_records(source)
+    reference ∈ tuple[float, float, float, float] ← large_q_reference()
+    lines ∈ list[str] ← []
+    for record in records:
+        event ∈ str ← record["event"]
+        row ∈ dict[str, str] ← dict(record)
+        row.pop("event")
+        name ∈ str ← row.get("case", "")
+        if variant == "summary-only" and event != "HOLO_GPU_LARGE_Q_OUTPUT":
+            continue
+        if event == "HOLO_GPU_LARGE_Q_RAW":
+            if variant == "always-zero":
+                row["produced"] ← "0"
+            if name == "pair":
+                if variant == "forced-one":
+                    row["produced"] ← "1"
+                elif variant == "missing-raw":
+                    continue
+                elif variant == "clear-sentinel":
+                    row["phase"] ← "nan"
+                    row["log_modulus"] ← "nan"
+                    row["singular_order"] ← "-12345"
+                    row["produced"] ← "-12345"
+                elif variant == "constant-zero-output":
+                    row["phase"] ← "0"
+                    row["log_modulus"] ← "0"
+                elif variant == "no-erasure-evidence":
+                    row["phase"] ← decimal(1000.0 + 2.0 ** -14)
+                    row["log_modulus"] ← decimal(1000.0 + 2.0 ** -14)
+        if event == "HOLO_GPU_LARGE_Q_PRECOLOR":
+            if variant == "two-pi-positive":
+                old_phase ∈ float ← float(row["phase"])
+                row["phase"] ← decimal(old_phase + TAU)
+            if name == "pair":
+                if variant == "missing-precolour":
+                    continue
+                elif variant == "dropped-increment":
+                    row["phase"] ← decimal(float32(reference[0]))
+                    row["log_modulus"] ← decimal(float32(reference[1]))
+                elif variant == "reversed-phase-increment":
+                    row["phase"] ← decimal(reference[0] - reference[2])
+                elif variant == "reversed-log-increment":
+                    row["log_modulus"] ← decimal(reference[1] - reference[3])
+                elif variant == "phase-delta-over-budget":
+                    row["phase"] ← decimal(reference[0] + reference[2] + LARGE_Q_DELTA_BUDGET * 1.1)
+                elif variant == "log-delta-over-budget":
+                    row["log_modulus"] ← decimal(reference[1] + reference[3] + LARGE_Q_DELTA_BUDGET * 1.1)
+                elif variant == "precolour-zero-marker":
+                    row["produced"] ← "0"
+                elif variant == "wrong-precolour-mode":
+                    row["output_mode"] ← "1"
+        if event == "HOLO_GPU_LARGE_Q_INPUT" and name == "pair" and variant == "wrong-divisor":
+            kind ∈ str ← row["kind"]
+            if kind == "pole":
+                row["x"] ← "0.08"
+        if event == "HOLO_GPU_LARGE_Q_COLOR" and name == "pair":
+            if variant == "missing-colour":
+                continue
+            elif variant == "colour-two-levels":
+                red ∈ int ← int(row["red"])
+                row["red"] ← str(red + 2 if red < 253 else red - 2)
+        lines.append(log_line(event, row))
+    text ∈ str ← "\n".join(lines)
+    target.write_text(text + "\n")
+
+def large_q_selftest(directory ∈ Path) → None:
+    source ∈ Path ← directory.joinpath("synthetic-large-q-reference.log")
+    large_q_fixture(source)
+    variants ∈ dict[str, str] ← {"reference-positive": "PASS", "two-pi-positive": "PASS", "forced-one": "LARGE-Q-WRONG-PRODUCED-MARKER:pair:RAW", "always-zero": "LARGE-Q-WRONG-PRODUCED-MARKER:baseline:RAW", "missing-raw": "LARGE-Q-MISSING-OBSERVATIONS", "missing-precolour": "LARGE-Q-MISSING-OBSERVATIONS", "missing-colour": "LARGE-Q-MISSING-OBSERVATIONS", "summary-only": "LARGE-Q-MISSING-OBSERVATIONS", "clear-sentinel": "LARGE-Q-NONFINITE-OR-SENTINEL:pair:RAW", "constant-zero-output": "LARGE-Q-RAW-NOT-Q-SIZED:pair", "no-erasure-evidence": "LARGE-Q-RAW-ERASURE-NOT-OBSERVED", "dropped-increment": "LARGE-Q-DROPPED-OR-REVERSED-PRECOLOUR-INCREMENT", "reversed-phase-increment": "LARGE-Q-DROPPED-OR-REVERSED-PRECOLOUR-INCREMENT", "reversed-log-increment": "LARGE-Q-DROPPED-OR-REVERSED-PRECOLOUR-INCREMENT", "phase-delta-over-budget": "LARGE-Q-PRECOLOUR-DELTA-BUDGET", "log-delta-over-budget": "LARGE-Q-PRECOLOUR-DELTA-BUDGET", "precolour-zero-marker": "LARGE-Q-WRONG-PRODUCED-MARKER:pair:PRECOLOR", "wrong-precolour-mode": "LARGE-Q-GRAPHICS-OR-MODE:pair:PRECOLOR", "wrong-divisor": "LARGE-Q-CHANGED-DIVISOR", "colour-two-levels": "LARGE-Q-RGBA8-PARITY:pair:red"}
+    names ∈ list[str] ← list(variants)
+    with directory.joinpath("large-q-mutations.tsv").open("w") as receipt:
+        receipt.write("variant\tdiagnostic\tevidence_kind\n")
+        for variant in names:
+            path ∈ Path ← directory.joinpath("large-q-" + variant + ".log")
+            large_q_mutant(source, path, variant)
+            output ∈ object ← io.StringIO()
+            diagnosis ∈ str ← "PASS"
+            try:
+                with contextlib.redirect_stdout(output):
+                    large_q_audit(path)
+            except ValueError as error:
+                diagnosis ← str(error)
+            if diagnosis != variants[variant]:
+                raise AssertionError("LARGE-Q-WRONG-CONTROL-RESULT:" + variant + ":" + diagnosis)
+            transcript ∈ str ← output.getvalue()
+            directory.joinpath("large-q-" + variant + ".audit.txt").write_text(transcript + "\n" + diagnosis + "\n")
+            receipt.write(variant + "\t" + diagnosis + "\tsynthetic-checker-fixture\n")
+            print(variant + "\t" + diagnosis + "\tsynthetic-checker-fixture")
+    normal ∈ Path ← directory.joinpath("synthetic-gpu-reference.log")
+    combined ∈ Path ← directory.joinpath("synthetic-normal-and-large-q.log")
+    normal_text ∈ str ← normal.read_text()
+    extra_text ∈ str ← source.read_text()
+    combined.write_text(normal_text + extra_text)
+    output ∈ object ← io.StringIO()
+    with contextlib.redirect_stdout(output):
+        failures ∈ int ← gpu_audit(combined, False, True)
+        large_q_audit(combined)
+    if failures != 0:
+        raise AssertionError("LARGE-Q-CHANGED-NORMAL-34-ACCEPTANCE")
+    print("PASS separate large-q checker controls; synthetic output never establishes GPU execution")
 
 def log_line(event ∈ str, values ∈ dict[str, str]) → str:
     parts ∈ list[str] ← [event]
@@ -982,6 +1321,7 @@ def selftest(directory ∈ Path) → None:
     actual.write_bytes(source)
     log.write_text(good_log)
     gpu_selftest(directory)
+    large_q_selftest(directory)
     print("PASS independent checker fixtures; producer/GPU/emulator/physical acceptance NOT_RUN")
 
 def main(arguments ∈ list[str]) → int:
@@ -1011,6 +1351,10 @@ def main(arguments ∈ list[str]) → int:
         return int(failures != 0)
     if len(arguments) == 4 and arguments[1] == "palette-check":
         palette_check(Path(arguments[2]), Path(arguments[3]))
+        return 0
+    if len(arguments) == 3 and arguments[1] == "large-q-audit":
+        large_q_audit(Path(arguments[2]))
+        print("PASS separate large-q guard, precolour delta and same-program RGBA8; raw pair RANGE_REJECTED_UNQUALIFIED")
         return 0
     raise ValueError("USAGE selftest OUTDIR | corpus OUTDIR | compare CASES.tsv READBACK.tsv | provenance EXPECTED_FRAGMENT SUBMITTED_FRAGMENT RUNTIME_LOG")
 

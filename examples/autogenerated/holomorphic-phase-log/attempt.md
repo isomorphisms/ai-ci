@@ -78,3 +78,25 @@ outside the source envelope, two RGB8 levels, missing produced marker, missing
 colour output, changed uploaded multiplicity and a wrong singular endpoint.
 Every observation in these tests is explicitly a synthetic checker fixture.
 No GPU execution or physical acceptance follows from those passes.
+
+## Separate large-q guard and retained-increment coverage
+
+The ordinary 34 GPU samples did not exercise large q: the extreme factor scales
+were sampled at z = 0. A separate policy was committed before viewing any
+actual Holomorphic GPU output. The implementation now verifies the actual
+large-q baseline/pair raw rejection, precolour output, independently computed
+divisor delta and same-program RGBA8 output. It explicitly leaves the raw
+large-q pair mathematically unqualified. Original policies and corpus counts
+were not changed.
+
+Checked Ithon executed two positive controls and eighteen targeted negative
+observation controls. They reject forced-one and always-zero raw markers,
+missing raw/precolour/colour rows, a summary without observations, unchanged
+clear-buffer sentinels, constant zero channels, a raw rejection with no erased
+channel, lost/reversed increments, deltas outside the predeclared 2×10⁻⁶ bound,
+a precolour zero marker or wrong output mode, changed divisor inputs and an
+RGBA8 mismatch. Each rejection must match its intended diagnostic. Compilation
+errors or unrelated exceptions cannot pass a control. The ordinary 34-output
+checker and new separate checker also accept one combined explicitly synthetic
+ledger. These results qualify checker behavior only; actual GPU execution and
+physical evidence remain separate.
