@@ -1,0 +1,89 @@
+name: Native Grease transfer candidate acceptance
+description: Execute independent candidate checks through Flexible Pipes
+inputs:
+  catfood_ref:
+    description: Exact Cat Food revision
+    required: true
+  kitchen_ref:
+    description: Exact Kitchen revision
+    required: true
+  fp_ref:
+    description: Exact Flexible Pipes revision
+    required: true
+  aici_ref:
+    description: Exact AI-CI revision
+    required: true
+runs:
+  using: composite
+  steps:
+  - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+    with:
+      repository: isomorphisms/catfood
+      ref: ${{ inputs.catfood_ref }}
+      path: catfood
+      persist-credentials: false
+  - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+    with:
+      repository: isomorphisms/kitchen
+      ref: ${{ inputs.kitchen_ref }}
+      path: kitchen
+      persist-credentials: false
+  - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+    with:
+      repository: isomorphisms/flexible-pipes
+      ref: ${{ inputs.fp_ref }}
+      path: flexible-pipes
+      persist-credentials: false
+  - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+    with:
+      repository: isomorphisms/ai-ci
+      ref: ${{ inputs.aici_ref }}
+      path: ai-ci
+      persist-credentials: false
+  - name: Acquire verified native host runtime and published ARM payloads
+    shell: sh
+    env:
+      GH_TOKEN: ${{ github.token }}
+    run: |
+      set -eu
+      mkdir -p "$RUNNER_TEMP/native-grease/bin" "$RUNNER_TEMP/arm-payloads/a1" "$RUNNER_TEMP/arm-payloads/c67"
+      gh api repos/dilapidated-shed/grease/actions/artifacts/12192502970/zip > "$RUNNER_TEMP/grease.zip"
+      printf '%s  %s\n' 295329ec3bb419d90364fcb5937eafe4306b03f68b7aaa63089dadde8082ffb5 "$RUNNER_TEMP/grease.zip" | sha256sum -c -
+      unzip -q "$RUNNER_TEMP/grease.zip" '_bin/cxx-asan/ysh' -d "$RUNNER_TEMP/native-grease"
+      printf '%s  %s\n' 7e31cd05b7a9d8fb2a4a9e003a7f3fcb0159138506d17f0fb28da8cbe22aa85c "$RUNNER_TEMP/native-grease/_bin/cxx-asan/ysh" | sha256sum -c -
+      curl -fsSL https://github.com/isomorphisms/grease/releases/download/phone-armv7-5ff32e220844/grease-armv7-termux.tar.gz -o "$RUNNER_TEMP/grease-a1.tar.gz"
+      curl -fsSL https://github.com/isomorphisms/grease/releases/download/tablet-aarch64-9b3dc8904891/grease-aarch64-termux.tar.gz -o "$RUNNER_TEMP/grease-c67.tar.gz"
+      printf '%s  %s\n' 7f2dce33f020a40156a297af38389298d2e4fb9933900379791dadb1e594b61a "$RUNNER_TEMP/grease-a1.tar.gz" | sha256sum -c -
+      printf '%s  %s\n' 3ddb962ef313e528e525fa03518f494577e921c2201ecb49f7a11f2fbf4e82b2 "$RUNNER_TEMP/grease-c67.tar.gz" | sha256sum -c -
+      tar -xzf "$RUNNER_TEMP/grease-a1.tar.gz" -C "$RUNNER_TEMP/arm-payloads/a1"
+      tar -xzf "$RUNNER_TEMP/grease-c67.tar.gz" -C "$RUNNER_TEMP/arm-payloads/c67"
+      cp "$RUNNER_TEMP/arm-payloads/c67/bin/grease" "$RUNNER_TEMP/native-grease/bin/grease"
+      printf '%s  %s\n' 37088097c36a2f82cf45aaea9392e4a4cf16155fecb9da87d08a9c7fb4d92e4a "$RUNNER_TEMP/native-grease/bin/grease" | sha256sum -c -
+      ln -s ../_bin/cxx-asan/ysh "$RUNNER_TEMP/native-grease/bin/ysh"
+      chmod 755 "$RUNNER_TEMP/native-grease/bin/grease" "$RUNNER_TEMP/native-grease/_bin/cxx-asan/ysh"
+      printf '%s\n' "$RUNNER_TEMP/native-grease/bin" >> "$GITHUB_PATH"
+  - name: Run independent checks through the registered FP pipeline
+    shell: sh
+    working-directory: flexible-pipes
+    env:
+      ASAN_OPTIONS: detect_leaks=0
+    run: |
+      python3 scripts/run-pipeline catfood-fp-kitchen-merge \
+        --param "grease=$RUNNER_TEMP/native-grease/bin/grease" \
+        --param "aici=$GITHUB_WORKSPACE/ai-ci/tests/transfer-merge.grease" \
+        --param "kitchen=$GITHUB_WORKSPACE/kitchen" \
+        --param "catfood=$GITHUB_WORKSPACE/catfood" \
+        --param "a1=$RUNNER_TEMP/arm-payloads/a1" \
+        --param "c67=$RUNNER_TEMP/arm-payloads/c67" \
+        --param "output=$RUNNER_TEMP/transfer-evidence" \
+        --runs-root "$RUNNER_TEMP/transfer-runs"
+  - name: Preserve actual outputs and scope
+    if: always()
+    uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+    with:
+      name: native-handoff-${{ github.event.repository.name }}-${{ github.run_id }}-${{ github.run_attempt }}
+      path: |
+        ${{ runner.temp }}/transfer-evidence
+        ${{ runner.temp }}/transfer-runs
+        !${{ runner.temp }}/transfer-evidence/**/bin/**
+      if-no-files-found: warn

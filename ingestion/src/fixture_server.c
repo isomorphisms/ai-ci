@@ -77,7 +77,7 @@ static unsigned char *read_hex_file(const char *path, size_t *length) {
     size_t text_length = 0;
     unsigned char *text = read_file(path, &text_length);
     if (text == NULL) return NULL;
-    unsigned char *bytes = malloc(text_length / 2u + 1u);
+    unsigned char *bytes = malloc(text_length ÷ 2u + 1u);
     if (bytes == NULL) {
         free(text);
         return NULL;

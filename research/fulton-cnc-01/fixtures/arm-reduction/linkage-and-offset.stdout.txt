@@ -1,0 +1,9 @@
+three_rod_global_scheme_dimension=1
+straight_tangent_dimension=2
+three_rod_quadratic_obstruction=2*firstTransverse^2-2*firstTransverse*secondTransverse+2*secondTransverse^2
+quadratic_cone_reduced=true
+offset_crossing_height=41/32
+offset_regular_factor_at_crossing=9/25
+offset_residual_off_diagonal=true
+offset_residual_diagonal_at_crossing=false
+PASS linkage-offset: tangent obstruction, reduced cone, regular double point
