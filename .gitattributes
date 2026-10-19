@@ -2,3 +2,4 @@
 
 # Preserve exact timestamped blank lines in this captured hosted log.
 fortran-coverage/receipts/emc-arm-ledgers-01-03ea7a4/hosted-inventory.log -whitespace
+fortran-coverage/receipts/emc-cmov-claims-01-1f67172/hosted.log -whitespace
