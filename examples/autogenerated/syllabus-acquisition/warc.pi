@@ -5,6 +5,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 from builtins import dict, list, tuple, ValueError, Exception
 
@@ -51,6 +52,34 @@ def changed(row ∈ dict[str, object], key ∈ str, value ∈ object) → dict[s
     return result
 
 
+def interrupted_retry(launcher ∈ str, reader ∈ str, work ∈ Path, row ∈ dict[str, object], capture ∈ bytes) → None:
+    index ∈ Path ← child(work, 'index.json')
+    archive ∈ Path ← child(work, 'range.gz')
+    output ∈ Path ← child(work, 'body.html')
+    receipt ∈ Path ← child(work, 'receipt.json')
+    output.unlink()
+    receipt.unlink()
+    os.mkfifo(str(receipt), 384)
+    process ∈ object ← subprocess.Popen([launcher, reader, '--index-row', str(index),
+        '--range-file', str(archive), '--output', str(output), '--receipt', str(receipt)],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    published ∈ bool ← False
+    for attempt in range(500):
+        exists ∈ bool ← output.is_file()
+        if exists:
+            published ← True
+            break
+        time.sleep(0.01)
+    process.kill()
+    process.communicate(timeout=5)
+    require(published, 'interruption: did not reach body publication before blocked receipt')
+    body ∈ bytes ← output.read_bytes()
+    digest ∈ str ← hashlib.sha256(body).hexdigest()
+    require(digest == '1c7f0300f3ed38ba847dace7cb95443c6a865f12396e561f37ba5166a619f894', 'interruption: unexpected body')
+    receipt.unlink()
+    invoke(launcher, reader, work, changed(row, 'digest', 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'), capture, 'digest')
+
+
 def main() → None:
     arguments ∈ list[str] ← sys.argv
     require(len(arguments) == 4, 'requires ITHON_LAUNCHER READER_SOURCE FIXTURE_DIRECTORY')
@@ -81,7 +110,8 @@ def main() → None:
         for case in cases:
             invoke(launcher, reader, work, case[0], case[1], case[2])
         invoke(launcher, reader, work, row, capture, 'PASS')
-    print('PASS: authentic capture, eight independent hostile controls, stale-output rejection and reproducible rerun')
+        interrupted_retry(launcher, reader, work, row, capture)
+    print('PASS: authentic capture, eight independent hostile controls, stale-output rejection, reproducible rerun and killed-after-publication retry')
 
 
 main()

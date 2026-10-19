@@ -30,6 +30,40 @@ def table(path ∈ Path) → list[dict[str, str]]:
     return rows
 
 
+def source_text(raw ∈ bytes) → str:
+    decoded ∈ str ← raw.decode('utf-8')
+    blocks ∈ str ← re.sub(r'</(?:p|div|li|h[1-6])[^>]*>|<br[^>]*>', ' ', decoded)
+    untagged ∈ str ← re.sub(r'<[^>]+>', '', blocks)
+    return normalize(untagged)
+
+
+def validate_additional(root ∈ Path, discipline ∈ str, expected_course ∈ str, expected_hash ∈ str, count ∈ int) → None:
+    directory ∈ Path ← child(root, 'course information/usf/fall-2026/' + discipline)
+    course ∈ dict[str, str] ← {}
+    for row in table(child(directory, 'source.tsv')):
+        course.__setitem__(row['field'], row['value'])
+    raw ∈ bytes ← child(root, course['source_document']).read_bytes()
+    digest ∈ str ← hashlib.sha256(raw).hexdigest()
+    require(digest == expected_hash and digest == course['source_sha256'], 'source: additional original digest')
+    text ∈ str ← source_text(raw)
+    require(course['course'] == expected_course and expected_course in text, 'course: additional identity')
+    require(course['discipline'] == discipline, 'course: additional discipline')
+    require(course['status'] == 'PARTIAL' and course['whole_population_complete'] == 'false' and course['course_population'] == 'unknown', 'coverage: additional population')
+    readings ∈ list[dict[str, str]] ← table(child(directory, 'verified-readings.tsv'))
+    require(len(readings) == count, 'reading: additional count')
+    seen ∈ list[str] ← []
+    for reading in readings:
+        evidence ∈ str ← normalize(reading['source_text'])
+        require(evidence in text, 'reading: additional unsupported evidence')
+        title ∈ str ← reading['title']
+        require(title == 'unknown' or title in evidence, 'reading: additional unsupported title')
+        bookshelf ∈ str ← reading['bookshelf']
+        require(not (bookshelf in seen), 'reading: additional duplicate canonical record')
+        seen.append(bookshelf)
+        note ∈ str ← child(root, bookshelf).read_text(encoding='utf-8')
+        require(expected_hash in note and course['course'] in note, 'reading: additional provenance')
+
+
 def validate(root ∈ Path, course ∈ dict[str, str], rows ∈ list[dict[str, str]]) → None:
     require(course['status'] == 'PARTIAL', 'coverage: unsupported completion')
     require(course['whole_population_complete'] == 'false', 'coverage: population completion')
@@ -41,10 +75,7 @@ def validate(root ∈ Path, course ∈ dict[str, str], rows ∈ list[dict[str, s
     require(observed_hash == course['source_sha256'], 'source: digest mismatch')
     require(observed_hash == 'eb038eb7ac76f2e82809fafae57e44c78fa2cc1e8f23c2615c7d2735eb38e608', 'source: wrong original')
     require(len(raw) == 72077, 'source: byte length')
-    decoded ∈ str ← raw.decode('utf-8')
-    blocks ∈ str ← re.sub(r'</(?:p|div|li|h[1-6])[^>]*>|<br[^>]*>', ' ', decoded)
-    untagged ∈ str ← re.sub(r'<[^>]+>', '', blocks)
-    text ∈ str ← normalize(untagged)
+    text ∈ str ← source_text(raw)
     require(course['institution'] == 'University of South Florida', 'course: institution')
     require(course['discipline'] == 'philosophy', 'course: discipline')
     for field in ('course', 'section', 'instructor', 'term'):
@@ -124,7 +155,9 @@ def main() → None:
             reason ∈ str ← str(error)
             rejected ← reason.startswith(failure[2])
         require(rejected, 'negative control: ' + failure[0])
-    print('PASS: original USF source, five distinct works, four required texts and ten independent rejection controls')
+    validate_additional(root, 'english', 'ENC 1101', 'b7059702acb049036b802c873864597e3032f23854cd9060eec99d230db1c670', 2)
+    validate_additional(root, 'history', 'EUH 3401', 'afd00ad7af9297ccdcaa8e7a7a5f15019694b3b3b8445f448fdd9279be1f0b56', 22)
+    print('PASS: three original USF sources, 29 work-level records (two titles unknown), source provenance and ten independent rejection controls')
 
 
 main()
