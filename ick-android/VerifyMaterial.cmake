@@ -157,6 +157,15 @@ if(CMAKE_SCRIPT_MODE_FILE STREQUAL CMAKE_CURRENT_LIST_FILE)
       if(NOT observed_object_sha STREQUAL receipt_object_sha)
         message(FATAL_ERROR "ICK object changed without recompilation: ${OBJECT}")
       endif()
+      # The first compile discovers headers that were absent from the initial
+      # depfile. Its completed receipt already covers that full closure. The
+      # guard stamp signals invalidation, so settling this discovery must not
+      # make a valid object older than its guard and force a redundant rebuild.
+      # A missing guard still has to be restored; all material and byte checks
+      # above remain mandatory on every invocation.
+      if(EXISTS "${GUARD}")
+        set(guard_changed FALSE)
+      endif()
     endif()
   else()
     file(REMOVE "${ASSEMBLY}" "${DEPFILE}" "${MANIFEST}" "${RECEIPT}")
