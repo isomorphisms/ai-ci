@@ -46,6 +46,12 @@ BOOTSTRAP_CXXFLAGS ?= -O2 -g0
 # both top-level configure and the later gcc/configure under recursive make.
 # A caller's environment or make command line must not enable this capability.
 override export gcc_cv_as_base64 := no
+# GNU as is only the bootstrap probe. The pinned NDK assembler rejects AEABI
+# build attributes. GCC's existing alternate path retains BTI/PAC/GCS in GNU
+# property notes rather than deleting security metadata from assembly.
+ifeq ($(ABI),arm64-v8a)
+override export gcc_cv_as_aarch64_aeabi_build_attributes := no
+endif
 NDK ?=
 FORTIFY_SOURCE ?=
 ifneq ($(FORTIFY_SOURCE),)
@@ -92,6 +98,9 @@ validate:
 
 check-build-assembler:
 	test ! -f "$(ICK_BUILD)/objects/gcc/auto-host.h" || grep -Fx '/* #undef HAVE_GAS_BASE64 */' "$(ICK_BUILD)/objects/gcc/auto-host.h"
+ifeq ($(ABI),arm64-v8a)
+	test ! -f "$(ICK_BUILD)/objects/gcc/auto-host.h" || grep -Fx '/* #undef HAVE_AS_AEABI_BUILD_ATTRIBUTES */' "$(ICK_BUILD)/objects/gcc/auto-host.h"
+endif
 
 ifeq ($(filter outputs archive-stage restore-stage,$(MAKECMDGOALS)),)
 $(ICK_BUILD)/source/.materialized:
@@ -108,6 +117,9 @@ $(ICK_BUILD)/objects/Makefile: $(ICK_BUILD)/source/.materialized
 $(ICK_COMPILER): $(ICK_BUILD)/objects/Makefile | check-build-assembler
 	$(MAKE) -C "$(ICK_BUILD)/objects" -j$(BUILD_JOBS) gcc_cv_as_base64=no all-gcc
 	grep -Fx '/* #undef HAVE_GAS_BASE64 */' "$(ICK_BUILD)/objects/gcc/auto-host.h"
+ifeq ($(ABI),arm64-v8a)
+	grep -Fx '/* #undef HAVE_AS_AEABI_BUILD_ATTRIBUTES */' "$(ICK_BUILD)/objects/gcc/auto-host.h"
+endif
 	$(MAKE) -C "$(ICK_BUILD)/objects" gcc_cv_as_base64=no install-gcc
 	test "$$("$(ICK_COMPILER)" -dumpmachine)" = "$(GNU_TARGET)"
 	test -x "$$("$(ICK_COMPILER)" -print-prog-name=cc1)"
@@ -213,7 +225,25 @@ reject-api25: check-qualification
 	grep -Eqi 'requires Android API 26' "$(QUALIFY_BUILD)/bionic-availability-api25.log"
 	test ! -e "$(QUALIFY_BUILD)/bionic-availability-api25.s"
 
-qualify: $(QUALIFY_ASSEMBLY) $(QUALIFY_ELF_CHECKS) reject-api25 $(FORTIFY_QUALIFY) qualify-atomics-runtime qualify-complex-runtime reject-copy-relocation
+.PHONY: qualify-branch-protection
+ifeq ($(ABI),arm64-v8a)
+qualify-branch-protection: check-qualification
+	"$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) $(ICK_NDK_FLAGS) -std=c17 -O2 -fPIC -mbranch-protection=standard -S "$(QUALIFY_ROOT)branch-protection.c" -o "$(QUALIFY_BUILD)/branch-protection.s"
+	! grep -E '\.aeabi_(subsection|attribute)' "$(QUALIFY_BUILD)/branch-protection.s"
+	grep -F '.note.gnu.property' "$(QUALIFY_BUILD)/branch-protection.s"
+	"$(NDK_CC)" $(TARGET_FLAGS) -c "$(QUALIFY_BUILD)/branch-protection.s" -o "$(QUALIFY_BUILD)/branch-protection.o"
+	"$(NDK_READELF)" -n "$(QUALIFY_BUILD)/branch-protection.o" > "$(QUALIFY_BUILD)/branch-protection.notes"
+	grep -E 'AArch64 feature:.*BTI.*PAC' "$(QUALIFY_BUILD)/branch-protection.notes"
+	sed 's/\.note.gnu.property/.note.invalid.property/g' "$(QUALIFY_BUILD)/branch-protection.s" > "$(QUALIFY_BUILD)/branch-protection-mutant.s"
+	"$(NDK_CC)" $(TARGET_FLAGS) -c "$(QUALIFY_BUILD)/branch-protection-mutant.s" -o "$(QUALIFY_BUILD)/branch-protection-mutant.o"
+	"$(NDK_READELF)" -n "$(QUALIFY_BUILD)/branch-protection-mutant.o" > "$(QUALIFY_BUILD)/branch-protection-mutant.notes"
+	! grep -E 'AArch64 feature:.*BTI.*PAC' "$(QUALIFY_BUILD)/branch-protection-mutant.notes"
+	printf 'gnu_property_bti_pac\tPASS\nwrong_note_section_rejected\tPASS\nphysical_execution\tNOT_RUN\n' > "$(QUALIFY_BUILD)/branch-protection.tsv"
+else
+qualify-branch-protection:
+endif
+
+qualify: $(QUALIFY_ASSEMBLY) $(QUALIFY_ELF_CHECKS) reject-api25 $(FORTIFY_QUALIFY) qualify-atomics-runtime qualify-complex-runtime reject-copy-relocation qualify-branch-protection
 	sha256sum "$(ICK_COMPILER)" "$$("$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) -print-prog-name=cc1)" > "$(QUALIFY_BUILD)/compiler.sha256"
 	sha256sum "$(NDK)/source.properties" "$(NDK_BIN)/clang" "$(NDK_READELF)" > "$(QUALIFY_BUILD)/ndk.sha256"
 	sha256sum $(QUALIFY_ARTIFACTS) > "$(QUALIFY_BUILD)/artifacts.sha256"
