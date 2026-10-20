@@ -1,0 +1,29 @@
+contract	dirichlet-finite-modular-v0
+acceptance-owner	isomorphisms/ai-ci
+aici-base	0797259b567afb1d8921e9c3c008ca6221dcc784
+candidate-path	/workspace/scratch/b4dad5d7e224/modular-independent-run/snapshot/modular-coefficients.mjs
+candidate-sha256	1e88f85f72f9ab58b71b3934767056bae263c582524511e9595af8bd4930597e
+source-binding	expected-sha-verified
+coefficient-order	160
+modular-identity-order	32
+hecke-primes	2,3,5
+hecke-output-order	32
+known-bad-count	16
+known-bad	missing-export	REJECTED	modular-api
+known-bad	wrong-e4	REJECTED	e4-coefficients
+known-bad	wrong-e6	REJECTED	e6-coefficients
+known-bad	wrong-delta-above-consumer-fixtures	REJECTED	delta-coefficients
+known-bad	wrong-convolution	REJECTED	coefficient-product
+known-bad	wrong-modular-identity-product	REJECTED	modular-identity
+known-bad	wrong-hecke-arithmetic	REJECTED	hecke-finite-data
+known-bad	wrong-hecke-eigenform	REJECTED	hecke-eigenform
+known-bad	hecke-zero-pads-missing-input	REJECTED	hecke-input-precision
+known-bad	hecke-accepts-composite	REJECTED	hecke-index-rejection
+known-bad	accepts-negative-order	REJECTED	finite-order-rejection
+known-bad	accepts-unsupported-eisenstein-weight	REJECTED	eisenstein-weight-rejection
+known-bad	accepts-odd-hecke-weight	REJECTED	hecke-weight-rejection
+known-bad	accepts-number-coefficients	REJECTED	coefficient-type-rejection
+known-bad	product-zero-pads-missing-input	REJECTED	product-input-precision
+known-bad	wrong-source-digest	REJECTED	source-identity
+scope	finite-exact-data; no modularity, analytic convergence, native-compiler or device proof
+result	PASS
