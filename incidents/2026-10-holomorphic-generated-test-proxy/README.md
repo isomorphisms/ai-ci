@@ -45,3 +45,21 @@ The observations above are **not** evidence that all these projects share one ca
 ## Root-cause hypothesis, not a finding
 
 `requirements → generated implementation → generated tests` may favor cheap startup/finite/source-string assertions. The reproduced Holomorphic smoke shows that such assertions do not distinguish five semantic errors. It does **not** identify the exact prompt, agent, template or selection mechanism responsible. The proposed upstream repair is to require machine-recorded invalid controls for each material semantic claim and to make promotion fail on missing, skipped, incorrect-target or surviving-mutant evidence. That generic enforcement remains incomplete and belongs to AICI #183 and FP #69.
+
+## Executable registration and released obligations
+
+The version-one registration in this directory binds the original specimen,
+independent oracle provenance, human-confirmation reference, eleven exact owner
+seeds, four paginated search classes, twelve candidates, evidence-backed
+dispositions, and eight owner obligations. The original generator prompt or
+trace is explicitly `inaccessible`; the registration does not invent it or use
+the missing trace as proof of a common cause.
+
+`src/aici_defect_registration.c` rejects conflicting duplicate specimens,
+omitted known consumers, missing search pages, copied or stale evidence,
+unsupported dispositions, non-deterministic or incomplete obligation sets, and
+promotion of this smoke-only claim to mathematical certification. The exact
+obligation bytes released to BC-A05-S02, BC-A05-S03, and BC-S01-S01 are under
+`release/obligations.tsv`. Availability of that release is not evidence that
+the consumers executed or retired the obligations. See
+[`docs/defect-registration.md`](../../docs/defect-registration.md).

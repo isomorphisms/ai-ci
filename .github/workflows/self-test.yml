@@ -37,10 +37,16 @@ jobs:
         run: |
           cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici src/aici.c
           "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-build-preflight tests/build_preflight_oracle.c
+          "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-defect-registration src/aici_defect_registration.c
           cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-host-context src/aici_host_context.c
       - name: Prove bad fixtures are rejected
         shell: sh
         run: /tmp/aici self-test tests/cases.tsv
+      - name: Register the retained defect and reject registration mutants
+        shell: sh
+        run: |
+          /tmp/aici-defect-registration verify incidents/2026-10-holomorphic-generated-test-proxy
+          /tmp/aici-defect-registration self-test incidents/2026-10-holomorphic-generated-test-proxy
       - name: Keep historical backend probes off the recurring queue
         shell: sh
         run: /tmp/aici verify compiler_backends/historical.contract.tsv .
