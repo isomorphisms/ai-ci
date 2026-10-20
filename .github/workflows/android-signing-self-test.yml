@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "android-signing/**"
+      - "android-companion/**"
       - "src/aici_android_signing.c"
       - ".github/workflows/android-signing-self-test.yml"
   push:
@@ -11,6 +12,7 @@ on:
       - main
     paths:
       - "android-signing/**"
+      - "android-companion/**"
       - "src/aici_android_signing.c"
       - ".github/workflows/android-signing-self-test.yml"
 
@@ -19,10 +21,17 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Qualify the declared native ICK compiler
+        id: ick
+        uses: isomorphisms/ai-ci/ick-host@903b2cb27ea572c9c6cb2ffa9f39e0fbf06ec9f8
 
       - name: Compile verifier
         run: |
-          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2             src/aici_android_signing.c             -o /tmp/aici-android-signing
+          "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2             src/aici_android_signing.c             -o /tmp/aici-android-signing
 
       - name: Run hostile signer cases
         run: |
