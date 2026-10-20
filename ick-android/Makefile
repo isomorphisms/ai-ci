@@ -233,12 +233,12 @@ qualify-branch-protection: check-qualification
 	grep -F '.note.gnu.property' "$(QUALIFY_BUILD)/branch-protection.s"
 	"$(NDK_CC)" $(TARGET_FLAGS) -c "$(QUALIFY_BUILD)/branch-protection.s" -o "$(QUALIFY_BUILD)/branch-protection.o"
 	"$(NDK_READELF)" -n "$(QUALIFY_BUILD)/branch-protection.o" > "$(QUALIFY_BUILD)/branch-protection.notes"
-	grep -E 'AArch64 feature:.*BTI.*PAC' "$(QUALIFY_BUILD)/branch-protection.notes"
-	sed 's/\.note.gnu.property/.note.invalid.property/g' "$(QUALIFY_BUILD)/branch-protection.s" > "$(QUALIFY_BUILD)/branch-protection-mutant.s"
-	"$(NDK_CC)" $(TARGET_FLAGS) -c "$(QUALIFY_BUILD)/branch-protection-mutant.s" -o "$(QUALIFY_BUILD)/branch-protection-mutant.o"
+	cat "$(QUALIFY_BUILD)/branch-protection.notes"
+	grep -Ei 'aarch64 feature:.*BTI.*PAC' "$(QUALIFY_BUILD)/branch-protection.notes"
+	"$(NDK_BIN)/llvm-objcopy" --remove-section=.note.gnu.property "$(QUALIFY_BUILD)/branch-protection.o" "$(QUALIFY_BUILD)/branch-protection-mutant.o"
 	"$(NDK_READELF)" -n "$(QUALIFY_BUILD)/branch-protection-mutant.o" > "$(QUALIFY_BUILD)/branch-protection-mutant.notes"
-	! grep -E 'AArch64 feature:.*BTI.*PAC' "$(QUALIFY_BUILD)/branch-protection-mutant.notes"
-	printf 'gnu_property_bti_pac\tPASS\nwrong_note_section_rejected\tPASS\nphysical_execution\tNOT_RUN\n' > "$(QUALIFY_BUILD)/branch-protection.tsv"
+	! grep -Ei 'aarch64 feature:.*BTI.*PAC' "$(QUALIFY_BUILD)/branch-protection-mutant.notes"
+	printf 'gnu_property_bti_pac\tPASS\nmissing_property_note_rejected\tPASS\nphysical_execution\tNOT_RUN\n' > "$(QUALIFY_BUILD)/branch-protection.tsv"
 else
 qualify-branch-protection:
 endif
