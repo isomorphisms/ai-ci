@@ -4,9 +4,15 @@ This is the independent artifact-level gate for a Cat Food A1/C67 build plan.
 It does not build code, authorize a model decision, install packages, or
 qualify a physical phone.
 
+The maintained signing verifier is compiled through an explicitly qualified
+ICK compiler. `ICK` must name its executable absolute path; no ambient `cc`
+fallback is allowed. The composite signing action selects and qualifies the
+pinned native ICK stage itself. Existing shell orchestration remains a named
+migration boundary; this change does not claim a Grease conversion.
+
 Usage with environment:
 
-    AICI_COMPANION_RECEIPT=/absolute/new/receipt.tsv \
+    ICK=/absolute/qualified/ick AICI_COMPANION_RECEIPT=/absolute/new/receipt.tsv \
       bash android-companion/verify.sh CATFOOD_CHECKOUT APP_CHECKOUT \
       APP_CONTRACT PLAN.tsv APK_MAP.tsv
 

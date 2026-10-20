@@ -11,6 +11,9 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Qualify the declared native ICK compiler
+      id: ick
+      uses: isomorphisms/ai-ci/ick-host@903b2cb27ea572c9c6cb2ffa9f39e0fbf06ec9f8
     - shell: bash
       env:
         AICI_APK: ${{ inputs.apk }}
@@ -43,7 +46,7 @@ runs:
         }
 
         verifier="$RUNNER_TEMP/aici-android-signing"
-        cc -std=c17 -Wall -Wextra -Werror -pedantic -O2           "$GITHUB_ACTION_PATH/../src/aici_android_signing.c"           -o "$verifier"
+        "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2           "$GITHUB_ACTION_PATH/../src/aici_android_signing.c"           -o "$verifier"
 
         package=$(
           "$aapt2" dump badging "$AICI_APK" |
