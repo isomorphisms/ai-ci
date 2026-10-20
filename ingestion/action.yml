@@ -29,6 +29,12 @@ runs:
         "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2
         -o "$RUNNER_TEMP/aici-ingestion"
         "$GITHUB_ACTION_PATH/src/aici_ingestion.c"
+    - name: Compile lossless stage verdict adapter
+      shell: sh
+      run: >-
+        "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2
+        -o "$RUNNER_TEMP/aici-stage-verdict"
+        "$GITHUB_ACTION_PATH/../stage-verdict/src/aici_stage_verdict.c"
     - name: Verify canonical corpus and receipt
       shell: sh
       env:
@@ -47,3 +53,4 @@ runs:
           "$RUNNER_TEMP/aici-ingestion" verify \
             "$GITHUB_ACTION_PATH/corpus-v1" "$RECEIPT" "$ROLE" "$EXEC_TRACE"
         fi
+        "$RUNNER_TEMP/aici-stage-verdict" ingestion "$RECEIPT"

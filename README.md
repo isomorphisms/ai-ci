@@ -217,6 +217,14 @@ rejects traces that invoke the side-by-side curl/libxml2 oracle. See
 [`ingestion/README.md`](ingestion/README.md) for the schema and current
 `document_log_subset_v0` boundary.
 
+The optional [`stage-verdict/`](stage-verdict/) action maps owner receipts into
+lossless stage and attempt verdicts. It preserves raw process fields and invalid
+evidence classes, keeps diagnosis `UNKNOWN` unless an owner supplies separate
+causal evidence, and computes the first required failure without erasing
+independent successful scope or dependent `NOT_RUN` stages. The ingestion action
+exercises the first native mapping; Kitchen and Flexible Pipes mappings remain
+pending their owner schemas.
+
 ## Idriç bounded orthogonal-core acceptance
 
 The optional [`idric-orthogonal/`](idric-orthogonal/) gate pins one exact Idriç

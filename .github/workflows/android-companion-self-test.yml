@@ -1,0 +1,26 @@
+name: Android companion artifact verifier smoke
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Check out the accepted mandatory Ithon host frontend
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: dilapidated-shed/ithon
+          ref: 9d530f4ad51f5b0a09c3e74dbe45cac5bb6d52d3
+          path: .ithon
+          persist-credentials: false
+      - name: Run existing refusals and checked compiler-selection negatives
+        run: ./.ithon/ithon tests/android-companion-toolchain.pi

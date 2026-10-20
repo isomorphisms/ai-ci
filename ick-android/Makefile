@@ -63,6 +63,8 @@ ICK_NDK_FLAGS = $(HEADER_OVERLAY_FLAGS) $(ICK_NDK_BASE_FLAGS) $(FORTIFY_FLAGS)
 ICK_DEBUG_FLAGS = -g -gdwarf-4 -gno-variable-location-views
 QUALIFY_ROOT := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 QUALIFY_BUILD ?= $(ICK_STAGE)/qualification
+MATERIAL_RECORDS = $(QUALIFY_BUILD)/compiler.sha256;$(QUALIFY_BUILD)/ndk.sha256;$(QUALIFY_BUILD)/artifacts.sha256
+MATERIAL_POLICY = $(QUALIFY_BUILD)/receipt.tsv
 ifeq ($(FORTIFY_SOURCE),2)
 HEADER_OVERLAY = $(QUALIFY_ROOT)fortify/include
 HEADER_OVERLAY_FLAGS = -I"$(HEADER_OVERLAY)"
@@ -217,11 +219,11 @@ qualify: $(QUALIFY_ASSEMBLY) $(QUALIFY_ELF_CHECKS) reject-api25 $(FORTIFY_QUALIF
 	sha256sum "$(ICK_COMPILER)" "$$("$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) -print-prog-name=cc1)" > "$(QUALIFY_BUILD)/compiler.sha256"
 	sha256sum "$(NDK)/source.properties" "$(NDK_BIN)/clang" "$(NDK_READELF)" > "$(QUALIFY_BUILD)/ndk.sha256"
 	sha256sum $(QUALIFY_ARTIFACTS) > "$(QUALIFY_BUILD)/artifacts.sha256"
-	printf 'source\t%s\ngcc_reference\t%s\nabi\t%s\nobserved_target\t%s\napi\t26\nfortify_source\t%s\nc_frontend\tick\nassembler\tndk\nlinker\tndk\nglyph_and_bionic_compile_link\tPASS\nstrict_api25_rejection\tPASS\nandroid_execution\tNOT_RUN\n' "$(ICK_REVISION)" "$(GCC_REVISION)" "$(ABI)" "$(EXPECTED_TARGET)" "$(if $(FORTIFY_SOURCE),$(FORTIFY_SOURCE),undefined)" > "$(QUALIFY_BUILD)/receipt.tsv"
+	printf 'source\t%s\ngcc_reference\t%s\nabi\t%s\nobserved_target\t%s\napi\t26\nfortify_source\t%s\nc_frontend\tick\nassembler\tndk\nlinker\tndk\nmaterial_policy\tick-android-material-v1\nrecipe\t3\nglyph_and_bionic_compile_link\tPASS\nstrict_api25_rejection\tPASS\nandroid_execution\tNOT_RUN\n' "$(ICK_REVISION)" "$(GCC_REVISION)" "$(ABI)" "$(EXPECTED_TARGET)" "$(if $(FORTIFY_SOURCE),$(FORTIFY_SOURCE),undefined)" > "$(QUALIFY_BUILD)/receipt.tsv"
 endif
 
 outputs:
-	@printf 'compiler=%s\ntarget_flags=%s\nheader_target=%s\ngnu_target=%s\nheader_overlay=%s\nbuiltin_include=%s\n' "$(ICK_COMPILER)" "$(TARGET_FLAGS)" "$(HEADER_TARGET)" "$(GNU_TARGET)" "$(HEADER_OVERLAY)" "$(ICK_BUILTIN_INCLUDE)"
+	@printf 'compiler=%s\ntarget_flags=%s\nheader_target=%s\ngnu_target=%s\nheader_overlay=%s\nbuiltin_include=%s\nmaterial_records=%s\npolicy=%s\n' "$(ICK_COMPILER)" "$(TARGET_FLAGS)" "$(HEADER_TARGET)" "$(GNU_TARGET)" "$(HEADER_OVERLAY)" "$(ICK_BUILTIN_INCLUDE)" "$(MATERIAL_RECORDS)" "$(MATERIAL_POLICY)"
 
 .PHONY: archive-stage restore-stage
 archive-stage:

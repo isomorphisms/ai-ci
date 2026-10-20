@@ -46,7 +46,104 @@ positive twins. `tests/job-delivery/check.pi` builds its own capture evidence
 without calling the producer's `deliver()`; expected outcomes and diagnostics
 are in `cases.tsv`. FP's separate suite executes effects and the real runner.
 
+## GitHub transfer display commands
+
+`validators/transfer_command.pi` is the narrow companion check for the
+registered FP GitHub repository-transfer display operation. It compares the
+actual displayed bytes with a fresh invocation of Kitchen's pinned Grease
+generator, then checks the independently supplied original request and transfer
+metadata. It rejects an unadmitted direct response, routing a script-only
+request to execute, missing or substituted immutable repository ID, recomputed
+request/admission, changed visible bytes, and an apology substituted for the
+bytes. The positive fixture preserves an ordinary read-only GitHub query and
+the exact Kitchen display-only program with zero transfer attempts.
+
+The existing FP delivery controller must receive
+`transfer_command.delivery_gate(kitchen_root, grease_runtime, admitted_spec)`
+for this operation. The supervisor supplies the full admitted specification;
+the adapter snapshots it, rather than taking authority from worker-mutated
+metadata. FP requires this operation gate before either its low-level sender or
+resumable controller can call the sink. A generic transport-only gate is not
+transfer acceptance and fails before sending. Source checks independently bind
+Kitchen HEAD and unchanged transfer sources to the admitted revision.
+
+The gate checks the complete proposed response before send, then checks actual
+readback. Only the recipe bytes or their exact empty-summary literal rendering
+are supported; extra surrounding command text is rejected. The complete Kitchen
+recipe contains shell redirections, so FP's generic raw-text/HTML exclusion
+rejects its plain presentation before send. A controller may explicitly choose
+`presentation="literal"`; that fixture result does not establish that the
+Android client supports CodeBlocks. Other payloads retain ordinary-text default.
+
+Controller regressions execute both delivery APIs, operation substitution and
+removal, self-consistent bad recipe bytes, unsupported presentation, added
+summary text, source-pin/dirty-source controls, one accepted presentation, and
+resume without resend. Failed source revalidation also invalidates a saved
+success. These checks extend the established sender/controller; they do not
+create a second controller or a ChatGPT pre-send hook.
+
+This is not a generic natural-language firewall and it does not establish a
+ChatGPT adapter. The resulting fixture comparison proves only the declared
+FP/Kitchen/AICI contract. Platform delivery remains BLOCKED/NOT_VERIFIED; the
+separate execute operation remains subject to protected admission before
+preflight or an external effect.
+
 Trackers: [FP #39](https://github.com/isomorphisms/flexible-pipes/issues/39),
 [#219](https://github.com/isomorphisms/ai-ci/issues/219),
 [FP #35](https://github.com/isomorphisms/flexible-pipes/issues/35),
 [FP final review #17](https://github.com/isomorphisms/flexible-pipes/issues/17).
+
+
+## Independently admitted and read-back artifacts
+
+`check_authority` compares the stage's request, corrections, model, audience,
+source context, attachment and operation against an independently supplied expected spec.
+Required literal text belongs to that admission, not the generating worker.
+This covers explicit constraints; it does not replace grounded semantic review
+for requirements that cannot be reduced to literal checks.
+
+`reference_attachment` independently reads the unique declared member, checks
+source/payload digests and bounds, and refuses unsafe, missing, duplicate,
+encrypted or corrupt members. It does not call FP's extraction function.
+
+The existing checked CLI also accepts:
+`check-job-delivery.pi actual STAGE SOURCE DELIVERED METADATA ADMISSION RESULT`.
+ADMISSION contains `spec` and `required_text`; METADATA binds the message/file
+identity, surface, filename and MIME to the read-back bytes. Text and binary
+input files are actually opened and hashed. A caller's `trusted=true` or
+`evidence_class=platform` cannot supply missing host authentication.
+
+The output is `CONTRACT_PASS` with `platform_delivery_status=NOT_VERIFIED`.
+The `fixture` and `service-readback` labels describe the comparison inputs;
+they do not authenticate their acquisition or the client's rendered surface.
+A producer could still fabricate local input files. The trusted platform adapter
+must supply authenticated observations outside the worker boundary before any
+production acceptance or dispatch is permitted. That adapter remains unavailable.
+
+The suite retains every old case, adds independent admission/readback cases and
+records nine rejection transitions where the previous contract accepted a
+self-consistent wrong request/model or a correct declared attachment with wrong
+read-back data. Sanitized positive specimens are retained for CLI inspection.
+Actual delivery-service and physical-device qualification remain separately
+required and have not been replaced by those specimens.
+
+## Storage qualification without claiming presentation
+
+`check-job-delivery.pi stored STAGE SOURCE STORED METADATA ADMISSION RESULT`
+opens the actual stored file and compares it with the independent source-member
+oracle, exact filename, MIME type, size and nonempty service file identity.
+It consumes the existing stage while leaving its events and delivery states
+unchanged. This permits honest live file-service qualification while presentation
+is still pending. The result is STORAGE_BYTES_PASS, with presentation_status
+and platform_delivery_status both NOT_VERIFIED. The evidence labels describe
+inputs and cannot authenticate caller-created files or enable dispatch.
+
+The additional cases reject a renamed file, missing MIME, changed bytes, wrong
+size, missing file identity, text transport and forged platform classification.
+The original ordinary-text positive control and all previous cases remain.
+The FP35 live Wegert specimen was retrieved from the original workflow archive,
+materialized by FP, uploaded, independently read back and checked with this CLI.
+An initial duplicate-safe rename was rejected; recovery retained the same
+storage identity, restored the exact filename and used a new backing version
+with the APK MIME. Byte equality qualified storage, not Android presentation.
+

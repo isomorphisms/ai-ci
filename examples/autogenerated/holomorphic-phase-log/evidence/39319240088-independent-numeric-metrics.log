@@ -1,0 +1,41 @@
+one_exact:0	OUTPUT_READY phase_abs_error=3.6977325975490194e-10 log_abs_error=3.6186505701640836e-10 numerical_acceptance=NOT_RUN
+one_exact:1	OUTPUT_READY phase_abs_error=3.3575188462808825e-10 log_abs_error=7.1232756672368058e-11 numerical_acceptance=NOT_RUN
+one_exact:2	OUTPUT_READY phase_abs_error=1.4839033821156811e-10 log_abs_error=3.2162599666873959e-09 numerical_acceptance=NOT_RUN
+one_exact:3	OUTPUT_READY phase_abs_error=1.9158765893201313e-10 log_abs_error=5.449408502569697e-10 numerical_acceptance=NOT_RUN
+one_displaced:0	OUTPUT_READY phase_abs_error=1.6668863039859261e-08 log_abs_error=6.6099643244998951e-08 numerical_acceptance=NOT_RUN
+one_displaced:1	OUTPUT_READY phase_abs_error=0 log_abs_error=0 numerical_acceptance=NOT_RUN
+one_displaced:2	OUTPUT_READY phase_abs_error=6.8093695577975399e-09 log_abs_error=1.1448451298079476e-08 numerical_acceptance=NOT_RUN
+one_displaced:3	OUTPUT_READY phase_abs_error=0 log_abs_error=0 numerical_acceptance=NOT_RUN
+24_exact:0	OUTPUT_READY phase_abs_error=3.6977325975490194e-10 log_abs_error=3.6186505701640836e-10 numerical_acceptance=NOT_RUN
+24_exact:1	OUTPUT_READY phase_abs_error=3.3575188462808825e-10 log_abs_error=7.1232756672368058e-11 numerical_acceptance=NOT_RUN
+24_exact:2	OUTPUT_READY phase_abs_error=1.4839033821156811e-10 log_abs_error=3.2162599666873959e-09 numerical_acceptance=NOT_RUN
+24_exact:3	OUTPUT_READY phase_abs_error=1.9158765893201313e-10 log_abs_error=5.449408502569697e-10 numerical_acceptance=NOT_RUN
+24_displaced:0	OUTPUT_READY phase_abs_error=3.2420023232671014e-07 log_abs_error=1.099461545139846e-06 numerical_acceptance=NOT_RUN
+24_displaced:1	OUTPUT_READY phase_abs_error=2.032149013009299e-06 log_abs_error=1.6831343175871538e-06 numerical_acceptance=NOT_RUN
+24_displaced:2	OUTPUT_READY phase_abs_error=0 log_abs_error=0 numerical_acceptance=NOT_RUN
+24_displaced:3	OUTPUT_READY phase_abs_error=1.8504660599383271e-06 log_abs_error=2.061031576072736e-06 numerical_acceptance=NOT_RUN
+multiplicity:0	OUTPUT_READY phase_abs_error=2.1837450514539114e-08 log_abs_error=6.0048888972374925e-08 numerical_acceptance=NOT_RUN
+multiplicity:1	OUTPUT_READY phase_abs_error=0 log_abs_error=0 numerical_acceptance=NOT_RUN
+multiplicity:2	OUTPUT_READY phase_abs_error=5.7785546125899145e-08 log_abs_error=1.7802948421019593e-09 numerical_acceptance=NOT_RUN
+multiplicity:3	OUTPUT_READY phase_abs_error=1.2193199894205975e-08 log_abs_error=1.3669706255825531e-08 numerical_acceptance=NOT_RUN
+moving0:0	OUTPUT_READY phase_abs_error=2.0640019684492472e-06 log_abs_error=4.6339240924453406e-06 numerical_acceptance=NOT_RUN
+moving0:1	OUTPUT_READY phase_abs_error=2.1646753189941137e-06 log_abs_error=3.5072722326390249e-06 numerical_acceptance=NOT_RUN
+moving0:2	OUTPUT_READY phase_abs_error=2.3312862786895039e-06 log_abs_error=7.1874600138244205e-07 numerical_acceptance=NOT_RUN
+moving0:3	OUTPUT_READY phase_abs_error=2.4503960034394368e-06 log_abs_error=3.4710421417116777e-06 numerical_acceptance=NOT_RUN
+moving7_5:0	OUTPUT_READY phase_abs_error=2.5472448644814349e-07 log_abs_error=3.0556852479435292e-06 numerical_acceptance=NOT_RUN
+moving7_5:1	OUTPUT_READY phase_abs_error=1.2767993151641122e-07 log_abs_error=4.9035628535420983e-07 numerical_acceptance=NOT_RUN
+moving7_5:2	OUTPUT_READY phase_abs_error=4.2702243785441851e-07 log_abs_error=5.9894225046264182e-07 numerical_acceptance=NOT_RUN
+moving7_5:3	OUTPUT_READY phase_abs_error=3.4230699963444522e-07 log_abs_error=5.9067706104087847e-07 numerical_acceptance=NOT_RUN
+moving7_5_zoom:0	OUTPUT_READY phase_abs_error=2.5472448644814349e-07 log_abs_error=3.0556852479435292e-06 numerical_acceptance=NOT_RUN
+moving7_5_zoom:1	OUTPUT_READY phase_abs_error=1.2767993151641122e-07 log_abs_error=4.9035628535420983e-07 numerical_acceptance=NOT_RUN
+moving7_5_zoom:2	OUTPUT_READY phase_abs_error=4.2702243785441851e-07 log_abs_error=5.9894225046264182e-07 numerical_acceptance=NOT_RUN
+moving7_5_zoom:3	OUTPUT_READY phase_abs_error=3.4230699963444522e-07 log_abs_error=5.9067706104087847e-07 numerical_acceptance=NOT_RUN
+24_displaced_large:0	OUTPUT_READY phase_abs_error=1.0477126588109842e-06 log_abs_error=3.6869950723633638e-05 numerical_acceptance=NOT_RUN
+24_displaced_small:0	OUTPUT_READY phase_abs_error=1.0477126588109842e-06 log_abs_error=3.9424049226632896e-05 numerical_acceptance=NOT_RUN
+PASS numerical readback structure and corpus; GPU numerical acceptance NOT_RUN
+ACTUAL_NUMERIC_MAXIMA_INFORMATIONAL acceptance_requires_separate_unchanged_audits
+regular_samples 30 true_singularity_samples 4
+max_circular_phase_error 2.4503960034394368e-06 case moving0:3 fixed_budget 0.0001
+max_raw_log_error 3.9424049226632896e-05 case 24_displaced_small:0 min_envelope_budget_at_case 0.0001
+max_log_error_to_min_envelope_budget_ratio 0.39424049226632896 case 24_displaced_small:0
+max_rgba8_channel_error 0 case_channel none regular_rgb_budget 1 alpha_and_singular_budget 0

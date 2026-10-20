@@ -7,8 +7,11 @@ Maintained consumer C is compiled by the resulting ICK compiler. The action
 supports `armeabi-v7a`, `arm64-v8a`, and `x86_64`; call it once per ABI.
 
 Inputs are `abi` and `ndk`, the absolute path to the consumer's installed NDK.
-Outputs are `compiler`, `target_flags`, `header_target`, `gnu_target`, and
-`header_overlay`, and `builtin_include`. The compiler is the raw GNU-target ICK driver; it is also
+Outputs are `compiler`, `target_flags`, `header_target`, `gnu_target`,
+`header_overlay`, `builtin_include`, `material_records`, and `policy`.
+`material_records` names the exact compiler, NDK, and qualification-closure
+records, while `policy` names the qualification receipt. Incremental consumers
+must bind both to every object receipt. The compiler is the raw GNU-target ICK driver; it is also
 usable with an explicitly declared GNU/Linux header, runtime and linker
 profile. Android headers are selected by the consumer's source-stage flags.
 The application retains its NDK revision and minimum API decision. Qualification
@@ -78,7 +81,8 @@ NDK assembler; the qualifier exercises it on all three ABIs.
 ## CMake consumers
 
 `OwnedC.cmake` exposes `ick_android_objects(output NAME name SOURCES ...
-INCLUDES ... OPTIONS ... DEFINITIONS ... STANDARD 17)`. Configure the normal
+INCLUDES ... OPTIONS ... DEFINITIONS ... MATERIALS ... POLICIES ... STANDARD
+17)`. Configure the normal
 Android NDK CMake toolchain and supply `ICK_COMPILER`, `ICK_TARGET_FLAGS`, and
 `ICK_HEADER_TARGET` from the action. `ICK_COMPILER_OPTIONS` supports an explicit
 compiler search prefix for local qualification. It checks the selected ABI,
@@ -86,7 +90,9 @@ GNU compiler target, NDK sysroot and numeric API floor before generating rules.
 Pass the optional `ICK_HEADER_OVERLAY` output when Fortify 2 was selected.
 An installed stage can be loaded through
 `ick_android_stage(ROOT "/absolute/stage" FORTIFY_SOURCE 2)`; omit the final
-argument only if the consumer does not request this Fortify profile.
+argument only if the consumer does not request this Fortify profile. That form
+also loads the installed material and policy records. Direct callers must pass
+the action's `material_records` and `policy` outputs explicitly.
 
 Add the returned external objects to the existing library, and keep upstream
 NDK glue in its ordinary source list. Pass the original target's owned-source
@@ -96,7 +102,29 @@ header dependencies. It uses DWARF 4 and disables GNU variable-location view
 directives because the NDK assembler does not accept the default encoding;
 normal debug information remains. Clang's `-fno-limit-debug-info` is mapped
 to GNU's `-fno-eliminate-unused-debug-types`, preserving complete type data.
-Unsupported compiler flags or hardened headers fail the source stage.
+Source and binary roots pass through `-ffile-prefix-map`, so DWARF paths and
+path-valued macros retain stable canonical roots across clean and relocated
+builds.
+Unsupported compiler flags or hardened headers fail the source stage. The
+compiler emits `-MD` dependencies so user, builtin, overlay, and NDK sysroot
+headers share one compiler-generated closure rather than a second dependency
+database.
+
+Before an existing object can be reused, an always-run CMake guard rehashes the
+qualified compiler driver, its resolved `cc1`, the resolved NDK assembler,
+resource headers, qualification closure, policy, recipe, source, and the prior
+compiler dependency closure. ABI, API, target, language level, ordered options,
+definitions, include paths, and the canonical emitted-assembly path are part of
+the same identity. Build-, source-, sysroot-, NDK-, compiler-stage-, overlay-,
+and interface-root prefixes are normalized, so moving otherwise identical
+material does not invalidate an object.
+
+Each object retains a canonical material manifest plus an
+`ick-android-object-v1` receipt binding the material identity to the actual
+assembly and object SHA-256 values. A legitimate material change invalidates
+the object even when timestamps move backward. A copied, modified, or
+future-dated stale object fails closed instead of becoming current merely by
+mtime. Callers can retain the receipt list from `<output>_MATERIAL_RECEIPTS`.
 
 The underlying `Makefile` also runs outside GitHub Actions: `all` uses `ABI`,
 `ICK_SOURCE`, `ICK_BUILD`, and `ICK_STAGE`; `qualify` additionally uses `NDK`
@@ -170,7 +198,7 @@ through both configure stages. Debian trixie's GNU binutils 2.44 accepts
 `.base64`, but the declared NDK r29 assembler rejects it. Target GNU as still
 supplies configure probes; it cannot enable that directive in NDK-bound output.
 This preserves the literal UTF-8 glyph fixture and lets GCC use its ordinary
-string byte encoding. Recipe version 2 excludes compilers cached under the
+string byte encoding. Recipe version 3 excludes compilers cached under the
 older capability policy. A retained object tree with `HAVE_GAS_BASE64` enabled
 is rejected; use a fresh `ICK_BUILD` and `ICK_STAGE` for that configuration.
 Installed stages still undergo the unchanged NDK glyph qualification without
