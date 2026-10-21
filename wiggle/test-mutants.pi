@@ -1,0 +1,195 @@
+"""Known-bad evidence copies. Hardlinked source bytes are replaced, never edited."""
+import csv
+import hashlib
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+from builtins import dict, list, ValueError
+
+def require(success ∈ bool, message ∈ str) → None:
+    if not success:
+        raise ValueError(message)
+
+def table(path ∈ object) → list[list[str]]:
+    with Path(path).open(newline='') as source:
+        return list(csv.reader(source,delimiter='\t'))
+
+def replace_bytes(path ∈ object, content ∈ bytes) → None:
+    temporary ∈ object ← path.with_name(str(path.name) + '.mutated')
+    temporary.write_bytes(content)
+    temporary.replace(path)
+
+def write_table(path ∈ object, values ∈ list[list[str]]) → None:
+    temporary ∈ object ← path.with_name(str(path.name) + '.mutated')
+    with temporary.open('w',newline='') as target:
+        csv.writer(target,delimiter='\t',lineterminator='\n').writerows(values)
+    temporary.replace(path)
+
+def bind(leaf ∈ object, key ∈ str, path ∈ object) → None:
+    values ∈ list[list[str]] ← table(leaf.joinpath('production.tsv'))
+    for row in values:
+        if row[0] == key:
+            row[1] ← hashlib.sha256(path.read_bytes()).hexdigest()
+    write_table(leaf.joinpath('production.tsv'),values)
+
+def main() → None:
+    arguments ∈ list[str] ← list(sys.argv)
+    context_file ∈ object ← Path(arguments[1])
+    context ∈ dict[str,str] ← {}
+    for row in table(context_file):
+        context[row[0]] ← row[1]
+    inputs ∈ object ← Path(arguments[2])
+    source ∈ object ← Path(arguments[3])
+    # Each failure names the assertion it must reach after upstream hashes have
+    # been repaired where needed. No negative fixture is offered as a movie.
+    cases ∈ list[list[str]] ← [['input','mathieu','INPUT_DIGEST'],['movie','mathieu','MOVIE_DIGEST'],['missing','mathieu','CONTIGUOUS_FRAMES'],['symlink','mathieu','SOURCE_FRAME_REGULAR'],['reordered','mathieu','SOURCE_FRAME_HASH_ORDER'],['state','mathieu','MATHIEU_EXACT_PERMUTATION'],['pause','mathieu','MATHIEU_PAUSE_STATE'],['clock','mathieu','TRACE_ORDER'],['interpolation','surfer','TRACE_INTERPOLATION'],['equation','surfer','SURFER_EQUATION_CAMERA'],['original','florence','FLORENCE_ORIGINAL'],['pcm','florence','FLORENCE_SOURCE_WAVEFORM'],['window','florence','FLORENCE_SAMPLE_CLOCK'],['dft','florence','FLORENCE_DFT'],['function','wegert','WEGERT_FUNCTION_STATE'],['pixels','wegert','MATHEMATICAL_PIXEL'],['source','mathieu','SOURCE_IDENTITY']]
+    cases.extend([['plan-hold','mathieu','MOTION_PLAN_HOLD'],['plan-move','mathieu','MOTION_PLAN_MOVEMENT'],['controls','mathieu','CONTROLS_DISABLED'],['ui-pixels','mathieu','MATHIEU_CONTROL_FREE_VIEWPORT'],['plan-gap','mathieu','MOTION_PLAN_COVERAGE'],['plan-intent','mathieu','MOTION_PLAN_INTENT']])
+    layout ∈ bool ← bool(source.joinpath('mathieu/inputs/controls.tsv').read_text().__contains__('layout/frame'))
+    if layout:
+        cases.extend([['octad','mathieu','MATHIEU_OCTAD_TRANSPORT'],['layout','mathieu','MATHIEU_ATLAS_LAYOUT'],['dancer','mathieu','MATHIEU_DANCER_TRANSPORT']])
+    for case in cases:
+        with tempfile.TemporaryDirectory(prefix='aici-wiggle-mutant-') as temporary:
+            root ∈ object ← Path(temporary)
+            output ∈ object ← root.joinpath('output')
+            output.mkdir()
+            output.joinpath('aici-video').symlink_to(source.joinpath('aici-video').resolve())
+            producer ∈ str ← case[1]
+            leaf ∈ object ← output.joinpath(producer)
+            shutil.copytree(source.joinpath(producer),leaf,copy_function=os.link)
+            leaf.joinpath('acceptance.tsv').unlink(missing_ok=True)
+            selected_context ∈ object ← context_file
+            selected_inputs ∈ object ← inputs
+            if case[0] == 'input':
+                replace_bytes(leaf.joinpath('inputs/controls.tsv'),b'changed input\n')
+            elif case[0] == 'movie':
+                replace_bytes(leaf.joinpath('movie.candidate.mp4'),b'not a movie\n')
+            elif case[0] == 'missing':
+                leaf.joinpath('frames/frame-000001.ppm').unlink()
+            elif case[0] == 'symlink':
+                leaf.joinpath('frames/frame-000000.ppm').unlink()
+                leaf.joinpath('frames/frame-000000.ppm').symlink_to(source.joinpath(producer,'frames/frame-000000.ppm'))
+            elif case[0] == 'reordered':
+                values ∈ list[list[str]] ← table(leaf.joinpath('frames-sha256.tsv'))
+                swap ∈ list[str] ← list(values[0])
+                values[0] ← values[1]
+                values[1] ← swap
+                write_table(leaf.joinpath('frames-sha256.tsv'),values)
+            elif case[0] == 'state' or case[0] == 'pause':
+                values ← table(leaf.joinpath('checkpoints.tsv'))
+                if case[0] == 'state':
+                    values[30][5] ← '1,0,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23'
+                else:
+                    values[15][1] ← '15'
+                write_table(leaf.joinpath('checkpoints.tsv'),values)
+                bind(leaf,'checkpoint_sha256',leaf.joinpath('checkpoints.tsv'))
+            elif case[0] == 'octad' or case[0] == 'layout' or case[0] == 'dancer':
+                values ← table(leaf.joinpath('checkpoints.tsv'))
+                zero_coordinates ∈ list[str] ← []
+                for coordinate in range(48):
+                    zero_coordinates.append('0')
+                if case[0] == 'octad':
+                    values[150][7] ← '255'
+                elif case[0] == 'layout':
+                    values[120][9] ← ','.join(zero_coordinates)
+                else:
+                    values[210][10] ← ','.join(zero_coordinates)
+                write_table(leaf.joinpath('checkpoints.tsv'),values)
+                bind(leaf,'checkpoint_sha256',leaf.joinpath('checkpoints.tsv'))
+            elif case[0] == 'clock' or case[0] == 'interpolation':
+                values ← table(leaf.joinpath('resolved.tsv'))
+                if case[0] == 'clock':
+                    values[0][1] ← '1/30'
+                else:
+                    values[0][3] ← '1.55'
+                write_table(leaf.joinpath('resolved.tsv'),values)
+                bind(leaf,'resolved_sha256',leaf.joinpath('resolved.tsv'))
+            elif case[0] == 'equation' or case[0] == 'window' or case[0] == 'dft' or case[0] == 'function':
+                values ← table(leaf.joinpath('checkpoints.tsv'))
+                if case[0] == 'equation':
+                    values[0][1] ← 'x^2+y^2+z^2-1'
+                elif case[0] == 'window':
+                    values[0][1] ← '9601'
+                elif case[0] == 'dft':
+                    values[0][2] ← '0,0'
+                else:
+                    values[0][1] ← '-2,0'
+                write_table(leaf.joinpath('checkpoints.tsv'),values)
+                bind(leaf,'checkpoint_sha256',leaf.joinpath('checkpoints.tsv'))
+            elif case[0] == 'original':
+                replace_bytes(leaf.joinpath('source.ogg'),b'changed historical audio')
+            elif case[0] == 'pcm':
+                replace_bytes(leaf.joinpath('audio.s16'),b'\x00\x00')
+            elif bool(case[0].startswith('plan-')) or case[0] == 'controls':
+                selected_inputs ← root.joinpath('inputs')
+                shutil.copytree(inputs,selected_inputs)
+                filename ∈ str ← 'motion-plan.tsv'
+                if case[0] == 'controls':
+                    filename ← 'manifest.tsv'
+                values ← table(selected_inputs.joinpath(producer,filename))
+                if case[0] == 'plan-hold':
+                    values[1][2] ← 'hold'
+                elif case[0] == 'plan-move':
+                    values[0][2] ← 'move'
+                elif case[0] == 'plan-gap':
+                    values[0][0] ← '1'
+                elif case[0] == 'plan-intent':
+                    values[0][3] ← ''
+                else:
+                    for row in values:
+                        if row[0] == 'controls_visible':
+                            row[1] ← 'true'
+                write_table(selected_inputs.joinpath(producer,filename),values)
+                write_table(leaf.joinpath('inputs',filename),values)
+                values ← table(leaf.joinpath('input-sha256.tsv'))
+                for row in values:
+                    if row[0] == filename:
+                        row[1] ← hashlib.sha256(leaf.joinpath('inputs',filename).read_bytes()).hexdigest()
+                write_table(leaf.joinpath('input-sha256.tsv'),values)
+            elif case[0] == 'pixels' or case[0] == 'ui-pixels':
+                path ∈ object ← leaf.joinpath('frames/frame-000000.ppm')
+                data ∈ bytes ← path.read_bytes()
+                split ∈ list[bytes] ← list(data.split(b'\n',3))
+                if case[0] == 'pixels':
+                    data ← b'\n'.join(split[:3]).__add__(b'\n').__add__(bytes(len(split[3])))
+                else:
+                    # A stable title-like pixel in the top margin of every
+                    # frame; re-encode and repair hashes so the presentation
+                    # assertion, rather than media-integrity checks, rejects it.
+                    # Preserve the opening hold so this reaches the controls
+                    # assertion, with one extra pixel throughout that hold.
+                    opening ∈ list[list[str]] ← table(leaf.joinpath('inputs/motion-plan.tsv'))
+                    for frame_index in range(int(opening[0][1])):
+                        frame_path ∈ object ← leaf.joinpath('frames','frame-{:06d}.ppm'.format(frame_index))
+                        frame_parts ∈ list[bytes] ← list(frame_path.read_bytes().split(b'\n',3))
+                        frame_parts[3] ← b'\x00\x00\x00'.__add__(frame_parts[3][3:])
+                        replace_bytes(frame_path,b'\n'.join(frame_parts))
+                    values ← table(leaf.joinpath('frames-sha256.tsv'))
+                    for row in values:
+                        row[2] ← hashlib.sha256(leaf.joinpath('frames',row[1]).read_bytes()).hexdigest()
+                    write_table(leaf.joinpath('frames-sha256.tsv'),values)
+                    leaf.joinpath('movie.candidate.mp4').unlink()
+                    subprocess.run(['/bin/sh',str(Path(context['kitchen']).joinpath('tasks/movie-from-stills/build.sh')),str(leaf.joinpath('frames/frame-%06d.ppm')),'30',str(leaf.joinpath('movie.candidate.mp4'))],check=True,capture_output=True)
+                    bind(leaf,'movie_sha256',leaf.joinpath('movie.candidate.mp4'))
+                    data ← path.read_bytes()
+                replace_bytes(path,data)
+                values ← table(leaf.joinpath('frames-sha256.tsv'))
+                values[0][2] ← hashlib.sha256(data).hexdigest()
+                write_table(leaf.joinpath('frames-sha256.tsv'),values)
+            else:
+                context_rows ∈ list[list[str]] ← table(context_file)
+                for row in context_rows:
+                    if row[0] == 'surfer':
+                        row[1] ← context['mathieu']
+                selected_context ← root.joinpath('bad-context.tsv')
+                write_table(selected_context,context_rows)
+            result ∈ object ← subprocess.run([context['ithon'],str(Path(context['aici']).joinpath('wiggle/verify.pi')),str(selected_context),str(selected_inputs),str(output),producer],capture_output=True)
+            diagnostic ∈ str ← result.stderr.decode()
+            require(int(result.returncode) != 0 and bool(diagnostic.endswith('ValueError: ' + case[2] + '\n')),'mutant accepted or wrong diagnostic: ' + case[0] + '\n' + diagnostic)
+            require(not bool(leaf.joinpath('acceptance.tsv').exists()),'failed acceptance left a success receipt')
+            print('REJECTED ' + case[0] + ' ' + case[2],flush=True)
+    print('PASS ' + str(len(cases)) + ' evidence mutants rejected at their intended boundaries')
+
+main()
