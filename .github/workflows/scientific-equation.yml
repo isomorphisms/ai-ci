@@ -18,13 +18,13 @@ jobs:
       IDRIC_REF: 7050c116326c9c8e8d0a56c2db7baf2119cbae19
     steps:
       - name: Checkout actual independent AICI head
-        uses: actions/checkout@11d5960a326c9c8e36cf38b85af677262
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
 
       - name: Checkout reviewed IB source (not AICI fixture reimplementation)
-        uses: actions/checkout@11d5960a326c9c8e36cf38b85af677262
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           repository: isomorphisms/ib
           ref: 35a8b8801f72feb445924882220e30a1374ef7c2
@@ -33,7 +33,7 @@ jobs:
           persist-credentials: false
 
       - name: Checkout real pinned SURFER native implementation
-        uses: actions/checkout@11d5960a326c9c8e36cf38b85af677262
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           repository: isomorphismes/algebraic-variety-explorer-mobile
           ref: 9113596d732f1c44db7d6e11ad8a12df3dc8d369
