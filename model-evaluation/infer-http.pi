@@ -1,0 +1,508 @@
+"""Real inference only: bounded HTTP calls, no GitHub capability or shell execution."""
+import sys
+import os
+import json
+import hashlib
+import time
+import http.client
+import subprocess
+import platform
+import shutil
+import socket
+import signal
+import tempfile
+from urllib.parse import urlsplit
+from pathlib import Path
+from builtins import ValueError, Exception, OSError, TimeoutError, FileExistsError, globals, isinstance, dict, list, all
+from typing import Any, Callable
+from operator import contains, getitem
+from unittest.mock import Mock, patch
+
+
+def encoded(value ∈ Any) → str:
+    text ∈ str ← json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return text
+
+
+def digest(text ∈ str) → str:
+    result ∈ str ← hashlib.sha256(text.encode()).hexdigest()
+    return result
+
+
+def load(path ∈ str) → Any:
+    result ∈ Any ← json.loads(Path(path).read_text())
+    return result
+
+
+def save(path ∈ str, value ∈ Any) → None:
+    target ∈ Any ← Path(path)
+    stream ∈ Any ← tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=str(target.parent), prefix=str(target.name) + "-", suffix=".partial", delete=False)
+    temporary ∈ str ← str(stream.name)
+    try:
+        stream.write(encoded(value) + "\n")
+        stream.flush()
+        os.fsync(stream.fileno())
+        stream.close()
+        os.link(temporary, path)
+    finally:
+        stream.close()
+        Path(temporary).unlink(missing_ok=True)
+
+
+def completion_prompt(messages ∈ list[dict[str, str]]) → str:
+    parts ∈ list[str] ← []
+    for message in messages:
+        parts.append(str(message["role"].capitalize()) + ":\n" + message["content"])
+    return str("\n\n".join(parts)) + "\n\nAssistant:\n"
+
+
+def body_for(payload ∈ dict[str, Any], interface ∈ str, served_model ∈ str, reasoning ∈ str) → dict[str, Any]:
+    body ∈ dict[str, Any] ← {"model": served_model, "temperature": payload["temperature"], "max_tokens": payload["max_tokens"], "seed": payload["seed"], "stream": False}
+    if interface == "chat":
+        body.update({"messages": payload["messages"]})
+    elif interface == "completion":
+        body.update({"prompt": completion_prompt(payload["messages"])})
+    else:
+        raise ValueError("unsupported inference interface")
+    if reasoning:
+        if interface != "chat" or not contains(["low", "medium", "high"], reasoning):
+            raise ValueError("unsupported explicit reasoning effort")
+        body.update({"reasoning_effort": reasoning})
+    return body
+
+
+def bounded_timeout(deadline ∈ float, now ∈ float, maximum ∈ float) → float:
+    if deadline <= 0.0:
+        return maximum
+    remaining ∈ float ← deadline - now
+    if remaining <= 0.0:
+        raise TimeoutError("owned-model-run-deadline-reached")
+    if remaining < maximum:
+        return remaining
+    return maximum
+
+
+def deadline_expired(signal_number ∈ int, frame ∈ Any) → None:
+    raise TimeoutError("owned-model-run-deadline-reached")
+
+
+def timeout_reason(deadline ∈ float, now ∈ float, message ∈ str) → str:
+    if message == "owned-model-run-deadline-reached" or (deadline > 0.0 and now >= deadline):
+        return "owned-model-run-deadline-reached"
+    return "operation-timeout"
+
+
+def inference_receipt(output ∈ str, manifest ∈ dict[str, Any], progress ∈ dict[str, Any], state ∈ str, reason ∈ str) → None:
+    save(output + "/inference.json", {"status": state, "requests_attempted": progress["requests_attempted"], "http_responses_completed": progress["http_responses_completed"], "model_responses_completed": progress["model_responses_completed"], "transport_or_format_failures": progress["transport_or_format_failures"], "stop_reason": reason, "phase": progress["phase"], "requests_sha256": manifest["requests_sha256"], "model_sha256": manifest["model_sha256"], "weight_identity": "UNVERIFIED_REMOTE_WEIGHTS", "live_transfer": "NOT_RUN"})
+
+
+def infer(output ∈ str, deadline ∈ float, progress ∈ dict[str, Any]) → int:
+    progress.update({"phase": "inference", "requests_attempted": 0, "http_responses_completed": 0, "model_responses_completed": 0, "transport_or_format_failures": 0})
+    jobs ∈ list[dict[str, Any]] ← load(output + "/requests.json")
+    manifest ∈ dict[str, Any] ← load(output + "/manifest.json")
+    if digest(encoded(jobs)) != manifest["requests_sha256"] or len(jobs) != manifest["count"] or len(jobs) > 500:
+        raise ValueError("request manifest changed or exceeds budget")
+    model_record ∈ dict[str, Any] ← load(output + "/model.json")
+    if digest(encoded(model_record)) != manifest["model_sha256"]:
+        raise ValueError("prepared model profile changed")
+    profile ∈ dict[str, Any] ← model_record["profile"]
+    base ∈ str ← os.environ.get("MODEL_EVAL_BASE_URL", "")
+    if not base:
+        save(output + "/inference.json", {"status": "BLOCKED", "reason": "MODEL_EVAL_BASE_URL is not configured", "requests_attempted": 0, "model_inference": "NOT_RUN", "live_transfer": "NOT_RUN"})
+        print("BLOCKED: no model inference endpoint configured; zero model calls")
+        return 3
+    address ∈ Any ← urlsplit(base)
+    if address.username or address.password or address.query or address.fragment or not address.hostname:
+        raise ValueError("inference base URL must not contain credentials, query or fragment")
+    if str(address.scheme) != "https" and not (str(address.scheme) == "http" and contains(["localhost", "127.0.0.1", "::1"], address.hostname)):
+        raise ValueError("HTTPS required except for a declared loopback inference server")
+    served ∈ str ← os.environ.get("MODEL_EVAL_SERVED_MODEL", profile["hf_repo"])
+    token ∈ str ← os.environ.get("MODEL_EVAL_API_KEY", "")
+    headers ∈ dict[str, str] ← {"Content-Type": "application/json"}
+    if token:
+        headers.update({"Authorization": "Bearer " + token})
+    interface ∈ str ← profile["interface"]
+    suffix ∈ str ← "/chat/completions"
+    if interface == "completion":
+        suffix ← "/completions"
+    endpoint ∈ str ← str(address.path.rstrip("/")) + suffix
+    save(output + "/identity.json", {"backend": "openai-compatible-http", "requested_model": profile["hf_repo"], "served_model": served, "requested_revision": profile["revision"], "weight_identity": "UNVERIFIED_REMOTE_WEIGHTS", "format": interface, "requests_sha256": manifest["requests_sha256"], "model_sha256": manifest["model_sha256"], "reasoning_effort": profile.get("reasoning_effort", "server-default"), "seed_support": "requested; server enforcement not attested", "automatic_retries": 0, "model_tools": list(), "live_transfer": "NOT_RUN"})
+    failures ∈ int ← 0
+    attempted ∈ int ← 0
+    stop_reason ∈ str ← "all-requests-attempted"
+    for job in jobs:
+        started ∈ float ← time.monotonic()
+        try:
+            request_timeout ∈ float ← bounded_timeout(deadline, started, 300.0)
+        except TimeoutError:
+            stop_reason ← "owned-model-run-deadline-reached"
+            break
+        body ∈ dict[str, Any] ← body_for(job["payload"], interface, served, str(profile.get("reasoning_effort", "")))
+        save(output + "/raw/" + str(job["id"]) + ".request.json", body)
+        result ∈ dict[str, Any] ← {"id": job["id"], "request_sha256": job["request_sha256"], "raw_request_sha256": digest(encoded(body)), "evidence": "live", "status": "FAILED", "text": ""}
+        connection ∈ Any ← None
+        transport_complete ∈ bool ← False
+        attempted ← attempted + 1
+        progress.update({"requests_attempted": attempted})
+        try:
+            if str(address.scheme) == "https":
+                connection ← http.client.HTTPSConnection(address.hostname, address.port, timeout=request_timeout)
+            else:
+                connection ← http.client.HTTPConnection(address.hostname, address.port, timeout=request_timeout)
+            connection.request("POST", endpoint, body=encoded(body).encode(), headers=headers)
+            response ∈ Any ← connection.getresponse()
+            raw ∈ bytes ← response.read(1048577)
+            if len(raw) > 1048576:
+                raise ValueError("inference response exceeds one MiB")
+            Path(output + "/raw/" + str(job["id"]) + ".response.bin").write_bytes(raw)
+            progress.update({"http_responses_completed": int(progress["http_responses_completed"]) + 1})
+            result.update({"http_status": response.status, "raw_sha256": hashlib.sha256(raw).hexdigest()})
+            if int(response.status) != 200:
+                raise ValueError("inference HTTP status is not 200; redirects are not followed")
+            transport_complete ← True
+            decoded ∈ dict[str, Any] ← json.loads(raw)
+            if str(decoded.get("model")) != served:
+                raise ValueError("response model name does not match the explicitly selected served model")
+            choices ∈ list[dict[str, Any]] ← decoded["choices"]
+            if len(choices) != 1 or str(choices[0].get("finish_reason")) != "stop":
+                raise ValueError("response missing, truncated or not normally finished")
+            text ∈ Any ← None
+            if interface == "chat":
+                message ∈ dict[str, Any] ← choices[0]["message"]
+                if message.get("tool_calls"):
+                    raise ValueError("model tool calls are outside this evaluation interface")
+                text ← message.get("content")
+            else:
+                text ← choices[0].get("text")
+            if not isinstance(text, str) or not text:
+                raise ValueError("empty model final response")
+            result.update({"status": "EXECUTED"})
+            result.update({"text": text})
+            result.update({"raw_sha256": hashlib.sha256(raw).hexdigest()})
+            result.update({"usage": decoded.get("usage")})
+            result.update({"system_fingerprint": decoded.get("system_fingerprint")})
+            progress.update({"model_responses_completed": int(progress["model_responses_completed"]) + 1})
+        except Exception as error:
+            failures ← failures + 1
+            result.update({"status": "FAILED", "error": type(error).__name__})
+            progress.update({"transport_or_format_failures": failures})
+            if deadline > 0.0 and (float(time.monotonic()) >= deadline or str(error) == "owned-model-run-deadline-reached"):
+                stop_reason ← "owned-model-run-deadline-reached"
+                result.update({"diagnostic": stop_reason})
+        finally:
+            if connection != None:
+                connection.close()
+        result.update({"seconds": float(time.monotonic()) - started})
+        save(output + "/responses/" + str(job["id"]) + ".json", result)
+        print("Request " + str(attempted) + "/" + str(len(jobs)) + ": " + str(result["status"]) + "; seconds=" + str(result["seconds"]), flush=True)
+        if not transport_complete:
+            if stop_reason != "owned-model-run-deadline-reached":
+                stop_reason ← "transport-stopped"
+            break
+    state ∈ str ← "EXECUTED"
+    if attempted != len(jobs) or stop_reason == "owned-model-run-deadline-reached":
+        state ← "INCOMPLETE"
+    inference_receipt(output, manifest, progress, state, stop_reason)
+    print("Actual HTTP requests: " + str(attempted) + "; transport/format failures: " + str(failures))
+    if state != "EXECUTED":
+        return 3
+    return 0
+
+
+def local_json(path ∈ str, deadline ∈ float) → dict[str, Any]:
+    timeout ∈ float ← bounded_timeout(deadline, time.monotonic(), 10.0)
+    connection ∈ Any ← http.client.HTTPConnection("127.0.0.1", 11434, timeout=timeout)
+    try:
+        connection.request("GET", path)
+        response ∈ Any ← connection.getresponse()
+        raw ∈ bytes ← response.read(1048577)
+        if int(response.status) != 200 or len(raw) > 1048576:
+            raise ValueError("local runtime metadata request failed")
+        result ∈ dict[str, Any] ← json.loads(raw)
+        return result
+    finally:
+        connection.close()
+
+
+def checked_model(profile ∈ dict[str, Any], deadline ∈ float) → dict[str, Any]:
+    version ∈ dict[str, Any] ← local_json("/api/version", deadline)
+    if str(version.get("version")) != str(profile["ollama_version"]):
+        raise ValueError("Ollama runtime version differs from the frozen profile")
+    tags ∈ dict[str, Any] ← local_json("/api/tags", deadline)
+    models ∈ list[dict[str, Any]] ← tags["models"]
+    selected ∈ list[dict[str, Any]] ← []
+    for model in models:
+        if str(model.get("name")) == str(profile["ollama_model"]):
+            selected.append(model)
+    if len(selected) != 1 or str(selected[0].get("digest")) != str(profile["ollama_digest"]):
+        raise ValueError("Ollama model digest differs from the retained GPT-OSS pilot")
+    return {"runtime": version, "model": selected[0], "claim": "LOCAL_RUNTIME_REPORTED_DIGEST", "hf_weight_equivalence": "NOT_ATTESTED"}
+
+
+def retain_incomplete(output ∈ str, progress ∈ dict[str, Any], reason ∈ str) → int:
+    manifest ∈ dict[str, Any] ← load(output + "/manifest.json")
+    record ∈ dict[str, Any] ← load(output + "/model.json")
+    profile ∈ dict[str, Any] ← record["profile"]
+    if not Path(output + "/inference.json").is_file():
+        inference_receipt(output, manifest, progress, "INCOMPLETE", reason)
+    if not Path(output + "/local-execution.json").is_file():
+        save(output + "/local-execution.json", {"status": "INCOMPLETE", "reason": reason, "phase": progress["phase"], "deadline_seconds": 3300, "requests_sha256": manifest["requests_sha256"], "model_sha256": manifest["model_sha256"], "owned_server_pid": progress.get("owned_server_pid", 0), "runtime": profile.get("ollama_version"), "model_digest": profile.get("ollama_digest"), "identity_scope": "REQUESTED_PROFILE", "weight_identity": "NOT_VERIFIED", "hf_weight_equivalence": "NOT_ATTESTED"})
+    print("INCOMPLETE: " + reason + "; phase=" + str(progress["phase"]) + "; attempted=" + str(progress["requests_attempted"]) + "; completed HTTP responses=" + str(progress["http_responses_completed"]), flush=True)
+    return 3
+
+
+def ollama_owned(output ∈ str, executable ∈ str, deadline ∈ float, progress ∈ dict[str, Any]) → int:
+    model_record ∈ dict[str, Any] ← load(output + "/model.json")
+    profile ∈ dict[str, Any] ← model_record["profile"]
+    binary ∈ Any ← Path(executable)
+    if not binary.is_absolute() or not binary.is_file() or not os.access(executable, os.X_OK):
+        raise ValueError("an existing absolute Ollama executable is required")
+    if str(platform.system()) != "Linux" or str(platform.machine()) != "x86_64":
+        raise ValueError("this retained CPU pilot is qualified only for Linux x86_64")
+    if str(profile.get("hf_repo")) != "openai/gpt-oss-20b" or str(profile.get("ollama_model")) != "gpt-oss:20b":
+        raise ValueError("local pilot requires the distinct GPT-OSS-20B profile")
+    cache ∈ str ← os.environ.get("OLLAMA_MODELS", "")
+    if not cache or not Path(cache).is_absolute():
+        raise ValueError("explicit absolute temporary OLLAMA_MODELS cache is required")
+    Path(cache).mkdir(parents=True, exist_ok=True)
+    if int(shutil.disk_usage(cache).free) < 16000000000:
+        raise ValueError("fewer than 16 GB free for the explicitly requested model download")
+    environment ∈ dict[str, str] ← dict(os.environ)
+    for key in ["GH_TOKEN", "GITHUB_TOKEN", "MODEL_EVAL_API_KEY", "OLLAMA_API_KEY"]:
+        environment.pop(key, None)
+    environment.update({"OLLAMA_HOST": "127.0.0.1:11434", "OLLAMA_NUM_PARALLEL": "1", "OLLAMA_MAX_LOADED_MODELS": "1", "OLLAMA_CONTEXT_LENGTH": "8192", "OLLAMA_KEEP_ALIVE": "60m", "OLLAMA_NO_CLOUD": "1"})
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        probe.bind(("127.0.0.1", 11434))
+    save(output + "/host.json", {"system": platform.system(), "machine": platform.machine(), "release": platform.release(), "cpu_count": os.cpu_count(), "free_bytes_before_pull": shutil.disk_usage(cache).free, "context_tokens": 8192, "whole_run_deadline_seconds": 3300, "ollama_executable_sha256": hashlib.sha256(binary.read_bytes()).hexdigest()})
+    print("Starting isolated loopback Ollama; then downloading the declared GPT-OSS-20B weights to the temporary cache.", flush=True)
+    with Path(output + "/ollama.log").open("x") as server_log:
+        process ∈ Any ← None
+        try:
+            process ← subprocess.Popen([executable, "serve"], env=environment, stdout=server_log, stderr=subprocess.STDOUT)
+            progress.update({"owned_server_pid": int(process.pid), "phase": "runtime-readiness"})
+            ready ∈ bool ← False
+            for attempt in range(30):
+                process_status ∈ Any ← process.poll()
+                if process_status != None:
+                    raise ValueError("the owned Ollama process exited before readiness")
+                try:
+                    runtime ∈ dict[str, Any] ← local_json("/api/version", deadline)
+                    if str(runtime.get("version")) != str(profile["ollama_version"]):
+                        raise ValueError("unexpected loopback runtime version")
+                    ready ← True
+                    break
+                except OSError:
+                    time.sleep(bounded_timeout(deadline, time.monotonic(), 1.0))
+            if not ready:
+                raise ValueError("owned Ollama process did not become ready")
+            progress.update({"phase": "model-pull"})
+            with Path(output + "/model-pull.log").open("x") as pull_log:
+                pull_timeout ∈ float ← bounded_timeout(deadline, time.monotonic(), 600.0)
+                pulled ∈ Any ← subprocess.run([executable, "pull", profile["ollama_model"]], env=environment, stdout=pull_log, stderr=subprocess.STDOUT, timeout=pull_timeout)
+            process_status ← process.poll()
+            if int(pulled.returncode) != 0 or process_status != None:
+                raise ValueError("declared model download or owned server failed")
+            progress.update({"phase": "initial-model-pin"})
+            save(output + "/local-model-before.json", checked_model(profile, deadline))
+            os.environ.update({"MODEL_EVAL_BASE_URL": "http://127.0.0.1:11434/v1", "MODEL_EVAL_SERVED_MODEL": profile["ollama_model"]})
+            os.environ.pop("MODEL_EVAL_API_KEY", None)
+            print("Pinned model ready; starting frozen requests.", flush=True)
+            code ∈ int ← infer(output, deadline, progress)
+            progress.update({"phase": "final-model-pin"})
+            process_status ← process.poll()
+            if process_status != None:
+                raise ValueError("owned Ollama server exited during inference")
+            save(output + "/local-model-after.json", checked_model(profile, deadline))
+            manifest ∈ dict[str, Any] ← load(output + "/manifest.json")
+            state ∈ str ← "EXECUTED"
+            if code != 0:
+                state ← "INCOMPLETE"
+            save(output + "/local-execution.json", {"status": state, "requests_sha256": manifest["requests_sha256"], "model_sha256": manifest["model_sha256"], "owned_server_pid": int(process.pid), "runtime": profile["ollama_version"], "model_digest": profile["ollama_digest"], "weight_identity": "LOCAL_RUNTIME_REPORTED_DIGEST", "hf_weight_equivalence": "NOT_ATTESTED"})
+            return code
+        finally:
+            signal.setitimer(signal.ITIMER_REAL, 0.0)
+            if process != None:
+                process.terminate()
+                try:
+                    process.wait(timeout=15)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait(timeout=15)
+
+
+def ollama(output ∈ str, executable ∈ str) → int:
+    started ∈ float ← time.monotonic()
+    deadline ∈ float ← started + 3300.0
+    progress ∈ dict[str, Any] ← {"phase": "bootstrap", "requests_attempted": 0, "http_responses_completed": 0, "model_responses_completed": 0, "transport_or_format_failures": 0}
+    if str(platform.system()) != "Linux" or str(platform.machine()) != "x86_64":
+        raise ValueError("the owned-run deadline requires the declared Linux x86_64 target")
+    previous_timer ∈ Any ← signal.getitimer(signal.ITIMER_REAL)
+    if float(getitem(previous_timer, 0)) > 0.0 or float(getitem(previous_timer, 1)) > 0.0:
+        raise ValueError("another process alarm is already active; refusing to replace it")
+    previous_handler ∈ Any ← signal.getsignal(signal.SIGALRM)
+    signal.signal(signal.SIGALRM, deadline_expired)
+    try:
+        signal.setitimer(signal.ITIMER_REAL, bounded_timeout(deadline, time.monotonic(), 3300.0))
+        return ollama_owned(output, executable, deadline, progress)
+    except TimeoutError as error:
+        reason ∈ str ← timeout_reason(deadline, time.monotonic(), str(error))
+        return retain_incomplete(output, progress, reason)
+    except subprocess.TimeoutExpired:
+        pull_reason ∈ str ← timeout_reason(deadline, time.monotonic(), "")
+        if pull_reason == "operation-timeout":
+            pull_reason ← "model-bootstrap-timeout"
+        return retain_incomplete(output, progress, pull_reason)
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0.0)
+        signal.signal(signal.SIGALRM, previous_handler)
+
+
+def deadline_check() → None:
+    if bounded_timeout(100.0, 40.0, 300.0) != 60.0 or bounded_timeout(100.0, 40.0, 10.0) != 10.0 or bounded_timeout(0.0, 1000.0, 300.0) != 300.0:
+        raise ValueError("deadline remaining-time cap changed")
+    for now in [100.0, 101.0]:
+        rejected ∈ bool ← False
+        try:
+            bounded_timeout(100.0, now, 300.0)
+        except TimeoutError:
+            rejected ← True
+        if not rejected:
+            raise ValueError("expired deadline admitted more work")
+    alarm_rejected ∈ bool ← False
+    try:
+        deadline_expired(0, None)
+    except TimeoutError:
+        alarm_rejected ← True
+    if not alarm_rejected:
+        raise ValueError("owned-run alarm did not interrupt work")
+    if timeout_reason(100.0, 40.0, "timed out") != "operation-timeout" or timeout_reason(100.0, 100.0, "timed out") != "owned-model-run-deadline-reached" or timeout_reason(100.0, 40.0, "owned-model-run-deadline-reached") != "owned-model-run-deadline-reached":
+        raise ValueError("operation timeout was confused with the owned-run deadline")
+    print("HARNESS_ONLY deadline controls: synthetic HTTP client and clock; no network or model calls", flush=True)
+    clock ∈ Any ← None
+
+    def expire_connection() → None:
+        clock.configure_mock(return_value=100.0)
+
+    def expire_response() → Any:
+        clock.configure_mock(return_value=100.0)
+        deadline_expired(0, None)
+
+    expected ∈ dict[str, Any] ← {"expired": {"attempted": 0, "completed": 0, "code": 3}, "after-first": {"attempted": 1, "completed": 1, "code": 3}, "during-response": {"attempted": 1, "completed": 0, "code": 3}, "after-status": {"attempted": 1, "completed": 1, "model_completed": 0, "code": 3}, "complete": {"attempted": 2, "completed": 2, "code": 0}}
+    with tempfile.TemporaryDirectory(prefix="aici-deadline-control-") as temporary:
+        for scenario in expected:
+            output ∈ str ← str(temporary) + "/" + scenario
+            Path(output).mkdir()
+            Path(output + "/raw").mkdir()
+            Path(output + "/responses").mkdir()
+            model ∈ dict[str, Any] ← {"key": "fixture", "profile": {"hf_repo": "harness-only/fixture", "revision": "synthetic", "interface": "chat"}}
+            jobs ∈ list[dict[str, Any]] ← []
+            for seed in [17, 29]:
+                payload ∈ dict[str, Any] ← {"model": "harness-only/fixture", "messages": [{"role": "user", "content": "Synthetic timeout fixture."}], "seed": seed, "temperature": 0.2, "max_tokens": 128}
+                jobs.append({"id": digest(str(seed)), "request_sha256": digest(encoded(payload)), "payload": payload})
+            manifest ∈ dict[str, Any] ← {"count": 2, "requests_sha256": digest(encoded(jobs)), "model_sha256": digest(encoded(model))}
+            save(output + "/requests.json", jobs)
+            save(output + "/model.json", model)
+            save(output + "/manifest.json", manifest)
+            raw ∈ bytes ← encoded({"model": "harness-only/fixture", "choices": [{"finish_reason": "stop", "message": {"content": "Synthetic response; not model evidence."}}]}).encode()
+            original_hash ∈ Callable[[bytes], Any] ← hashlib.sha256
+            response_hashes ∈ dict[str, int] ← {"count": 0}
+
+            def interrupted_response_hash(value ∈ bytes) → Any:
+                if value == raw:
+                    response_hashes.update({"count": response_hashes["count"] + 1})
+                    if scenario == "after-status" and response_hashes["count"] == 2:
+                        expire_response()
+                return original_hash(value)
+
+            clock ← Mock(return_value=0.0)
+            transport ∈ Any ← Mock()
+            returned ∈ Any ← Mock(status=200)
+            returned.read.configure_mock(return_value=raw)
+            transport.getresponse.configure_mock(return_value=returned)
+            if scenario == "expired":
+                clock.configure_mock(return_value=100.0)
+            if scenario == "after-first":
+                transport.close.configure_mock(side_effect=expire_connection)
+            if scenario == "during-response":
+                transport.getresponse.configure_mock(side_effect=expire_response)
+            factory ∈ Any ← Mock(return_value=transport)
+            progress ∈ dict[str, Any] ← {}
+            with patch("time.monotonic", clock):
+                with patch("http.client.HTTPConnection", factory):
+                    with patch.dict(os.environ, {"MODEL_EVAL_BASE_URL": "http://127.0.0.1:11434/v1", "MODEL_EVAL_SERVED_MODEL": "harness-only/fixture", "MODEL_EVAL_API_KEY": ""}):
+                        with patch("hashlib.sha256", interrupted_response_hash):
+                            code ∈ int ← infer(output, 100.0, progress)
+            wanted ∈ dict[str, Any] ← expected[scenario]
+            receipt ∈ dict[str, Any] ← load(output + "/inference.json")
+            if code != wanted["code"] or receipt["requests_attempted"] != wanted["attempted"] or receipt["http_responses_completed"] != wanted["completed"] or int(receipt["model_responses_completed"]) != int(wanted.get("model_completed", wanted["completed"])):
+                raise ValueError("deadline control counts are wrong: " + scenario)
+            if int(transport.request.call_count) != int(wanted["attempted"]):
+                raise ValueError("deadline control started an undeclared extra request: " + scenario)
+            if int(wanted["attempted"]) > 0:
+                called_kwargs ∈ dict[str, Any] ← factory.call_args.kwargs
+                if float(called_kwargs["timeout"]) != 100.0:
+                    raise ValueError("HTTP timeout was not capped to the remaining whole-run budget")
+            if scenario != "complete" and (receipt["status"] != "INCOMPLETE" or receipt["stop_reason"] != "owned-model-run-deadline-reached"):
+                raise ValueError("partial deadline run was promoted to completed inference")
+            if scenario == "complete" and receipt["status"] != "EXECUTED":
+                raise ValueError("complete inference changed status")
+            if int(wanted["completed"]) > 0:
+                retained_raw ∈ bytes ← Path(output + "/raw/" + str(jobs[0]["id"]) + ".response.bin").read_bytes()
+                if retained_raw != raw:
+                    raise ValueError("deadline handling changed a completed raw response")
+            if scenario == "after-status":
+                interrupted_result ∈ dict[str, Any] ← load(output + "/responses/" + str(jobs[0]["id"]) + ".json")
+                if interrupted_result["status"] != "FAILED" or str(interrupted_result.get("error")) != "TimeoutError" or interrupted_result["text"] != "Synthetic response; not model evidence.":
+                    raise ValueError("post-status interruption retained EXECUTED or lost captured response text")
+            before ∈ bytes ← Path(output + "/inference.json").read_bytes()
+            progress.update({"phase": "final-model-pin"})
+            if retain_incomplete(output, progress, "synthetic-final-pin-timeout") != 3:
+                raise ValueError("final pin timeout was not incomplete")
+            after ∈ bytes ← Path(output + "/inference.json").read_bytes()
+            local ∈ dict[str, Any] ← load(output + "/local-execution.json")
+            if before != after or local["status"] != "INCOMPLETE":
+                raise ValueError("final pin timeout rewrote HTTP evidence or granted a local pass")
+        publication ∈ str ← str(temporary) + "/publication.json"
+        interrupted ∈ bool ← False
+        with patch("os.link", Mock(side_effect=TimeoutError("synthetic-publication-interruption"))):
+            try:
+                save(publication, {"status": "INCOMPLETE"})
+            except TimeoutError:
+                interrupted ← True
+        if not interrupted or Path(publication).exists():
+            raise ValueError("interrupted publication left a final receipt")
+        save(publication, {"status": "INCOMPLETE"})
+        published ∈ bytes ← Path(publication).read_bytes()
+        replaced ∈ bool ← False
+        try:
+            save(publication, {"status": "EXECUTED"})
+        except FileExistsError:
+            replaced ← True
+        retained ∈ bytes ← Path(publication).read_bytes()
+        if not replaced or retained != published:
+            raise ValueError("receipt publication replaced existing evidence")
+    print("HARNESS_ONLY_PASS deadline controls: expired start, expiry after one completed response, expiry during response, post-status interruption, full completion, raw preservation, incomplete final-pin marker, operation-timeout classification, and interrupted/no-replace publication; actual network/model calls ZERO")
+
+
+def main() → int:
+    raw_arguments ∈ list[str] ← sys.argv
+    args ∈ list[str] ← raw_arguments[1:]
+    if args == ["check"]:
+        payload ∈ dict[str, Any] ← {"messages": [{"role": "user", "content": "move repository"}], "temperature": 0.2, "seed": 17, "max_tokens": 256}
+        chat ∈ dict[str, Any] ← body_for(payload, "chat", "openai/gpt-oss-120b", "low")
+        completion ∈ dict[str, Any] ← body_for(payload, "completion", "EleutherAI/pythia-12b-deduped", "")
+        if contains(chat, "prompt") or contains(completion, "messages") or contains(encoded(chat), "expected"):
+            raise ValueError("chat/completion separation or oracle exclusion failed")
+        print("PASS GPT-OSS chat/Pythia completion request construction; inference NOT_RUN")
+        deadline_check()
+        return 0
+    if len(args) == 2 and args[0] == "run":
+        return infer(args[1], 0.0, {})
+    if len(args) == 3 and args[0] == "ollama":
+        return ollama(args[1], args[2])
+    raise ValueError("usage: infer-http.pi check | run PREPARED_DIRECTORY | ollama PREPARED_DIRECTORY ABSOLUTE_OLLAMA_EXECUTABLE")
+
+namespace ∈ dict[str, Any] ← globals()
+module_name ∈ str ← namespace.get("__name__", "")
+if module_name == "__main__":
+    sys.exit(main())
