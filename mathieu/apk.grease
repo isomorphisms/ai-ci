@@ -47,9 +47,11 @@ for abi in armeabi-v7a arm64-v8a x86_64 {
     test "$package" = org.isomorphisms.mathieu
     grep -Fq "versionCode='1'" "$stem.badging"
     grep -Fq "versionName='0.1.0-development'" "$stem.badging"
-    grep -Fq "sdkVersion:'26'" "$stem.badging"
+    var minimum_sdk = "$(awk -F "'" '/^(minSdkVersion|sdkVersion):/ {print $2}' "$stem.badging" | sort -u)"
+    test "$minimum_sdk" = 26
     grep -Fq "targetSdkVersion:'35'" "$stem.badging"
-    grep -Fq "application-label:'Mathieu'" "$stem.badging"
+    var label = "$(awk -F "'" '/^application-label:/ {print $2} /^application: label=/ {print $2}' "$stem.badging" | sort -u)"
+    test "$label" = Mathieu
     grep -Fq "launchable-activity: name='android.app.NativeActivity'" "$stem.badging"
     if grep -Fq android.permission.INTERNET "$stem.badging" { echo 'network permission not admitted' >&2; exit 1 }
     "$build_tools/apksigner" verify --verbose --print-certs "$apk" > "$stem.certificates" 2>&1
