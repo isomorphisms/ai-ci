@@ -7,6 +7,15 @@ import {spawnSync, execFileSync} from 'node:child_process';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 
+// Independently pinned original QR object words, never used by the encoder.
+const pinnedOriginalWords = [
+  'e92d4ff0','e1a06003','e592c000','e24dd04c','e5914000',
+  'e1a03002','e1a0a001','e1cc8fcc','e59dc074','e1c44fc4',
+  'e59d2084','e58dc000','e59dc088','e58d2004','e58dc00c',
+  'e59d208c','e59dc090','e58d2008','e1a02001','e58dc010',
+  'e58d0028','e58d302c','e58d8038'
+];
+const pinnedOracle = pinnedOriginalWords.map((word,index)=>[index*4,word]);
 const wordPattern = /^[0-9a-f]{8}$/;
 function assertWords(emitted, oracle) {
   assert.equal(emitted.length, 23, 'exactly 23 emitted words are required');
@@ -103,6 +112,8 @@ function main() {
     return parts ? [parseInt(parts[1],16),parts[2].toLowerCase()] : null;
   }).filter(row=>row && row[0]<=0x58);
   assert.equal(oracle.length,23,'Original archived object must have 23 machine instructions');
+  assert.deepEqual(oracle,pinnedOracle,
+    'Original QR object bytes do not match independent AI-CI oracle');
   for(let index=0;index<23;index++) {
     assert.equal(oracle[index][0],index*4,'Original QR byte address changed');
     const sentence=sentences[index].match(/^At byte offset 0x([0-9a-f]+),/);
