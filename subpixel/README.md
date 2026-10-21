@@ -130,18 +130,21 @@ The continuous comparison reuses the independent Bernstein bounds at scales
 not apply to the exact image/mask/count round trip. Legacy stroke pixels have
 no mask evidence and are not claimed accepted by this gate.
 
-Twelve genuine compiled source defects must execute and fail for their intended
+Thirteen genuine compiled source defects must execute and fail for their intended
 diagnostic with unchanged oracle expectations. Ten change the preview:
 bitmap row reversal, lost S control, corner sampling phase, missing microcell
 edges, transposed bits, bitmap substitution, binary stamping, invented counts,
-transposed fine-grid image and hardcoded strategy. Two change the actual path
-library: additive union and ignored work cap. The latter use the unchanged
+transposed fine-grid image and hardcoded strategy. Three change the actual path
+library: additive union, ignored work cap and packed destination stride. The latter use the unchanged
 408-assertion API oracle, because a single preview call into an empty plane
 cannot distinguish first-call addition from OR. Every scope has an unchanged
-positive twin. Four additional malformed file inventories must reject.
+positive twin. Nine additional corrupt file inventories must reject: missing
+or additional rows, short/long P6 bytes, wrong totals/hash, wrong native or
+enlarged grayscale and a nonbinary sample pixel. These directly attack the
+metadata and resolved-image checks as well as parsing.
 
 Targeted preview source mutations use a declared one-panel matrix, not a claim
-of twelve full-matrix repetitions. The original forced-binary fixture refused
+of thirteen full-matrix repetitions. The original forced-binary fixture refused
 in the producer's own fractional-cell guard and was not counted as a kill;
 its corrected deliberately broken source also removes that guard so the
 independent oracle observes the emitted bad bits. See

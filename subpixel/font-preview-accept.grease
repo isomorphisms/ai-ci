@@ -151,9 +151,11 @@ path_mutant additive-union '                destination->occupied[y*destination-
     '                destination->occupied[y*destination->stride_words+x]+=workspace->candidate[y*width+x];' 'FAIL idempotence masks'
 path_mutant ignored-work-cap '    if(samples>c->options->max_sample_tests-c->report.sample_tests) return CP_PATH_BUDGET;' \
     '    if(0 && samples>c->options->max_sample_tests-c->report.sample_tests) return CP_PATH_BUDGET;' 'FAIL sample budget'
+path_mutant packed-stride '                destination->occupied[y*destination->stride_words+x]|=workspace->candidate[y*width+x];' \
+    '                destination->occupied[y*width+x]|=workspace->candidate[y*width+x];' 'FAIL stride padding preserved'
 
 # File-level malformed inventories are distinct from compiled source defects.
-for defect in missing-row extra-row extra-pixel truncated-pixel {
+for defect in missing-row extra-row extra-pixel truncated-pixel metric-count metric-hash native-gray enlarged-gray nonbinary-sample {
     var directory = "$output/file-$defect"
     mkdir "$directory"
     cp -a "$output/control/." "$directory/"
@@ -162,13 +164,31 @@ for defect in missing-row extra-row extra-pixel truncated-pixel {
         extra-row) printf 'extra\n' >> "$directory/font-masks.tsv" ;;
         extra-pixel) printf 'x' >> "$directory/font-1x-origin-minus-eighth-black-on-white.ppm" ;;
         truncated-pixel) truncate -s -1 "$directory/font-1x-origin-minus-eighth-black-on-white.ppm" ;;
+        metric-count)
+            awk -F '\t' 'BEGIN{OFS="\t"} NR==2{$21=$21+1} {print}' "$directory/font-metrics.tsv" > "$directory/changed.tsv"
+            mv "$directory/changed.tsv" "$directory/font-metrics.tsv" ;;
+        metric-hash)
+            awk -F '\t' 'BEGIN{OFS="\t"} NR==2{$23="0000000000000000"} {print}' "$directory/font-metrics.tsv" > "$directory/changed.tsv"
+            mv "$directory/changed.tsv" "$directory/font-metrics.tsv" ;;
+        native-gray|enlarged-gray|nonbinary-sample)
+            var image = "$directory/font-1x-origin-minus-eighth-black-on-white.ppm"
+            var header_size = int("$(head -n 3 "$image" | wc -c)")
+            var pixel_index = 4 * 580 + 102
+            if (defect === 'enlarged-gray') { setvar pixel_index = 4 * 580 + 58 }
+            if (defect === 'nonbinary-sample') { setvar pixel_index = 5 * 580 + 5 }
+            printf '\001\001\001' | dd "of=$image" bs=1 "seek=$[header_size + 3 * pixel_index]" conv=notrunc status=none ;;
     esac
     var diagnostic = 'exact P6 payload and no trailing bytes'
     if (defect === 'missing-row') { setvar diagnostic = 'complete ordered TSV inventory' }
     if (defect === 'extra-row') { setvar diagnostic = 'no missing or additional TSV rows' }
+    if (defect === 'metric-count' or defect === 'metric-hash') { setvar diagnostic = 'metric totals, fractional cells and hash derive from masks' }
+    if (defect === 'native-gray') { setvar diagnostic = 'native resolve derives from mask count' }
+    if (defect === 'enlarged-gray') { setvar diagnostic = 'enlarged resolve derives from mask count' }
+    if (defect === 'nonbinary-sample') { setvar diagnostic = 'fine grid contains binary sample decisions' }
     reject "$directory" "$diagnostic"
+    printf 'file_mutant\t%s\tREJECTED\n' "$defect" >> "$output/file-mutations.tsv"
 }
 sha256sum "$compiler" "$frontend" "$preview_source" "$source_root/font_verify.c" \
     "$source_root/path_verify.c" "$source_root/font-preview-accept.grease" > "$output/input-materials.sha256"
 find "$output" -type f '!' -name materials.sha256 -exec sha256sum '{}' '+' > "$output/materials.sha256"
-printf '\033[32mPASS\033[0m actual font preview, twelve compiled source defects and four malformed inventories\n'
+printf '\033[32mPASS\033[0m actual font preview, thirteen compiled source defects and nine corrupt file inventories\n'

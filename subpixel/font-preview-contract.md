@@ -33,8 +33,11 @@ Required changed sources: reversed bitmap rows; lost S control; corner phase;
 missing last microcell row/column; transposed bits; bitmap substituted for
 continuous masks; forced binary coverage; invented printed counts; transposed
 fine-grid image only; hardcoded strategy; arithmetic addition replacing mask
-union; ignored work cap. Preserve source, successful execution and rejection logs for each.
-Also reject missing/trailing TSV/P6 data through explicit file corruptions.
+union; ignored work cap; packed rather than actual destination stride.
+Preserve source, successful execution and rejection logs for each.
+Nine corrupt file controls must reject: missing/trailing TSV rows,
+trailing/truncated P6 payload, invented metric totals, wrong metric hash,
+incorrect native and enlarged grayscale pixels, nonbinary fine-grid pixel.
 
 Build both checker and real preview through ICK, invoke the gate through the
 source-built Ike `font-preview` target and verify its exact target/recipe receipt.
@@ -51,3 +54,13 @@ not a semantic oracle kill. The corrected fixture changes that guard too, only
 in this deliberately broken source, allowing its binary masks to be emitted.
 Oracle/expectations remain unchanged. The first Grease syntax check also
 rejected a double-quoted backslash-n; actual multiline strings replace it.
+
+## Acceptance-fixture audit
+
+The initial twelve-source/four-file gate passed the complete registered host
+route at https://github.com/isomorphisms/flexible-pipes/actions/runs/39655486449.
+Review then found that its newly asserted metric totals/hash and resolved
+grayscale equality lacked direct bad-file controls. The added five controls
+target those assertions separately; the requested stale-stride source defect
+also now has an actual compiled fixture. This is strengthened acceptance,
+not a failure of the already passed producer behavior.
