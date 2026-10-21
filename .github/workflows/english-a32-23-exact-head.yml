@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           repository: dilapidated-shed/English-major-C
-          ref: aa3446a8cd312a9288b570b135b5b5b0883efd43
+          ref: cd98fa8d360941c4c9e1e660605477f0b651b564
           path: producer
           persist-credentials: false
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
@@ -43,11 +43,11 @@ jobs:
         working-directory: producer
         env:
           A32_BINARY: ${{ github.workspace }}/producer/build/exec/english-a32
-          EXPECTED_SOURCE_SHA: aa3446a8cd312a9288b570b135b5b5b0883efd43
+          EXPECTED_SOURCE_SHA: cd98fa8d360941c4c9e1e660605477f0b651b564
         run: node --test research/a32-typed/test-a32.mjs
       - name: Independent AI-CI verifier against original QR evidence and hostile mutations
         env:
-          EXPECTED_SOURCE_SHA: aa3446a8cd312a9288b570b135b5b5b0883efd43
+          EXPECTED_SOURCE_SHA: cd98fa8d360941c4c9e1e660605477f0b651b564
         run: |
           node english-major-c/verify-a32-23.mjs \
             "$GITHUB_WORKSPACE/producer/build/exec/english-a32" \
