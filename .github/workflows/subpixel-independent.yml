@@ -194,6 +194,29 @@ jobs:
           printf '%s  %s\n' 7e31cd05b7a9d8fb2a4a9e003a7f3fcb0159138506d17f0fb28da8cbe22aa85c .grease/bin/ysh | sha256sum -c -
           chmod 755 .grease/bin/grease .grease/bin/ysh
 
+      - name: Independently decode actual font preview output and reject source defects
+        shell: '/usr/bin/env .grease/bin/grease {0}'
+        env:
+          ASAN_OPTIONS: detect_leaks=0
+        run: |
+          set -o errexit -o nounset -o pipefail
+          var workspace = ENV.GITHUB_WORKSPACE
+          cd "$workspace/subpixel"
+          var identity = "sha256:$(sha256sum Ikefile | cut -d ' ' -f1)"
+          var receipt = "$workspace/subpixel/build/font-preview-ike.tsv"
+          env -u IKE_RECIPE_RUNNER ICK_SOURCE_DIR="$workspace/ick-toolchain" \
+            ICK_CC="$workspace/ick-toolchain/stage/bin/x86_64-linux-gnu-gcc" \
+            LEAF_ROOT="$workspace/producer" HOST_LINKER=/usr/bin/x86_64-linux-gnu-gcc \
+            GREASE_BINARY="$workspace/.grease/bin/grease" \
+            IKE_IKEFILE_IDENTITY="$identity" IKE_RECEIPT="$receipt" \
+            "$workspace/.owned/ike" font-preview
+          ./build/font-preview/receipt-check "$receipt" "$identity" font-preview '"$GREASE_BINARY" font-preview-accept.grease'
+          awk -F '\t' '{if ($1 == "selected_target_hex") print "selected_target_hex\t00"; else print}' \
+            "$receipt" > build/font-preview-bad-target.tsv
+          try { ./build/font-preview/receipt-check build/font-preview-bad-target.tsv "$identity" font-preview '"$GREASE_BINARY" font-preview-accept.grease' > build/font-preview-bad-target.log 2>&1 }
+          if (_error.code !== 1) { echo 'forged font-preview target accepted' >&2; exit 1 }
+          grep -Fq 'AICI_SUBPIXEL_RECEIPT_REJECT selected target' build/font-preview-bad-target.log
+
       - name: Independently accept Conway geometry, masks and actual native pixels
         shell: '/usr/bin/env .grease/bin/grease {0}'
         env:
@@ -217,7 +240,7 @@ jobs:
           if (_error.code !== 1) { echo 'forged Conway target accepted' >&2; exit 1 }
           grep -Fq 'AICI_SUBPIXEL_RECEIPT_REJECT selected target' build/conway-bad-target.log
 
-      - name: Retain source-bound independent Conway evidence
+      - name: Retain source-bound independent font and Conway evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
@@ -226,4 +249,7 @@ jobs:
             subpixel/build/conway/
             subpixel/build/conway-ike.tsv
             subpixel/build/conway-bad-target.log
+            subpixel/build/font-preview/
+            subpixel/build/font-preview-ike.tsv
+            subpixel/build/font-preview-bad-target.log
           if-no-files-found: warn

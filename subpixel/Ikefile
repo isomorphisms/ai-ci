@@ -5,3 +5,6 @@ accept depends on accept.sh verify.c receipt_check.c path_verify.c font_verify.c
 
 conway depends on conway-accept.grease conway_verify.c conway-probes.pattern
     "$GREASE_BINARY" conway-accept.grease
+
+font-preview depends on font-preview-accept.grease font_verify.c path_verify.c font-preview-contract.md
+    "$GREASE_BINARY" font-preview-accept.grease

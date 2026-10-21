@@ -112,3 +112,39 @@ The retained Idriç attempt records the observed package's missing explicit
 Float64 type. The ICK-compiled C-ABI oracle is a declared fallback, not Idriç
 success. Conway host acceptance does not establish device behavior, protected
 production admission or model dispatch.
+
+## Read the actual font preview bytes
+
+The `font-preview` Ike target executes `font-preview-accept.grease`. It compiles
+the real immutable producer preview and this same independent font oracle with
+ICK, then reads every completed output: 32 P6 panels, 640 metric records and
+105,344 masks. It decodes 6,742,016 fine-grid pixels into the actual masks and
+checks printed counts, enlarged/native resolved pixels, totals, fractional
+cells and FNV identities exactly. Four literal bitmap controls supply exact
+rectangle membership independently of the producer's bitmap accessor.
+
+The continuous comparison reuses the independent Bernstein bounds at scales
+1/1.5/2/4, all four emitted origins and both polarities. Its predeclared
+1/64-pixel boundary strip is reported separately: the positive inventory has
+5,015,040 definite samples and 41,472 excluded samples. These exclusions do
+not apply to the exact image/mask/count round trip. Legacy stroke pixels have
+no mask evidence and are not claimed accepted by this gate.
+
+Twelve genuine compiled source defects must execute and fail for their intended
+diagnostic with unchanged oracle expectations. Ten change the preview:
+bitmap row reversal, lost S control, corner sampling phase, missing microcell
+edges, transposed bits, bitmap substitution, binary stamping, invented counts,
+transposed fine-grid image and hardcoded strategy. Two change the actual path
+library: additive union and ignored work cap. The latter use the unchanged
+408-assertion API oracle, because a single preview call into an empty plane
+cannot distinguish first-call addition from OR. Every scope has an unchanged
+positive twin. Four additional malformed file inventories must reject.
+
+Targeted preview source mutations use a declared one-panel matrix, not a claim
+of twelve full-matrix repetitions. The original forced-binary fixture refused
+in the producer's own fractional-cell guard and was not counted as a kill;
+its corrected deliberately broken source also removes that guard so the
+independent oracle observes the emitted bad bits. See
+`font-preview-contract.md` for the fixed requirements and preserved failure.
+The workflow verifies the third exact Ike target/recipe and rejects a forged
+target. Registered FP and physical evidence remain separately bound.

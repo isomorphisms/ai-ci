@@ -56,6 +56,18 @@ No RefC or generated-C route was used. This is a result for the recorded
 
 ## Fallback and language work
 
+The emitted-font extension has the same blocked explicit-precision/native-ABI
+boundary and reuses this preserved Idriç attempt rather than inventing a second
+language implementation. Its domains are literal bitmap cells, screen samples,
+curve membership with an explicit Boundary result, serialized 64-sample sets,
+decoded P6 pixels and counts. Pure operations are midpoint membership,
+popcount, mask/image round trip and rational grayscale resolution; actions read
+the bounded ordered TSV/P6 inventory and fail on disagreement. See
+`subpixel/font-preview-contract.md` for requirements fixed before the Grease
+driver and adversarial source fixtures. The existing ICK ordinary-C oracle is
+extended, not replaced by Python, Node, RefC or generated C. Its executed result
+remains separate from Idriç capability evidence.
+
 The requested explicit precision primitive is unavailable in this package.
 Retain the failed Idriç source and implement the native acceptance slice as
 `subpixel/conway_verify.c` within the established ICK-compiled C-ABI oracle
