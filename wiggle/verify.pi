@@ -1,0 +1,449 @@
+"""Independent input, arithmetic and decoded-pixel checks. Imports no FP producer code."""
+import csv
+import hashlib
+import json
+import math
+import struct
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+from builtins import list, dict, ValueError, abs, round
+
+def require(success ∈ bool, code ∈ str) → None:
+    if not success:
+        raise ValueError(code)
+
+def table(path ∈ object) → list[list[str]]:
+    result ∈ list[list[str]] ← []
+    with Path(path).open(newline='') as source:
+        records ∈ list[object] ← list(csv.reader(source,delimiter='\t'))
+        for record in records:
+            row ∈ list[str] ← list(record)
+            if len(row) > 0 and not bool(row[0].startswith('#')):
+                result.append(row)
+    return result
+
+def pairs(path ∈ object) → dict[str,str]:
+    result ∈ dict[str,str] ← {}
+    for row in table(path):
+        require(len(row) == 2 and not bool(result.__contains__(row[0])),'MANIFEST_KEYS')
+        result[row[0]] ← row[1]
+    return result
+
+def sha(path ∈ object) → str:
+    result ∈ object ← hashlib.sha256()
+    with Path(path).open('rb') as source:
+        block ∈ bytes ← source.read(1048576)
+        while len(block) > 0:
+            result.update(block)
+            block ← source.read(1048576)
+    return result.hexdigest()
+
+def command(arguments ∈ list[object]) → bytes:
+    argv ∈ list[str] ← []
+    for argument in arguments:
+        argv.append(str(argument))
+    return subprocess.run(argv,check=True,capture_output=True).stdout
+
+def coordinates(text ∈ str) → list[float]:
+    result ∈ list[float] ← []
+    parts ∈ list[str] ← list(text.split(','))
+    for part in parts:
+        value ∈ float ← float(part)
+        require(bool(math.isfinite(value)),'FINITE_COORDINATE')
+        result.append(value)
+    return result
+
+def expected(directory ∈ object, index ∈ int, fps ∈ int) → dict[str,str]:
+    result ∈ dict[str,str] ← {}
+    events ∈ list[list[str]] ← table(directory.joinpath('events.tsv'))
+    for control in table(directory.joinpath('controls.tsv')):
+        path ∈ str ← control[0]
+        before_time ∈ int ← 0
+        before ∈ str ← control[6]
+        after_time ∈ int ← -1
+        after ∈ str ← before
+        for event in events:
+            if event[2] == path:
+                time ∈ int ← int(event[0])
+                if time * fps <= index * 1000000000:
+                    before_time ← time
+                    before ← event[3]
+                elif after_time < 0:
+                    after_time ← time
+                    after ← event[3]
+        if control[2] == 'linear' and after_time >= 0:
+            left ∈ list[float] ← coordinates(before)
+            right ∈ list[float] ← coordinates(after)
+            weight ∈ float ← (index * 1000000000 - before_time * fps) / ((after_time - before_time) * fps)
+            text_parts ∈ list[str] ← []
+            for component in range(len(left)):
+                text_parts.append(str(left[component] + (right[component] - left[component]) * weight))
+            result[path] ← ','.join(text_parts)
+        else:
+            result[path] ← before
+    return result
+
+def verify_resolved(directory ∈ object, leaf ∈ object, count ∈ int, fps ∈ int) → None:
+    trace ∈ list[list[str]] ← table(leaf.joinpath('resolved.tsv'))
+    controls ∈ list[list[str]] ← table(directory.joinpath('controls.tsv'))
+    require(len(trace) == count * len(controls),'TRACE_COUNT')
+    offset ∈ int ← 0
+    for index in range(count):
+        wanted ∈ dict[str,str] ← expected(directory,index,fps)
+        for control in controls:
+            row ∈ list[str] ← trace[offset]
+            require(int(row[0]) == index and row[1] == str(index) + '/' + str(fps) and row[2] == control[0],'TRACE_ORDER')
+            if control[1] == 'event':
+                require(row[3] == wanted[control[0]],'EVENT_TRACE')
+            else:
+                actual ∈ list[float] ← coordinates(row[3])
+                target ∈ list[float] ← coordinates(wanted[control[0]])
+                require(len(actual) == len(target),'TRACE_SHAPE')
+                for component in range(len(actual)):
+                    error ∈ float ← abs(actual[component] - target[component])
+                    require(error < 1e-8,'TRACE_INTERPOLATION')
+            offset ← offset + 1
+
+def ppm(path ∈ object, width ∈ int, height ∈ int) → bytes:
+    require(not bool(Path(path).is_symlink()) and bool(Path(path).is_file()),'SOURCE_FRAME_REGULAR')
+    parts ∈ list[bytes] ← Path(path).read_bytes().split(b'\n',3)
+    require(len(parts) == 4 and parts[0] == b'P6' and parts[2] == b'255','PPM_HEADER')
+    geometry ∈ str ← '{} {}'.format(width,height)
+    require(parts[1] == bytes(geometry.encode()) and len(parts[3]) == width * height * 3,'PPM_DIMENSIONS')
+    return parts[3]
+
+def hcl(value ∈ complex) → list[int]:
+    phase ∈ float ← math.atan2(value.imag,value.real)
+    magnitude ∈ float ← abs(value)
+    if magnitude < 1e-12:
+        magnitude ← 1e-12
+    turn ∈ float ← phase / (2 * float(math.pi))
+    hue ∈ float ← 360 * (turn - float(math.floor(turn)))
+    band ∈ float ← float(math.log(magnitude)) / float(math.log(10))
+    lightness ∈ float ← 66 + 4 * (band - float(math.floor(band))) + 3 * (hue / 100 - float(math.floor(hue / 100)))
+    angle ∈ float ← hue * float(math.pi) / 180
+    y ∈ float ← ((lightness + 16) / 116) ** 3
+    u ∈ float ← 45 * float(math.cos(angle)) / (13 * lightness) + 0.19783982482140777
+    v ∈ float ← 45 * float(math.sin(angle)) / (13 * lightness) + 0.46833630293240974
+    x ∈ float ← 9 * y * u / (4 * v)
+    z ∈ float ← y * (12 - 3 * u - 20 * v) / (4 * v)
+    linear ∈ list[float] ← [3.2404542*x-1.5371385*y-0.4985314*z,-0.9692660*x+1.8760108*y+0.0415560*z,0.0556434*x-0.2040259*y+1.0572252*z]
+    colors ∈ list[int] ← []
+    for channel in linear:
+        if channel < 0:
+            channel ← 0.0
+        color ∈ float ← 12.92 * channel
+        if channel > 0.0031308:
+            color ← 1.055 * channel ** (1 / 2.4) - 0.055
+        if color > 1:
+            color ← 1.0
+        colors.append(int(round(color * 255)))
+    return colors
+
+def check_pixel(pixels ∈ bytes, width ∈ int, x ∈ int, y ∈ int, value ∈ complex, tolerance ∈ int) → None:
+    color ∈ list[int] ← hcl(value)
+    for channel in range(3):
+        error ∈ int ← abs(int(pixels[3 * (y * width + x) + channel]) - color[channel])
+        require(error <= tolerance,'MATHEMATICAL_PIXEL')
+
+def verify_mathieu(directory ∈ object, leaf ∈ object, count ∈ int, fps ∈ int) → None:
+    # Independently transcribed ATLAS cycles; products act on the right.
+    cycles ∈ list[list[list[int]]] ← [[[1,4],[2,7],[3,17],[5,13],[6,9],[8,15],[10,19],[11,18],[12,21],[14,16],[20,24],[22,23]],[[1,4,6],[2,21,14],[3,9,15],[5,18,10],[13,17,16],[19,24,23]]]
+    generators ∈ list[list[int]] ← []
+    for description in cycles:
+        images ∈ list[int] ← list(range(24))
+        for cycle in description:
+            for position in range(len(cycle)):
+                images[cycle[position] - 1] ← cycle[(position + 1) % len(cycle)] - 1
+        generators.append(images)
+    current ∈ list[int] ← list(range(24))
+    events ∈ list[list[str]] ← table(directory.joinpath('events.tsv'))
+    checkpoints ∈ list[list[str]] ← table(leaf.joinpath('checkpoints.tsv'))
+    require(len(checkpoints) == count,'MATHIEU_CHECKPOINT_COUNT')
+    cursor ∈ int ← 0
+    frame ∈ int ← 0
+    duration ∈ int ← 0
+    paused ∈ int ← 0
+    selected ∈ int ← 0
+    for index in range(count):
+        if index > 0 and paused != 2 and frame < duration:
+            frame ← frame + 1
+        while cursor < len(events) and int(events[cursor][0]) * fps <= index * 1000000000:
+            action ∈ str ← events[cursor][3]
+            if action == 'pause':
+                paused ← 2
+            elif action == 'resume':
+                paused ← 0
+            elif bool(action.startswith('select:')):
+                selected ← selected ^ (1 << int(action[7:]))
+            else:
+                require(frame >= duration,'MATHIEU_OVERLAPPING_ACTION')
+                generator_index ∈ int ← 0
+                cycle_count ∈ int ← 12
+                if action == 'b' or action == 'B':
+                    generator_index ← 1
+                    cycle_count ← 6
+                motion ∈ list[int] ← list(generators[generator_index])
+                if action == 'A' or action == 'B':
+                    inverse ∈ list[int] ← list(range(24))
+                    for point in range(24):
+                        inverse[motion[point]] ← point
+                    motion ← inverse
+                next_images ∈ list[int] ← []
+                for image in current:
+                    next_images.append(motion[image])
+                current ← next_images
+                next_selected ∈ int ← 0
+                for point in range(24):
+                    if selected & (1 << point):
+                        next_selected ← next_selected | (1 << motion[point])
+                selected ← next_selected
+                frame ← 0
+                duration ← cycle_count * 12
+            cursor ← cursor + 1
+        actual ∈ list[str] ← checkpoints[index]
+        require(int(actual[0]) == index and int(actual[1]) == frame and int(actual[2]) == duration and int(actual[3]) == paused and int(actual[4]) == selected,'MATHIEU_PAUSE_STATE')
+        observed ∈ list[float] ← coordinates(actual[5])
+        for point in range(24):
+            require(int(observed[point]) == current[point],'MATHIEU_EXACT_PERMUTATION')
+    hashes ∈ list[list[str]] ← table(leaf.joinpath('frames-sha256.tsv'))
+    require(hashes[42][2] == hashes[53][2],'MATHIEU_PAUSED_PIXELS')
+    require(hashes[54][2] != hashes[70][2],'MATHIEU_RESUMED_PIXELS')
+
+def verify_presentation(directory ∈ object, leaf ∈ object, manifest ∈ dict[str,str]) → None:
+    require(manifest['controls_visible'] == 'false','CONTROLS_DISABLED')
+    count ∈ int ← int(manifest['frames'])
+    hashes ∈ list[list[str]] ← table(leaf.joinpath('frames-sha256.tsv'))
+    cursor ∈ int ← 0
+    movement ∈ bool ← False
+    for section in table(directory.joinpath('motion-plan.tsv')):
+        require(len(section) == 4,'MOTION_PLAN_SCHEMA')
+        start ∈ int ← int(section[0])
+        end ∈ int ← int(section[1])
+        require(start == cursor and end > start + 1 and end <= count,'MOTION_PLAN_COVERAGE')
+        require(bool(['hold','move','source'].__contains__(section[2])) and len(section[3].strip()) > 0,'MOTION_PLAN_INTENT')
+        changed ∈ bool ← False
+        for index in range(start + 1,end):
+            if hashes[index][2] != hashes[start][2]:
+                changed ← True
+        if section[2] == 'hold':
+            require(not changed,'MOTION_PLAN_HOLD')
+        else:
+            require(changed,'MOTION_PLAN_MOVEMENT')
+            movement ← True
+        cursor ← end
+    require(cursor == count and movement,'MOTION_PLAN_COVERAGE')
+    if manifest['producer'] == 'mathieu':
+        width ∈ int ← int(manifest['width'])
+        height ∈ int ← int(manifest['height'])
+        require(width == height,'MATHIEU_SCENE_VIEWPORT')
+        # The fitted full scene has paper margins. The old interactive raster
+        # places its title in this band; this rejects a relabeled UI capture.
+        for index in range(count):
+            path ∈ object ← leaf.joinpath('frames','frame-{:06d}.ppm'.format(index))
+            pixels ∈ bytes ← ppm(path,width,height)
+            for offset in range(width * 16):
+                require(pixels[offset * 3:offset * 3 + 3] == b'\xf3\xee\xdf','MATHIEU_CONTROL_FREE_VIEWPORT')
+
+def float32(value ∈ float) → float:
+    unpacked ∈ list[float] ← list(struct.unpack('<f',struct.pack('<f',value)))
+    return unpacked[0]
+
+def verify_florence(directory ∈ object, leaf ∈ object, count ∈ int) → None:
+    source ∈ bytes ← leaf.joinpath('source.ogg').read_bytes()
+    original ∈ str ← hashlib.sha1(source).hexdigest()
+    require(original == '5de570b67b20f4e2932fb960b3e3b0f071981544','FLORENCE_ORIGINAL')
+    raw ∈ bytes ← leaf.joinpath('audio.s16').read_bytes()
+    splice ∈ str ← '[0:a]atrim=start=0.250000:end=23.504400,asetpts=PTS-STARTPTS[a];[0:a]atrim=start=51.074600:end=58.493900,asetpts=PTS-STARTPTS[b];[a][b]concat=n=2:v=0:a=1[out]'
+    with tempfile.TemporaryDirectory(prefix='aici-florence-') as temporary:
+        splice_file ∈ object ← Path(temporary).joinpath('original-splice.flac')
+        command(['ffmpeg','-v','error','-i',leaf.joinpath('source.ogg'),'-filter_complex',splice,'-map','[out]','-c:a','flac',splice_file])
+        reconstructed ∈ bytes ← command(['ffmpeg','-v','error','-i',splice_file,'-ac','1','-ar','48000','-f','s16le','-'])
+    require(raw == reconstructed,'FLORENCE_SOURCE_WAVEFORM')
+    preserved ∈ bytes ← command(['ffmpeg','-v','error','-i',leaf.joinpath('audio.flac'),'-ac','1','-ar','48000','-f','s16le','-'])
+    require(raw == preserved,'FLORENCE_PRESERVED_AUDIO')
+    samples ∈ list[int] ← list(struct.unpack('<' + str(len(raw) // 2) + 'h',raw))
+    movie_audio ∈ bytes ← command(['ffmpeg','-v','error','-i',leaf.joinpath('movie.candidate.mp4'),'-map','0:a:0','-ac','1','-ar','48000','-f','s16le','-'])
+    decoded ∈ list[int] ← list(struct.unpack('<' + str(len(movie_audio) // 2) + 'h',movie_audio))
+    require(len(decoded) >= len(samples) and len(decoded) < len(samples) + 9600,'FLORENCE_AUDIO_LENGTH')
+    cross ∈ float ← 0.0
+    source_energy ∈ float ← 0.0
+    decoded_energy ∈ float ← 0.0
+    for position in range(0,len(samples),97):
+        cross ← cross + samples[position] * decoded[position]
+        source_energy ← source_energy + samples[position] ** 2
+        decoded_energy ← decoded_energy + decoded[position] ** 2
+    correlation ∈ float ← cross / float(math.sqrt(source_energy * decoded_energy))
+    require(correlation > 0.98,'FLORENCE_AUDIO_SYNCHRONIZATION')
+    checkpoints ∈ list[list[str]] ← table(leaf.joinpath('checkpoints.tsv'))
+    require(len(checkpoints) == count,'FLORENCE_CHECKPOINT_COUNT')
+    for index in range(count):
+        end ∈ int ← (index + 1) * 9600
+        if end > len(samples):
+            end ← len(samples)
+        row ∈ list[str] ← checkpoints[index]
+        require(int(row[0]) == index and int(row[1]) == end,'FLORENCE_SAMPLE_CLOCK')
+        mean ∈ float ← 0.0
+        for position in range(128):
+            mean ← mean + samples[end - 128 + position] / 32768
+        mean ← mean / 128
+        window ∈ list[float] ← []
+        for position in range(128):
+            hann ∈ float ← 0.5 - 0.5 * float(math.cos(2 * float(math.pi) * position / 127))
+            window.append(float32((samples[end - 128 + position] / 32768 - mean) * hann))
+        coefficients ∈ list[complex] ← [0j]
+        for term in range(1,24):
+            real ∈ float ← 0.0
+            imaginary ∈ float ← 0.0
+            for position in range(128):
+                angle ∈ float ← 2 * float(math.pi) * term * position / 128
+                real ← real + window[position] * float(math.cos(angle)) / 128
+                imaginary ← imaginary - window[position] * float(math.sin(angle)) / 128
+            actual ∈ list[float] ← coordinates(row[term + 1])
+            require(float(abs(actual[0]-real)) < 1e-10 and float(abs(actual[1]-imaginary)) < 1e-10,'FLORENCE_DFT')
+            coefficients.append(complex(real,imaginary))
+        if index == 0 or index == count // 2 or index == count - 1:
+            filename ∈ str ← 'frame-{:06d}.ppm'.format(index)
+            pixels ∈ bytes ← ppm(leaf.joinpath('frames',filename),96,192)
+            for point in [[7,11],[46,93],[81,159]]:
+                z ∈ complex ← complex(-1.5 + 3 * point[0] / 95,3 - 6 * point[1] / 191)
+                value ∈ complex ← 0j
+                for term in range(1,24):
+                    value ← value + coefficients[term] * z ** term
+                check_pixel(pixels,96,point[0],point[1],value,1)
+
+def verify_surfer(context ∈ dict[str,str], directory ∈ object, leaf ∈ object, count ∈ int, fps ∈ int, width ∈ int) → None:
+    checkpoints ∈ list[list[str]] ← table(leaf.joinpath('checkpoints.tsv'))
+    require(len(checkpoints) == count,'SURFER_CHECKPOINT_COUNT')
+    for index in range(count):
+        state ∈ dict[str,str] ← expected(directory,index,fps)
+        row ∈ list[str] ← checkpoints[index]
+        require(int(row[0]) == index and row[1] == 'x^2+x*z^2+y^3' and float(row[2]) == float(state['camera/yaw']) and float(row[3]) == float(state['camera/pitch']),'SURFER_EQUATION_CAMERA')
+        if index == 0 or index == count // 2 or index == count - 1:
+            with tempfile.TemporaryDirectory(prefix='aici-jsurf-') as temporary:
+                target ∈ object ← Path(temporary).joinpath('frame.ppm')
+                command([context['java'],'-Xmx512m','-classpath',context['surfer_classpath'],'org.algebraicvarietyexplorer.render.JsurfPreview',target,'x^2+x*z^2+y^3',state['camera/yaw'],state['camera/pitch'],width])
+                filename ∈ str ← 'frame-{:06d}.ppm'.format(index)
+                require(sha(target) == sha(leaf.joinpath('frames',filename)),'SURFER_SOURCE_TO_PIXELS')
+
+def verify_wegert(directory ∈ object, leaf ∈ object, count ∈ int, fps ∈ int, width ∈ int, height ∈ int) → None:
+    checkpoints ∈ list[list[str]] ← table(leaf.joinpath('checkpoints.tsv'))
+    require(len(checkpoints) == count,'WEGERT_CHECKPOINT_COUNT')
+    for index in range(count):
+        state ∈ dict[str,str] ← expected(directory,index,fps)
+        zero ∈ list[float] ← coordinates(state['function/zero'])
+        pole ∈ list[float] ← coordinates(state['function/pole'])
+        actual_zero ∈ list[float] ← coordinates(checkpoints[index][1])
+        actual_pole ∈ list[float] ← coordinates(checkpoints[index][2])
+        require(zero == actual_zero and pole == actual_pole,'WEGERT_FUNCTION_STATE')
+        if index == 0 or index == count // 2 or index == count - 1:
+            filename ∈ str ← 'frame-{:06d}.ppm'.format(index)
+            pixels ∈ bytes ← ppm(leaf.joinpath('frames',filename),width,height)
+            for point in [[7,11],[width-15,height-17]]:
+                z ∈ complex ← complex((2 * (point[0] + 0.5) / width - 1) * 3.5 * width / height,(1 - 2 * (point[1] + 0.5) / height) * 3.5)
+                value ∈ complex ← (z - complex(zero[0],zero[1])) / (z - complex(pole[0],pole[1]))
+                check_pixel(pixels,width,point[0],point[1],value,2)
+
+def verify_media(context ∈ dict[str,str], leaf ∈ object, manifest ∈ dict[str,str]) → None:
+    count ∈ int ← int(manifest['frames'])
+    width ∈ int ← int(manifest['width'])
+    height ∈ int ← int(manifest['height'])
+    fps ∈ int ← int(manifest['fps'])
+    candidate ∈ object ← leaf.joinpath('movie.candidate.mp4')
+    probe ∈ dict[str,object] ← json.loads(command(['ffprobe','-v','error','-count_frames','-show_streams','-of','json',candidate]))
+    streams ∈ list[dict[str,object]] ← list(probe['streams'])
+    video ∈ dict[str,object] ← streams[0]
+    require(int(video['nb_read_frames']) == count,'DECODED_FRAME_COUNT')
+    require(int(video['width']) == width and int(video['height']) == height,'DECODED_DIMENSIONS')
+    source_hashes ∈ list[list[str]] ← table(leaf.joinpath('frames-sha256.tsv'))
+    files ∈ list[object] ← list(leaf.joinpath('frames').iterdir())
+    require(len(files) == count and len(source_hashes) == count,'CONTIGUOUS_FRAMES')
+    for index in range(count):
+        name ∈ str ← 'frame-{:06d}.ppm'.format(index)
+        row ∈ list[str] ← source_hashes[index]
+        require(int(row[0]) == index and row[1] == name and row[2] == sha(leaf.joinpath('frames',name)),'SOURCE_FRAME_HASH_ORDER')
+        ppm(leaf.joinpath('frames',name),width,height)
+    with tempfile.TemporaryDirectory(prefix='aici-wiggle-') as temporary:
+        scratch ∈ object ← Path(temporary)
+        reference ∈ object ← scratch.joinpath('reference.mp4')
+        encoder ∈ list[object] ← ['/bin/sh',Path(context['kitchen']).joinpath('tasks/movie-from-stills/build.sh'),leaf.joinpath('frames/frame-%06d.ppm'),fps,reference]
+        audio ∈ str ← 'absent'
+        if manifest['producer'] == 'florence':
+            encoder.append(leaf.joinpath('audio.flac'))
+            audio ← 'present'
+        command(encoder)
+        candidate_pixels ∈ bytes ← command(['ffmpeg','-v','error','-i',candidate,'-map','0:v:0','-f','framemd5','-'])
+        reference_pixels ∈ bytes ← command(['ffmpeg','-v','error','-i',reference,'-map','0:v:0','-f','framemd5','-'])
+        require(candidate_pixels == reference_pixels,'DECODED_PIXELS_SOURCE_ORDER')
+        contract ∈ str ← 'video_decode\tDECODE\tmovie.candidate.mp4\nvideo_dimensions\tSIZE\tmovie.candidate.mp4\t{}\t{}\nvideo_fps\tFPS\tmovie.candidate.mp4\t{}\t0.001\nvideo_audio\tAUDIO\tmovie.candidate.mp4\t{}\nvideo_encoding\tCODEC\tmovie.candidate.mp4\th264\tyuv420p\n'.format(width,height,fps,audio)
+        contract ← contract + str('video_duration\tDURATION\tmovie.candidate.mp4\t{}\t{}\n'.format(count / fps - 0.1 / fps,count / fps + 0.1 / fps))
+        scratch.joinpath('media.contract.tsv').write_text(contract)
+        command([leaf.joinpath('../aici-video').resolve(),'verify',scratch.joinpath('media.contract.tsv'),leaf])
+
+def verify_sources(context ∈ dict[str,str]) → None:
+    pins ∈ object ← Path(__file__).resolve().with_name('source-pins.tsv')
+    for row in table(pins):
+        root ∈ str ← context[row[0]]
+        head ∈ str ← command(['git','-C',root,'rev-parse','HEAD']).decode().strip()
+        origin ∈ str ← command(['git','-C',root,'remote','get-url','origin']).decode().strip()
+        require(head == row[2] and origin == row[1],'SOURCE_IDENTITY')
+        command(['git','-C',root,'diff','--quiet','HEAD','--'])
+
+def main() → None:
+    arguments ∈ list[str] ← list(sys.argv)
+    context ∈ dict[str,str] ← pairs(arguments[1])
+    verifier_hash ∈ str ← sha(__file__)
+    inputs ∈ object ← Path(arguments[2]).resolve()
+    output ∈ object ← Path(arguments[3]).resolve()
+    producers ∈ list[str] ← ['mathieu','florence','surfer','wegert']
+    if len(arguments) == 5:
+        require(bool(producers.__contains__(arguments[4])),'UNKNOWN_PRODUCER')
+        producers ← [arguments[4]]
+    for producer in producers:
+        output.joinpath(producer,'acceptance.tsv').unlink(missing_ok=True)
+    verify_sources(context)
+    verdicts ∈ dict[str,str] ← {}
+    for producer in producers:
+        directory ∈ object ← inputs.joinpath(producer)
+        leaf ∈ object ← output.joinpath(producer)
+        manifest ∈ dict[str,str] ← pairs(directory.joinpath('manifest.tsv'))
+        input_hashes ∈ list[list[str]] ← table(leaf.joinpath('input-sha256.tsv'))
+        require(len(input_hashes) == 4,'INPUT_FILES')
+        for name in ['manifest.tsv','controls.tsv','events.tsv','motion-plan.tsv']:
+            require(bool(leaf.joinpath('inputs',name).is_file()),'INPUT_FILES')
+            require(any_input(input_hashes,name),'INPUT_FILES')
+        for row in input_hashes:
+            require(row[1] == sha(directory.joinpath(row[0])) and row[1] == sha(leaf.joinpath('inputs',row[0])),'INPUT_DIGEST')
+        production ∈ dict[str,str] ← pairs(leaf.joinpath('production.tsv'))
+        require(production['movie_sha256'] == sha(leaf.joinpath('movie.candidate.mp4')),'MOVIE_DIGEST')
+        require(production['checkpoint_sha256'] == sha(leaf.joinpath('checkpoints.tsv')) and production['resolved_sha256'] == sha(leaf.joinpath('resolved.tsv')),'STATE_DIGEST')
+        count ∈ int ← int(manifest['frames'])
+        fps ∈ int ← int(manifest['fps'])
+        verify_resolved(directory,leaf,count,fps)
+        if producer == 'mathieu':
+            verify_mathieu(directory,leaf,count,fps)
+        if producer == 'florence':
+            verify_florence(directory,leaf,count)
+        if producer == 'surfer':
+            verify_surfer(context,directory,leaf,count,fps,int(manifest['width']))
+        if producer == 'wegert':
+            verify_wegert(directory,leaf,count,fps,int(manifest['width']),int(manifest['height']))
+        verify_media(context,leaf,manifest)
+        verify_presentation(directory,leaf,manifest)
+        verdict ∈ str ← 'schema\tindependent-wiggle-v1\noffline\tPASS\nphysical_device\tNOT_RUN\nmovie_sha256\t' + sha(leaf.joinpath('movie.candidate.mp4')) + '\nverifier_sha256\t' + verifier_hash + '\nproduction_sha256\t' + sha(leaf.joinpath('production.tsv')) + '\n'
+        verdicts[producer] ← verdict
+        print('PASS independent ' + producer,flush=True)
+    require(sha(__file__) == verifier_hash,'VERIFIER_CHANGED_DURING_RUN')
+    verify_sources(context)
+    for producer in verdicts:
+        output.joinpath(producer,'acceptance.tsv').write_text(verdicts[producer])
+
+def any_input(hashes ∈ list[list[str]], name ∈ str) → bool:
+    for row in hashes:
+        if len(row) == 2 and row[0] == name:
+            return True
+    return False
+
+main()
