@@ -8,7 +8,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from builtins import list, dict, ValueError, abs, round
+from builtins import list, dict, ValueError, abs, round, min
 
 def require(success ∈ bool, code ∈ str) → None:
     if not success:
@@ -158,8 +158,34 @@ def verify_mathieu(directory ∈ object, leaf ∈ object, count ∈ int, fps ∈
             for position in range(len(cycle)):
                 images[cycle[position] - 1] ← cycle[(position + 1) % len(cycle)] - 1
         generators.append(images)
+    # Construct the ATLAS octad orbit independently of the producer's engine.
+    octads ∈ list[int] ← [0x81041f]
+    orbit_cursor ∈ int ← 0
+    while orbit_cursor < len(octads):
+        for generator in generators:
+            image ∈ int ← 0
+            for point in range(24):
+                if octads[orbit_cursor] & (1 << point):
+                    image ← image | (1 << generator[point])
+            if not bool(octads.__contains__(image)):
+                octads.append(image)
+        orbit_cursor ← orbit_cursor + 1
+    require(len(octads) == 759,'MATHIEU_GOLAY_ORBIT')
+    for first in range(6):
+        for second in range(first + 1,6):
+            union ∈ int ← 0
+            for row in range(4):
+                union ← union | (1 << (6 * row + first)) | (1 << (6 * row + second))
+            require(bool(octads.__contains__(union)),'MATHIEU_SEXTET')
     current ∈ list[int] ← list(range(24))
+    previous ∈ list[int] ← list(current)
+    motion ∈ list[int] ← list(current)
+    moving_cycles ∈ list[list[int]] ← []
     events ∈ list[list[str]] ← table(directory.joinpath('events.tsv'))
+    has_layout ∈ bool ← False
+    for control in table(directory.joinpath('controls.tsv')):
+        if control[0] == 'layout/frame':
+            has_layout ← True
     checkpoints ∈ list[list[str]] ← table(leaf.joinpath('checkpoints.tsv'))
     require(len(checkpoints) == count,'MATHIEU_CHECKPOINT_COUNT')
     cursor ∈ int ← 0
@@ -167,10 +193,14 @@ def verify_mathieu(directory ∈ object, leaf ∈ object, count ∈ int, fps ∈
     duration ∈ int ← 0
     paused ∈ int ← 0
     selected ∈ int ← 0
+    previous_selected ∈ int ← 0
     for index in range(count):
         if index > 0 and paused != 2 and frame < duration:
             frame ← frame + 1
         while cursor < len(events) and int(events[cursor][0]) * fps <= index * 1000000000:
+            if events[cursor][2] != 'group/action':
+                cursor ← cursor + 1
+                continue
             action ∈ str ← events[cursor][3]
             if action == 'pause':
                 paused ← 2
@@ -191,6 +221,20 @@ def verify_mathieu(directory ∈ object, leaf ∈ object, count ∈ int, fps ∈
                     for point in range(24):
                         inverse[motion[point]] ← point
                     motion ← inverse
+                previous ← list(current)
+                previous_selected ← selected
+                moving_cycles ← []
+                seen ∈ list[int] ← []
+                for start in range(24):
+                    if bool(seen.__contains__(start)) or motion[start] == start:
+                        continue
+                    cycle ∈ list[int] ← []
+                    point ∈ int ← start
+                    while not bool(cycle.__contains__(point)):
+                        cycle.append(point)
+                        seen.append(point)
+                        point ← motion[point]
+                    moving_cycles.append(cycle)
                 next_images ∈ list[int] ← []
                 for image in current:
                     next_images.append(motion[image])
@@ -208,9 +252,97 @@ def verify_mathieu(directory ∈ object, leaf ∈ object, count ∈ int, fps ∈
         observed ∈ list[float] ← coordinates(actual[5])
         for point in range(24):
             require(int(observed[point]) == current[point],'MATHIEU_EXACT_PERMUTATION')
+        block ∈ int ← 0
+        old_block ∈ int ← 0
+        if int(selected.bit_count()) == 5:
+            for octad in octads:
+                if octad & selected == selected:
+                    require(block == 0,'MATHIEU_UNIQUE_OCTAD')
+                    block ← octad
+            require(block != 0,'MATHIEU_OCTAD')
+        if int(previous_selected.bit_count()) == 5:
+            for octad in octads:
+                if octad & previous_selected == previous_selected:
+                    old_block ← octad
+        require(len(actual) == 13 and int(actual[7]) == block and int(actual[8]) == old_block,'MATHIEU_OCTAD_TRANSPORT')
+        if has_layout:
+            require(int(actual[11]) == 0 and int(actual[12]) == 1,'MATHIEU_MARKER_POLICY')
+            values ∈ dict[str,str] ← expected(directory,index,fps)
+            layout_frame ∈ int ← int(round(float(values['layout/frame'])))
+            require(int(actual[6]) == layout_frame and layout_frame >= 0 and layout_frame <= 90,'MATHIEU_LAYOUT_CLOCK')
+            fraction ∈ float ← layout_frame / 90
+            fraction ← fraction * fraction * (3 - 2 * fraction)
+            sites ∈ list[list[float]] ← []
+            for point in range(24):
+                column ∈ int ← point % 6
+                row ∈ int ← point // 6
+                angle ∈ float ← -float(math.pi) / 2 + 2 * float(math.pi) * column / 6
+                horizontal ∈ list[float] ← [0,24,0,-24]
+                vertical ∈ list[float] ← [-24,0,24,0]
+                grid_x ∈ float ← float(42 + 55 * column)
+                grid_y ∈ float ← float(190 + 72 * row)
+                rosette_x ∈ float ← 180 + 105 * float(math.cos(angle)) + horizontal[row]
+                rosette_y ∈ float ← 308 + 105 * float(math.sin(angle)) + vertical[row]
+                sites.append([grid_x + (rosette_x - grid_x) * fraction,grid_y + (rosette_y - grid_y) * fraction])
+            site_values ∈ list[float] ← coordinates(actual[9])
+            dancer_values ∈ list[float] ← coordinates(actual[10])
+            require(len(site_values) == 48 and len(dancer_values) == 48,'MATHIEU_COORDINATE_COUNT')
+            for point in range(24):
+                for axis in range(2):
+                    require(float(abs(site_values[2 * point + axis] - sites[point][axis])) < 0.002,'MATHIEU_ATLAS_LAYOUT')
+            for dancer in range(24):
+                origin ∈ int ← previous[dancer]
+                destination ∈ int ← current[dancer]
+                dancer_position ∈ list[float] ← list(sites[destination])
+                if frame < duration and origin != destination:
+                    cycle_number ∈ int ← -1
+                    for number in range(len(moving_cycles)):
+                        if bool(moving_cycles[number].__contains__(origin)):
+                            cycle_number ← number
+                    require(cycle_number >= 0,'MATHIEU_CYCLE_MEMBERSHIP')
+                    active ∈ int ← frame // 12
+                    if cycle_number > active:
+                        dancer_position ← list(sites[origin])
+                    elif cycle_number == active:
+                        progress ∈ float ← (frame % 12) / 12
+                        progress ← progress * progress * (3 - 2 * progress)
+                        bend ∈ float ← 0.24 * float(math.sin(float(math.pi) * progress))
+                        dx ∈ float ← sites[destination][0] - sites[origin][0]
+                        dy ∈ float ← sites[destination][1] - sites[origin][1]
+                        dancer_position ← [sites[origin][0] + dx * progress - dy * bend,sites[origin][1] + dy * progress + dx * bend]
+                for axis in range(2):
+                    require(float(abs(dancer_values[2 * dancer + axis] - dancer_position[axis])) < 0.002,'MATHIEU_DANCER_TRANSPORT')
+                require(dancer_position[0] > 23 and dancer_position[0] < 337 and dancer_position[1] > 151 and dancer_position[1] < 465,'MATHIEU_VIEWPORT_FIT')
+            if index == 0 or index == 150 or index == 339 or index == 432 or index == count - 1:
+                manifest ∈ dict[str,str] ← pairs(directory.joinpath('manifest.tsv'))
+                width ∈ int ← int(manifest['width'])
+                height ∈ int ← int(manifest['height'])
+                scale ∈ float ← float(min(width / 340,height / 340))
+                pixels ∈ bytes ← ppm(leaf.joinpath('frames','frame-{:06d}.ppm'.format(index)),width,height)
+                palette ∈ list[bytes] ← [b'\xc2\x7d\x38',b'\x79\x8e\x87',b'\x29\x21\x1f',b'\xcc\xc5\x91']
+                for dancer in range(24):
+                    site ∈ list[float] ← sites[current[dancer]]
+                    center_x ∈ int ← int(width / 2 + (site[0] - 180) * scale)
+                    center_y ∈ int ← int(height / 2 + (site[1] - 308) * scale)
+                    matches ∈ int ← 0
+                    for y in range(center_y - 8,center_y + 9):
+                        for x in range(center_x - 8,center_x + 9):
+                            offset ∈ int ← 3 * (y * width + x)
+                            if pixels[offset:offset + 3] == palette[dancer // 6]:
+                                matches ← matches + 1
+                    require(matches >= 3,'MATHIEU_MARKER_PIXELS')
+            if block and frame >= duration:
+                transported ∈ int ← 0
+                for point in [0,1,6,7,12,13,18,19]:
+                    transported ← transported | (1 << current[point])
+                require(block == transported,'MATHIEU_CARRIED_OCTAD')
     hashes ∈ list[list[str]] ← table(leaf.joinpath('frames-sha256.tsv'))
-    require(hashes[42][2] == hashes[53][2],'MATHIEU_PAUSED_PIXELS')
-    require(hashes[54][2] != hashes[70][2],'MATHIEU_RESUMED_PIXELS')
+    if not has_layout:
+        require(hashes[42][2] == hashes[53][2],'MATHIEU_PAUSED_PIXELS')
+        require(hashes[54][2] != hashes[70][2],'MATHIEU_RESUMED_PIXELS')
+    first_checkpoints ∈ bytes ← leaf.joinpath('checkpoints.tsv').read_bytes()
+    repeated_checkpoints ∈ bytes ← leaf.joinpath('checkpoints-repeat.tsv').read_bytes()
+    require(first_checkpoints == repeated_checkpoints,'MATHIEU_REPRODUCIBILITY')
 
 def verify_presentation(directory ∈ object, leaf ∈ object, manifest ∈ dict[str,str]) → None:
     require(manifest['controls_visible'] == 'false','CONTROLS_DISABLED')
@@ -238,7 +370,7 @@ def verify_presentation(directory ∈ object, leaf ∈ object, manifest ∈ dict
     if manifest['producer'] == 'mathieu':
         width ∈ int ← int(manifest['width'])
         height ∈ int ← int(manifest['height'])
-        require(width == height,'MATHIEU_SCENE_VIEWPORT')
+        require(width >= 2 and height >= 2,'MATHIEU_SCENE_VIEWPORT')
         # The fitted full scene has paper margins. The old interactive raster
         # places its title in this band; this rejects a relabeled UI capture.
         for index in range(count):
