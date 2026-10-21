@@ -1,0 +1,35 @@
+issue_number	state	title	url	disposition
+131	open	Retire Python 2 from Cat Food defaults; classify optional Android Python runtime	https://github.com/isomorphisms/catfood/issues/131	BC-CF03;BC-CF05;BC-CF08 — superseding runtime dependency correction
+130	open	C67 provisioner blocks on generic linux-aarch64 jq runtime probe	https://github.com/isomorphisms/catfood/issues/130	BC-CF08 — concrete C67 OS/runtime selection regression
+123	open	Delegate maintained Android producer instructions to Flexible Pipes	https://github.com/isomorphisms/catfood/issues/123	BC-CF02 — Cat Food canonical instructions consume FP; shared FP/AICI/Kitchen family
+118	open	SUN: implement profile-driven Android companion plans and matrix obligations	https://github.com/isomorphisms/catfood/issues/118	BC-CF02 — preserve settled architecture,finish SUN continuations
+117	open	Reconcile cloud-storage delivery into current acquisition and qualify its deployment targets	https://github.com/isomorphisms/catfood/issues/117	Existing source/storage FP campaign owner; BC-CF08 host consumer
+114	open	Qualify the Android text stack for canonical mathematical glyphs	https://github.com/isomorphisms/catfood/issues/114	Producer/application text-stack obligation; CF03 inventory dependency,not shared-build redesign
+110	open	MIRO A1 incident: consolidate device evidence and make missing/stale profile consumption visible	https://github.com/isomorphisms/catfood/issues/110	BC-CF01 — profile/instance validity
+109	open	Require an AICI Android-producer receipt before Cat Food accepts an APK	https://github.com/isomorphisms/catfood/issues/109	BC-CF07 — exact APK authority/admission
+107	open	Deliver Kitchen tasks from a fresh Termux session without assuming a local checkout	https://github.com/isomorphisms/catfood/issues/107	BC-CF06 — fresh-session exact task/runtime acquisition
+100	open	Fourier Voice APK is shipping unstripped / oversized	https://github.com/isomorphisms/catfood/issues/100	APK packaging/size campaign owner; BC-CF03 consumes approved deliverable
+98	open	Do not run full workbench CI for follower-only bookkeeping commits	https://github.com/isomorphisms/catfood/issues/98	AICI/FP CI-trigger and evidence-reuse campaign owners
+97	open	Canonicalize moved workbench repositories in tools.tsv	https://github.com/isomorphisms/catfood/issues/97	Dependency/repository-identity campaign owner; CF03 consumes current inventory
+96	open	Provision the fast path for routine GitHub repository moves	https://github.com/isomorphisms/catfood/issues/96	Existing repository-move tooling; outside new CF delivery implementation,dependency owner
+95	open	Propagate dependency contract changes into Cat Food tests and manifests	https://github.com/isomorphisms/catfood/issues/95	Shared dependency-transition campaign owner; BC-CF04 local material/obligation consumer
+93	open	Preserve the device Shizuku/rish bundle	https://github.com/isomorphisms/catfood/issues/93	BC-CF01/CF04 preserve observed Shizuku state; no device setup implied
+92	open	Cross-link Kitchen as the command-preparation layer	https://github.com/isomorphisms/catfood/issues/92	Kitchen relationship retained; no duplicate pipeline
+90	open	Prefer SDF for lightweight public live demos with small persistent state	https://github.com/isomorphisms/catfood/issues/90	BC-CF08 SDF host context,actual app deployment remains separate
+89	open	Own the cross-project binary build matrix	https://github.com/isomorphisms/catfood/issues/89	BC-CF08 matrix owner; CF02 Android companion specialization
+88	open	Do not classify every non-Termux host as Debian/Ubuntu cloud	https://github.com/isomorphisms/catfood/issues/88	Detector fixed on main; BC-CF08 reconciles retained host work
+85	open	Wire the ICK-or-NDK gate across Cat Food host builds	https://github.com/isomorphisms/catfood/issues/85	Actual compiler execution campaign owner; CF05 consumes qualified closure
+83	open	Reconcile MIRO first-run and quiet-phone policy through current task acquisition	https://github.com/isomorphisms/catfood/issues/83	BC-CF06 acquisition consumer; retain existing first-run/quiet-phone owner
+76	open	Reconcile preserved workbench-tuple requirements from PR #16	https://github.com/isomorphisms/catfood/issues/76	BC-CF05 clean-host first command; preserve archive
+74	closed	Integrate current Ike Android packages from current main	https://github.com/isomorphisms/catfood/issues/74	Closed historical Ike integration; current main disposition already package
+65	closed	Track actual local checkout locations, not only canonical paths	https://github.com/isomorphisms/catfood/issues/65	Closed historical checkout lookup; current where is reuse,not acquisition
+64	open	Deliver the Gopeed Android app as a Cat Food runtime package	https://github.com/isomorphisms/catfood/issues/64	BC-CF03 missing Gopeed app distinct from API helper
+63	open	Exercise Gopeed control aliases on the physical AArch64 tablet	https://github.com/isomorphisms/catfood/issues/63	BC-CF03 exact tablet physical evidence continuation
+62	open	Exercise Gopeed control aliases on the physical ARMv7 phone	https://github.com/isomorphisms/catfood/issues/62	BC-CF03 exact A1 physical evidence continuation
+61	open	Validate the published Android artifact for Gopeed control aliases	https://github.com/isomorphisms/catfood/issues/61	BC-CF03 published Gopeed helper artifact verification
+60	open	Run Hetzner x86-64 acceptance for Gopeed control aliases	https://github.com/isomorphisms/catfood/issues/60	BC-CF08 exact Hetzner runtime evidence continuation
+59	open	Run container x86-64 acceptance for Gopeed control aliases	https://github.com/isomorphisms/catfood/issues/59	BC-CF08 exact container runtime evidence continuation
+33	open	Whole-inventory Android delivery: independent DEX/JNI builds and runtime-only installs	https://github.com/isomorphisms/catfood/issues/33	BC-CF03 whole inventory; BC-CF04 installed integrity — separate causal boundaries
+21	open	Feed tool/build output through the shared Porcelain boundary	https://github.com/isomorphisms/catfood/issues/21	Shared Porcelain owner/consumer requirement; no new CF scheduler/interface
+19	open	Freeze refC: do not add new dependencies	https://github.com/isomorphisms/catfood/issues/19	Standing no-new-RefC-dependencies constraint,retained across packets
+

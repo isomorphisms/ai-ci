@@ -1,0 +1,16 @@
+# BC-CF04 decision — preserve CF-A2-S2 and reuse the existing seals
+
+Decision: one substantial CF-A2-S2 continuation owns independently approved package/runtime/profile obligations and full pre-effect graph validation. The original packet's proposed four jobs would duplicate advanced retained S3 byte sealing and S4 producer authority; current evidence requires a smaller correct split.
+
+Current main is8ba159f8322cd436aa8e6400b0eded2d74c14011; live retained aici-android-producer-receipt ise2d65a5d76ff81bcc65f5cabf8ed2ad0e3a57482. Closed metadata on [isomorphisms/catfood PR #112, “Consume exact AICI Android producer receipts”](https://github.com/isomorphisms/catfood/pull/112) is stale. Full android/content.sh, android/check.sh and android/qualification/cf-a2-s3.md were fetched. The existing implementation reconstructs installed content from exact archived bytes, validates launchers/dependency digests, binds mutable facts, preserves old receipts and locks installation. Rewriting that seal would lose meaningful producer work.
+
+The remaining distinction is authority. Hashing current restrictions or runtime declarations invalidates an old receipt when those files change, but a fresh candidate deleting the rule can still treat the altered plan as its own authority. Existing graph checks enforce named dependency existence/lane and recursive receipt validation avoids loops; no complete structural cycle rejection occurs before effects. S2 must solve approved denominator + graph, not add more candidate-owned fields.
+
+[Cat Food33 S1 comment6039830452](https://github.com/isomorphisms/catfood/issues/33#issuecomment-6039830452) supplies historical executed failures; local e7111dc is unavailable. The original full S2 conversation was not recovered because Personal Context is unavailable. This continuation retains the existing numbered identity and recovered public requirements; it does not claim verbatim transcript recovery. S3's exact source note expressly names S2 authoritative plan/profile output. S4's independently qualified producer authority remains AICI/BC-A03; CF07 consumes that authority.
+
+Ownership agreement: CF02 resolves companion requirements; S2 releases approved material schema/digest; CF01 requalifies existing S3 instance/firmware/content binding; AICI/BC-A03 continues S4 authenticated producer authority and CF07 consumes it for APK admission. BC-A06 consumes exact transition material; BC-P02 owns obtainable source closure. No new registry/database/verifier is introduced.
+
+Edit order: S2 may implement graph/approval separation now with independently specified valid/bad/benign controls. Release its bounded schema before all acceptance is complete, then serialize changes to retained content/check/installer files with CF01. CF02 can consume released schema and return canonical plan material without waiting for the entire S2 job. Actual acceptance needs approved policy inputs and exact eligible execution runtime; missing APK deployment does not block ordinary archive graph validation.
+
+First concrete gates: independently approved restriction/runtime expectation; exact S2 material binding; preserved S3 actual byte validation. A source-only continuation is not independent trust, physical execution or production deployment.
+

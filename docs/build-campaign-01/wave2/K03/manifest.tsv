@@ -1,0 +1,2 @@
+id	title	owner	canonical_issue	readiness	dependencies	path	disposition
+CF-A2-S5	Connect the retained Kitchen Android procedures to qualified owner interfaces	isomorphisms/kitchen	https://github.com/isomorphisms/kitchen/issues/37	SOURCE_CONTINUATION_READY;PRODUCTION_CONDITIONAL	BC-CF01 profile artifact;BC-CF02 plan artifact;BC-CF06 acquisition/runtime;BC-CF07 artifact validator;BC-FP03 registered interface;BC-K05 released stage receipt;reuse FC-M4 consumer	jobs/CF-A2-S5.md	REUSED_EXPANDED_NO_DUPLICATE_ANDROID_PIPELINE

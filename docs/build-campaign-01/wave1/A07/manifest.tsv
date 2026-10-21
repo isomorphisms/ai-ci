@@ -1,0 +1,5 @@
+id	title	owner	canonical_issue	readiness	dependencies	path
+BC-A07-S01	Unify supported workflow parsing and exact checkout judgment	isomorphisms/ai-ci	https://github.com/isomorphisms/ai-ci/issues/168	SOURCE_READY_EXECUTION_CONDITIONAL	BC-P01/BC-P02 qualified compiler artifact; exact identity unavailable in STAR	jobs/BC-A07-S01.md
+BC-A07-S02	Separate lexical workflow policy from executed failure evidence	isomorphisms/ai-ci	https://github.com/isomorphisms/ai-ci/issues/168	CONDITIONAL	BC-A07-S01 verified exact result; BC-A04 runtime interface if required	jobs/BC-A07-S02.md
+BC-A07-S03	Bind validation to unchanged committed source	isomorphisms/ai-ci	https://github.com/isomorphisms/ai-ci/issues/2	SOURCE_READY_EXECUTION_CONDITIONAL	BC-P01/BC-P02 qualified runtime/compiler material; BC-T01-S04 before self-test workflow integration	jobs/BC-A07-S03.md
+BC-A07-S04	Repair trigger delegation and full-range consumer acceptance	isomorphisms/ai-ci	https://github.com/isomorphisms/ai-ci/issues/168	CONDITIONAL	BC-A07-S01; BC-A07-S02; serialize S03 Idric workflow edits	jobs/BC-A07-S04.md

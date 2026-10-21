@@ -1,0 +1,11 @@
+# BC-S01 source coverage
+
+2026-10-14. Full canonical bodies/comments read: coxswain31 **4/4**,32 **1/1**,34 **1/1**. The issue32 T1 comment6102038612 explicitly distinguishes registration from implemented DONE blocking and names real outstanding followers. Original S01 packet and complete BC-T01-S05 wave1 job read. Full current shared/local AGENTS read.
+
+All24 coxswain branches collected on one page. Main f6ad9f2ff1a15676bfcc7a139e240bfedaf195fb; retained routine-continuation09f387c20378c8d322d4502fe47452a4397fc70e; retained test-defect598ec9e715674388a036ecb5b90776de64aa6e60. Complete main tree115 and defect tree110 entries, untruncated. Compared defect→main: behind13/ahead0/no files. Compared continuation from main: diverged ahead1/behind14 with34 changed paths, mostly docs/continuation, receipts and14 continuation cases. These live comparisons supersede original unavailable-compare scope; no merge was recommended.
+
+Read `AGENTS.md`, `bin/cockswain-supervise`, `schemas/work-item.schema.json`, `prompts/supervisor.md`, `docs/contract.md`, `tests/README.md`. Enumerated existing authority, merge, PR-retirement, retirement-loop and evaluator commands and all behavior case paths. Their full implementation was not re-reviewed; reuse means preserving their behavior and tests, not claiming fresh runtime acceptance. No private corpus transcript content read or copied.
+
+Issue searches: `repo:isomorphisms/coxswain matrix` **2** results; `repo:isomorphisms/coxswain test defect` **4** results; screened owner/behavior rather than title and reused31/32/34. Existing issue5 queue/37 investigation are adjacent scope, not duplicated. No account-wide issue or history census is claimed. CF02 current plan/cell interface and A05/A06 evidence artifacts are coordinated owner dependencies, not independently reimplemented here.
+
+No fresh model evaluation, dispatched prompt, live supervision, owner-state mutation or physical run. Historical corpus/harness fixtures prove their stated plumbing only. Deterministic source evidence establishes missing owner adapters; it does not prove that a model will select the right action. All new SUNs require actual independent controls, complete enumeration and explicit runtime qualification before model-semantic acceptance.
