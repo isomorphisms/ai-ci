@@ -51,7 +51,7 @@ for abi in armeabi-v7a arm64-v8a x86_64 {
     test "$minimum_sdk" = 26
     grep -Fq "targetSdkVersion:'35'" "$stem.badging"
     var label = "$(awk -F "'" '/^application-label:/ {print $2} /^application: label=/ {print $2}' "$stem.badging" | sort -u)"
-    test "$label" = Mathieu
+    if test "$label" != Mathieu { printf 'LAUNCHER_LABEL_MISMATCH expected=Mathieu observed=%s\n' "$label" >&2; exit 1 }
     grep -Fq "launchable-activity: name='android.app.NativeActivity'" "$stem.badging"
     if grep -Fq android.permission.INTERNET "$stem.badging" { echo 'network permission not admitted' >&2; exit 1 }
     "$build_tools/apksigner" verify --verbose --print-certs "$apk" > "$stem.certificates" 2>&1
