@@ -2,8 +2,8 @@
 
 AICI tests the **actual** 3×3/5×5 C implementation in `isomorphisms/rough.framebuffer` against its own rational-integer midpoint oracle. The producer's numerical test arrays and product build scripts are **not** used.
 
-Current immutable acceptance target: `0a09edede932ba80feb7f35addede3eb17baf6f3` from
-[isomorphisms/rough.framebuffer PR #18, “Add bounded whole-path subpixel rendering and sampled font previews”](https://github.com/isomorphisms/rough.framebuffer/pull/18).
+Current immutable acceptance target: `f33a476c69da313745b58c10cf8057765f9cbec9` from
+[isomorphisms/rough.framebuffer PR #20, “Round Subpixel translucent composition in byte units”](https://github.com/isomorphisms/rough.framebuffer/pull/20).
 It includes the quadratic/cubic library and repaired build policy. The source
 checkout must match that exact revision. Updating the target requires a new
 review/run, not silently following a branch.
@@ -72,3 +72,43 @@ revision can run this verifier. The artifact route independently authenticates
 the archive, driver and frontend hashes rather than trusting producer scripts.
 Ike's literal POSIX recipe is the existing compatibility boundary. Device,
 registered FP dispatch and final integration remain separate acceptance levels.
+
+## Conway's real curved consumer
+
+`conway_verify.c` accepts the exact versioned geometry seam emitted by Conway
+42c99ed0d289162b6fd62d864fbf58fc042e24d8. It independently recognizes all
+81 tile translations × 8 square orientations, two source motif shapes per
+isometry, without implementing a competing orbit engine. At 128×128 it
+compares the actual native API's individual bits with long-double distances
+to the original two finite lines, circular quarter arc and separate circle.
+The declared 1/32-pixel boundary strip includes the bridge's 0.01-pixel circular
+approximation. Excluded samples are counted; they are not declared exact.
+Forced quadratic, cubic and automatic calls must converge and preserve padded
+rows. Existing independent path tests retain broader transform/work/cancel
+acceptance; a sampled comparison is not a certified continuous-area theorem.
+
+The reflected translucent probe has independently specified line coordinates,
+repeated segments within one shape and ordered #RGBA colors. Every sample mask
+is derived analytically, then integer-rational source-over predicts actual
+native CLI bytes. This exposed an existing half-byte rounding defect: source
+alpha 64, occupancy 33/64, opacity 1/2 over transparent output produced alpha
+16 rather than 17. The expanded rational oracle rejects that old implementation
+and checks 65,520 combinations of source/destination alpha, opacity, colors and
+all 0..64 occupancies against the repair. Expectations were not relaxed.
+
+`conway-accept.grease`, called by ICK-built Ike's `conway` target, compiles the
+real library, consumer CLI and independent C checker through the authenticated
+ICK. Seven changed real sources must execute and fail the unchanged checker:
+screen y reflection, missing line seam, reversed serialization order, ignored
+source alpha, double alpha resolution, blank output and shifted clipping.
+The full positive run rasterizes the wallpaper; targeted negative runs use
+the same binary's probe-only scope after checking the entire geometry inventory.
+This avoids pretending seven repetitions are independent full-scene tests.
+The exact second target/recipe is bound into an Ike receipt; wrong-target and
+final-result receipts remain rejected. Optional expected fields do not
+change the original `accept` receipt check's fixed defaults.
+
+The retained Idriç attempt records the observed package's missing explicit
+Float64 type. The ICK-compiled C-ABI oracle is a declared fallback, not Idriç
+success. Conway host acceptance does not establish device behavior, protected
+production admission or model dispatch.
