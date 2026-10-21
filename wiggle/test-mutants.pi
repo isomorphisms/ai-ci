@@ -87,12 +87,15 @@ def main() → None:
                 bind(leaf,'checkpoint_sha256',leaf.joinpath('checkpoints.tsv'))
             elif case[0] == 'octad' or case[0] == 'layout' or case[0] == 'dancer':
                 values ← table(leaf.joinpath('checkpoints.tsv'))
+                zero_coordinates ∈ list[str] ← []
+                for coordinate in range(48):
+                    zero_coordinates.append('0')
                 if case[0] == 'octad':
                     values[150][7] ← '255'
                 elif case[0] == 'layout':
-                    values[120][9] ← ','.join(['0'] * 48)
+                    values[120][9] ← ','.join(zero_coordinates)
                 else:
-                    values[210][10] ← ','.join(['0'] * 48)
+                    values[210][10] ← ','.join(zero_coordinates)
                 write_table(leaf.joinpath('checkpoints.tsv'),values)
                 bind(leaf,'checkpoint_sha256',leaf.joinpath('checkpoints.tsv'))
             elif case[0] == 'clock' or case[0] == 'interpolation':
@@ -155,9 +158,10 @@ def main() → None:
                     # A stable title-like pixel in the top margin of every
                     # frame; re-encode and repair hashes so the presentation
                     # assertion, rather than media-integrity checks, rejects it.
-                    # One real control-layer pixel is enough to violate the
-                    # source rendering policy; all other frames stay intact.
-                    for frame_index in range(1):
+                    # Preserve the opening hold so this reaches the controls
+                    # assertion, with one extra pixel throughout that hold.
+                    opening ∈ list[list[str]] ← table(leaf.joinpath('inputs/motion-plan.tsv'))
+                    for frame_index in range(int(opening[0][1])):
                         frame_path ∈ object ← leaf.joinpath('frames','frame-{:06d}.ppm'.format(frame_index))
                         frame_parts ∈ list[bytes] ← list(frame_path.read_bytes().split(b'\n',3))
                         frame_parts[3] ← b'\x00\x00\x00'.__add__(frame_parts[3][3:])
