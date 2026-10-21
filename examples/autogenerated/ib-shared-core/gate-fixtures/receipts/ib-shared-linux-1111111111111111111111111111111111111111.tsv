@@ -1,0 +1,17 @@
+schema	aici-follower-receipt-v1
+job_id	ib-shared-linux-1111111111111111111111111111111111111111
+repository	isomorphisms/ib
+trigger_commit	1111111111111111111111111111111111111111
+follower_platform	linux-build-container
+follower_arch	x86_64
+acceptance_kind	runtime
+result	pass
+attempt_commit	1111111111111111111111111111111111111111
+os_runtime	synthetic fixture, not observed hardware
+build_command	fixture only
+test_command	admission data only
+artifact	-
+artifact_sha256	-
+evidence_url	-
+recorded_at	2026-10-14T12:00:00Z
+note	synthetic admission fixture; not target execution

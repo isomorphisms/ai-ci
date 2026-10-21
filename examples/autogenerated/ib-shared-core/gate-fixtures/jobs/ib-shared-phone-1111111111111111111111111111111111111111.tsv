@@ -1,0 +1,25 @@
+schema	aici-follower-job-v1
+job_id	ib-shared-phone-1111111111111111111111111111111111111111
+repository	isomorphisms/ib
+branch	fixture
+pr	-
+trigger_commit	1111111111111111111111111111111111111111
+leader_platform	linux-build-container
+leader_arch	x86_64
+leader_evidence	synthetic-admission-fixture
+artifact	-
+artifact_sha256	-
+follower_platform	miro-a1
+follower_arch	armeabi-v7a
+required	yes
+action	test admission fixture only
+acceptance_kind	physical-device
+acceptance_action	validate synthetic data; no target execution
+state	accepted
+last_attempt_commit	1111111111111111111111111111111111111111
+blocker	-
+evidence	ib-shared-phone-1111111111111111111111111111111111111111.tsv
+depends_on	-
+reason	synthetic verifier fixture; never deployment acceptance
+superseded_by	-
+follow_policy	exact
