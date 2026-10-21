@@ -1,0 +1,36 @@
+GPU_POLICY sha256=5c5a90912823dd6a1d75fc09f04bd161c6521dd9c4844e3a399b333b4bbe0f21 phase_abs=0.0001 raw_log_abs=0.0001 regular_rgb8_abs=1
+one_exact:0	PASS class=REGULAR
+one_exact:1	PASS class=REGULAR
+one_exact:2	PASS class=REGULAR
+one_exact:3	PASS class=REGULAR
+one_displaced:0	PASS class=REGULAR
+one_displaced:1	PASS class=TRUE_ZERO
+one_displaced:2	PASS class=REGULAR
+one_displaced:3	PASS class=TRUE_POLE
+24_exact:0	PASS class=REGULAR
+24_exact:1	PASS class=REGULAR
+24_exact:2	PASS class=REGULAR
+24_exact:3	PASS class=REGULAR
+24_displaced:0	PASS class=REGULAR
+24_displaced:1	PASS class=REGULAR
+24_displaced:2	PASS class=TRUE_ZERO
+24_displaced:3	PASS class=REGULAR
+multiplicity:0	PASS class=REGULAR
+multiplicity:1	PASS class=TRUE_ZERO
+multiplicity:2	PASS class=REGULAR
+multiplicity:3	PASS class=REGULAR
+moving0:0	PASS class=REGULAR
+moving0:1	PASS class=REGULAR
+moving0:2	PASS class=REGULAR
+moving0:3	PASS class=REGULAR
+moving7_5:0	PASS class=REGULAR
+moving7_5:1	PASS class=REGULAR
+moving7_5:2	PASS class=REGULAR
+moving7_5:3	PASS class=REGULAR
+moving7_5_zoom:0	PASS class=REGULAR
+moving7_5_zoom:1	PASS class=REGULAR
+moving7_5_zoom:2	PASS class=REGULAR
+moving7_5_zoom:3	PASS class=REGULAR
+24_displaced_large:0	PASS class=REGULAR
+24_displaced_small:0	PASS class=REGULAR
+PASS bounded generated GPU field and same-program RGBA8 corpus; physical identity and provenance require separate receipts

@@ -9,6 +9,7 @@ permissions:
 
 jobs:
   local-execution:
+    name: ${{ github.event_name == 'pull_request' && 'local-execution' || format('local-execution-{0}', github.event_name) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -47,6 +48,7 @@ jobs:
           if-no-files-found: error
 
   netbsd-execution:
+    name: ${{ github.event_name == 'pull_request' && 'netbsd-execution' || format('netbsd-execution-{0}', github.event_name) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:

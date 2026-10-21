@@ -1,0 +1,57 @@
+name: Independently accept English Major C's exact 23 A32 words
+on:
+  pull_request:
+    paths:
+      - 'english-major-c/**'
+      - '.github/workflows/english-a32-23-exact-head.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  accept-23-words:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: dilapidated-shed/English-major-C
+          ref: cd98fa8d360941c4c9e1e660605477f0b651b564
+          path: producer
+          persist-credentials: false
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: isomorphisms/Idric
+          ref: 2734ac5a86610eddfab73b1644d72b4ac85a65ee
+          path: producer/.idric-host
+          persist-credentials: false
+      - name: Bootstrap pinned actual Idric compiler
+        working-directory: producer
+        run: |
+          .idric-host/edric bootstrap
+          .idric-host/edric test --only idris2/basic/edric001
+      - name: Compile bounded English A32 Idric source
+        working-directory: producer
+        run: |
+          export PATH="$GITHUB_WORKSPACE/producer/.idric-host/.tools/bin:$PATH"
+          export IDRIS2_PREFIX="$GITHUB_WORKSPACE/producer/.idric-host/_/build/env"
+          .idric-host/build/exec/idris2 --build english-a32.ipkg
+      - name: Execute producer 23-word and operand tests
+        working-directory: producer
+        env:
+          A32_BINARY: ${{ github.workspace }}/producer/build/exec/english-a32
+          EXPECTED_SOURCE_SHA: cd98fa8d360941c4c9e1e660605477f0b651b564
+        run: node --test research/a32-typed/test-a32.mjs
+      - name: Independent AI-CI verifier against original QR evidence and hostile mutations
+        env:
+          EXPECTED_SOURCE_SHA: cd98fa8d360941c4c9e1e660605477f0b651b564
+        run: |
+          node english-major-c/verify-a32-23.mjs \
+            "$GITHUB_WORKSPACE/producer/build/exec/english-a32" \
+            "$GITHUB_WORKSPACE/producer/experiments/qr-entry/ARM entry before its first call.english" \
+            "$GITHUB_WORKSPACE/producer/examples/r-lm-native-armv7-a32/dqrls.armv7-a32.disasm.txt" \
+            "$GITHUB_WORKSPACE/producer"
+# This independent runner does not claim execution of generated ARM instructions.

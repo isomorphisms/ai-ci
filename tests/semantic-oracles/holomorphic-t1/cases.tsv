@@ -1,0 +1,7 @@
+case_id	role	expected_result
+good	control	PASS
+scale-half	mutant	KILLED
+derivative-degree	mutant	KILLED
+omit-fifth	mutant	KILLED
+wrong-real-sign	mutant	KILLED
+reverse-coefficients	mutant	KILLED

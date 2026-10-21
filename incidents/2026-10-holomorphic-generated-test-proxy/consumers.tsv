@@ -1,0 +1,4 @@
+consumer_id	repository	job_id	release_path	state
+bc-a05-s02	isomorphisms/ai-ci	BC-A05-S02	release/obligations.tsv	ready
+bc-a05-s03	isomorphisms/ai-ci	BC-A05-S03	release/obligations.tsv	pending
+bc-s01-s01	isomorphisms/coxswain	BC-S01-S01	release/obligations.tsv	pending

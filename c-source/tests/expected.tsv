@@ -1,0 +1,6 @@
+path	ordinary_assignments	arrow_assignments	preprocessor_assignments	compound_assignments	lexical_status
+c-source/tests/good.c	0	5	0	10	LEXED
+c-source/tests/good-splice.c	0	1	0	1	LEXED
+c-source/tests/bad-preprocessor.c	0	1	2	0	LEXED
+c-source/tests/bad-assignment.c	1	0	0	0	LEXED
+c-source/tests/bad-splice.c	1	0	0	0	LEXED

@@ -44,3 +44,17 @@ Pipes' registered dispatch or merge-authorization requirements.
 
 Tracked by [ai-ci #246](https://github.com/isomorphisms/ai-ci/issues/246)
 and [Flexible Pipes #70](https://github.com/isomorphisms/flexible-pipes/issues/70).
+
+## Current owned compiler and source integration
+
+The October 21 correction uses current ICK/Ike-integrated framebuffer
+source and no longer compiles *any* consumer/verifier C with stock host
+`cc`. The workflow constructs the exact source-built ICK frontend from
+its pinned reference and uses `framebuffer/build-ick.sh` for all normal
+and mutated source C. A system driver links checked ICK-produced objects
+only (an explicitly declared stage-zero exception); compiler/source
+identity and ELF machine are checked. The independent six-mutant semantic
+oracle is unchanged.
+
+A hosted run on this refreshed draft remains necessary; a prior green
+result at the old framebuffer head is not current-head acceptance.

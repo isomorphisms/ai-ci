@@ -1,0 +1,368 @@
+module Main
+
+import Data.List
+import Data.Text
+import System
+import System.File
+
+record SourceCharacter where
+  constructor Located
+  character : Char
+  character_offset : Number
+  physical_line : Number
+  physical_column : Number
+
+record Finding where
+  constructor Found
+  location : SourceCharacter
+  kind : Text
+
+data SourceRegion = ProgramText | LineComment | BlockComment | Quoted Char
+
+data SourceLanguage = CSource | LuaSource | IdricSource
+
+data LuaRegion = LuaProgram | LuaLineComment | LuaQuoted Char |
+                 LuaLongString Number | LuaLongComment Number |
+                 LuaClosing Number
+
+data CommentDepth = OuterComment | NestedComment CommentDepth
+
+data IdricRegion = IdricProgram | IdricLineComment | IdricQuoted Char |
+                   IdricBlockComment CommentDepth | IdricMultiline
+
+mark_plain_characters : Number → Number → Number → List Char → List SourceCharacter
+mark_plain_characters offset line column [] = []
+mark_plain_characters offset line column (character :: rest) =
+  Located character offset line column ::
+    if character ≟ '\n'
+      then mark_plain_characters (offset + 1) (line + 1) 1 rest
+      else mark_plain_characters (offset + 1) line (column + 1) rest
+
+source_language : Text → Maybe SourceLanguage
+source_language path =
+  case reverse (unpack path) of
+    'c' :: '.' :: rest ⇒ Just CSource
+    'h' :: '.' :: rest ⇒ Just CSource
+    'a' :: 'u' :: 'l' :: '.' :: rest ⇒ Just LuaSource
+    'c' :: 'i' :: 'r' :: 'd' :: 'i' :: '.' :: rest ⇒ Just IdricSource
+    _ ⇒ Nothing
+
+lua_opening_equals : Number → List SourceCharacter → Maybe Number
+lua_opening_equals level [] = Nothing
+lua_opening_equals level (here :: rest) =
+  if here.character ≟ '='
+    then lua_opening_equals (level + 1) rest
+    else if here.character ≟ '[' then Just level else Nothing
+
+lua_long_level : List SourceCharacter → Maybe Number
+lua_long_level [] = Nothing
+lua_long_level (here :: rest) =
+  if here.character ≟ '[' then lua_opening_equals 0 rest else Nothing
+
+lua_closing_matches : Number → List SourceCharacter → Bool
+lua_closing_matches level [] = False
+lua_closing_matches Z (here :: rest) = here.character ≟ ']'
+lua_closing_matches (S remaining_equals) (here :: rest) =
+  here.character ≟ '=' && lua_closing_matches remaining_equals rest
+
+
+mark_characters : Number → Number → Number → List Char → List SourceCharacter
+mark_characters offset line column [] = []
+mark_characters offset line column ('\\' :: '\n' :: rest) =
+  mark_characters (offset + 2) (line + 1) 1 rest
+mark_characters offset line column ('\\' :: '\r' :: '\n' :: rest) =
+  mark_characters (offset + 3) (line + 1) 1 rest
+mark_characters offset line column (character :: rest) =
+  Located character offset line column ::
+    if character ≟ '\n'
+      then mark_characters (offset + 1) (line + 1) 1 rest
+      else mark_characters (offset + 1) line (column + 1) rest
+
+end_position : SourceCharacter
+end_position = Located '\0' 0 0 0
+
+scan_c : SourceRegion → Bool → Bool → List SourceCharacter → List Finding
+scan_c BlockComment directive line_start [] =
+  [Found end_position "unterminated_block_comment"]
+scan_c (Quoted quote) directive line_start [] =
+  [Found end_position "unterminated_literal"]
+scan_c _ directive line_start [] = []
+scan_c LineComment directive line_start (here :: rest) =
+  if here.character ≟ '\n'
+    then scan_c ProgramText False True rest
+    else scan_c LineComment directive False rest
+scan_c BlockComment directive line_start (here :: rest) =
+  case rest of
+    next :: remaining ⇒
+      if here.character ≟ '*' && next.character ≟ '/'
+        then scan_c ProgramText directive line_start remaining
+        else scan_c BlockComment directive (line_start || here.character ≟ '\n') rest
+    [] ⇒ scan_c BlockComment directive line_start rest
+scan_c (Quoted quote) directive line_start (here :: rest) =
+  if here.character ≟ quote
+    then scan_c ProgramText directive False rest
+    else if here.character ≟ '\\'
+      then case rest of
+        next :: remaining ⇒ scan_c (Quoted quote) directive False remaining
+        [] ⇒ scan_c (Quoted quote) directive False rest
+      else scan_c (Quoted quote) directive False rest
+scan_c ProgramText directive line_start (here :: rest) =
+  if here.character ≟ '\n'
+    then scan_c ProgramText False True rest
+    else if line_start && (here.character ≟ ' ' || here.character ≟ '\t' || here.character ≟ '\r')
+      then scan_c ProgramText directive True rest
+      else if line_start && here.character ≟ '#'
+        then scan_c ProgramText True False rest
+        else if here.character ≟ '"' || here.character ≟ '\''
+          then scan_c (Quoted here.character) directive False rest
+          else if here.character ≟ '÷'
+            then Found here (if directive then "preprocessor_glyph" else "division_glyph") ::
+                 scan_c ProgramText directive False rest
+            else if here.character ≟ '/'
+              then case rest of
+                next :: remaining ⇒
+                  if next.character ≟ '/'
+                    then scan_c LineComment directive False remaining
+                    else if next.character ≟ '*'
+                      then scan_c BlockComment directive line_start remaining
+                      else if next.character ≟ '='
+                        then Found here "compound_division" :: scan_c ProgramText directive False remaining
+                        else Found here (if directive then "preprocessor_slash" else "ascii_division") ::
+                             scan_c ProgramText directive False rest
+                [] ⇒ [Found here (if directive then "preprocessor_slash" else "ascii_division")]
+              else scan_c ProgramText directive False rest
+
+has_trigraph : List Char → Bool
+has_trigraph ('?' :: '?' :: character :: rest) = True
+has_trigraph (character :: rest) = has_trigraph rest
+has_trigraph [] = False
+
+audit_c_text : Text → List Finding
+audit_c_text source =
+  let marked = mark_characters 0 1 1 (unpack source)
+      findings = scan_c ProgramText False True marked
+  in if has_trigraph (unpack source)
+       then Found end_position "trigraph_requires_review" :: findings
+       else findings
+
+
+scan_lua : LuaRegion → List SourceCharacter → List Finding
+scan_lua (LuaQuoted quote) [] = [Found end_position "unterminated_literal"]
+scan_lua (LuaLongString level) [] = [Found end_position "unterminated_lua_long_string"]
+scan_lua (LuaLongComment level) [] = [Found end_position "unterminated_lua_long_comment"]
+scan_lua (LuaClosing count) [] = [Found end_position "unterminated_lua_delimiter"]
+scan_lua _ [] = []
+scan_lua LuaLineComment (here :: rest) =
+  if here.character ≟ '\n' then scan_lua LuaProgram rest else scan_lua LuaLineComment rest
+scan_lua (LuaQuoted quote) (here :: rest) =
+  if here.character ≟ quote
+    then scan_lua LuaProgram rest
+    else if here.character ≟ '\\'
+      then case rest of
+        next :: remaining ⇒ scan_lua (LuaQuoted quote) remaining
+        [] ⇒ scan_lua (LuaQuoted quote) rest
+      else scan_lua (LuaQuoted quote) rest
+scan_lua (LuaLongString level) (here :: rest) =
+  if here.character ≟ ']' && lua_closing_matches level rest
+    then scan_lua (LuaClosing level) rest
+    else scan_lua (LuaLongString level) rest
+scan_lua (LuaLongComment level) (here :: rest) =
+  if here.character ≟ ']' && lua_closing_matches level rest
+    then scan_lua (LuaClosing level) rest
+    else scan_lua (LuaLongComment level) rest
+-- The matching lookahead has established the closing delimiter. Consume its
+-- remaining equals signs, then its final bracket.
+scan_lua (LuaClosing Z) (here :: rest) = scan_lua LuaProgram rest
+scan_lua (LuaClosing (S remaining_equals)) (here :: rest) =
+  scan_lua (LuaClosing remaining_equals) rest
+scan_lua LuaProgram (here :: rest) =
+  if here.character ≟ '-' then
+    case rest of
+      next :: remaining ⇒
+        if next.character ≟ '-' then
+          case lua_long_level remaining of
+            Just level ⇒ scan_lua (LuaLongComment level) remaining
+            Nothing ⇒ scan_lua LuaLineComment remaining
+        else scan_lua LuaProgram rest
+      [] ⇒ []
+  else if here.character ≟ '[' then
+    case lua_long_level (here :: rest) of
+      Just level ⇒ scan_lua (LuaLongString level) rest
+      Nothing ⇒ scan_lua LuaProgram rest
+  else if here.character ≟ '"' || here.character ≟ '\''
+    then scan_lua (LuaQuoted here.character) rest
+  else if here.character ≟ '÷'
+    then Found here "division_glyph" :: scan_lua LuaProgram rest
+  else if here.character ≟ '/' then
+    case rest of
+      next :: remaining ⇒
+        if next.character ≟ '/'
+          then Found here "lua_floor_division" :: scan_lua LuaProgram remaining
+        else if next.character ≟ '='
+          then Found here "non_arithmetic_slash_equals" :: scan_lua LuaProgram remaining
+          else Found here "ascii_division" :: scan_lua LuaProgram rest
+      [] ⇒ [Found here "ascii_division"]
+  else scan_lua LuaProgram rest
+
+scan_idric : IdricRegion → Bool → List SourceCharacter → List Finding
+scan_idric (IdricQuoted quote) identifier [] = [Found end_position "unterminated_literal"]
+scan_idric IdricMultiline identifier [] = [Found end_position "unterminated_idric_multiline"]
+scan_idric (IdricBlockComment depth) identifier [] = [Found end_position "unterminated_idric_comment"]
+scan_idric _ identifier [] = []
+scan_idric IdricLineComment identifier (here :: rest) =
+  if here.character ≟ '\n'
+    then scan_idric IdricProgram False rest
+    else scan_idric IdricLineComment False rest
+scan_idric (IdricBlockComment depth) identifier (here :: rest) =
+  case rest of
+    next :: remaining ⇒
+      if here.character ≟ '{' && next.character ≟ '-'
+        then scan_idric (IdricBlockComment (NestedComment depth)) False remaining
+      else if here.character ≟ '-' && next.character ≟ '}'
+        then case depth of
+          OuterComment ⇒ scan_idric IdricProgram False remaining
+          NestedComment outer ⇒ scan_idric (IdricBlockComment outer) False remaining
+        else scan_idric (IdricBlockComment depth) False rest
+    [] ⇒ scan_idric (IdricBlockComment depth) False rest
+scan_idric (IdricQuoted quote) identifier (here :: rest) =
+  if here.character ≟ quote
+    then scan_idric IdricProgram False rest
+  else if here.character ≟ '\\' then
+    case rest of
+      next :: remaining ⇒
+        if quote ≟ '"' && next.character ≟ '{'
+          then Found here "idric_interpolation_requires_review" ::
+               scan_idric (IdricQuoted quote) False remaining
+          else scan_idric (IdricQuoted quote) False remaining
+      [] ⇒ scan_idric (IdricQuoted quote) False rest
+  else scan_idric (IdricQuoted quote) False rest
+scan_idric IdricMultiline identifier (here :: rest) =
+  case rest of
+    next :: third :: remaining ⇒
+      if here.character ≟ '"' && next.character ≟ '"' && third.character ≟ '"'
+        then scan_idric IdricProgram False remaining
+      else if here.character ≟ '\\' && next.character ≟ '{'
+        then Found here "idric_interpolation_requires_review" ::
+             scan_idric IdricMultiline False rest
+        else scan_idric IdricMultiline False rest
+    _ ⇒ scan_idric IdricMultiline False rest
+scan_idric IdricProgram identifier (here :: rest) =
+  if here.character ≟ '"' then
+    case rest of
+      next :: third :: remaining ⇒
+        if next.character ≟ '"' && third.character ≟ '"'
+          then scan_idric IdricMultiline False remaining
+          else scan_idric (IdricQuoted '"') False rest
+      _ ⇒ scan_idric (IdricQuoted '"') False rest
+  else if here.character ≟ '\'' then
+    if identifier
+      then scan_idric IdricProgram True rest
+      else scan_idric (IdricQuoted '\'') False rest
+  else if here.character ≟ '-' then
+    case rest of
+      next :: remaining ⇒
+        if next.character ≟ '-'
+          then scan_idric IdricLineComment False remaining
+          else scan_idric IdricProgram False rest
+      [] ⇒ []
+  else if here.character ≟ '{' then
+    case rest of
+      next :: remaining ⇒
+        if next.character ≟ '-'
+          then scan_idric (IdricBlockComment OuterComment) False remaining
+          else scan_idric IdricProgram False rest
+      [] ⇒ []
+  else if here.character ≟ '÷'
+    then Found here "division_glyph" :: scan_idric IdricProgram False rest
+  else if here.character ≟ '/' then
+    case rest of
+      next :: remaining ⇒
+        if next.character ≟ '='
+          then Found here "idric_inequality" :: scan_idric IdricProgram False remaining
+          else Found here "ascii_division" :: scan_idric IdricProgram False rest
+      [] ⇒ [Found here "ascii_division"]
+  else scan_idric IdricProgram
+    (isAlphaNum here.character || here.character ≟ '_' || here.character > chr 160) rest
+
+audit_text : SourceLanguage → Text → List Finding
+audit_text CSource source = audit_c_text source
+audit_text LuaSource source = scan_lua LuaProgram (mark_plain_characters 0 1 1 (unpack source))
+audit_text IdricSource source = scan_idric IdricProgram False (mark_plain_characters 0 1 1 (unpack source))
+
+lua_checks : Bool
+lua_checks =
+  map kind (audit_text LuaSource "local x = 12 / 3; local y = 12 // 3\n-- / ÷\nlocal z = [=[ / ÷ ]=]\n--[=[ / ÷ ]=]\nreturn 12 ÷ 3\n") ≟
+    ["ascii_division", "lua_floor_division", "division_glyph"] &&
+  map kind (audit_text LuaSource "local x = [==[ ]=] / ÷ ]==]; return 4 / 2") ≟ ["ascii_division"] &&
+  map kind (audit_text LuaSource "local x = [[ / ÷ ]]; --[[ / ÷ ]]\nreturn 8 / 2") ≟ ["ascii_division"] &&
+  map kind (audit_text LuaSource "local x = '-- /'; local y = \"/ ÷\"; return 8 / 2") ≟ ["ascii_division"] &&
+  map kind (audit_text LuaSource "--[=[ incomplete") ≟ ["unterminated_lua_long_comment"]
+
+idric_checks : Bool
+idric_checks =
+  map kind (audit_text IdricSource "value = 12 / 3\n-- /\n{- / {- ÷ -} / -}\nneq = value /= 4\nresult = 12 ÷ 3\n") ≟
+    ["ascii_division", "idric_inequality", "division_glyph"] &&
+  map kind (audit_text IdricSource "result = w' / divisor'\nslash = '/'\npath = \"a/b\"") ≟ ["ascii_division"] &&
+  map kind (audit_text IdricSource "result = α' / β'") ≟ ["ascii_division"] &&
+  map kind (audit_text IdricSource "text = \"\"\"\n/ ÷\n\"\"\"\nvalue = 6 / 2") ≟ ["ascii_division"] &&
+  map kind (audit_text IdricSource "text = \"value \\{x / 2}\"") ≟ ["idric_interpolation_requires_review"] &&
+  map kind (audit_text IdricSource "{- open {- nested -}") ≟ ["unterminated_idric_comment"]
+
+
+finding_kinds : Text → List Text
+finding_kinds source = map kind (audit_c_text source)
+
+pure_checks : Bool
+pure_checks =
+  finding_kinds "double value = 12 / 3; double other = 12 ÷ 3; value /= 2;" ≟
+    ["ascii_division", "division_glyph", "compound_division"] &&
+  finding_kinds "char *path = \"a/b ÷ c\"; char slash = '/'; /* / ÷ */ // / ÷\n" ≟ [] &&
+  finding_kinds "/\\\n* hidden / *\\\n/ double value = 4 / 2;" ≟ ["ascii_division"] &&
+  finding_kinds "// continued \\\n hidden /\n double value = 6 / 2;" ≟ ["ascii_division"] &&
+  finding_kinds "#define HALF(value) ((value) / 2)\n" ≟ ["preprocessor_slash"] &&
+  finding_kinds "/* incomplete" ≟ ["unterminated_block_comment"] &&
+  finding_kinds "\"incomplete" ≟ ["unterminated_literal"] &&
+  finding_kinds "??/\n" ≟ ["trigraph_requires_review", "ascii_division"]
+
+print_finding : Text → Finding → IO ()
+print_finding path finding =
+  putStrLn (path ++ "\t" ++ show finding.location.physical_line ++ "\t" ++
+    show finding.location.physical_column ++ "\t" ++ show finding.location.character_offset ++
+    "\t" ++ finding.kind)
+
+covering
+audit_files : List Text → IO ()
+audit_files [] = pure ()
+audit_files (path :: rest) = do
+  content ← readFile path
+  case content of
+    Left failure ⇒ do
+      putStrLn (path ++ "\t0\t0\t0\tUNREADABLE: " ++ show failure)
+      exitFailure
+    Right source ⇒ do
+      case source_language path of
+        Nothing ⇒ do
+          putStrLn (path ++ "\t0\t0\t0\tUNSUPPORTED_SOURCE_EXTENSION")
+          exitFailure
+        Just language ⇒ do
+          traverse_ (print_finding path) (audit_text language source)
+          audit_files rest
+
+covering
+main : IO ()
+main = do
+  arguments ← getArgs
+  case arguments of
+    [_ , "--self-test"] ⇒
+      if pure_checks && lua_checks && idric_checks
+        then putStrLn "PASS C/header, Lua long brackets and floor division, Idriç primes/nested comments/inequality, literals, splices and malformed-source controls"
+        else do
+          putStrLn "FAIL division source scanner"
+          exitFailure
+    [_] ⇒ do
+      putStrLn "Usage: division-glyph-scan --self-test | FILE..."
+      exitFailure
+    _ :: paths ⇒ do
+      putStrLn "path\tline\tcolumn\tcharacter_offset\tkind"
+      audit_files paths
+    [] ⇒ exitFailure
