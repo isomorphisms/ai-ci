@@ -14,6 +14,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   independent-curvature:
@@ -31,7 +32,7 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           repository: isomorphisms/rough.framebuffer
-          ref: 0a09edede932ba80feb7f35addede3eb17baf6f3
+          ref: f33a476c69da313745b58c10cf8057765f9cbec9
           path: producer
           persist-credentials: false
 
@@ -42,6 +43,14 @@ jobs:
           ref: c61e448251744a2f40ad743ebef1a027bdcd2f9d
           path: ick-toolchain
           submodules: true
+          persist-credentials: false
+
+      - name: Check out the actual curved Conway consumer
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: isomorphismes/Conway
+          ref: 42c99ed0d289162b6fd62d864fbf58fc042e24d8
+          path: conway
           persist-credentials: false
 
       - name: Check out owned Ike orchestrator source
@@ -56,7 +65,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git -C producer rev-parse HEAD)" = 0a09edede932ba80feb7f35addede3eb17baf6f3
+          test "$(git -C producer rev-parse HEAD)" = f33a476c69da313745b58c10cf8057765f9cbec9
           test "$(git -C ick-toolchain rev-parse HEAD)" = c61e448251744a2f40ad743ebef1a027bdcd2f9d
           test "$(git -C ick-toolchain/gcc rev-parse HEAD)" = 6294f1d9e7536e5ffcde09d1528c918d63abfef5
           grep -Fxq gcc_commit=6294f1d9e7536e5ffcde09d1528c918d63abfef5 ick-toolchain/ick/SOURCE.lock
@@ -163,3 +172,84 @@ jobs:
           fi
           grep -Fq 'AICI_SUBPIXEL_RECEIPT_REJECT selected target' build/bad-target.out
           echo 'AICI exact Ike receipt negative controls: PASS'
+
+      # Stage zero only: obtain the reviewed Grease interface before it can
+      # orchestrate the native consumer and independent oracle.
+      - name: Acquire the authenticated Grease launcher and host engine
+        shell: sh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          mkdir -p .grease/bin
+          gh api repos/dilapidated-shed/grease/actions/artifacts/12192502970/zip > "$RUNNER_TEMP/conway-grease.zip"
+          printf '%s  %s\n' 295329ec3bb419d90364fcb5937eafe4306b03f68b7aaa63089dadde8082ffb5 "$RUNNER_TEMP/conway-grease.zip" | sha256sum -c -
+          unzip -p "$RUNNER_TEMP/conway-grease.zip" _bin/cxx-asan/ysh > .grease/bin/ysh
+          curl --fail --location --silent --show-error \
+            https://github.com/isomorphisms/grease/releases/download/tablet-aarch64-9b3dc8904891/grease-aarch64-termux.tar.gz \
+            --output "$RUNNER_TEMP/conway-launcher.tar.gz"
+          printf '%s  %s\n' 3ddb962ef313e528e525fa03518f494577e921c2201ecb49f7a11f2fbf4e82b2 "$RUNNER_TEMP/conway-launcher.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/conway-launcher.tar.gz" -C .grease ./bin/grease
+          printf '%s  %s\n' 37088097c36a2f82cf45aaea9392e4a4cf16155fecb9da87d08a9c7fb4d92e4a .grease/bin/grease | sha256sum -c -
+          printf '%s  %s\n' 7e31cd05b7a9d8fb2a4a9e003a7f3fcb0159138506d17f0fb28da8cbe22aa85c .grease/bin/ysh | sha256sum -c -
+          chmod 755 .grease/bin/grease .grease/bin/ysh
+
+      - name: Independently decode actual font preview output and reject source defects
+        shell: '/usr/bin/env .grease/bin/grease {0}'
+        env:
+          ASAN_OPTIONS: detect_leaks=0
+        run: |
+          set -o errexit -o nounset -o pipefail
+          var workspace = ENV.GITHUB_WORKSPACE
+          cd "$workspace/subpixel"
+          var identity = "sha256:$(sha256sum Ikefile | cut -d ' ' -f1)"
+          var receipt = "$workspace/subpixel/build/font-preview-ike.tsv"
+          env -u IKE_RECIPE_RUNNER ICK_SOURCE_DIR="$workspace/ick-toolchain" \
+            ICK_CC="$workspace/ick-toolchain/stage/bin/x86_64-linux-gnu-gcc" \
+            LEAF_ROOT="$workspace/producer" HOST_LINKER=/usr/bin/x86_64-linux-gnu-gcc \
+            GREASE_BINARY="$workspace/.grease/bin/grease" \
+            IKE_IKEFILE_IDENTITY="$identity" IKE_RECEIPT="$receipt" \
+            "$workspace/.owned/ike" font-preview
+          ./build/font-preview/receipt-check "$receipt" "$identity" font-preview '"$GREASE_BINARY" font-preview-accept.grease'
+          awk -F '\t' '{if ($1 == "selected_target_hex") print "selected_target_hex\t00"; else print}' \
+            "$receipt" > build/font-preview-bad-target.tsv
+          try { ./build/font-preview/receipt-check build/font-preview-bad-target.tsv "$identity" font-preview '"$GREASE_BINARY" font-preview-accept.grease' > build/font-preview-bad-target.log 2>&1 }
+          if (_error.code !== 1) { echo 'forged font-preview target accepted' >&2; exit 1 }
+          grep -Fq 'AICI_SUBPIXEL_RECEIPT_REJECT selected target' build/font-preview-bad-target.log
+
+      - name: Independently accept Conway geometry, masks and actual native pixels
+        shell: '/usr/bin/env .grease/bin/grease {0}'
+        env:
+          ASAN_OPTIONS: detect_leaks=0
+        run: |
+          set -o errexit -o nounset -o pipefail
+          var workspace = ENV.GITHUB_WORKSPACE
+          cd "$workspace/subpixel"
+          var identity = "sha256:$(sha256sum Ikefile | cut -d ' ' -f1)"
+          var receipt = "$workspace/subpixel/build/conway-ike.tsv"
+          env -u IKE_RECIPE_RUNNER ICK_SOURCE_DIR="$workspace/ick-toolchain" \
+            ICK_CC="$workspace/ick-toolchain/stage/bin/x86_64-linux-gnu-gcc" \
+            LEAF_ROOT="$workspace/producer" CONWAY_ROOT="$workspace/conway" \
+            HOST_LINKER=/usr/bin/x86_64-linux-gnu-gcc GREASE_BINARY="$workspace/.grease/bin/grease" \
+            IKE_IKEFILE_IDENTITY="$identity" IKE_RECEIPT="$receipt" \
+            "$workspace/.owned/ike" conway
+          ./build/receipt-check "$receipt" "$identity" conway '"$GREASE_BINARY" conway-accept.grease'
+          awk -F '\t' '{ if ($1 == "selected_target_hex") print "selected_target_hex\t00"; else print }' \
+            "$receipt" > build/conway-bad-target.tsv
+          try { ./build/receipt-check build/conway-bad-target.tsv "$identity" conway '"$GREASE_BINARY" conway-accept.grease' > build/conway-bad-target.log 2>&1 }
+          if (_error.code !== 1) { echo 'forged Conway target accepted' >&2; exit 1 }
+          grep -Fq 'AICI_SUBPIXEL_RECEIPT_REJECT selected target' build/conway-bad-target.log
+
+      - name: Retain source-bound independent font and Conway evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: conway-subpixel-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            subpixel/build/conway/
+            subpixel/build/conway-ike.tsv
+            subpixel/build/conway-bad-target.log
+            subpixel/build/font-preview/
+            subpixel/build/font-preview-ike.tsv
+            subpixel/build/font-preview-bad-target.log
+          if-no-files-found: warn

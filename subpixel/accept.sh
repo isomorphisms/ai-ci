@@ -14,7 +14,7 @@ done
 
 ick_pin=c61e448251744a2f40ad743ebef1a027bdcd2f9d
 gcc_pin=6294f1d9e7536e5ffcde09d1528c918d63abfef5
-leaf_pin=0a09edede932ba80feb7f35addede3eb17baf6f3
+leaf_pin=f33a476c69da313745b58c10cf8057765f9cbec9
 test "$(git -C "$ICK_SOURCE_DIR" rev-parse HEAD)" = "$ick_pin"
 test "$(git -C "$ICK_SOURCE_DIR/gcc" rev-parse HEAD)" = "$gcc_pin"
 test "$(git -C "$LEAF_ROOT" rev-parse HEAD)" = "$leaf_pin"
@@ -162,8 +162,8 @@ if "$out/reject-mutant-plane" > "$out/mutant-plane.log" 2>&1; then
 fi
 grep -Fq 'AICI_SUBPIXEL_REJECT coverage plane rational union' "$out/mutant-plane.log"
 
-original_frame='            double source_alpha = source_base_alpha * occupied_samples(mask) / 64.0;'
-changed_frame='            double source_alpha = source_base_alpha * (occupied_samples(mask) != 0);'
+original_frame='            long double source_units = source_base_units * occupied_samples(mask);'
+changed_frame='            long double source_units = source_base_units * (occupied_samples(mask) != 0 ? 64 : 0);'
 awk -v before="$original_frame" -v after="$changed_frame" \
     '{if ($0 == before) {print after; count++} else print} END {if (count != 1) exit 14}' \
     "$LEAF_ROOT/src/subpixel_framebuffer.c" > "$out/mutant-framebuffer.c"
