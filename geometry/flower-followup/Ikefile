@@ -1,0 +1,16 @@
+# AI-CI owns the independent verdicts. Ike executes every recipe through the
+# absolute Grease runner supplied by Flexible Pipes; each recipe then enters
+# Kitchen's checked absolute-path adapter before Ithon runs an oracle.
+accept depends on stitch metric topology realization
+stitch depends on
+    env ITHON_CHECK_RECEIPT="$[ENV.FLOWER_WORKSPACE]/build/ike-stitch-self-test-frontend.json" "$[ENV.FLOWER_GREASE]" "$[ENV.FLOWER_KITCHEN_RECIPE]" "$[ENV.FLOWER_ITHON]" "$[ENV.FLOWER_STITCH_CHECKER]" --self-test
+    env ITHON_CHECK_RECEIPT="$[ENV.FLOWER_WORKSPACE]/build/ike-increasing-frontend.json" "$[ENV.FLOWER_GREASE]" "$[ENV.FLOWER_KITCHEN_RECIPE]" "$[ENV.FLOWER_ITHON]" "$[ENV.FLOWER_STITCH_CHECKER]" "$[ENV.FLOWER_WORKSPACE]/build" increasing "$[ENV.FLOWER_WORKSPACE]/build/flower-stitch-test"
+    env ITHON_CHECK_RECEIPT="$[ENV.FLOWER_WORKSPACE]/build/ike-control-frontend.json" "$[ENV.FLOWER_GREASE]" "$[ENV.FLOWER_KITCHEN_RECIPE]" "$[ENV.FLOWER_ITHON]" "$[ENV.FLOWER_STITCH_CHECKER]" "$[ENV.FLOWER_WORKSPACE]/build" control "$[ENV.FLOWER_WORKSPACE]/build/flower-stitch-test"
+metric depends on
+    env ITHON_CHECK_RECEIPT="$[ENV.FLOWER_WORKSPACE]/build/ike-metric-frontend.json" "$[ENV.FLOWER_GREASE]" "$[ENV.FLOWER_KITCHEN_RECIPE]" "$[ENV.FLOWER_ITHON]" "$[ENV.FLOWER_METRIC_CHECKER]" "$[ENV.FLOWER_WORKSPACE]/build/metric.tsv" --self-test
+topology depends on
+    env ITHON_CHECK_RECEIPT="$[ENV.FLOWER_WORKSPACE]/build/ike-topology-self-test-frontend.json" "$[ENV.FLOWER_GREASE]" "$[ENV.FLOWER_KITCHEN_RECIPE]" "$[ENV.FLOWER_ITHON]" "$[ENV.FLOWER_TOPOLOGY_CHECKER]" --self-test
+    env ITHON_CHECK_RECEIPT="$[ENV.FLOWER_WORKSPACE]/build/ike-coarse-topology-frontend.json" "$[ENV.FLOWER_GREASE]" "$[ENV.FLOWER_KITCHEN_RECIPE]" "$[ENV.FLOWER_ITHON]" "$[ENV.FLOWER_TOPOLOGY_CHECKER]" "$[ENV.FLOWER_WORKSPACE]/build/mesh.obj" annulus
+    env ITHON_CHECK_RECEIPT="$[ENV.FLOWER_WORKSPACE]/build/ike-fine-topology-frontend.json" "$[ENV.FLOWER_GREASE]" "$[ENV.FLOWER_KITCHEN_RECIPE]" "$[ENV.FLOWER_ITHON]" "$[ENV.FLOWER_TOPOLOGY_CHECKER]" "$[ENV.FLOWER_WORKSPACE]/build/mesh-fine.obj" annulus
+realization depends on
+    env ITHON_CHECK_RECEIPT="$[ENV.FLOWER_WORKSPACE]/build/ike-realization-frontend.json" "$[ENV.FLOWER_GREASE]" "$[ENV.FLOWER_KITCHEN_RECIPE]" "$[ENV.FLOWER_ITHON]" "$[ENV.FLOWER_REALIZATION_CHECKER]" "$[ENV.FLOWER_WORKSPACE]/build/markers.tsv" "$[ENV.FLOWER_WORKSPACE]/build/mesh.obj" "$[ENV.FLOWER_WORKSPACE]/build/mesh-fine.obj" "$[ENV.FLOWER_WORKSPACE]/build/material-edges.tsv"
