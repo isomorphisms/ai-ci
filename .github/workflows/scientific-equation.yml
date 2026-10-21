@@ -27,7 +27,7 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           repository: isomorphisms/ib
-          ref: 35a8b8801f72feb445924882220e30a1374ef7c2
+          ref: 20711f085b18c0ffb3ab90ec5b4e958f716fe52b
           path: source
           submodules: true
           persist-credentials: false
@@ -44,7 +44,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git -C source rev-parse HEAD)" = 35a8b8801f72feb445924882220e30a1374ef7c2
+          test "$(git -C source rev-parse HEAD)" = 20711f085b18c0ffb3ab90ec5b4e958f716fe52b
           test "$(git -C source/.tools/surfer rev-parse HEAD)" = 9113596d732f1c44db7d6e11ad8a12df3dc8d369
           git rev-parse HEAD
           sha256sum scientific-equation/verify.sh scientific-equation/self-test.sh
