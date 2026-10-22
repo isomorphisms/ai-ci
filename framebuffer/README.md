@@ -58,3 +58,35 @@ oracle is unchanged.
 
 A hosted run on this refreshed draft remains necessary; a prior green
 result at the old framebuffer head is not current-head acceptance.
+
+## Consolidated rendering-stack qualification
+
+`verify_stack.c` extends this existing C-ABI verifier family. It does not use
+the producer's tests or expected arrays. `qualify-stack.grease` materializes
+each immutable candidate from Git and compiles both implementation and oracle
+with the authenticated owned ICK frontend. Pinned Ike runs the Grease recipe
+in `framebuffer/Ikefile`; the existing independent receipt checker validates
+its actual target, recipe, identity and result.
+
+The host witnesses cover front-hemisphere drag direction, pointer ownership,
+cancellation, bounded zoom, shape changes, direct versus serialized pixels,
+rational RGBA interpolation, four-sample color/depth resolution, actual oblique
+3×3/5×5 diagnostic pixels, analytic normal orientation, projective material
+interpolation and per-fragment lighting. The mask slice checks all 64 bit
+positions and their four Boolean input states, 4,096 varied clipped/padded
+plane combinations, unchanged sources/padding, extreme integer origins,
+alias rejection, overflow and transactional failures. Expected mask words are
+assembled from independent per-bit truth decisions.
+
+All candidate/oracle C is instrumented with AddressSanitizer and
+UndefinedBehaviorSanitizer. Fourteen changed-source executables must compile,
+run and fail at named semantic witnesses: wrong drag, single-sample resolve,
+empty quadratic panel, constant normal, and each wrong mask operation.
+A compilation failure is not a successful mutant rejection. Leak detection
+alone is disabled for the inherited instrumented Grease runtime's restricted
+host environment; address and undefined-behavior instrumentation remain active.
+
+The exact per-PR revisions live in the checked Grease recipe. The workflow
+retains observed source/material digests, logs and the Ike receipt. This
+qualifies host library/source behavior; NDK compilation, APK identity and
+physical A1/C67 lifecycle, image quality and performance remain separate.
