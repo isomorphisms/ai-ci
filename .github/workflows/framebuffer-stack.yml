@@ -66,9 +66,9 @@ jobs:
           test "$(sha256sum "$[ENV.ICK_CC]" | cut -d ' ' -f1)" = 45805e3295f2709737fcc87985a8a2341aa8663ff8e4e398d2a9d78dc1283e10
           var frontend = "$(readlink -f -- "$("$[ENV.ICK_CC]" -print-prog-name=cc1)")"
           test "$(sha256sum "$frontend" | cut -d ' ' -f1)" = c09665543aa807967d22bcaf0959aedd970f9d21be309d42170e4bae5a555292
-          "$[ENV.ICK_CC]" -std=c11 -O2 -Wall -Wextra -Werror -c ike-source/ike.c -o .owned/ike.o
+          "$[ENV.ICK_CC]" -std=c11 -O2 -fPIC -Wall -Wextra -Werror -c ike-source/ike.c -o .owned/ike.o
           "$[ENV.HOST_LINKER]" .owned/ike.o -o .owned/ike
-          "$[ENV.ICK_CC]" -std=c11 -O2 -Wall -Wextra -Werror -c subpixel/receipt_check.c -o .owned/receipt.o
+          "$[ENV.ICK_CC]" -std=c11 -O2 -fPIC -Wall -Wextra -Werror -c subpixel/receipt_check.c -o .owned/receipt.o
           "$[ENV.HOST_LINKER]" .owned/receipt.o -o .owned/receipt-check
       - name: Independent actual-source execution, sanitizers and 14 source mutants via Ike
         shell: '/usr/bin/env .grease/bin/grease {0}'
