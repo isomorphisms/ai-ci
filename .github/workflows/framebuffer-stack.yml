@@ -13,7 +13,7 @@ jobs:
     env:
       ICK_CC: ${{ github.workspace }}/.stack-tool/ick-host-stage/bin/gcc
       ICK_ARTIFACT_STAGE: ${{ github.workspace }}/.stack-tool/ick-host-stage
-      ICK_STAGE_ARCHIVE: ${{ runner.temp }}/stack-ick.zip
+      ICK_STAGE_ARCHIVE: ${{ github.workspace }}/.stack-ick.zip
       HOST_LINKER: /usr/bin/x86_64-linux-gnu-gcc
       STACK_SOURCE_REPO: ${{ github.workspace }}/producer
       STACK_OUTPUT: ${{ github.workspace }}/framebuffer/build/stack
