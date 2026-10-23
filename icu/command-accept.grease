@@ -1,0 +1,70 @@
+#!/usr/bin/env grease
+# Independently exercise the public Idriç range API and the actual command.
+if (int($#) !== 4) { echo 'requires ICU RESPONSE_PROBE FIXTURE EVIDENCE_DIRECTORY' >&2; exit 2 }
+var icu = $1
+var probe = $2
+var fixture = $3
+var evidence = $4
+mkdir -p "$evidence"
+var work = "$(mktemp -d)"
+cd "$work"
+umask 077
+openssl req -x509 -newkey rsa:2048 -nodes -keyout key.pem -out cert.pem -days 1 -subj '/CN=localhost' -addext 'subjectAltName=DNS:localhost' > certificate.stdout 2> certificate.stderr
+setglobal ENV.SSL_CERT_FILE = "$work/cert.pem"
+fork { "$fixture" http 28080 http.ready > http.stdout 2> http.stderr }
+var plain = "$!"
+fork { "$fixture" tls 28443 tls.ready cert.pem key.pem > tls.stdout 2> tls.stderr }
+var secure = "$!"
+trap --add EXIT { kill "$plain" "$secure" }
+sleep 1
+test -f http.ready
+test -f tls.ready
+var checks = 0
+proc pass (label) { setglobal checks += 1; printf '%s\tPASS\n' "$label" >> accepted.tsv }
+"$probe" range https://localhost:28443/range-valid 10 5 valid.body > range.stdout
+printf hello > expected.body
+cmp valid.body expected.body
+test "$(cat range.stdout)" = b'206\t5'
+pass public-range-valid
+for label in wrong-status wrong-offset wrong-total missing duplicate encoding truncated {
+  try { "$probe" range "https://localhost:28443/range-$label" 10 5 "$label.body" > "$label.stdout" 2> "$label.stderr" }
+  if (_error.code !== 1) { echo "FAIL public range $label" >&2; exit 1 }
+  pass "public-range-$label"
+}
+for option in --http1.0 --http1.1 {
+  "$icu" "$option" get http://127.0.0.1:28080/version-redirect > version.body
+  if (option === '--http1.0') { printf HTTP/1.0 > expected.body } else { printf HTTP/1.1 > expected.body }
+  cmp version.body expected.body
+  pass "$option-redirect"
+}
+for path in bad-whitespace bad-nul length-extra truncated bad-redirect-frame compressed {
+  try { "$icu" get "http://127.0.0.1:28080/$path" > "$path.body" 2> "$path.stderr" }
+  if (_error.code === 0) { echo "FAIL command accepted $path" >&2; exit 1 }
+  pass "command-refuses-$path"
+}
+mkdir private
+setglobal ENV.ICU_CAPTURE_BODY_PATH = "$work/private/body"
+setglobal ENV.ICU_CAPTURE_METADATA_PATH = "$work/private/metadata"
+"$icu" get http://127.0.0.1:28080/version-redirect > capture.stdout
+test ! -s capture.stdout
+grep -Fx b'redirect_count\t1' private/metadata
+grep -Fx b'resolved_url\thttp://127.0.0.1:28080/version' private/metadata
+test "$(stat -c '%a' private/body)" = 600
+test "$(stat -c '%a' private/metadata)" = 600
+pass command-private-capture
+ln -s "$work/private" alias
+setglobal ENV.ICU_CAPTURE_BODY_PATH = "$work/alias/other-body"
+setglobal ENV.ICU_CAPTURE_METADATA_PATH = "$work/private/other-metadata"
+try { "$icu" get http://127.0.0.1:28080/plain > alias.stdout 2> alias.stderr }
+if (_error.code === 0) { echo 'FAIL followed capture directory symlink' >&2; exit 1 }
+test ! -e private/other-body
+test ! -e private/other-metadata
+pass command-parent-symlink-refused
+setglobal ENV.ICU_CAPTURE_BODY_PATH = "$work/private/truncated-body"
+setglobal ENV.ICU_CAPTURE_METADATA_PATH = "$work/private/truncated-metadata"
+try { "$icu" get http://127.0.0.1:28080/truncated > truncated.stdout 2> truncated.stderr }
+if (_error.code === 0) { echo 'FAIL truncated capture succeeded' >&2; exit 1 }
+test ! -e private/truncated-metadata
+pass failed-capture-has-no-success-metadata
+cp -R "$work/." "$evidence/"
+printf 'PASS %d independent command and public-range checks\n' "$checks"

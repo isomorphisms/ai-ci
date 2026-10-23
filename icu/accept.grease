@@ -11,6 +11,7 @@ var verifier = "$evidence/aici"
 var work = "$(mktemp -d)"
 cd -- "$work"
 umask 077
+setglobal ENV.AICI_HOLD_RELEASE_FILE = "$work/hold.release"
 setglobal ENV.HTTPS_PROXY = ''
 setglobal ENV.https_proxy = ''
 var pids = []
@@ -70,6 +71,12 @@ fails status-digits http://127.0.0.1:28080/status-digits 'ICU malformed or unsup
 for path in bad-length duplicate-length chunked {
   fails "$path" "http://127.0.0.1:28080/$path" 'ICU malformed or unsupported HTTP framing'
 }
+succeeds chunk-valid text http://127.0.0.1:28080/chunk-valid b'200\thello'
+for path in chunk-truncated chunk-overflow chunk-trailer chunk-extra chunk-extension chunk-duplicate chunk-conflict {
+  var reason = 'ICU malformed or unsupported HTTP framing'
+  if (path === 'chunk-overflow') { setvar reason = 'ICU captured response exceeds 8 MiB' }
+  fails "$path" "http://127.0.0.1:28080/$path" "$reason"
+}
 fails truncated http://127.0.0.1:28080/truncated 'ICU response body length mismatch'
 fails limit http://127.0.0.1:28080/limit 'ICU captured response exceeds 8 MiB'
 fails limit-stream http://127.0.0.1:28080/limit-stream 'ICU captured response exceeds 8 MiB'
@@ -101,16 +108,24 @@ curl --noproxy '*' -fsS --cacert cert.pem https://localhost:28443/plain -o curl-
 test "$(cat curl-text.actual)" = hello
 pass curl-oracle
 var held_marker = "hold-$(basename "$work")"
+mkdir "$work/held-capture"
 umask 000
-fork { "$probe" text "http://127.0.0.1:28080/$held_marker" > hold.stdout 2> hold.stderr }
+fork { env TMPDIR="$work/held-capture" "$probe" text "http://127.0.0.1:28080/$held_marker" > hold.stdout 2> hold.stderr }
 var hold_pid = "$!"
-sleep 0.4
-find /tmp -maxdepth 2 -type f -path '/tmp/icu-response-*/body' -exec grep -l -F "$held_marker" '{}' + > own-body-path
+var attempt = 0
+while (attempt < 50) {
+  find "$work/held-capture" -maxdepth 2 -type f -name body -exec grep -l -F "$held_marker" '{}' ';' > own-body-path
+  var body_count = "$(wc -l < own-body-path)"
+  if test "$body_count" = 1 { break }
+  sleep 0.1
+  setvar attempt += 1
+}
 test "$(wc -l < own-body-path)" = 1
 var capture_path = "$(sed 's|/body$||' own-body-path)"
 test -n "$capture_path"
 test "$(stat -c '%a' "$capture_path")" = 700
 test "$(stat -c '%a' "$capture_path/body")" = 600
+touch "$work/hold.release"
 wait "$hold_pid"
 umask 077
 test ! -e "$capture_path"

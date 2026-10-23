@@ -1,0 +1,27 @@
+#!/usr/bin/env grease
+if (int($#) !== 3) { echo 'requires CANDIDATE_PROBE FIXTURE EVIDENCE_DIRECTORY' >&2; exit 2 }
+var probe = $1
+var fixture = $2
+var evidence = $3
+mkdir -p "$evidence"
+var work = "$(mktemp -d)"
+cd -- "$work"
+umask 077
+openssl req -x509 -newkey rsa:2048 -nodes -keyout key.pem -out cert.pem -days 1 -subj '/CN=localhost' -addext 'subjectAltName=DNS:localhost' > certificate.stdout 2> certificate.stderr
+setglobal ENV.SSL_CERT_FILE = "$work/cert.pem"
+fork { "$fixture" tls 28443 ready cert.pem key.pem > fixture.stdout 2> fixture.stderr }
+var server = "$!"
+trap --add EXIT { kill "$server" }
+sleep 1
+test -f ready
+"$probe" https://localhost:28443/range-valid "$work/valid.body" "$work/valid.metadata" 10 5 > valid.stdout 2> valid.stderr
+printf hello > expected.body
+cmp valid.body expected.body
+printf 'range-valid\tPASS\n' > accepted.tsv
+for label in wrong-status wrong-offset wrong-total missing duplicate encoding truncated {
+  try { "$probe" "https://localhost:28443/range-$label" "$work/$label.body" "$work/$label.metadata" 10 5 > "$label.stdout" 2> "$label.stderr" }
+  if (_error.code !== 1) { echo "FAIL range-$label: expected rejection" >&2; exit 1 }
+  printf 'range-%s\tPASS\n' "$label" >> accepted.tsv
+}
+cp accepted.tsv valid.metadata valid.stdout valid.body "$evidence/"
+echo 'PASS independent ICU range: explicit request, status, offsets, total, encoding, truncation and duplicate headers'

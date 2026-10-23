@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <time.h>
 #include <unistd.h>
 
 static int send_all(int fd, SSL *tls, const void *data, size_t size) {
@@ -33,6 +34,24 @@ static void respond(int fd, SSL *tls, const char *request, int port) {
         const char *r = "HTTP/1.0 2000 Wrong\r\nContent-Length: 0\r\n\r\n";
         (void)send_all(fd, tls, r, strlen(r)); return;
     }
+    if (!strcmp(path, "/version-redirect") || !strcmp(path, "/bad-redirect-frame")) {
+        const char *r = !strcmp(path, "/bad-redirect-frame")
+            ? "HTTP/1.1 302 Found\r\nLocation: /version\r\nContent-Length: 0\r\nContent-Length: 1\r\n\r\n"
+            : "HTTP/1.1 302 Found\r\nLocation: /version\r\nContent-Length: 0\r\n\r\n";
+        (void)send_all(fd, tls, r, strlen(r)); return;
+    }
+    if (!strcmp(path, "/bad-whitespace")) {
+        const char *r = "HTTP/1.1 200 OK\r\nContent-Length : 5\r\n\r\nhello";
+        (void)send_all(fd, tls, r, strlen(r)); return;
+    }
+    if (!strcmp(path, "/bad-nul")) {
+        static const char r[] = "HTTP/1.1 200 OK\r\nContent-Length: 5\0hidden\r\n\r\nhello";
+        (void)send_all(fd, tls, r, sizeof(r) - 1); return;
+    }
+    if (!strcmp(path, "/length-extra")) {
+        const char *r = "HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\nhello";
+        (void)send_all(fd, tls, r, strlen(r)); return;
+    }
     if (!strcmp(path, "/same") || !strcmp(path, "/cross")) {
         char r[512];
         int n = !strcmp(path, "/same")
@@ -42,6 +61,7 @@ static void respond(int fd, SSL *tls, const char *request, int port) {
     }
     int sensitive = strstr(request, "Authorization:") != NULL || strstr(request, "X-API-Key:") != NULL;
     const char *body = "hello";
+    if (!strcmp(path, "/version")) body = strstr(request, " HTTP/1.1\r\n") ? "HTTP/1.1" : "HTTP/1.0";
     if (!strcmp(path, "/require-credentials")) body = sensitive ? "retained" : "MISSING";
     if (!strcmp(path, "/must-be-clean")) body = sensitive ? "LEAKED" : "stripped";
     if (!strcmp(path, "/post")) {
@@ -62,6 +82,41 @@ static void respond(int fd, SSL *tls, const char *request, int port) {
     int status = 200;
     if (!strncmp(path, "/status/", 8)) status = atoi(path + 8);
     if (!strcmp(path, "/empty")) status = 204;
+    if (!strncmp(path, "/range-", 7)) {
+        int requested = strstr(request, "Range: bytes=10-14\r\n") != NULL &&
+            strstr(request, " HTTP/1.1\r\n") != NULL;
+        const char *range = "Content-Range: bytes 10-14/100\r\n";
+        const char *encoding = "identity";
+        int range_status = requested ? 206 : 400;
+        if (!strcmp(path, "/range-wrong-status")) range_status = 200;
+        if (!strcmp(path, "/range-wrong-offset")) range = "Content-Range: bytes 11-15/100\r\n";
+        if (!strcmp(path, "/range-wrong-total")) range = "Content-Range: bytes 10-14/14\r\n";
+        if (!strcmp(path, "/range-missing")) range = "";
+        if (!strcmp(path, "/range-duplicate")) range = "Content-Range: bytes 10-14/100\r\nContent-Range: bytes 10-14/100\r\n";
+        if (!strcmp(path, "/range-encoding")) encoding = "gzip";
+        char response[512];
+        int count = snprintf(response, sizeof(response), "HTTP/1.1 %d Fixture\r\nContent-Length: 5\r\n%sContent-Encoding: %s\r\nConnection: close\r\n\r\n", range_status, range, encoding);
+        if (send_all(fd, tls, response, (size_t)count))
+            (void)send_all(fd, tls, "hello", !strcmp(path, "/range-truncated") ? 4 : 5);
+        return;
+    }
+    if (!strncmp(path, "/chunk-", 7)) {
+        const char *chunked = "3\r\nhel\r\n2\r\nlo\r\n0\r\n\r\n";
+        const char *framing = "Transfer-Encoding: chunked\r\n";
+        if (!strcmp(path, "/chunk-truncated")) chunked = "5\r\nhell";
+        if (!strcmp(path, "/chunk-overflow")) chunked = "FFFFFFFFFFFFFFFF\r\n";
+        if (!strcmp(path, "/chunk-trailer")) chunked = "0\r\nTrailer: x\r\n\r\n";
+        if (!strcmp(path, "/chunk-extra")) chunked = "0\r\n\r\nextra";
+        if (!strcmp(path, "/chunk-extension")) chunked = "5;ignored=x\r\nhello\r\n0\r\n\r\n";
+        if (!strcmp(path, "/chunk-duplicate")) framing = "Transfer-Encoding: chunked\r\nTransfer-Encoding: chunked\r\n";
+        if (!strcmp(path, "/chunk-conflict")) framing = "Transfer-Encoding: chunked\r\nContent-Length: 5\r\n";
+        char chunk_head[512];
+        int count = snprintf(chunk_head, sizeof(chunk_head),
+            "HTTP/1.1 200 Fixture\r\n%sContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n", framing);
+        if (send_all(fd, tls, chunk_head, (size_t)count))
+            (void)send_all(fd, tls, chunked, strlen(chunked));
+        return;
+    }
     int large = !strcmp(path, "/limit") || !strcmp(path, "/limit-stream") || !strcmp(path, "/exact-limit");
     if (large) size = 8u * 1024u * 1024u + (strcmp(path, "/exact-limit") != 0);
     char length[100];
@@ -78,7 +133,12 @@ static void respond(int fd, SSL *tls, const char *request, int port) {
     if (!send_all(fd, tls, head, (size_t)n)) return;
     if (holding) {
         if (!send_all(fd, tls, held, sizeof(held) - 1)) return;
-        sleep(2);
+        const char *release = getenv("AICI_HOLD_RELEASE_FILE");
+        if (release == NULL) sleep(2);
+        else for (int attempt = 0; attempt < 100 && access(release, F_OK) != 0; ++attempt) {
+            const struct timespec pause = {0, 100000000};
+            (void)nanosleep(&pause, NULL);
+        }
         (void)send_all(fd, tls, held + sizeof(held) - 1, 1);
         return;
     }
