@@ -1,0 +1,36 @@
+#!/usr/bin/env grease
+# Independent emulator observer. This builds or supplies no candidate methods.
+if (len(ARGV) !== 6) {
+  echo 'usage: grease observe-art.grease ADB SERIAL CANDIDATE RUNNER MUTANT EVIDENCE'
+  exit 2
+}
+var adb = ARGV[0]
+var serial = ARGV[1]
+var candidate = ARGV[2]
+var runner = ARGV[3]
+var mutant = ARGV[4]
+var evidence = ARGV[5]
+mkdir -p "$evidence"
+"$adb" -s "$serial" shell getprop > "$evidence/device-properties.txt"
+"$adb" -s "$serial" shell getprop ro.kernel.qemu | tr -d '\r' | rg -x '1'
+"$adb" -s "$serial" shell getprop ro.product.cpu.abi | tr -d '\r' | rg -x 'x86_64'
+"$adb" -s "$serial" shell mkdir -p /data/local/tmp/idric-calls
+"$adb" -s "$serial" push "$candidate" /data/local/tmp/idric-calls/candidate.dex
+"$adb" -s "$serial" push "$runner" /data/local/tmp/idric-calls/runner.dex
+"$adb" -s "$serial" push "$mutant" /data/local/tmp/idric-calls/mutant.dex
+timeout 120 "$adb" -s "$serial" shell 'CLASSPATH=/data/local/tmp/idric-calls/candidate.dex:/data/local/tmp/idric-calls/runner.dex app_process /system/bin acceptance.CheckedCallsRunner' > "$evidence/positive.txt" 2>&1
+rg -x 'PASS checked calls: 43 assertions' "$evidence/positive.txt"
+if timeout 120 "$adb" -s "$serial" shell 'CLASSPATH=/data/local/tmp/idric-calls/mutant.dex:/data/local/tmp/idric-calls/runner.dex app_process /system/bin acceptance.CheckedCallsRunner' > "$evidence/mutant.txt" 2>&1 {
+  echo 'FAIL: compiled faulty helper passed the independent observer'
+  exit 1
+} else {
+  var failure_status = $?
+  printf '%s\n' "$failure_status" > "$evidence/mutant-status.txt"
+  test "$failure_status" -eq 73
+}
+rg -F 'checked Idric call returned the wrong value' "$evidence/mutant.txt"
+"$adb" -s "$serial" pull /data/local/tmp/idric-calls/candidate.dex "$evidence/received.dex"
+cmp "$candidate" "$evidence/received.dex"
+sha256sum "$candidate" "$runner" "$mutant" > "$evidence/artifacts.sha256"
+printf 'ART_loaded\tPASS\nART_executed\tPASS\nassertions\t43\ncompiled_mutant\tREJECTED\nphysical_A1\tNOT_VERIFIED\nphysical_C67\tNOT_VERIFIED\n' > "$evidence/receipt.tsv"
+printf '\033[32mPASS\033[0m checked calls and compiled-mutant rejection on emulator ART\n'
