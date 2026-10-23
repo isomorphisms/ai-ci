@@ -6,6 +6,10 @@ The independent fixture now holds the marked response until the test releases
 it, with a ten-second bound. The observer waits at most five seconds for its
 exact marker, checks permissions, releases the fixture, and verifies cleanup.
 A missing body still fails. Earlier failed runs are not passing evidence.
+The held request now has its own private `TMPDIR`; the probe never scans other
+processes' captures. A grep non-match is a find predicate while filesystem
+errors still fail the observation. ICU's Android-capable temporary-directory
+boundary must honor this explicit directory.
 
 The first published-head rerun passed the transport behavior cases but its
 privacy probe selected two unrelated temporary directories when a live Jobicy

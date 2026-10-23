@@ -108,13 +108,15 @@ curl --noproxy '*' -fsS --cacert cert.pem https://localhost:28443/plain -o curl-
 test "$(cat curl-text.actual)" = hello
 pass curl-oracle
 var held_marker = "hold-$(basename "$work")"
+mkdir "$work/held-capture"
 umask 000
-fork { "$probe" text "http://127.0.0.1:28080/$held_marker" > hold.stdout 2> hold.stderr }
+fork { env TMPDIR="$work/held-capture" "$probe" text "http://127.0.0.1:28080/$held_marker" > hold.stdout 2> hold.stderr }
 var hold_pid = "$!"
 var attempt = 0
 while (attempt < 50) {
-  find /tmp -maxdepth 2 -type f -path '/tmp/icu-response-*/body' -exec grep -l -F "$held_marker" '{}' + > own-body-path
-  if test "$(wc -l < own-body-path)" = 1 { break }
+  find "$work/held-capture" -maxdepth 2 -type f -name body -exec grep -l -F "$held_marker" '{}' ';' > own-body-path
+  var body_count = "$(wc -l < own-body-path)"
+  if test "$body_count" = 1 { break }
   sleep 0.1
   setvar attempt += 1
 }
