@@ -11,6 +11,7 @@ var verifier = "$evidence/aici"
 var work = "$(mktemp -d)"
 cd -- "$work"
 umask 077
+setglobal ENV.AICI_HOLD_RELEASE_FILE = "$work/hold.release"
 setglobal ENV.HTTPS_PROXY = ''
 setglobal ENV.https_proxy = ''
 var pids = []
@@ -110,13 +111,19 @@ var held_marker = "hold-$(basename "$work")"
 umask 000
 fork { "$probe" text "http://127.0.0.1:28080/$held_marker" > hold.stdout 2> hold.stderr }
 var hold_pid = "$!"
-sleep 0.4
-find /tmp -maxdepth 2 -type f -path '/tmp/icu-response-*/body' -exec grep -l -F "$held_marker" '{}' + > own-body-path
+var attempt = 0
+while (attempt < 50) {
+  find /tmp -maxdepth 2 -type f -path '/tmp/icu-response-*/body' -exec grep -l -F "$held_marker" '{}' + > own-body-path
+  if test "$(wc -l < own-body-path)" = 1 { break }
+  sleep 0.1
+  setvar attempt += 1
+}
 test "$(wc -l < own-body-path)" = 1
 var capture_path = "$(sed 's|/body$||' own-body-path)"
 test -n "$capture_path"
 test "$(stat -c '%a' "$capture_path")" = 700
 test "$(stat -c '%a' "$capture_path/body")" = 600
+touch "$work/hold.release"
 wait "$hold_pid"
 umask 077
 test ! -e "$capture_path"

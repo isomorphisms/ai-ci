@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <time.h>
 #include <unistd.h>
 
 static int send_all(int fd, SSL *tls, const void *data, size_t size) {
@@ -132,7 +133,12 @@ static void respond(int fd, SSL *tls, const char *request, int port) {
     if (!send_all(fd, tls, head, (size_t)n)) return;
     if (holding) {
         if (!send_all(fd, tls, held, sizeof(held) - 1)) return;
-        sleep(2);
+        const char *release = getenv("AICI_HOLD_RELEASE_FILE");
+        if (release == NULL) sleep(2);
+        else for (int attempt = 0; attempt < 100 && access(release, F_OK) != 0; ++attempt) {
+            const struct timespec pause = {0, 100000000};
+            (void)nanosleep(&pause, NULL);
+        }
         (void)send_all(fd, tls, held + sizeof(held) - 1, 1);
         return;
     }
