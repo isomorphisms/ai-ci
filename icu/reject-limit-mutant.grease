@@ -1,0 +1,23 @@
+#!/usr/bin/env grease
+# Compile an actually faulty provider and require installed acceptance to reject it.
+if (int($#) !== 5) { echo 'requires ICU_SOURCE INSTALLED_PREFIX ICK AICI_ROOT EVIDENCE' >&2; exit 2 }
+var source = $1
+var installed = $2
+var compiler = $3
+var root = $4
+var evidence = $5
+mkdir -p "$evidence"
+sed 's/#define MAX_CAPTURE_BYTES (8u /#define MAX_CAPTURE_BYTES (16u /' "$source/native/transport.c" > "$evidence/mutant-transport.c"
+grep -F '#define MAX_CAPTURE_BYTES (16u ' "$evidence/mutant-transport.c"
+"$compiler" -fno-link-libatomic -std=c11 -O2 -Wall -Wextra -Werror -fPIC -shared "$evidence/mutant-transport.c" -lssl -lcrypto -o "$evidence/mutant.so"
+cp -a "$installed" "$evidence/install"
+cp "$evidence/mutant.so" "$evidence/install/bin/icu_app/libicu_transport.so"
+cp "$evidence/mutant.so" "$evidence/install/bin/response-probe_app/libicu_transport.so"
+sha256sum "$source/libicu_transport.so" "$evidence/mutant.so" > "$evidence/artifacts.sha256"
+var parent_evidence = "$(dirname "$evidence")"
+try { grease "$root/icu/accept.grease" "$evidence/install" "$parent_evidence" "$root" capture > "$evidence/rejection.stdout" 2> "$evidence/rejection.stderr" }
+if (_error.code !== 1) { echo 'FAIL acceptance did not reject the enlarged capture limit' >&2; exit 1 }
+grep -F b'PASS\ttruncated' "$evidence/rejection.stdout"
+if grep -F b'PASS\tlimit' "$evidence/rejection.stdout" { echo 'FAIL wrong mutation boundary' >&2; exit 1 }
+printf 'actual-provider-mutant\tREJECTED\nfirst-unpassed-check\tlimit\n' > "$evidence/receipt.tsv"
+cat "$evidence/receipt.tsv"

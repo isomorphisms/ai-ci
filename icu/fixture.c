@@ -33,6 +33,24 @@ static void respond(int fd, SSL *tls, const char *request, int port) {
         const char *r = "HTTP/1.0 2000 Wrong\r\nContent-Length: 0\r\n\r\n";
         (void)send_all(fd, tls, r, strlen(r)); return;
     }
+    if (!strcmp(path, "/version-redirect") || !strcmp(path, "/bad-redirect-frame")) {
+        const char *r = !strcmp(path, "/bad-redirect-frame")
+            ? "HTTP/1.1 302 Found\r\nLocation: /version\r\nContent-Length: 0\r\nContent-Length: 1\r\n\r\n"
+            : "HTTP/1.1 302 Found\r\nLocation: /version\r\nContent-Length: 0\r\n\r\n";
+        (void)send_all(fd, tls, r, strlen(r)); return;
+    }
+    if (!strcmp(path, "/bad-whitespace")) {
+        const char *r = "HTTP/1.1 200 OK\r\nContent-Length : 5\r\n\r\nhello";
+        (void)send_all(fd, tls, r, strlen(r)); return;
+    }
+    if (!strcmp(path, "/bad-nul")) {
+        static const char r[] = "HTTP/1.1 200 OK\r\nContent-Length: 5\0hidden\r\n\r\nhello";
+        (void)send_all(fd, tls, r, sizeof(r) - 1); return;
+    }
+    if (!strcmp(path, "/length-extra")) {
+        const char *r = "HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\nhello";
+        (void)send_all(fd, tls, r, strlen(r)); return;
+    }
     if (!strcmp(path, "/same") || !strcmp(path, "/cross")) {
         char r[512];
         int n = !strcmp(path, "/same")
@@ -42,6 +60,7 @@ static void respond(int fd, SSL *tls, const char *request, int port) {
     }
     int sensitive = strstr(request, "Authorization:") != NULL || strstr(request, "X-API-Key:") != NULL;
     const char *body = "hello";
+    if (!strcmp(path, "/version")) body = strstr(request, " HTTP/1.1\r\n") ? "HTTP/1.1" : "HTTP/1.0";
     if (!strcmp(path, "/require-credentials")) body = sensitive ? "retained" : "MISSING";
     if (!strcmp(path, "/must-be-clean")) body = sensitive ? "LEAKED" : "stripped";
     if (!strcmp(path, "/post")) {
