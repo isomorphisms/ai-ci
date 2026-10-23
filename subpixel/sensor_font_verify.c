@@ -138,9 +138,32 @@ static int specimen(const char *path) {
         fwrite(image,1,sizeof image,file) == sizeof image;
     return fclose(file) == 0 && okay ? 0 : 2;
 }
+static int application_scales(void) {
+    const char *alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz/\\+-.?:,=";
+    const unsigned scales[] = {2,3,4,5,6,7,8,9,10,14};
+    unsigned cases = 0;
+    for (unsigned si = 0; si < sizeof scales/sizeof scales[0]; ++si)
+        for (const char *code = alphabet; *code; ++code) {
+            unsigned scale = scales[si];
+            if (!sf57_render_coverage((unsigned char)*code,scale,0,0,actual,sizeof actual)) {
+                fprintf(stderr,"SENSOR_FONT_REJECT application glyph U+%04x scale=%u refused\n",(unsigned char)*code,scale);
+                return 1;
+            }
+            unsigned ink = 0;
+            for (unsigned pixel = 0; pixel < 35*scale*scale; ++pixel) ink += actual[pixel];
+            if (!ink) {
+                fprintf(stderr,"SENSOR_FONT_REJECT invisible application glyph U+%04x scale=%u\n",(unsigned char)*code,scale);
+                return 1;
+            }
+            ++cases;
+        }
+    printf("application_scale_cases\t%u\tPASS\n",cases);
+    return 0;
+}
 int main(int argc,char **argv) {
     old_slash = argc == 2 && !strcmp(argv[1],"--old-slash");
     if (geometry_cases() || contour_cases()) return 2;
+    if (!old_slash && application_scales()) return 1;
     if (argc == 2 && !old_slash && specimen(argv[1])) return 2;
     if (failures) return 1;
     puts("SENSOR_FONT_ACCEPT 100 independent line-union cases and 32 sampled contour cases: PASS");

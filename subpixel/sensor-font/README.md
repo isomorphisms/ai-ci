@@ -15,6 +15,10 @@ checks the intended open/closed counters for 16 rounded glyphs at scales 3/5.
 Those 32 sampled topology cases pass. This is not a proof of topology at all
 scales or a guarantee of physical readability.
 
+An additional 710 actual-application glyph/scale calls cover the complete
+ASCII instrument alphabet at scales 2, 3, 4, 5, 6, 7, 8, 9, 10 and 14. All
+produce visible nonempty coverage without exhausting the producer budget.
+
 The negative fixture uses the retained historical bitmap/bilinear-threshold
 slash as the image under test. It fails with the intended finite-segment-union
 diagnostic and exit 1. It is a checker negative, not a mutated new producer or

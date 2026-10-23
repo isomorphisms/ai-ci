@@ -30,6 +30,7 @@ jobs:
         run: |
           sensor-font-results/verify sensor-font-results/slash-before-after.pgm > sensor-font-results/positive.tsv
           grep -Fq 'SENSOR_FONT_ACCEPT 100 independent line-union cases and 32 sampled contour cases: PASS' sensor-font-results/positive.tsv
+          grep -Eq '^application_scale_cases[[:space:]]710[[:space:]]PASS$' sensor-font-results/positive.tsv
       - name: Reject historical bumpy slash control
         run: |
           if sensor-font-results/verify --old-slash > sensor-font-results/negative.tsv 2> sensor-font-results/negative-errors.txt; then
