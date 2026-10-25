@@ -1,0 +1,47 @@
+#!/usr/bin/env grease
+# Observe actual DEX through an independent decoder. This is host evidence.
+if (len(ARGV) !== 3) {
+  echo 'usage: grease verify-new-intent.grease BAKSMALI CANDIDATE_DEX NEW_EVIDENCE' >&2
+  exit 2
+}
+var decoder = ARGV[0]
+var candidate = ARGV[1]
+var evidence = ARGV[2]
+for path in "$decoder" "$candidate" "$evidence" {
+  if (path[0] !== '/') { echo 'FAIL absolute path required' >&2; exit 2 }
+}
+if test -e "$evidence" { echo 'FAIL evidence already exists' >&2; exit 2 }
+mkdir -p "$evidence"
+sha256sum "$decoder" "$candidate" > "$evidence/input.sha256"
+java -jar "$decoder" disassemble "$candidate" -o "$evidence/decoded" > "$evidence/decoder.txt" 2>&1
+var source = "$evidence/decoded/Idric/Generated.smali"
+rg -q -x -F '.super Landroid/app/Activity;' "$source"
+awk '
+  /^\.method public onNewIntent\(Landroid\/content\/Intent;\)V$/ { inside=1; next }
+  inside && /^\.end method$/ { exit }
+  inside { sub(/^[[:space:]]+/, ""); if ($0 != "" && $0 !~ /^#/) print }
+' "$source" > "$evidence/bridge.txt"
+printf '%s\n' \
+  '.registers 3' \
+  'invoke-super {p0, p1}, Landroid/app/Activity;->onNewIntent(Landroid/content/Intent;)V' \
+  'invoke-static {p0, p1}, LIdric/Generated;->receive_new_intent(Landroid/app/Activity;Landroid/content/Intent;)V' \
+  'return-void' > "$evidence/expected-bridge.txt"
+if ! cmp -s "$evidence/bridge.txt" "$evidence/expected-bridge.txt" {
+  echo 'FAIL new Intent bridge must call parent then forward both exact references' >&2
+  exit 1
+}
+awk '
+  /^\.method public static receive_new_intent\(Landroid\/app\/Activity;Landroid\/content\/Intent;\)V$/ { inside=1; next }
+  inside && /^\.end method$/ { exit }
+  inside { sub(/^[[:space:]]+/, ""); if ($0 != "" && $0 !~ /^#/) print }
+' "$source" > "$evidence/retention.txt"
+printf '%s\n' \
+  '.registers 3' \
+  'invoke-virtual {p0, p1}, Landroid/app/Activity;->setIntent(Landroid/content/Intent;)V' \
+  'return-void' > "$evidence/expected-retention.txt"
+if ! cmp -s "$evidence/retention.txt" "$evidence/expected-retention.txt" {
+  echo 'FAIL new Intent retention must use the supplied Intent' >&2
+  exit 1
+}
+printf 'decoded_new_intent_contract\tPASS\nART\tNOT_RUN\ninstalled_activity\tNOT_RUN\nphysical_C67\tNOT_RUN\n' > "$evidence/result.tsv"
+printf '\033[32mPASS\033[0m independently decoded new Intent forwarding and retention\n'

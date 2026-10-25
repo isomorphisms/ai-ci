@@ -12,3 +12,11 @@ acceptance. Smali builds only this observer. Preserve candidate and runner
 hashes, emulator identity, exact stdout and status. Mutate the checked helper's
 addition and compile it again: this same observer must fail. Physical Android
 acceptance remains separate.
+
+`verify-new-intent.grease` independently decodes the maintained compiler's
+NewIntentActivity fixture. It requires parent-before-handler dispatch with both
+actual incoming references, followed by retention of that same Intent. It
+rejects a separately compiled source which retrieves the previous Intent.
+This is a deliberately bounded fixture contract, not a general DEX verifier,
+proof of ART execution or installed-Activity delivery. The compiler consumer
+keeps its source mutations and host/runtime evidence separately.
