@@ -30,3 +30,31 @@ assignments with three disclosed operand pairs (768 modeled transitions).
 Eleven corruptions must fail, including predicate/source mistakes, false
 completion and altered primary evidence. It does not run a specimen or certify
 complete effects. The other 117 historical partial descriptions remain unverified.
+
+## Reorganized consumer directories
+
+All three checkers accept `--path-map _/path-map.tsv`. The map filename and both
+columns are relative to `--repository`, regardless of the launch directory.
+The plain TSV starts with `old_path<TAB>new_path`. Each subsequent row maps an
+old logical file or directory to its current location. The longest matching
+directory prefix wins; an exact file mapping overrides its parent directory.
+Unmapped paths retain their original location. Prefixes match whole path
+components, so `examples` does not match `examples-old`.
+
+Include directory mappings for sets that a checker enumerates, such as
+`coverage` to `_/coverage`, and exact overrides where assembly listings or
+English annotations have been separated from binaries. The map changes only
+current worktree reads. It does not change historical Git `commit:path`
+lookups, source pins, specimen manifests, generated historical tables, or any
+byte, instruction, ABI, or semantic assertion.
+
+Empty or duplicate source paths, absolute paths, `.` or `..` components, malformed
+rows, and destinations escaping through symlink ancestors are rejected. The
+map itself must also be inside the repository. Receipt checks cover the map
+and all mapped destinations of their existing material scopes, including
+directories split across several locations. Receipts include the map's SHA-256
+and the shared path resolver's SHA-256. A dirty map cannot produce an exact-head
+receipt. Existing calls without `--path-map` keep the original layout.
+
+Run the focused positive and negative path tests with
+`node /ABSOLUTE/ai-ci/fortran-coverage/worktree-paths.test.mjs`.
