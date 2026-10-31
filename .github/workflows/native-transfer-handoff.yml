@@ -6,8 +6,9 @@ permissions:
 jobs:
   acceptance:
     runs-on: ubuntu-24.04
-    timeout-minutes: 8
+    timeout-minutes: 120
     steps:
+      # Executes the source-pinned legacy YSH oracle, not production Grease.
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
