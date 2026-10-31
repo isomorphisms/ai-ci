@@ -1,0 +1,58 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 6) { echo 'usage: grease observe-native-fields.grease AICI INPUT SMALI ADB SERIAL NEW_EVIDENCE' >&2; exit 2 }
+var repository = ARGV[0]
+var input = ARGV[1]
+var smali = ARGV[2]
+var adb = ARGV[3]
+var serial = ARGV[4]
+var evidence = ARGV[5]
+for path in "$repository" "$input" "$smali" "$adb" "$evidence" {
+  if (len(path) === 0 or path[0] !== '/') { echo 'FAIL absolute path required' >&2; exit 2 }
+}
+if test -e "$evidence" { echo 'FAIL reused native-field ART evidence' >&2; exit 2 }
+mkdir -p "$evidence"
+"$adb" -s "$serial" shell getprop ro.kernel.qemu | tr -d '\r' | rg -x 1
+"$adb" -s "$serial" shell getprop ro.product.cpu.abi | tr -d '\r' | rg -x x86_64
+var api = $("$adb" -s "$serial" shell getprop ro.build.version.sdk | tr -d '\r')
+if (api !== '29' and api !== '34') { echo 'FAIL undeclared ART API' >&2; exit 1 }
+if (api !== ENV.AICI_EXPECTED_ANDROID_API) { echo 'FAIL observed API differs from declared lane' >&2; exit 1 }
+"$adb" -s "$serial" shell getprop ro.build.fingerprint > "$evidence/fingerprint.txt"
+var digest = $(sha256sum "$input/native-reference-fields.dex" | cut -d ' ' -f 1)
+var remote = "/data/local/tmp/native-reference-fields-$digest"
+"$adb" -s "$serial" shell test ! -e "$remote"
+"$adb" -s "$serial" shell mkdir "$remote"
+java -jar "$smali" assemble "$repository/ib-source/reader/NativeReferenceFieldsObserver.smali" -o "$evidence/observer.dex"
+"$adb" -s "$serial" push "$evidence/observer.dex" "$remote/observer.dex"
+"$adb" -s "$serial" shell chmod 444 "$remote/observer.dex"
+for lane in native-reference-fields native-reference-fields-static-mutant {
+  test -s "$input/$lane.dex"
+  "$adb" -s "$serial" push "$input/$lane.dex" "$remote/$lane.dex"
+  "$adb" -s "$serial" shell chmod 444 "$remote/$lane.dex"
+  "$adb" -s "$serial" pull "$remote/$lane.dex" "$evidence/$lane.received.dex"
+  cmp "$input/$lane.dex" "$evidence/$lane.received.dex"
+  try {
+    timeout 120 "$adb" -s "$serial" shell -T \
+      "CLASSPATH=$remote/$lane.dex:$remote/observer.dex app_process /system/bin acceptance.NativeReferenceFieldsObserver" \
+      > "$evidence/$lane.txt" 2>&1
+  }
+  var status = _error.code
+  printf '%s\n' "$status" > "$evidence/$lane.exit"
+  cat "$evidence/$lane.txt"
+  var wanted = 0
+  var marker = 'PASS independent native reference field ownership on ART'
+  if (lane === 'native-reference-fields-static-mutant') {
+    setvar wanted = 73
+    setvar marker = 'FAIL native reference field ownership'
+  }
+  if (status !== wanted) {
+    try { "$adb" -s "$serial" logcat -d -v threadtime > "$evidence/$lane.logcat.txt" 2>&1 }
+    echo "FAIL wrong ART exit: $lane observed $status expected $wanted" >&2
+    exit 1
+  }
+  rg -x -F "$marker" "$evidence/$lane.txt"
+}
+git -C "$repository" rev-parse HEAD > "$evidence/observer-commit.txt"
+sha256sum "$evidence/observer.dex" "$input/native-reference-fields.dex" \
+  "$input/native-reference-fields-static-mutant.dex" > "$evidence/sha256.txt"
+printf 'schema\tnative-reference-fields-art-v1\napi\t%s\nabi\tx86_64\nindependent_instance_references\tPASS\nstatic_instance_kind_mutant\tREJECTED\nShizuku_transaction\tNOT_RUN\nphysical_TAB_P10\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"

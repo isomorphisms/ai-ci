@@ -10,7 +10,7 @@ if test -e "$evidence" { echo 'FAIL reused replay evidence' >&2; exit 2 }
 mkdir -p "$evidence"
 sudo apt-get install -y ripgrep unzip
 sudo chmod 666 /dev/kvm
-curl -fL --retry 2 https://nightly.link/isomorphisms/ib/actions/artifacts/13056729386.zip -o "$evidence/checkpoint.zip"
+curl -fL --retry 2 https://nightly.link/isomorphisms/ib/actions/artifacts/13059301266.zip -o "$evidence/checkpoint.zip"
 var grease = "$repository/.tools/runtime/.build/grease/bin/grease"
 "$grease" "$repository/ib-source/reader/replay-input.grease" "$repository/.tools/ib-source" "$evidence/checkpoint.zip" "$evidence/input"
 cp "$evidence/checkpoint.zip" "$evidence/changed.zip"
@@ -21,6 +21,6 @@ try {
 if (_error.code === 0) { echo 'FAIL changed archive accepted' >&2; exit 1 }
 test ! -e "$evidence/refused"
 rg -F 'FAILED' "$evidence/archive-control.txt"
-printf 'candidate_ib\t9b97c4a2fae1ee5b95f4595587f7bdad7b6e0e38\nbackend\tb2720c422f957bd53f3e5e0895e38b4289735ad8\nartifact\t13056729386\narchive_sha256\tef18d9bfa2b480da45478ef717fd2330352c8250a95f28c3137ea2dd6be37b40\narchive_mutation\tREJECTED\n' > "$evidence/input-identity.tsv"
+printf 'candidate_ib\t513d72cb43d3097a61f6fcb821b6e4215def960f\nbackend\t0f9b6e1b867d424ac2ba0b2036a54ac74a277d7d\nartifact\t13059301266\narchive_sha256\t2ce4bf5fa14cc5f39320e835fdc1a0632f111100537d94702cf5edd5495b4bac\narchive_mutation\tREJECTED\n' > "$evidence/input-identity.tsv"
 var observer = $(git -C "$repository" rev-parse HEAD)
 printf 'observer_source\t%s\n' "$observer" >> "$evidence/input-identity.tsv"

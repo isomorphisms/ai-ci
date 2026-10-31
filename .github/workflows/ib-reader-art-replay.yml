@@ -1,4 +1,4 @@
-name: Independent ART replay of IB 9b97c4a2 checkpoint
+name: Independent ART replay of IB 513d72cb checkpoint
 on:
   pull_request:
     paths:
@@ -7,6 +7,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: ib-reader-replay-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
   replay:
     runs-on: ubuntu-24.04
@@ -27,7 +30,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: isomorphisms/ib
-          ref: 9b97c4a2fae1ee5b95f4595587f7bdad7b6e0e38
+          ref: 513d72cb43d3097a61f6fcb821b6e4215def960f
           path: .tools/ib-source
           persist-credentials: false
       - id: ick
@@ -70,7 +73,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: ib-9b97c4a2-api${{ matrix.api }}-observer-${{ github.event.pull_request.head.sha || github.sha }}
+          name: ib-513d72cb-api${{ matrix.api }}-observer-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
             ${{ runner.temp }}/ib-checkpoint/observed
             ${{ runner.temp }}/ib-checkpoint/input-identity.tsv
