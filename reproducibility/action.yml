@@ -1,0 +1,64 @@
+name: ai-ci independent complete-build comparison
+description: Compare two independently witnessed consumer builds against fixed approved material
+
+inputs:
+  contract:
+    description: Approved independent-build contract TSV
+    required: true
+  left-attempt:
+    description: First build attempt receipt TSV
+    required: true
+  left-output-root:
+    description: First build output root retained for independent hashing
+    required: true
+  right-attempt:
+    description: Second build attempt receipt TSV
+    required: true
+  right-output-root:
+    description: Second build output root retained for independent hashing
+    required: true
+  ndk-receipt-schema:
+    description: Exact android-NDK S01 nativeactivity receipt v2 schema
+    required: true
+
+outputs:
+  verdict:
+    description: Path to the exact AICI reproducibility verdict TSV
+    value: ${{ steps.verify.outputs.verdict }}
+
+runs:
+  using: composite
+  steps:
+    - name: Select the qualified ICK C compiler
+      uses: isomorphisms/ai-ci/ick-host@903b2cb27ea572c9c6cb2ffa9f39e0fbf06ec9f8
+      id: ick
+
+    - name: Compile independent build comparator
+      shell: sh
+      run: >-
+        "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }}
+        -std=c17 -Wall -Wextra -Werror -pedantic -O2
+        -o "$RUNNER_TEMP/aici-reproducibility"
+        "$GITHUB_ACTION_PATH/../src/aici_reproducibility.c"
+
+    - name: Compare retained build bytes and receipts
+      id: verify
+      shell: sh
+      env:
+        AICI_REPRO_CONTRACT: ${{ inputs.contract }}
+        AICI_REPRO_LEFT_ATTEMPT: ${{ inputs.left-attempt }}
+        AICI_REPRO_LEFT_ROOT: ${{ inputs.left-output-root }}
+        AICI_REPRO_RIGHT_ATTEMPT: ${{ inputs.right-attempt }}
+        AICI_REPRO_RIGHT_ROOT: ${{ inputs.right-output-root }}
+        AICI_REPRO_NDK_SCHEMA: ${{ inputs.ndk-receipt-schema }}
+      run: |
+        set -eu
+        verdict="$RUNNER_TEMP/aici-independent-build-verdict.tsv"
+        "$RUNNER_TEMP/aici-reproducibility" verify \
+          "$AICI_REPRO_CONTRACT" \
+          "$AICI_REPRO_LEFT_ATTEMPT" "$AICI_REPRO_LEFT_ROOT" \
+          "$AICI_REPRO_RIGHT_ATTEMPT" "$AICI_REPRO_RIGHT_ROOT" \
+          "$AICI_REPRO_NDK_SCHEMA" > "$verdict"
+        cat "$verdict"
+        printf 'verdict=%s\n' "$verdict" >> "$GITHUB_OUTPUT"
+

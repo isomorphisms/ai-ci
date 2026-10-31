@@ -1,0 +1,88 @@
+name: Independent complete-build comparison
+
+on:
+  pull_request:
+    paths:
+      - "reproducibility/**"
+      - "src/aici_reproducibility.c"
+      - "ick-host/**"
+      - ".github/workflows/reproducibility-self-test.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "reproducibility/**"
+      - "src/aici_reproducibility.c"
+      - "ick-host/**"
+      - ".github/workflows/reproducibility-self-test.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  independent-builds:
+    name: ${{ github.event_name == 'pull_request' && 'independent-builds' || format('independent-builds-{0}', github.event_name) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Check out the exact released S01 candidate
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphisms/android-NDK
+          ref: 75d2c6b88443c9cf865c30146a06b89868a182c5
+          path: _android-ndk-s01
+          sparse-checkout: apk/nativeactivity-receipt-v2.schema.tsv
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Bind the exact S01 schema bytes
+        shell: sh
+        run: >-
+          test "$(sha256sum _android-ndk-s01/apk/nativeactivity-receipt-v2.schema.tsv | cut -d ' ' -f 1)"
+          = 1b6af10a2e81197b5ebb8413577f6834c440e4eb78e0df6b95f13a4bbaca1c70
+
+      - name: Select the qualified ICK C compiler
+        uses: ./ick-host
+        id: ick
+
+      - name: Compile the comparator through ICK
+        shell: sh
+        run: >-
+          "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }}
+          -std=c17 -Wall -Wextra -Werror -pedantic -O2
+          -o /tmp/aici-reproducibility src/aici_reproducibility.c
+
+      - name: Prove equal builds and targeted hostile controls
+        shell: sh
+        run: >-
+          /tmp/aici-reproducibility self-test
+          _android-ndk-s01/apk/nativeactivity-receipt-v2.schema.tsv
+          "$RUNNER_TEMP/aici-reproducibility-cases"
+
+      - name: Exercise the reusable action surface
+        id: reproducibility
+        uses: ./reproducibility
+        with:
+          contract: ${{ runner.temp }}/aici-reproducibility-cases/equal-independent-builds/contract.tsv
+          left-attempt: ${{ runner.temp }}/aici-reproducibility-cases/equal-independent-builds/left-attempt.tsv
+          left-output-root: ${{ runner.temp }}/aici-reproducibility-cases/equal-independent-builds/left/output
+          right-attempt: ${{ runner.temp }}/aici-reproducibility-cases/equal-independent-builds/right-attempt.tsv
+          right-output-root: ${{ runner.temp }}/aici-reproducibility-cases/equal-independent-builds/right/output
+          ndk-receipt-schema: _android-ndk-s01/apk/nativeactivity-receipt-v2.schema.tsv
+
+      - name: Check the retained verdict boundary
+        shell: sh
+        env:
+          VERDICT: ${{ steps.reproducibility.outputs.verdict }}
+        run: |
+          tab="$(printf '\t')"
+          test -s "$VERDICT"
+          grep -F "schema${tab}aici-independent-build-verdict-v1" "$VERDICT"
+          grep -F "ndk_packager_revision${tab}75d2c6b88443c9cf865c30146a06b89868a182c5" "$VERDICT"
+          grep -F "result${tab}PASS" "$VERDICT"
+
