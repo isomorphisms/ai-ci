@@ -1,0 +1,5 @@
+id	title	owner	canonical_issue	readiness	dependencies	path
+BC-K04-S01	Make source-test preparation fail safely under resource exhaustion	isomorphisms/kitchen	https://github.com/isomorphisms/kitchen/issues/11	READY_HOST_IMPLEMENTATION	BC-K04 decision; refreshed exact Kitchen/shared instructions	jobs/BC-K04-S01.md
+BC-K04-S02	Preserve private transfer state and complete generated artifacts	isomorphisms/kitchen	https://github.com/isomorphisms/kitchen/issues/24	SOURCE_IMPLEMENTATION_READY_RUNTIME_CONDITIONAL	BC-K04 decision; Cat Food #131 eligible runtime for execution	jobs/BC-K04-S02.md
+BC-K04-S03	Keep interrupted handoffs recoverable without damaging the session	isomorphisms/kitchen	https://github.com/isomorphisms/kitchen/issues/11	CONDITIONAL	BC-K04-S01; BC-K04-S02; eligible runtime for Grease execution	jobs/BC-K04-S03.md
+BC-K04-S04	Exercise resource and recovery controls through real Kitchen consumers	isomorphisms/kitchen	https://github.com/isomorphisms/kitchen/issues/11	CONDITIONAL	BC-K04-S01/S02/S03 exact results; source lane starts after S01; eligible runtime for transfer	jobs/BC-K04-S04.md

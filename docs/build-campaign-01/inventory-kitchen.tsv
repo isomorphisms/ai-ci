@@ -1,0 +1,78 @@
+kind	id_or_ref	title	state	sha	url	existing_comments
+issue	43	Android invisible transfer handoff bypassed Kitchen/Flexible Pipes (2026-10-09)	open		https://github.com/isomorphisms/kitchen/issues/43	4
+issue	37	Record Android producer escape and keep manual scripts behind Flexible Pipes	open		https://github.com/isomorphisms/kitchen/issues/37	1
+issue	30	Serve one canonical pasteable script instead of repeating equivalent forms	open		https://github.com/isomorphisms/kitchen/issues/30	0
+issue	28	Preserve canonical mathematical vocabulary in generated human-facing text	open		https://github.com/isomorphisms/kitchen/issues/28	0
+issue	26	Replace ad hoc Android visual-debug commands with an identity-bound, bounded capture task	open		https://github.com/isomorphisms/kitchen/issues/26	1
+issue	24	Repair transfer helper and batch defects; test the delivered command, not only the helper	open		https://github.com/isomorphisms/kitchen/issues/24	2
+issue	20	Do not confuse scripting an admin action with committing a script	open		https://github.com/isomorphisms/kitchen/issues/20	2
+issue	16	Use FFmpeg as the standard movie renderer	closed		https://github.com/isomorphisms/kitchen/issues/16	0
+issue	15	Repository transfer recipe should be pasteable and auditable in chat	open		https://github.com/isomorphisms/kitchen/issues/15	2
+issue	14	Apply the Dakota failure lessons to preparation: retain corrections and reject inapplicable procedures	open		https://github.com/isomorphisms/kitchen/issues/14	0
+issue	11	Gate live-data scripts on explicit copy/move intent and tested failure/restart behavior	open		https://github.com/isomorphisms/kitchen/issues/11	1
+issue	10	Propagate inner failures and reject missing test execution instead of reporting false-green success	open		https://github.com/isomorphisms/kitchen/issues/10	0
+issue	9	Require real test receipts before saying a generated script was checked	open		https://github.com/isomorphisms/kitchen/issues/9	1
+issue	8	Prove mailbox envelope, byte and record-boundary preservation before claiming a faithful copy or port	open		https://github.com/isomorphisms/kitchen/issues/8	1
+issue	7	Do not invent mail semantics: separate SPEC-LIST policy from generic mailbox mechanics	open		https://github.com/isomorphisms/kitchen/issues/7	0
+issue	6	A double-check must review the user's exact script, not a silently rewritten version	open		https://github.com/isomorphisms/kitchen/issues/6	0
+issue	5	Preflight Shizuku/rish installation, exported files and execution privileges before giving commands	open		https://github.com/isomorphisms/kitchen/issues/5	2
+issue	4	Test the exact copy-paste handoff: Python source was interpreted by Bash	open		https://github.com/isomorphisms/kitchen/issues/4	0
+issue	3	Do not confuse SDF, Termux and build hosts when generating operational commands	open		https://github.com/isomorphisms/kitchen/issues/3	0
+issue	2	Bind every script path to observed filesystem state instead of inventing ~/bin	open		https://github.com/isomorphisms/kitchen/issues/2	0
+issue	1	Audit conversation history for assistant script failures and turn each into a regression	open		https://github.com/isomorphisms/kitchen/issues/1	1
+pull_request	47	Retain the physical C67 transfer acceptance in Kitchen	merged	3feb0a3ef033872a33e743a57c6818e561eee2e3	https://github.com/isomorphisms/kitchen/pull/47	
+pull_request	46	Admit the fetched transfer candidate by an actual C67 read	merged	47cf0ff80263b9ac81b6d7d286d049e8564f9f3b	https://github.com/isomorphisms/kitchen/pull/46	
+pull_request	45	Put Kitchen before one task	merged	a475ecf3c4b44683713e576a633b9c3b839e56a9	https://github.com/isomorphisms/kitchen/pull/45	
+pull_request	44	Repair C67 transfer scripts for real Grease; replace fake-interpreter tests	merged	78f6942928bcbebfc7cbe9112e22361baaf7f62f	https://github.com/isomorphisms/kitchen/pull/44	
+pull_request	42	Grease: how to transfer the user's GitHub repository to another organization	merged	1a24babb9331413f20e6442047f7de8893899bd2	https://github.com/isomorphisms/kitchen/pull/42	
+pull_request	41	Prepare canonical organization pin preflight, fail closed on cross-org repositories	merged	f37a33ac9693623cfafc16fb68c4eb10f83cf961	https://github.com/isomorphisms/kitchen/pull/41	
+pull_request	40	Add AbeBooks lowest-used ISBN lookup	merged	bd2ec1ffedb39dd803a37cd04ba07bf6bdab9ced	https://github.com/isomorphisms/kitchen/pull/40	
+pull_request	39	Prepare Cat Food Ish physical acceptance with rejecting Grease fixtures	merged	b3e4af883faaa0858ffd6be54aac74d23629c94e	https://github.com/isomorphisms/kitchen/pull/39	
+pull_request	38	Pin compact interpreter sources and add checked repository-fork helper	merged	abfe5e9440e3b87d8712cae4a45a716a347fa1e5	https://github.com/isomorphisms/kitchen/pull/38	
+pull_request	36	Add pasteable Spinor demo movie script	merged	b6a7fddd2fd68cf9bc4d62eef518e3d035c879b9	https://github.com/isomorphisms/kitchen/pull/36	
+pull_request	35	Record canonical AZ source repository	merged	23ce004ecd77f59f851879e7e83f6cd391d59914	https://github.com/isomorphisms/kitchen/pull/35	
+pull_request	34	Add maintained AZ Amazon product helper	merged	627ab9548bae3d033d5803cfc4e8bc97c0c918b5	https://github.com/isomorphisms/kitchen/pull/34	
+pull_request	33	Prepare reproducible retained-source host qualification	open	b93dcda3e0fdfea81d565ffda5daf330673b8ac8	https://github.com/isomorphisms/kitchen/pull/33	
+pull_request	32	Add retained-source intake procedure through explicit Grease and IB	open	b4dd808c3c8bd2d3ed323eb9f3a695dfbb14f874	https://github.com/isomorphisms/kitchen/pull/32	
+pull_request	31	Bind SDF filing handoffs to exact tested bytes and intent	merged	4208115cfa2204adc8c883cb19c32d838aca4008	https://github.com/isomorphisms/kitchen/pull/31	
+pull_request	29	Deliver bounded Android capture with explicit context and artifact identity	closed	ede931c8fc9d95fb91f11c4230de28f1a97030bc	https://github.com/isomorphisms/kitchen/pull/29	
+pull_request	27	Qualify numeric-identity Grease transfer script generation	closed	6e03c55fcca17bd3d698f69f0ec85ed990da0816	https://github.com/isomorphisms/kitchen/pull/27	
+pull_request	25	Generate descriptive GitHub repository transfer scripts	merged	3cec7cdbaa1a3cc3e8644d5de87f37500892c500	https://github.com/isomorphisms/kitchen/pull/25	
+pull_request	23	Repair GitHub repository-transfer preflight	merged	09dec133e8d6c2bd619de50f3811d97f3047bc07	https://github.com/isomorphisms/kitchen/pull/23	
+pull_request	22	Prevent unverified and non-repeatable IB test handoffs	merged	e2a7fa8ea7f4bb64be2618990654e47eaa235375	https://github.com/isomorphisms/kitchen/pull/22	
+pull_request	21	Add pinned Lua interpreter task	merged	a00217bf71a39301956ffbc01b792526296bed44	https://github.com/isomorphisms/kitchen/pull/21	
+pull_request	19	Record GH API move-script recognition rule	merged	9631a7904e1d6f7b0fbef2a4320b925637fd4bfc	https://github.com/isomorphisms/kitchen/pull/19	
+pull_request	18	Document ChatGPT Codex Connector repository access	merged	d4fd31f58b3ab772d3cffcee2e9e0e7986078dfb	https://github.com/isomorphisms/kitchen/pull/18	
+pull_request	17	Add canonical FFmpeg movie build from numbered stills	merged	2e7c6d9a985da764a14a1a82c79ce053f391f2e8	https://github.com/isomorphisms/kitchen/pull/17	
+pull_request	13	Add verified GitHub repository-transfer handoff	merged	76476ae64aaae980f041b56309018d26b9a1af3e	https://github.com/isomorphisms/kitchen/pull/13	
+pull_request	12	Add local AGENTS guidance and folder navigation without reorganizing Kitchen	closed	716a1b038ba2036c80999e4b81281ab266623f5a	https://github.com/isomorphisms/kitchen/pull/12	
+branch	abebooks-lowest-used		retained	bd2ec1ffedb39dd803a37cd04ba07bf6bdab9ced	https://github.com/isomorphisms/kitchen/tree/bd2ec1ffedb39dd803a37cd04ba07bf6bdab9ced	
+branch	acceptance/c67-live-transfer-20261009		retained	3feb0a3ef033872a33e743a57c6818e561eee2e3	https://github.com/isomorphisms/kitchen/tree/3feb0a3ef033872a33e743a57c6818e561eee2e3	
+branch	az-product-lookup		retained	627ab9548bae3d033d5803cfc4e8bc97c0c918b5	https://github.com/isomorphisms/kitchen/tree/627ab9548bae3d033d5803cfc4e8bc97c0c918b5	
+branch	book-lookup-links		retained	a84a1df883ef7db46b486f67e6e94618ab08f9f0	https://github.com/isomorphisms/kitchen/tree/a84a1df883ef7db46b486f67e6e94618ab08f9f0	
+branch	canonical-ffmpeg-movie-build		retained	2e7c6d9a985da764a14a1a82c79ce053f391f2e8	https://github.com/isomorphisms/kitchen/tree/2e7c6d9a985da764a14a1a82c79ce053f391f2e8	
+branch	chatgpt-probe		retained	f401a888a769d99e725005f5088cf70aabb9f7ce	https://github.com/isomorphisms/kitchen/tree/f401a888a769d99e725005f5088cf70aabb9f7ce	
+branch	docs/directory-guidance-2026-09-30		retained	716a1b038ba2036c80999e4b81281ab266623f5a	https://github.com/isomorphisms/kitchen/tree/716a1b038ba2036c80999e4b81281ab266623f5a	
+branch	feature/descriptive-github-transfer-generator		retained	3cec7cdbaa1a3cc3e8644d5de87f37500892c500	https://github.com/isomorphisms/kitchen/tree/3cec7cdbaa1a3cc3e8644d5de87f37500892c500	
+branch	feature/lua-interpreter		retained	a00217bf71a39301956ffbc01b792526296bed44	https://github.com/isomorphisms/kitchen/tree/a00217bf71a39301956ffbc01b792526296bed44	
+branch	fp2/qualified-transfer-generator		retained	933ec7974b7b06050fa107a6733a3d1698cabb87	https://github.com/isomorphisms/kitchen/tree/933ec7974b7b06050fa107a6733a3d1698cabb87	
+branch	github-codex-connector-access		retained	d4fd31f58b3ab772d3cffcee2e9e0e7986078dfb	https://github.com/isomorphisms/kitchen/tree/d4fd31f58b3ab772d3cffcee2e9e0e7986078dfb	
+branch	github-org-pin-preflight-20261008		retained	f37a33ac9693623cfafc16fb68c4eb10f83cf961	https://github.com/isomorphisms/kitchen/tree/f37a33ac9693623cfafc16fb68c4eb10f83cf961	
+branch	github-repository-transfer		retained	76476ae64aaae980f041b56309018d26b9a1af3e	https://github.com/isomorphisms/kitchen/tree/76476ae64aaae980f041b56309018d26b9a1af3e	
+branch	grease-github-organization-transfer-20261009		retained	1a24babb9331413f20e6442047f7de8893899bd2	https://github.com/isomorphisms/kitchen/tree/1a24babb9331413f20e6442047f7de8893899bd2	
+branch	harden-sdf-filing		retained	4208115cfa2204adc8c883cb19c32d838aca4008	https://github.com/isomorphisms/kitchen/tree/4208115cfa2204adc8c883cb19c32d838aca4008	
+branch	interpreter-source-pins		retained	abfe5e9440e3b87d8712cae4a45a716a347fa1e5	https://github.com/isomorphisms/kitchen/tree/abfe5e9440e3b87d8712cae4a45a716a347fa1e5	
+branch	main		retained	df14daf8cc612283ea210f206f0097a31db122a0	https://github.com/isomorphisms/kitchen/tree/df14daf8cc612283ea210f206f0097a31db122a0	
+branch	note-gh-api-move-means-repo-transfer		retained	9631a7904e1d6f7b0fbef2a4320b925637fd4bfc	https://github.com/isomorphisms/kitchen/tree/9631a7904e1d6f7b0fbef2a4320b925637fd4bfc	
+branch	readme-front-page		retained	a475ecf3c4b44683713e576a633b9c3b839e56a9	https://github.com/isomorphisms/kitchen/tree/a475ecf3c4b44683713e576a633b9c3b839e56a9	
+branch	record-az-source-repo		retained	23ce004ecd77f59f851879e7e83f6cd391d59914	https://github.com/isomorphisms/kitchen/tree/23ce004ecd77f59f851879e7e83f6cd391d59914	
+branch	repair/android-diagnostic-task		retained	dd7b40f2d4ddc47c33d019f4a4caa68b059bdeaf	https://github.com/isomorphisms/kitchen/tree/dd7b40f2d4ddc47c33d019f4a4caa68b059bdeaf	
+branch	repair/c67-candidate-readability-probe-20261009		retained	47cf0ff80263b9ac81b6d7d286d049e8564f9f3b	https://github.com/isomorphisms/kitchen/tree/47cf0ff80263b9ac81b6d7d286d049e8564f9f3b	
+branch	repair/catfood-ish-runtime-preparation		retained	b3e4af883faaa0858ffd6be54aac74d23629c94e	https://github.com/isomorphisms/kitchen/tree/b3e4af883faaa0858ffd6be54aac74d23629c94e	
+branch	repair/github-transfer-preflight		retained	09dec133e8d6c2bd619de50f3811d97f3047bc07	https://github.com/isomorphisms/kitchen/tree/09dec133e8d6c2bd619de50f3811d97f3047bc07	
+branch	repair/ib-source-handoff		retained	e2a7fa8ea7f4bb64be2618990654e47eaa235375	https://github.com/isomorphisms/kitchen/tree/e2a7fa8ea7f4bb64be2618990654e47eaa235375	
+branch	repair/transfer-real-grease-20261009		retained	78f6942928bcbebfc7cbe9112e22361baaf7f62f	https://github.com/isomorphisms/kitchen/tree/78f6942928bcbebfc7cbe9112e22361baaf7f62f	
+branch	retained-source-procedure		retained	b4dd808c3c8bd2d3ed323eb9f3a695dfbb14f874	https://github.com/isomorphisms/kitchen/tree/b4dd808c3c8bd2d3ed323eb9f3a695dfbb14f874	
+branch	storage/retained-source-procedure		retained	b93dcda3e0fdfea81d565ffda5daf330673b8ac8	https://github.com/isomorphisms/kitchen/tree/b93dcda3e0fdfea81d565ffda5daf330673b8ac8	
+branch	tasks/spinor-demo-movie		retained	b6a7fddd2fd68cf9bc4d62eef518e3d035c879b9	https://github.com/isomorphisms/kitchen/tree/b6a7fddd2fd68cf9bc4d62eef518e3d035c879b9	
+

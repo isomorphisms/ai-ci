@@ -1,0 +1,34 @@
+domain	decision_state	wave2_job_count	decision_path	scope
+BC-A01	REQUALIFIED_OCT14	3	A01/decision.md	source decisions; SUN implementation and dispatch not performed
+BC-A02	PRESERVED_OCT13_DECISION	0	../wave1/A02/decision.md	26 earlier SUNs retained across six domains
+BC-A03	REQUALIFIED_OCT14	1	A03/decision.md	source decisions; SUN implementation and dispatch not performed
+BC-A04	REQUALIFIED_OCT14	2	A04/decision.md	source decisions; SUN implementation and dispatch not performed
+BC-A05	REQUALIFIED_OCT14	3	A05/decision.md	source decisions; SUN implementation and dispatch not performed
+BC-A06	PRESERVED_OCT13_DECISION	0	../wave1/A06/decision.md	26 earlier SUNs retained across six domains
+BC-A07	PRESERVED_OCT13_DECISION	0	../wave1/A07/decision.md	26 earlier SUNs retained across six domains
+BC-A08	REQUALIFIED_OCT14	3	A08/decision.md	source decisions; SUN implementation and dispatch not performed
+BC-CF01	REQUALIFIED_OCT14	2	BC-CF01/decision.md	source decisions; SUN implementation and dispatch not performed
+BC-CF02	REQUALIFIED_OCT14	2	BC-CF02/decision.md	source decisions; SUN implementation and dispatch not performed
+BC-CF03	REQUALIFIED_OCT14_WITH_PRODUCER_SUPPLEMENT	7	BC-CF03/decision.md	source decisions; SUN implementation and dispatch not performed
+BC-CF04	REQUALIFIED_OCT14	1	BC-CF04/decision.md	source decisions; SUN implementation and dispatch not performed
+BC-CF05	REQUALIFIED_OCT14	2	BC-CF05/decision.md	source decisions; SUN implementation and dispatch not performed
+BC-CF06	REQUALIFIED_OCT14	2	BC-CF06/decision.md	source decisions; SUN implementation and dispatch not performed
+BC-CF07	REQUALIFIED_OCT14	2	BC-CF07/decision.md	source decisions; SUN implementation and dispatch not performed
+BC-CF08	REQUALIFIED_OCT14	3	BC-CF08/decision.md	source decisions; SUN implementation and dispatch not performed
+BC-FP01	REQUALIFIED_OCT14	3	FP01/decision.md	source decisions; SUN implementation and dispatch not performed
+BC-FP02	REQUALIFIED_OCT14	3	FP02/decision.md	source decisions; SUN implementation and dispatch not performed
+BC-FP03	REQUALIFIED_OCT14	3	FP03/decision.md	source decisions; SUN implementation and dispatch not performed
+BC-FP04	REQUALIFIED_OCT14	2	FP04/decision.md	source decisions; SUN implementation and dispatch not performed
+BC-FP05	REQUALIFIED_OCT14	2	FP05/decision.md	source decisions; SUN implementation and dispatch not performed
+BC-FP06	REQUALIFIED_OCT14	3	FP06/decision.md	source decisions; SUN implementation and dispatch not performed
+BC-K01	REQUALIFIED_OCT14	3	K01/decision.md	source decisions; SUN implementation and dispatch not performed
+BC-K02	REQUALIFIED_OCT14	2	K02/decision.md	source decisions; SUN implementation and dispatch not performed
+BC-K03	REQUALIFIED_OCT14	1	K03/decision.md	source decisions; SUN implementation and dispatch not performed
+BC-K04	PRESERVED_OCT13_DECISION	0	../wave1/K04/decision.md	26 earlier SUNs retained across six domains
+BC-K05	REQUALIFIED_OCT14	3	K05/decision.md	source decisions; SUN implementation and dispatch not performed
+BC-P01	REQUALIFIED_OCT14	4	P01/decision.md	source decisions; SUN implementation and dispatch not performed
+BC-P02	PRESERVED_OCT13_DECISION	0	../wave1/P02/decision.md	26 earlier SUNs retained across six domains
+BC-P03	REQUALIFIED_OCT14	3	P03/decision.md	source decisions; SUN implementation and dispatch not performed
+BC-P04	REQUALIFIED_OCT14	3	P04/decision.md	source decisions; SUN implementation and dispatch not performed
+BC-S01	REQUALIFIED_OCT14	3	S01/decision.md	source decisions; SUN implementation and dispatch not performed
+BC-T01	PRESERVED_OCT13_DECISION	0	../wave1/T01/decision.md	26 earlier SUNs retained across six domains

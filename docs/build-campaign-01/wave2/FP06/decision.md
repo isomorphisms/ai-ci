@@ -1,0 +1,13 @@
+# BC-FP06 decision — three boundaries for paired prerelease publication
+
+Research refreshed 2026-10-14 UTC; parent [campaign239](https://github.com/isomorphisms/ai-ci/issues/239). Preserve three distinct implementation jobs: immutable complete input admission, authority-separated publication/recovery, and independent retrieval with the actual Young Tableaux caller.
+
+Repository metadata independently resolves numeric ID `1405872600` to `isomorphismes/young-tableaux`, default `tables`; exact current head remains `a60493703dc164cfc8573f050848b77c6a00badf`. The [actual workflow](https://github.com/isomorphismes/young-tableaux/blob/a60493703dc164cfc8573f050848b77c6a00badf/.github/workflows/build-apk.yml) retains paired APK/checksum/signing/ABI/package/source outputs and seven-day Actions retention. The original FP45 old owner is stale. Historical rc1/rc2 availability is retained only as the baseline's dated observation; release bytes were not newly downloaded or accepted here.
+
+No reusable paired publisher was found in current FP main/source and the bounded default-branch prerelease search. This is a scoped source finding, not an exhaustive proof about all unsubmitted work. New current FP records were screened before splitting; none duplicates this behavior.
+
+BC-FP06-S01 consumes approved CF group/cell/application plan, producer and package/signing evidence and actual bytes, producing a deterministic canonical accepted set. BC-FP06-S02 consumes it through the existing registered operation and GitHub release interface, with independent postcondition checks on interrupted/lost responses. BC-FP06-S03 wires Young Tableaux and second-environment retrieval through owner acquisition/acceptance. No rebuilding in publisher/verifier, no deletion/overwrite shortcut and no second release service.
+
+Independent owner dependencies are artifacts: CF02/CF07 plan and bytes, P01/P02 tools/witness/closure, P03 repeat build, P04/A03 package/current authority, FP01 controller and FP02 lifecycle. A07-S04 owns trigger-coverage repair; current Young Tableaux workflow still filters to old `main`/feature branches. IL-0 must reconcile unavailable historical C++ Grease runtime and current eligibility. None of these blockers licenses compiler/runtime substitution.
+
+Implementation and disposable service qualification are ready; actual publication requires current accepted product artifacts and explicit applicable repository/tag/asset authority. Source work must not wait on live release approval. Published/retrieved/install/launch/physical remain separate. Do not claim original release assets satisfy changed source or revoked policy. No release, external asset mutation or device action was performed here.
