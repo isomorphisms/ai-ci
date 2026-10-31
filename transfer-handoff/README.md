@@ -1,7 +1,20 @@
 # Independent transfer handoff checks
 
-`tests/transfer-handoff.grease` runs the actual native Grease interpreter and
-Kitchen-generated program. GitHub responses are synthetic; mutation counts
+The host executor in this fixture is **legacy C++-generated YSH reference only**,
+not an accepted production Grease runtime. The expired, seven-day GitHub Actions
+artifact `12192502970` is no longer acquired. The action checks out Grease at
+`ba869518c7d850de6c47d8c6234654575e264e6c`, checks its `source/` gitlink
+against Oils `5651cf97a1b5042f24f14112a7ade9a1518eb0bc`, independently
+checks out that exact Oils commit, runs the maintained `cpp-spec` oracle,
+and checksum-verifies the copied host executable. A separate provenance
+receipt records the source revisions, built SHA-256 digest and reference-only
+scope. This avoids an expiring artifact ID without promoting C++ or the
+incomplete D implementation to production acceptance. The published ARM
+packages remain checksum-verified packaging fixtures, not physical execution
+or approval for installation.
+
+`tests/transfer-handoff.grease` executes the Kitchen-generated program under
+the source-pinned legacy YSH reference, using the historical Grease launcher. GitHub responses are synthetic; mutation counts
 are observed by the external fixture. It exercises the FP session twice and
 requires one total POST, plus identity, upstream, login, redirect, collision,
 interrupted transport, late convergence, missing-envelope and changed-byte
