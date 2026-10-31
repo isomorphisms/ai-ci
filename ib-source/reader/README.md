@@ -22,3 +22,14 @@ The separate title and Intent observers originate in merged android-NDK's
 managed-export qualification at 6ab4818219efa7ea5eda137ca6b76976eb2a4d42.
 Their move here preserves their role as independent observers; no application
 implementation is copied.
+
+The numeric observer has separately fixed expectations for dynamic checked
+Text-to-Integer casts: signed decimal and arbitrary precision, finite decimal
+truncation, exact ratios, malformed text returning zero, and signed/unsigned
+byte wrapping. The `1e100` expectation retains the exact binary floating value
+used by the pinned frontend, so converting a rounded printable Double to an
+integer fails. Complex, precision-suffix and nonfinite forms are explicitly
+outside the repaired DEX slice and must raise its declared refusal. A compiled
+source mutant returning zero must fail this observer. The Chez reference in
+the backend attempt is separate host evidence; only ART qualifies these DEX
+calls.

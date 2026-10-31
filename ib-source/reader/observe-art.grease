@@ -21,12 +21,12 @@ var digest = $(sha256sum "$input/prepaint/reader.dex" | cut -d ' ' -f 1)
 var remote = "/data/local/tmp/ib-checked-reader-$digest"
 "$adb" -s "$serial" shell test ! -e "$remote"
 "$adb" -s "$serial" shell mkdir "$remote"
-for observer in Projection Search ReaderProjection {
+for observer in Projection Search ReaderProjection TextNumberCast {
   java -jar "$smali" assemble "$repository/ib-source/reader/${observer}Observer.smali" -o "$evidence/$observer.dex"
   "$adb" -s "$serial" push "$evidence/$observer.dex" "$remote/$observer.dex"
   "$adb" -s "$serial" shell chmod 444 "$remote/$observer.dex"
 }
-for lane in projection search prepaint prepaint-selector-mutant prepaint-admission-mutant title-mutant {
+for lane in projection search number-casts number-casts-mutant prepaint prepaint-selector-mutant prepaint-admission-mutant title-mutant {
   test -s "$input/$lane/reader.dex"
   "$adb" -s "$serial" push "$input/$lane/reader.dex" "$remote/$lane.dex"
   "$adb" -s "$serial" shell chmod 444 "$remote/$lane.dex"
@@ -47,9 +47,11 @@ proc execute(lane, observer, class, expected_status, expected_text) {
 }
 execute projection Projection acceptance.ProjectionExportObserver 0 'PASS unchanged IB source projection on ART'
 execute search Search acceptance.SearchExportObserver 0 'PASS unchanged IB search export on ART'
+execute number-casts TextNumberCast acceptance.TextNumberCastObserver 0 'PASS checked Text numeric casts on ART'
+execute number-casts-mutant TextNumberCast acceptance.TextNumberCastObserver 73 'FAIL checked Text numeric cast'
 execute prepaint ReaderProjection acceptance.ReaderProjectionObserver 0 'PASS checked IB admission, Prepaint and source reflow on ART'
 execute prepaint-selector-mutant ReaderProjection acceptance.ReaderProjectionObserver 73 'FAIL squared-reflow'
 execute prepaint-admission-mutant ReaderProjection acceptance.ReaderProjectionObserver 73 'FAIL count-mismatch-refusal'
 execute title-mutant Projection acceptance.ProjectionExportObserver 73 'FAIL unchanged IB retained-source export'
-printf 'schema\tib-reader-art-v1\napi\t%s\nabi\tx86_64\ncompiler_exports\tPASS\ncompiled_selector_mutant\tREJECTED\ncompiled_admission_mutant\tREJECTED\ncompiled_title_mutant\tREJECTED\nActivity_events\tNOT_RUN\nBinder_Shizuku\tNOT_RUN\nphysical_TAB_P10\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"
-sha256sum "$evidence/Projection.dex" "$evidence/Search.dex" "$evidence/ReaderProjection.dex" > "$evidence/observers.sha256"
+printf 'schema\tib-reader-art-v1\napi\t%s\nabi\tx86_64\ncompiler_exports\tPASS\nnumeric_casts\tPASS\ncompiled_numeric_mutant\tREJECTED\ncompiled_selector_mutant\tREJECTED\ncompiled_admission_mutant\tREJECTED\ncompiled_title_mutant\tREJECTED\nActivity_events\tNOT_RUN\nBinder_Shizuku\tNOT_RUN\nphysical_TAB_P10\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"
+sha256sum "$evidence/Projection.dex" "$evidence/Search.dex" "$evidence/ReaderProjection.dex" "$evidence/TextNumberCast.dex" > "$evidence/observers.sha256"
