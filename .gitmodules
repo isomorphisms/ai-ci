@@ -1,0 +1,9 @@
+[submodule "model-evaluation/sources/gpt-oss"]
+	path = model-evaluation/sources/gpt-oss
+	url = https://github.com/openai/gpt-oss.git
+[submodule "model-evaluation/sources/transformers"]
+	path = model-evaluation/sources/transformers
+	url = https://github.com/huggingface/transformers.git
+[submodule "model-evaluation/sources/gpt-neox"]
+	path = model-evaluation/sources/gpt-neox
+	url = https://github.com/EleutherAI/gpt-neox.git
