@@ -13,6 +13,10 @@
 
 .method private static expect(Ljava/lang/String;Ljava/lang/String;)V
     .registers 4
+    sget-object v0, Ljava/lang/System;->out:Ljava/io/PrintStream;
+    const-string v1, "STAGE Text numeric input"
+    invoke-virtual {v0, v1}, Ljava/io/PrintStream;->println(Ljava/lang/String;)V
+    invoke-virtual {v0, p0}, Ljava/io/PrintStream;->println(Ljava/lang/String;)V
     invoke-static {p0}, LIdric/Generated;->integer_text(Ljava/lang/String;)Ljava/lang/String;
     move-result-object v0
     invoke-virtual {p1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
@@ -25,6 +29,8 @@
 
 .method private static refuses(Ljava/lang/String;)V
     .registers 2
+    sget-object v0, Ljava/lang/System;->out:Ljava/io/PrintStream;
+    invoke-virtual {v0, p0}, Ljava/io/PrintStream;->println(Ljava/lang/String;)V
   :start
     invoke-static {p0}, LIdric/Generated;->integer_text(Ljava/lang/String;)Ljava/lang/String;
   :end
@@ -89,6 +95,9 @@
     const-string v0, "1e100"
     const-string v1, "10000000000000000159028911097599180468360808563945281389781327557747838772170381060813469985856815104"
     invoke-static {v0, v1}, Lacceptance/TextNumberCastObserver;->expect(Ljava/lang/String;Ljava/lang/String;)V
+    sget-object v0, Ljava/lang/System;->out:Ljava/io/PrintStream;
+    const-string v1, "STAGE Text numeric width wrapping"
+    invoke-virtual {v0, v1}, Ljava/io/PrintStream;->println(Ljava/lang/String;)V
     const-string v0, "255"
     invoke-static {v0}, LIdric/Generated;->signed_byte(Ljava/lang/String;)I
     move-result v1

@@ -33,3 +33,12 @@ outside the repaired DEX slice and must raise its declared refusal. A compiled
 source mutant returning zero must fail this observer. The Chez reference in
 the backend attempt is separate host evidence; only ART qualifies these DEX
 calls.
+
+The replay workflow names one retained candidate checkpoint, IB
+`9b97c4a2fae1ee5b95f4595587f7bdad7b6e0e38`. It verifies the official artifact
+digest, compares the carried source with that exact committed source, checks
+every candidate DEX digest and rejects a changed-archive control before ART.
+It does not claim to compile or qualify a later IB head. The initial API 29 run
+passed title/search but the numeric process exited 137 (`Killed`); its cause
+was not observed. Per-input markers, actual API checks, memory snapshots and
+failure logcat now support diagnosis on the declared 2 GB emulator profile.
