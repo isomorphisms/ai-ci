@@ -1,0 +1,55 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 6) { echo 'usage: grease observe-art.grease AICI INPUT SMALI ADB SERIAL NEW_EVIDENCE' >&2; exit 2 }
+var repository = ARGV[0]
+var input = ARGV[1]
+var smali = ARGV[2]
+var adb = ARGV[3]
+var serial = ARGV[4]
+var evidence = ARGV[5]
+for path in "$repository" "$input" "$smali" "$adb" "$evidence" {
+  if (len(path) === 0 or path[0] !== '/') { echo 'FAIL absolute path required' >&2; exit 2 }
+}
+if test -e "$evidence" { echo 'FAIL reused ART evidence' >&2; exit 2 }
+mkdir -p "$evidence"
+"$adb" -s "$serial" shell getprop ro.kernel.qemu | tr -d '\r' | rg -x 1
+"$adb" -s "$serial" shell getprop ro.product.cpu.abi | tr -d '\r' | rg -x x86_64
+var api = $("$adb" -s "$serial" shell getprop ro.build.version.sdk | tr -d '\r')
+if (api !== '29' and api !== '34') { echo 'FAIL undeclared ART API' >&2; exit 1 }
+"$adb" -s "$serial" shell getprop ro.build.fingerprint > "$evidence/fingerprint.txt"
+var digest = $(sha256sum "$input/prepaint/reader.dex" | cut -d ' ' -f 1)
+var remote = "/data/local/tmp/ib-checked-reader-$digest"
+"$adb" -s "$serial" shell test ! -e "$remote"
+"$adb" -s "$serial" shell mkdir "$remote"
+for observer in Projection Search ReaderProjection {
+  java -jar "$smali" assemble "$repository/ib-source/reader/${observer}Observer.smali" -o "$evidence/$observer.dex"
+  "$adb" -s "$serial" push "$evidence/$observer.dex" "$remote/$observer.dex"
+  "$adb" -s "$serial" shell chmod 444 "$remote/$observer.dex"
+}
+for lane in projection search prepaint prepaint-selector-mutant prepaint-admission-mutant title-mutant {
+  test -s "$input/$lane/reader.dex"
+  "$adb" -s "$serial" push "$input/$lane/reader.dex" "$remote/$lane.dex"
+  "$adb" -s "$serial" shell chmod 444 "$remote/$lane.dex"
+  "$adb" -s "$serial" pull "$remote/$lane.dex" "$evidence/$lane.received.dex"
+  cmp "$input/$lane/reader.dex" "$evidence/$lane.received.dex"
+}
+proc execute(lane, observer, class, expected_status, expected_text) {
+  try {
+    timeout 120 "$adb" -s "$serial" shell -T \
+      "CLASSPATH=$remote/$lane.dex:$remote/$observer.dex app_process /system/bin $class" \
+      > "$evidence/$lane.txt" 2>&1
+  }
+  var status = _error.code
+  printf '%s\n' "$status" > "$evidence/$lane.exit"
+  cat "$evidence/$lane.txt"
+  if (status !== int(expected_status)) { echo "FAIL wrong ART exit for $lane" >&2; exit 1 }
+  rg -x -F "$expected_text" "$evidence/$lane.txt"
+}
+execute projection Projection acceptance.ProjectionExportObserver 0 'PASS unchanged IB source projection on ART'
+execute search Search acceptance.SearchExportObserver 0 'PASS unchanged IB search export on ART'
+execute prepaint ReaderProjection acceptance.ReaderProjectionObserver 0 'PASS checked IB admission, Prepaint and source reflow on ART'
+execute prepaint-selector-mutant ReaderProjection acceptance.ReaderProjectionObserver 73 'FAIL squared-reflow'
+execute prepaint-admission-mutant ReaderProjection acceptance.ReaderProjectionObserver 73 'FAIL count-mismatch-refusal'
+execute title-mutant Projection acceptance.ProjectionExportObserver 73 'FAIL unchanged IB retained-source export'
+printf 'schema\tib-reader-art-v1\napi\t%s\nabi\tx86_64\ncompiler_exports\tPASS\ncompiled_selector_mutant\tREJECTED\ncompiled_admission_mutant\tREJECTED\ncompiled_title_mutant\tREJECTED\nActivity_events\tNOT_RUN\nBinder_Shizuku\tNOT_RUN\nphysical_TAB_P10\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"
+sha256sum "$evidence/Projection.dex" "$evidence/Search.dex" "$evidence/ReaderProjection.dex" > "$evidence/observers.sha256"
