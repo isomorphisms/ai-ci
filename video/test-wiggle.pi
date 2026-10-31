@@ -1,0 +1,89 @@
+"""Synthetic color fixtures test the verifier, never application behavior."""
+from pathlib import Path
+from builtins import list, dict, str, int, bytes, AssertionError
+import hashlib
+import subprocess
+import sys
+import tempfile
+
+
+def digest(path ∈ Path) → str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def run(argv ∈ list[str]) → None:
+    result ∈ object ← subprocess.run(argv, capture_output=True, check=True)
+
+
+def test() → None:
+    args ∈ list[str] ← sys.argv
+    ithon ∈ str ← args[1]
+    aici ∈ Path ← Path(args[2])
+    kitchen ∈ Path ← Path(args[3])
+    verifier ∈ str ← str(aici.joinpath("video/wiggle.pi"))
+    output ∈ Path ← Path(tempfile.mkdtemp(prefix="wiggle-media-test-"))
+    output.joinpath("trace").mkdir()
+    output.joinpath("frames").mkdir()
+    output.joinpath("trace/run.tsv").write_text("schema\twiggle-v1\nevidence\toffline-computed\norigin\tscripted\nfps\t2\nframes\t4\nwidth\t32\nheight\t32\n")
+    names ∈ list[str] ← ["trace/controls.tsv", "trace/events.tsv", "trace/inputs.tsv", "trace/tools.tsv", "trace/sources.tsv", "timeline.tsv", "states.tsv"]
+    for name in names:
+        output.joinpath(name).write_text("fixture\tsynthetic-verifier-test\n")
+    colors ∈ list[bytes] ← [b"\xff\x00\x00", b"\x00\xff\x00", b"\x00\x00\xff", b"\xff\xff\xff"]
+    manifest ∈ list[str] ← []
+    index ∈ int ← 0
+    for color in colors:
+        number ∈ str ← str(index).zfill(6)
+        name ∈ str ← "frame-" + number + ".ppm"
+        source ∈ Path ← output.joinpath("frames", name)
+        pixels ∈ bytes ← color.__mul__(1024)
+        source.write_bytes(b"P6\n32 32\n255\n" + pixels)
+        manifest.append(name + "\t" + digest(source))
+        index ← index + 1
+    joined ∈ str ← "\n".join(manifest)
+    output.joinpath("frames.tsv").write_text(joined + "\n")
+    run(["/bin/sh", str(kitchen.joinpath("tasks/movie-from-stills/build.sh")), str(output.joinpath("frames/frame-%06d.ppm")), "2", str(output.joinpath("movie.mp4"))])
+    output.joinpath("status.tsv").write_text("status\tPRODUCED_NOT_ACCEPTED\nmovie_sha256\t" + digest(output.joinpath("movie.mp4")) + "\n")
+    names.append("trace/run.tsv")
+    assertions ∈ list[str] ← ["scope\toffline-media", "maximum_rgb_mae\t10"]
+    for name in names:
+        assertions.append(name + "\t" + digest(output.joinpath(name)))
+    contract ∈ Path ← output.joinpath("independent.contract.tsv")
+    joined ← "\n".join(assertions)
+    contract.write_text(joined + "\n")
+    run([ithon, verifier, str(output), str(contract)])
+    # Mutate one boundary at a time and demand its specific first diagnostic.
+    targets ∈ list[list[str]] ← [
+        ["trace/events.tsv", "PROVENANCE_HASH:trace/events.tsv"],
+        ["frames/frame-000002.ppm", "FRAME_HASH"],
+        ["movie.mp4", "MOVIE_HASH"]
+    ]
+    for target in targets:
+        path ∈ Path ← output.joinpath(target[0])
+        original ∈ bytes ← path.read_bytes()
+        path.write_bytes(original + b"changed")
+        result ∈ object ← subprocess.run([ithon, verifier, str(output), str(contract)], capture_output=True)
+        status ∈ int ← result.returncode
+        error ∈ str ← result.stderr.decode()
+        if status == 0 or not (target[1] in error):
+            raise AssertionError(error)
+        path.write_bytes(original)
+    # An honest frame-hash manifest cannot make reordered video/source agree.
+    first ∈ Path ← output.joinpath("frames/frame-000000.ppm")
+    last ∈ Path ← output.joinpath("frames/frame-000003.ppm")
+    first_bytes ∈ bytes ← first.read_bytes()
+    last_bytes ∈ bytes ← last.read_bytes()
+    first.write_bytes(last_bytes)
+    last.write_bytes(first_bytes)
+    manifest[0] ← "frame-000000.ppm\t" + digest(first)
+    manifest[3] ← "frame-000003.ppm\t" + digest(last)
+    joined ← "\n".join(manifest)
+    output.joinpath("frames.tsv").write_text(joined + "\n")
+    result ∈ object ← subprocess.run([ithon, verifier, str(output), str(contract)], capture_output=True)
+    status ∈ int ← result.returncode
+    error ∈ str ← result.stderr.decode()
+    if status == 0 or not ("DECODED_FRAME_MISMATCH" in error):
+        raise AssertionError(error)
+    print("PASS synthetic verifier fixtures: actual decode plus changed input, changed frame, corrupt movie and reordered frames rejected")
+
+
+test()

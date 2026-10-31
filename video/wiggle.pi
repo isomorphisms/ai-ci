@@ -1,0 +1,148 @@
+"""Independent retained-frame and decoded-MP4 acceptance; no producer import."""
+from pathlib import Path
+from builtins import list, dict, str, int, float, ValueError, len, abs, range
+import hashlib
+import subprocess
+import sys
+
+
+def fail(reason ∈ str) → None:
+    raise ValueError(reason)
+
+
+def fields(path ∈ Path) → dict[str, str]:
+    values ∈ dict[str, str] ← {}
+    text ∈ str ← path.read_text()
+    lines ∈ list[str] ← text.splitlines()
+    for line in lines:
+        row ∈ list[str] ← line.split("\t")
+        if len(row) != 2 or row[0] in values:
+            fail("MANIFEST_SCHEMA")
+        values[row[0]] ← row[1]
+    return values
+
+
+def sha(path ∈ Path) → str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def shown(value ∈ object) → str:
+    text ∈ str ← str(value)
+    return text
+
+
+def whole(value ∈ object) → int:
+    result ∈ int ← int(value)
+    return result
+
+
+def capture(argv ∈ list[str]) → bytes:
+    result ∈ object ← subprocess.run(argv, capture_output=True, check=True)
+    output ∈ bytes ← result.stdout
+    return output
+
+
+def probe(movie ∈ str, entry ∈ str, selector ∈ str) → str:
+    output ∈ bytes ← capture(["ffprobe", "-v", "error", "-count_frames", "-select_streams", selector, "-show_entries", entry, "-of", "default=nw=1:nk=1", movie])
+    result ∈ str ← output.decode().strip()
+    return result
+
+
+def ppm(path ∈ Path, width ∈ int, height ∈ int) → bytes:
+    data ∈ bytes ← path.read_bytes()
+    header ∈ list[bytes] ← data.split(b"\n", 3)
+    dimensions ∈ str ← shown(width) + " " + shown(height)
+    dimension_bytes ∈ bytes ← dimensions.encode()
+    if len(header) != 4 or header[0] != b"P6" or header[1] != dimension_bytes or header[2] != b"255":
+        fail("PPM_HEADER")
+    if len(header[3]) != width * height * 3:
+        fail("PPM_PIXELS")
+    return header[3]
+
+
+def verify(root ∈ Path, contract ∈ Path) → None:
+    expected ∈ dict[str, str] ← fields(contract)
+    config ∈ dict[str, str] ← fields(root.joinpath("trace/run.tsv"))
+    state ∈ dict[str, str] ← fields(root.joinpath("status.tsv"))
+    if expected["scope"] != "offline-media" or config["evidence"] != "offline-computed":
+        fail("EVIDENCE_SCOPE")
+    if state["status"] != "PRODUCED_NOT_ACCEPTED":
+        fail("PRODUCTION_INCOMPLETE")
+    # Expected hashes are supplied by the independent caller, never copied out
+    # of the producer's own verdict. A contract is not app mathematical proof.
+    names ∈ list[str] ← ["trace/run.tsv", "trace/controls.tsv", "trace/events.tsv", "trace/inputs.tsv", "trace/tools.tsv", "trace/sources.tsv", "timeline.tsv", "states.tsv"]
+    for name in names:
+        if sha(root.joinpath(name)) != expected[name]:
+            fail("PROVENANCE_HASH:" + name)
+    count ∈ int ← int(config["frames"])
+    width ∈ int ← int(config["width"])
+    height ∈ int ← int(config["height"])
+    movie ∈ str ← str(root.joinpath("movie.mp4"))
+    if sha(root.joinpath("movie.mp4")) != state["movie_sha256"]:
+        fail("MOVIE_HASH")
+    manifest ∈ dict[str, str] ← fields(root.joinpath("frames.tsv"))
+    actual ∈ list[Path] ← list(root.joinpath("frames").iterdir())
+    if len(manifest) != count or len(actual) != count:
+        fail("FRAME_COUNT")
+    if whole(probe(movie, "stream=width", "v:0")) != width or whole(probe(movie, "stream=height", "v:0")) != height:
+        fail("MOVIE_DIMENSIONS")
+    if whole(probe(movie, "stream=nb_read_frames", "v:0")) != count:
+        fail("MOVIE_FRAME_COUNT")
+    fps_text ∈ str ← probe(movie, "stream=avg_frame_rate", "v:0")
+    # Compare rational rates by integer cross multiplication.
+    fps_parts ∈ list[str] ← fps_text.split("/")
+    requested ∈ list[str] ← config["fps"].split("/")
+    denominator ∈ int ← 1
+    if len(requested) == 2:
+        denominator ← int(requested[1])
+    if whole(fps_parts[0]) * denominator != whole(requested[0]) * whole(fps_parts[1]):
+        fail("MOVIE_FPS")
+    audio ∈ str ← config.get("audio", "")
+    audio_codec ∈ str ← probe(movie, "stream=codec_name", "a:0")
+    if (audio == "" and audio_codec != "") or (audio != "" and audio_codec == ""):
+        fail("AUDIO_POLICY")
+    if audio:
+        if sha(root.joinpath("trace", audio)) != fields(root.joinpath("trace/inputs.tsv"))[audio]:
+            fail("AUDIO_SOURCE_HASH")
+    capture(["ffmpeg", "-v", "error", "-xerror", "-i", movie, "-f", "null", "-"])
+    # Decode one frame at a time. No wall-time skipping or optical interpolation.
+    # This bounded candidate is intentionally an O(n) decoder invocations gate;
+    # sustained/large-stream optimization remains a separate qualification.
+    previous ∈ str ← ""
+    changed ∈ int ← 0
+    for frame in range(count):
+        number ∈ str ← shown(frame).zfill(6)
+        name ∈ str ← "frame-" + number + ".ppm"
+        source ∈ Path ← root.joinpath("frames", name)
+        observed ∈ str ← sha(source)
+        if observed != manifest[name]:
+            fail("FRAME_HASH")
+        if frame and observed != previous:
+            changed ← changed + 1
+        previous ← observed
+        pixels ∈ bytes ← ppm(source, width, height)
+        expression ∈ str ← "select=eq(n\\," + shown(frame) + ")"
+        decoded ∈ bytes ← capture(["ffmpeg", "-v", "error", "-xerror", "-i", movie, "-vf", expression, "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"])
+        if len(decoded) != len(pixels):
+            fail("DECODED_PIXELS")
+        error ∈ int ← 0
+        for index in range(len(pixels)):
+            difference ∈ int ← abs(whole(pixels[index]) - whole(decoded[index]))
+            error ← error + difference
+        mean ∈ float ← error / len(pixels)
+        allowed ∈ float ← float(expected["maximum_rgb_mae"])
+        if mean > allowed:
+            fail("DECODED_FRAME_MISMATCH")
+    if changed == 0:
+        fail("CONSTANT_RENDER")
+    print("PASS offline retained-frame/media integrity; mathematical oracle and physical-device execution NOT_VERIFIED")
+
+
+def main() → None:
+    args ∈ list[str] ← sys.argv
+    if len(args) != 3:
+        fail("usage: wiggle.pi OUTPUT INDEPENDENT_CONTRACT")
+    verify(Path(args[1]), Path(args[2]))
+
+
+main()
