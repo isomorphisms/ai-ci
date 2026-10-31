@@ -13,8 +13,8 @@ incomplete D implementation to production acceptance. The published ARM
 packages remain checksum-verified packaging fixtures, not physical execution
 or approval for installation.
 
-`tests/transfer-handoff.grease` runs the actual native Grease interpreter and
-Kitchen-generated program. GitHub responses are synthetic; mutation counts
+`tests/transfer-handoff.grease` executes the Kitchen-generated program under
+the source-pinned legacy YSH reference, using the historical Grease launcher. GitHub responses are synthetic; mutation counts
 are observed by the external fixture. It exercises the FP session twice and
 requires one total POST, plus identity, upstream, login, redirect, collision,
 interrupted transport, late convergence, missing-envelope and changed-byte
