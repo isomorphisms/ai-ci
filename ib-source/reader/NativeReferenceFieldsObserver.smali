@@ -11,6 +11,16 @@
     return-void
 .end method
 
+.method private static interfaceFailure()V
+    .registers 2
+    sget-object v0, Ljava/lang/System;->err:Ljava/io/PrintStream;
+    const-string v1, "FAIL native class interface ownership"
+    invoke-virtual {v0, v1}, Ljava/io/PrintStream;->println(Ljava/lang/String;)V
+    const/16 v0, 0x49
+    invoke-static {v0}, Ljava/lang/System;->exit(I)V
+    return-void
+.end method
+
 .method public static main([Ljava/lang/String;)V
     .registers 10
     const-class v0, Lqualification/ReferenceContainer;
@@ -90,11 +100,30 @@
     invoke-virtual {v2, v6}, Ljava/lang/reflect/Field;->get(Ljava/lang/Object;)Ljava/lang/Object;
     move-result-object v4
     if-ne v4, v7, :failed
+
+    const-class v0, Lqualification/Runner;
+    invoke-virtual {v0}, Ljava/lang/Class;->getInterfaces()[Ljava/lang/Class;
+    move-result-object v1
+    array-length v2, v1
+    const/4 v3, 0x1
+    if-ne v2, v3, :interfaces_failed
+    const/4 v3, 0x0
+    aget-object v2, v1, v3
+    const-class v4, Ljava/lang/Runnable;
+    if-ne v2, v4, :interfaces_failed
+    const-class v0, Lqualification/ZPlain;
+    invoke-virtual {v0}, Ljava/lang/Class;->getInterfaces()[Ljava/lang/Class;
+    move-result-object v1
+    array-length v2, v1
+    if-nez v2, :interfaces_failed
     sget-object v0, Ljava/lang/System;->out:Ljava/io/PrintStream;
     const-string v1, "PASS independent native reference field ownership on ART"
     invoke-virtual {v0, v1}, Ljava/io/PrintStream;->println(Ljava/lang/String;)V
     return-void
   :failed
     invoke-static {}, Lacceptance/NativeReferenceFieldsObserver;->failure()V
+    return-void
+  :interfaces_failed
+    invoke-static {}, Lacceptance/NativeReferenceFieldsObserver;->interfaceFailure()V
     return-void
 .end method

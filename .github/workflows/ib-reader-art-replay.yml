@@ -9,7 +9,9 @@ permissions:
   contents: read
 concurrency:
   group: ib-reader-replay-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  # This replays one frozen IB checkpoint. Updating an unrelated observer must
+  # not repeatedly cancel its independent compiler/bootstrap qualification.
+  cancel-in-progress: false
 jobs:
   replay:
     runs-on: ubuntu-24.04
