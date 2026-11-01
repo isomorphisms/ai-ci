@@ -277,6 +277,37 @@
     return-void
 .end method
 
+.method private logReaderFailureStatus()V
+    .registers 5
+  :status_start
+    const-string v0, "org.isomorphisms.ib.prepaint"
+    const-string v1, "org.isomorphisms.ib.prepaint:id/reader_status"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->node(Ljava/lang/String;Ljava/lang/String;)Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v0
+    invoke-virtual {v0}, Landroid/view/accessibility/AccessibilityNodeInfo;->getText()Ljava/lang/CharSequence;
+    move-result-object v0
+    if-eqz v0, :status_end
+    invoke-interface {v0}, Ljava/lang/CharSequence;->toString()Ljava/lang/String;
+    move-result-object v0
+    invoke-virtual {v0}, Ljava/lang/String;->length()I
+    move-result v1
+    const/16 v2, 1024
+    if-le v1, v2, :status_log
+    const/4 v1, 0
+    invoke-virtual {v0, v1, v2}, Ljava/lang/String;->substring(II)Ljava/lang/String;
+    move-result-object v0
+  :status_log
+    const-string v1, "IBIndependentReaderStatus"
+    invoke-static {v1, v0}, Landroid/util/Log;->e(Ljava/lang/String;Ljava/lang/String;)I
+  :status_end
+    return-void
+  :status_catch_end
+    .catch Ljava/lang/Throwable; {:status_start .. :status_catch_end} :status_unavailable
+  :status_unavailable
+    move-exception v0
+    return-void
+.end method
+
 .method private waitExampleDocument()V
     .registers 8
     const/16 v0, 0x258
@@ -324,6 +355,7 @@
     invoke-static {v5, v6}, Landroid/os/SystemClock;->sleep(J)V
     add-int/lit8 v0, v0, -0x1
     if-gtz v0, :again
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->logReaderFailureStatus()V
     const-string v0, "FAIL actual acquired Example Domain in native document view"
     invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
     return-void

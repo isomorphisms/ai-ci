@@ -1,6 +1,6 @@
 #!/usr/bin/env grease
 set -eu -o pipefail
-if (len(ARGV) !== 6 and len(ARGV) !== 7) { echo 'usage: grease observe-art.grease AICI INPUT SMALI ADB SERIAL NEW_EVIDENCE [history-v2|reader-v3]' >&2; exit 2 }
+if (len(ARGV) !== 6 and len(ARGV) !== 7) { echo 'usage: grease observe-art.grease AICI INPUT SMALI ADB SERIAL NEW_EVIDENCE [history-v2|reader-v3|reader-v4]' >&2; exit 2 }
 var repository = ARGV[0]
 var input = ARGV[1]
 var smali = ARGV[2]
@@ -11,7 +11,8 @@ var evidence = ARGV[5]
 # The integrated reader explicitly selects v2. Missing v2 inputs are failures;
 # availability of a file never silently decides which checks must run.
 var history = len(ARGV) === 7
-var reader_v3 = history and ARGV[6] === 'reader-v3'
+var decoding = history and ARGV[6] === 'reader-v4'
+var reader_v3 = history and (ARGV[6] === 'reader-v3' or decoding)
 if (history and ARGV[6] !== 'history-v2' and not reader_v3) { echo 'FAIL unknown ART consumer profile' >&2; exit 2 }
 for path in "$repository" "$input" "$smali" "$adb" "$evidence" {
   if (len(path) === 0 or path[0] !== '/') { echo 'FAIL absolute path required' >&2; exit 2 }
@@ -28,7 +29,7 @@ var digest = $(sha256sum "$input/prepaint/reader.dex" | cut -d ' ' -f 1)
 var remote = "/data/local/tmp/ib-checked-reader-$digest"
 "$adb" -s "$serial" shell test ! -e "$remote"
 "$adb" -s "$serial" shell mkdir "$remote"
-for observer in Projection Search ReaderProjection TextNumberCast History Selection SelectionWire {
+for observer in Projection Search ReaderProjection TextNumberCast History Selection SelectionWire DecodedSource {
   mkdir "$evidence/$observer-source"
   cp "$repository/ib-source/reader/${observer}Observer.smali" "$evidence/$observer-source/"
   cp "$repository/ib-source/reader/AssertionFailure.smali" "$evidence/$observer-source/"
@@ -39,6 +40,7 @@ for observer in Projection Search ReaderProjection TextNumberCast History Select
 var lanes = ['projection', 'search', 'number-casts', 'number-casts-mutant', 'prepaint', 'prepaint-selector-mutant', 'prepaint-admission-mutant', 'title-mutant']
 if (history) { setglobal lanes = lanes ++ ['history', 'history-branch-mutant', 'history-cursor-mutant', 'history-generation-mutant'] }
 if (reader_v3) { setglobal lanes = lanes ++ ['selection', 'selection-surrogate-mutant', 'selection-verification-mutant', 'activity', 'activity-copy-mutant'] }
+if (decoding) { setglobal lanes = lanes ++ ['prepaint-decoding-gate-mutant', 'prepaint-decoding-mapping-mutant', 'prepaint-decoding-count-mutant', 'prepaint-decoding-carrier-mutant'] }
 for lane in @lanes {
   test -s "$input/$lane/reader.dex"
   "$adb" -s "$serial" push "$input/$lane/reader.dex" "$remote/$lane.dex"
@@ -95,15 +97,27 @@ if (reader_v3) {
   execute activity SelectionWire acceptance.SelectionWireObserver 0 'PASS independent source projection bytes metadata and actual export copy boundary'
   execute activity-copy-mutant SelectionWire acceptance.SelectionWireObserver 137 'FAIL actual source copy retains soft hyphen and omits wrapping glyphs'
 }
+if (decoding) {
+  execute prepaint DecodedSource acceptance.DecodedSourceObserver 0 'PASS independent committed non-UTF-8 admission original evidence derivative identity and exact selected text'
+  execute prepaint-decoding-gate-mutant DecodedSource acceptance.DecodedSourceObserver 137 'FAIL decoded source HTTP status admission'
+  execute prepaint-decoding-mapping-mutant DecodedSource acceptance.DecodedSourceObserver 137 'FAIL decoded source original evidence and exact selection'
+  execute prepaint-decoding-count-mutant DecodedSource acceptance.DecodedSourceObserver 137 'FAIL decoded source actual original octet count'
+  execute prepaint-decoding-carrier-mutant DecodedSource acceptance.DecodedSourceObserver 137 'FAIL decoded source octet carrier rejects scalar truncation'
+}
 printf 'schema\tib-reader-art-v2\napi\t%s\nabi\tx86_64\ncompiler_exports\tPASS\nnumeric_casts\tPASS\ncompiled_numeric_mutant\tREJECTED\ncompiled_selector_mutant\tREJECTED\ncompiled_admission_mutant\tREJECTED\ncompiled_title_mutant\tREJECTED\nActivity_events\tNOT_RUN\nBinder_Shizuku\tNOT_RUN\nphysical_TAB_P10\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"
 if (history) {
   printf 'history_semantics\tPASS\ncompiled_history_branch_cursor_generation_mutants\tREJECTED\n' >> "$evidence/receipt.tsv"
   if (reader_v3) {
-    printf 'profile\treader-v3\nsource_selection_UTF16\tPASS\nsource_projection_bytes_metadata\tPASS\nactual_Activity_copy_export\tPASS\ncompiled_surrogate_projection_verification_copy_mutants\tREJECTED\n' >> "$evidence/receipt.tsv"
+    if (decoding) {
+      printf 'profile\treader-v4\ncommitted_non_UTF8_admission\tPASS\noriginal_evidence_and_derivative_identity\tPASS\ncompiled_decoding_gate_mapping_count_carrier_mutants\tREJECTED\nAndroid_original_octet_carrier\tNOT_RUN\n' >> "$evidence/receipt.tsv"
+    } else {
+      printf 'profile\treader-v3\n' >> "$evidence/receipt.tsv"
+    }
+    printf 'source_selection_UTF16\tPASS\nsource_projection_bytes_metadata\tPASS\nactual_Activity_copy_export\tPASS\ncompiled_surrogate_projection_verification_copy_mutants\tREJECTED\n' >> "$evidence/receipt.tsv"
   } else {
     printf 'profile\thistory-v2\nsource_selection_UTF16\tNOT_RUN\nactual_Activity_copy_export\tNOT_RUN\n' >> "$evidence/receipt.tsv"
   }
 } else {
   printf 'profile\tfrozen-consumer-v1\nhistory_semantics\tNOT_RUN\ncompiled_history_branch_cursor_generation_mutants\tNOT_RUN\n' >> "$evidence/receipt.tsv"
 }
-sha256sum "$evidence/Projection.dex" "$evidence/Search.dex" "$evidence/ReaderProjection.dex" "$evidence/TextNumberCast.dex" "$evidence/History.dex" "$evidence/Selection.dex" "$evidence/SelectionWire.dex" > "$evidence/observers.sha256"
+sha256sum "$evidence/Projection.dex" "$evidence/Search.dex" "$evidence/ReaderProjection.dex" "$evidence/TextNumberCast.dex" "$evidence/History.dex" "$evidence/Selection.dex" "$evidence/SelectionWire.dex" "$evidence/DecodedSource.dex" > "$evidence/observers.sha256"
