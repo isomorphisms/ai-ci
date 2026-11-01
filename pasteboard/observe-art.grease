@@ -1,0 +1,52 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 7) { echo 'requires ADB SERIAL API APK COMPILED_WRONG_ORDER INDEPENDENT_INPUTS NEW_EVIDENCE' >&2; exit 2 }
+var adb = ARGV[0]
+var serial = ARGV[1]
+var api = ARGV[2]
+var apk = ARGV[3]
+var mutant = ARGV[4]
+var input = ARGV[5]
+var output = ARGV[6]
+if test -e "$output" { echo 'refusing reused ART evidence' >&2; exit 2 }
+mkdir -p "$output"
+"$adb" -s "$serial" shell getprop ro.kernel.qemu | tr -d '\r' | rg -x 1
+"$adb" -s "$serial" shell getprop ro.build.version.sdk | tr -d '\r' | rg -x -F "$api"
+"$adb" -s "$serial" shell getprop ro.product.cpu.abi | tr -d '\r' | rg -x x86_64
+"$adb" -s "$serial" shell getprop ro.build.fingerprint > "$output/fingerprint.txt"
+unzip -p "$apk" assets/pasteboard-behavior.dex > "$output/candidate.dex"
+test -s "$output/candidate.dex"
+var digest = $(sha256sum "$input/transition-observer.dex" | cut -d ' ' -f 1)
+var remote = "/data/local/tmp/pasteboard-art-$api-$digest"
+"$adb" -s "$serial" shell test ! -e "$remote"
+"$adb" -s "$serial" shell mkdir -p "$remote"
+"$adb" -s "$serial" push "$input/fixtures" "$remote/fixtures" > "$output/push-fixtures.txt"
+"$adb" -s "$serial" push "$input/transition-observer.dex" "$remote/observer.dex"
+"$adb" -s "$serial" push "$output/candidate.dex" "$remote/candidate.dex"
+"$adb" -s "$serial" push "$mutant" "$remote/wrong-order.dex"
+"$adb" -s "$serial" shell chmod 444 "$remote/observer.dex" "$remote/candidate.dex" "$remote/wrong-order.dex"
+"$adb" -s "$serial" pull "$remote/candidate.dex" "$output/received.dex"
+cmp "$output/candidate.dex" "$output/received.dex"
+var count = $(cat "$input/fixtures/case-count.txt")
+printf '%s\n' "$count" | rg -x '[1-9][0-9]*'
+for kind in candidate wrong-order {
+  try {
+    timeout 180 "$adb" -s "$serial" shell -T \
+      "CLASSPATH=$remote/$kind.dex:$remote/observer.dex app_process /system/bin acceptance.pasteboard.TransitionObserver $remote/fixtures $count" \
+      > "$output/$kind.txt" 2>&1
+  }
+  var observed = _error.code
+  printf '%s\n' "$observed" > "$output/$kind.exit"
+  cat "$output/$kind.txt"
+  if (kind === 'candidate') {
+    if (observed !== 0) { echo 'FAIL actual checked Pasteboard ART execution' >&2; exit 1 }
+    tr -d '\r' < "$output/$kind.txt" | rg -x -F 'PASS independent exact Pasteboard transitions including Unicode long text mode and protected deletion'
+  } else {
+    if (observed !== 73) { echo 'FAIL compiled ordering mutant did not reach semantic refusal' >&2; exit 1 }
+    tr -d '\r' < "$output/$kind.txt" | rg -x -F 'FAIL independent Pasteboard transition response case 2'
+  }
+}
+sha256sum "$apk" "$output/candidate.dex" "$mutant" "$input/transition-observer.dex" > "$output/sha256.txt"
+cp "$input/observer-commit.txt" "$output/"
+printf 'api\t%s\nchecked_DEX_ART_exact_responses\tPASS\ncompiled_wrong_order_source_mutant\tREJECTED\ninstalled_UI\tNOT_VERIFIED\nphysical_devices\tNOT_VERIFIED\n' "$api" > "$output/result.tsv"
+cat "$output/result.tsv"

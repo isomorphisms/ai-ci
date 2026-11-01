@@ -23,3 +23,13 @@ before their length and CRC are checked. No payload enters diagnostics.
 Execution is in progress. No ART, installed APK, privileged observer or physical
 device success is established by source presence. Any compiler/runtime gap and
 fallback must be recorded here rather than silently changing language/backend.
+
+The independent Idriç program compiles and executes under the pinned current
+frontend. Its CRC standard value, valid record and targeted checksum/UTF-8/
+framing/duplicate controls pass. The first source attempt exposed ambiguous
+chained record updates and repeated nested pattern names; explicit expected
+entry constructors and distinct subterm names resolve those diagnostics without
+another language or backend. The generated ART caller independently assembles
+and decodes; execution remains pending. The copy fixture compiles with ICK and
+links against NDK 27.2.12479018. Grease parse/expression checks pass after replacing
+an invalid `@split(...)` spelling with documented `@[split(...)]` list splicing.

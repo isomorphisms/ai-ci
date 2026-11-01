@@ -1,0 +1,170 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 6) { echo 'requires ADB SERIAL API APK INDEPENDENT_INPUTS NEW_EVIDENCE' >&2; exit 2 }
+var adb = ARGV[0]
+var serial = ARGV[1]
+var api = ARGV[2]
+var apk = ARGV[3]
+var input = ARGV[4]
+var output = ARGV[5]
+if test -e "$output" { echo 'refusing reused clipboard evidence' >&2; exit 2 }
+mkdir -p "$output"
+var oracle = "$input/oracle/pasteboard-oracle"
+var package = 'com.isomorphisms.pasteboard'
+var component = 'com.isomorphisms.pasteboard/android.app.NativeActivity'
+var fixture = 'org.isomorphisms.aici.clipboardfixture/android.app.NativeActivity'
+# Server termination, display changes and private synthetic-fixture inspection
+# are confined to this positively verified fresh emulator. Never a phone script.
+"$adb" -s "$serial" shell getprop ro.kernel.qemu | tr -d '\r' | rg -x 1
+"$adb" -s "$serial" shell getprop ro.build.version.sdk | tr -d '\r' | rg -x -F "$api"
+"$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 2000
+"$adb" -s "$serial" shell getprop ro.build.fingerprint > "$output/fingerprint.txt"
+"$adb" -s "$serial" shell settings get secure default_input_method > "$output/keyboard-before.txt"
+"$adb" -s "$serial" shell wm size 480x960
+"$adb" -s "$serial" shell wm density 160
+"$adb" -s "$serial" install -r "$input/copy-fixture.apk" > "$output/fixture-install.txt"
+"$adb" -s "$serial" install -r "$input/shizuku-official.apk" > "$output/manager-install.txt"
+"$adb" -s "$serial" shell am start -W -n "$component" > "$output/initial-launch.txt"
+sleep 2
+var original_uid = $("$adb" -s "$serial" shell pm list packages -U "$package" | tr -d '\r')
+printf '%s\n' "$original_uid" > "$output/application-uid.txt"
+proc snapshot(label) {
+  "$adb" -s "$serial" exec-out run-as "$package" cat files/history.v2 > "$output/$label.bin"
+  "$oracle" validate "$output/$label.bin" > "$output/$label.integrity.txt"
+}
+proc diagnose(label) {
+  try { "$adb" -s "$serial" exec-out screencap -p > "$output/$label.png" }
+  try { "$adb" -s "$serial" logcat -d -v threadtime > "$output/$label.logcat.txt" }
+  try { "$adb" -s "$serial" shell ps -A -o USER,PID,NAME > "$output/$label.processes.txt" }
+}
+proc start_app(label) {
+  "$adb" -s "$serial" shell am start -W -n "$component" > "$output/$label.launch.txt"
+  sleep 1
+}
+proc start_fixture(label) {
+  "$adb" -s "$serial" shell am start -W -n "$fixture" > "$output/$label.fixture.txt"
+  sleep 1
+}
+proc tap(x, y) { "$adb" -s "$serial" shell input tap "$x" "$y"; sleep 0.4 }
+proc menu(row) {
+  tap 450 60
+  var y = 215 + int(row) * 76
+  tap 240 "$y"
+}
+proc close_menu() { tap 240 747 }
+proc copy_three(label) {
+  start_fixture "$label"
+  tap 240 80
+  sleep 0.5
+  tap 240 190
+  sleep 0.5
+  tap 240 300
+  sleep 1
+}
+proc decision(button, label) {
+  var found = false
+  for attempt in @(seq 1 15) {
+    "$adb" -s "$serial" shell uiautomator dump /data/local/tmp/pasteboard-permission.xml > "$output/$label.dump.txt" 2>&1
+    "$adb" -s "$serial" pull /data/local/tmp/pasteboard-permission.xml "$output/$label.xml" > "$output/$label.pull.txt"
+    try { "$oracle" ui-point "$output/$label.xml" resource-id "android:id/$button" > "$output/$label.point.txt" }
+    if (_error.code === 0) { setvar found = true; break }
+    sleep 0.5
+  }
+  if (not found) { diagnose "$label"; echo 'FAIL actual Shizuku permission decision unavailable' >&2; exit 1 }
+  rg -q -F Pasteboard "$output/$label.xml"
+  var coordinates = $(cat "$output/$label.point.txt")
+  "$adb" -s "$serial" shell input tap @[split(coordinates)]
+  sleep 1
+}
+snapshot initial
+"$oracle" board "$output/initial.bin" 1 0
+menu 0
+close_menu
+copy_three unavailable
+start_app unavailable-return
+snapshot unavailable
+"$oracle" board "$output/unavailable.bin" 1 0
+"$oracle" mode "$output/unavailable.bin" 1 1
+printf 'unavailable_Shizuku_does_not_claim_automatic_history\tPASS\n' > "$output/result.tsv"
+
+# Run the unmodified official starter with actual shell identity, never root.
+var remote = "/data/local/tmp/pasteboard-shizuku-$api"
+"$adb" -s "$serial" shell test ! -e "$remote"
+"$adb" -s "$serial" shell mkdir -m 700 "$remote"
+unzip -p "$input/shizuku-official.apk" lib/x86_64/libshizuku.so > "$output/official-starter"
+"$adb" -s "$serial" push "$output/official-starter" "$remote/start"
+"$adb" -s "$serial" shell chmod 500 "$remote/start"
+var manager_path = $("$adb" -s "$serial" shell pm path moe.shizuku.privileged.api | tr -d '\r' | sed -n 's/^package://p')
+printf '%s\n' "$manager_path" | rg -x '/data/app/[A-Za-z0-9_./~+=-]+/base\.apk'
+"$adb" -s "$serial" shell "$remote/start" "--apk=$manager_path" > "$output/server-start.txt" 2>&1
+sleep 3
+"$adb" -s "$serial" shell ps -A -o USER,PID,NAME > "$output/server-processes.txt"
+rg 'shell[[:space:]]+[0-9]+[[:space:]]+shizuku_server' "$output/server-processes.txt"
+start_app permission-required
+menu 0
+decision button3 denied
+close_menu
+copy_three denied-copies
+snapshot denied
+"$oracle" board "$output/denied.bin" 1 0
+printf 'actual_permission_denial\tPASS\n' >> "$output/result.tsv"
+start_app authorize
+menu 0
+decision button1 granted
+close_menu
+sleep 5
+copy_three automatic
+var retained = false
+for attempt in @(seq 1 30) {
+  snapshot automatic-background
+  try { "$oracle" board "$output/automatic-background.bin" 1 3 "$input/fixtures/textC.txt" "$input/fixtures/textB.txt" "$input/fixtures/textA.txt" > "$output/automatic-order.txt" }
+  if (_error.code === 0) { setvar retained = true; break }
+  sleep 1
+}
+if (not retained) { diagnose automatic-capture; echo 'FAIL actual background A B C clipboard retention' >&2; exit 1 }
+printf 'actual_shell_UID_listener_content_delivery\tPASS\nthree_actual_cross_application_copies_before_focus\tPASS\nexact_C_B_A_order_and_UTF8_whitespace\tPASS\n' >> "$output/result.tsv"
+start_app automatic-return
+snapshot automatic-return
+"$oracle" board "$output/automatic-return.bin" 1 3 "$input/fixtures/textC.txt" "$input/fixtures/textB.txt" "$input/fixtures/textA.txt"
+diagnose automatic-return
+
+# Long, sensitive, embedded-NUL and multiple-item clipboard effects all originate
+# in the separate focused fixture app, not in the history reducer or provider.
+start_fixture policy-inputs
+tap 240 410
+sleep 4
+snapshot long
+"$oracle" entry "$output/long.bin" "$input/fixtures/long.txt" 1 0
+tap 240 520
+tap 240 630
+tap 240 740
+tap 240 850
+sleep 2
+snapshot policies
+"$oracle" absent "$output/policies.bin" "$input/fixtures/sensitive.txt"
+"$oracle" absent "$output/policies.bin" "$input/fixtures/nul.txt"
+cmp "$output/long.bin" "$output/policies.bin"
+printf 'long_text_without_8192_limit\tPASS\nsensitive_text_excluded\tPASS\nembedded_NUL_refused\tPASS\nmultiple_items_refused\tPASS\nclipboard_clear_preserves_retained_text\tPASS\n' >> "$output/result.tsv"
+
+# Ordinary app-process death, exact candidate replacement and reboot retain the
+# acknowledged records. Reboot does not imply Shizuku starts itself afterward.
+var pid = $("$adb" -s "$serial" shell pidof "$package" | tr -d '\r')
+printf '%s\n' "$pid" | rg -x '[1-9][0-9]*'
+"$adb" -s "$serial" shell run-as "$package" kill -9 "$pid"
+start_app ordinary-restart
+snapshot ordinary-restart
+cmp "$output/policies.bin" "$output/ordinary-restart.bin"
+"$adb" -s "$serial" install -r "$apk" > "$output/replacement.txt"
+var replacement_uid = $("$adb" -s "$serial" shell pm list packages -U "$package" | tr -d '\r')
+if (replacement_uid !== original_uid) { echo 'FAIL replacement changed application UID' >&2; exit 1 }
+start_app replacement
+snapshot replacement
+cmp "$output/policies.bin" "$output/replacement.bin"
+printf 'ordinary_process_death_recovery\tPASS\nreplacement_preserves_UID_and_history\tPASS\n' >> "$output/result.tsv"
+"$adb" -s "$serial" shell settings get secure default_input_method > "$output/keyboard-after.txt"
+cmp "$output/keyboard-before.txt" "$output/keyboard-after.txt"
+printf 'existing_default_keyboard_unchanged\tPASS\nGboard_physical_execution\tNOT_VERIFIED\napi\t%s\nphysical_C67\tNOT_VERIFIED\nphysical_TAB_P10\tNOT_VERIFIED\n' "$api" >> "$output/result.tsv"
+sha256sum "$apk" "$input/copy-fixture.apk" "$input/shizuku-official.apk" > "$output/sha256.txt"
+cp "$input/observer-commit.txt" "$output/"
+diagnose final
+cat "$output/result.tsv"

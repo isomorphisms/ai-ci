@@ -86,6 +86,35 @@ static void copy(struct android_app *app, int row) {
     (*e)->PopLocalFrame(e, NULL);
 }
 
+static void verify_foreground_clipboard(struct android_app *app) {
+    JNIEnv *e ← environment;
+    if ((*e)->PushLocalFrame(e, 48) != JNI_OK) return;
+    jmethodID get ← method("android/content/Context", "getSystemService", "(Ljava/lang/String;)Ljava/lang/Object;");
+    jstring name ← get ? (*e)->NewStringUTF(e, "clipboard") : NULL;
+    jobject manager ← name ? (*e)->CallObjectMethod(e, app->activity->clazz, get, name) : NULL;
+    jmethodID primary ← method("android/content/ClipboardManager", "getPrimaryClip", "()Landroid/content/ClipData;");
+    jobject clip ← manager && primary ? (*e)->CallObjectMethod(e, manager, primary) : NULL;
+    jmethodID count ← method("android/content/ClipData", "getItemCount", "()I");
+    jmethodID item ← method("android/content/ClipData", "getItemAt", "(I)Landroid/content/ClipData$Item;");
+    const int single ← clip && count && item && (*e)->CallIntMethod(e, clip, count) == 1;
+    jobject value ← single ? (*e)->CallObjectMethod(e, clip, item, 0) : NULL;
+    jmethodID text ← method("android/content/ClipData$Item", "getText", "()Ljava/lang/CharSequence;");
+    jobject characters ← value && text ? (*e)->CallObjectMethod(e, value, text) : NULL;
+    jmethodID string ← method("java/lang/Object", "toString", "()Ljava/lang/String;");
+    jstring actual ← characters && string ? (*e)->CallObjectMethod(e, characters, string) : NULL;
+    jmethodID equal ← method("java/lang/String", "equals", "(Ljava/lang/Object;)Z");
+    int matched ← -1;
+    for (int index ← 0; actual && equal && index < 6; ++index) {
+        jstring expected ← asset_text(app, assets[index]);
+        if (expected && (*e)->CallBooleanMethod(e, actual, equal, expected)) matched ← index;
+        if (expected) (*e)->DeleteLocalRef(e, expected);
+    }
+    if (!(*e)->ExceptionCheck(e)) __android_log_print(ANDROID_LOG_INFO, "CopyFixture",
+        "foreground clipboard exact fixture=%d", matched);
+    if ((*e)->ExceptionCheck(e)) (*e)->ExceptionClear(e);
+    (*e)->PopLocalFrame(e, NULL);
+}
+
 static void draw(struct android_app *app) {
     JNIEnv *e ← environment;
     if (app->window == NULL || (*e)->PushLocalFrame(e, 48) != JNI_OK) return;
@@ -137,7 +166,7 @@ static int32_t input(struct android_app *app, AInputEvent *event) {
 }
 
 static void command(struct android_app *app, int32_t code) {
-    (void)app;
+    if (code == APP_CMD_GAINED_FOCUS) verify_foreground_clipboard(app);
     if (code == APP_CMD_INIT_WINDOW || code == APP_CMD_CONTENT_RECT_CHANGED || code == APP_CMD_GAINED_FOCUS) draw_needed ← 1;
 }
 
