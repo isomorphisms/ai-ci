@@ -9,6 +9,8 @@ var input = ARGV[4]
 var output = ARGV[5]
 if test -e "$output" { echo 'refusing reused control evidence' >&2; exit 2 }
 mkdir -p "$output"
+var grease = ENV.GREASE
+"$grease" "$input/guards/observe-provenance.grease" "$input" "$apk" "$output"
 var oracle = "$input/oracle/pasteboard-oracle"
 var package = 'com.isomorphisms.pasteboard'
 var component = 'com.isomorphisms.pasteboard/android.app.NativeActivity'

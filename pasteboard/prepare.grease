@@ -32,6 +32,9 @@ for kind in header payload {
   if (_error.code !== 1) { echo 'FAIL integrity mutant was not rejected' >&2; exit 1 }
   rg -x -F "FAIL independent $kind checksum" "$output/reject-$kind.txt"
 }
+# GitHub's ordinary artifact ZIP resets file modes. Retain the executable Chez
+# launcher and compiled program in an inner archive, just like the Grease tools.
+tar -C "$output" -czf "$output/oracle-runtime.tar.gz" oracle
 var smali = "$backend/dex/idric/build/oracles/smali-3.0.10.jar"
 printf '%s  %s\n' 32fa0e88a6c397b3922201adf5f3e534fbaed5a663c71d0c558c3ddce0af844a "$smali" | sha256sum -c -
 java -jar "$smali" assemble "$repository/pasteboard/TransitionObserver.smali" -o "$output/transition-observer.dex"
@@ -69,6 +72,6 @@ git -C "$repository" rev-parse HEAD > "$output/observer-commit.txt"
 git -C "$repository" status --porcelain > "$output/observer-dirty.txt"
 sha256sum "$repository/pasteboard/PasteboardOracle.idric" "$repository/pasteboard/TransitionObserver.smali" \
   "$repository/pasteboard/fixture/copy_fixture.c" "$output/copy-fixture.apk" "$output/transition-observer.dex" \
-  "$output/shizuku-official.apk" > "$output/sha256.txt"
+  "$output/shizuku-official.apk" "$output/oracle-runtime.tar.gz" > "$output/sha256.txt"
 printf 'independent_oracle_host_controls\tPASS\nreal_clipboard_fixture_packaging\tPASS\nART_transitions\tNOT_VERIFIED\ninstalled_cross_application_capture\tNOT_VERIFIED\nphysical_devices\tNOT_VERIFIED\n' > "$output/preparation.tsv"
 cat "$output/preparation.tsv"

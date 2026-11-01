@@ -62,3 +62,13 @@ rerun; a packaging receipt alone is not installed acceptance. The exposed
 provider mutant also removes its reinforcing native manifest-permission check
 and is genuinely recompiled, so the independent caller isolates Android's
 permission enforcement rather than failing startup for a different reason.
+
+Consumer e0d9e7a110c4c536e5ecd0d7eb59f0b4b9379bfc, run 41332839522,
+passes all 26 exact ART responses on API 29 and API 34, and each rejects the
+compiled ordering mutant with exit 73 at case 2. The real copy fixture installs,
+and the old-to-current APK replacement produces modern history and recovery
+files. The migration observer then fails with exit 126 because GitHub's ZIP
+download reset the host oracle's executable mode. Preparation now retains an
+inner oracle runtime archive; the consumer restores and self-tests it before
+booting Android. Migration assertions are unchanged. Per-stage provenance now
+binds the actual APK digest to the producer and checked compiler identities.

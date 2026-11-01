@@ -9,6 +9,8 @@ var input = ARGV[4]
 var output = ARGV[5]
 if test -e "$output" { echo 'refusing reused UI evidence' >&2; exit 2 }
 mkdir -p "$output"
+var grease = ENV.GREASE
+"$grease" "$input/guards/observe-provenance.grease" "$input" "$apk" "$output"
 var oracle = "$input/oracle/pasteboard-oracle"
 var package = 'com.isomorphisms.pasteboard'
 var component = 'com.isomorphisms.pasteboard/android.app.NativeActivity'
@@ -84,6 +86,16 @@ sleep 1
 rg -q -F 'present=1 items=1 text=1 sensitive=0 exact fixture=2 origin=1' "$output/copied.clipboard.txt"
 snapshot copied
 "$oracle" board "$output/copied.bin" 1 4 "$input/fixtures/textC.txt" "$input/fixtures/textB.txt" "$input/fixtures/textA.txt" "$input/fixtures/long.txt"
+start_app copy-long-card
+tap 350 240
+sleep 1
+"$adb" -s "$serial" logcat -c
+"$adb" -s "$serial" shell am start -W -n "$fixture" > "$output/copied-long.fixture.txt"
+sleep 1
+"$adb" -s "$serial" logcat -d -s CopyFixture:I > "$output/copied-long.clipboard.txt"
+rg -q -F 'present=1 items=1 text=1 sensitive=0 exact fixture=3 origin=1' "$output/copied-long.clipboard.txt"
+snapshot copied-long
+"$oracle" board "$output/copied-long.bin" 1 4 "$input/fixtures/textC.txt" "$input/fixtures/textB.txt" "$input/fixtures/textA.txt" "$input/fixtures/long.txt"
 start_app move-left
 "$adb" -s "$serial" shell input swipe 110 135 20 135 300
 snapshot moved-left

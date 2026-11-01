@@ -10,6 +10,8 @@ var input = ARGV[5]
 var output = ARGV[6]
 if test -e "$output" { echo 'refusing reused migration evidence' >&2; exit 2 }
 mkdir -p "$output"
+var grease = ENV.GREASE
+"$grease" "$input/guards/observe-provenance.grease" "$input" "$apk" "$output"
 var oracle = "$input/oracle/pasteboard-oracle"
 var package = 'com.isomorphisms.pasteboard'
 var component = 'com.isomorphisms.pasteboard/android.app.NativeActivity'
@@ -61,9 +63,9 @@ printf 'real_version_2_to_current_upgrade\tPASS\nlegacy_UTF8_whitespace_migratio
 "$adb" -s "$serial" shell am force-stop "$package"
 "$adb" -s "$serial" shell pm clear "$package" > "$output/synthetic-positive-reset.txt"
 "$adb" -s "$serial" shell run-as "$package" mkdir files
-var remote = "/data/local/tmp/pasteboard-corrupt-legacy-$api.bin"
-"$adb" -s "$serial" push "$input/fixtures/legacy-corrupt.bin" "$remote"
-"$adb" -s "$serial" shell run-as "$package" cp "$remote" files/pasteboard.bin
+"$adb" -s "$serial" shell -T run-as "$package" tee files/pasteboard.bin \
+  < "$input/fixtures/legacy-corrupt.bin" > "$output/corrupt-seed.bin"
+cmp "$input/fixtures/legacy-corrupt.bin" "$output/corrupt-seed.bin"
 "$adb" -s "$serial" shell am start -W -n "$component" > "$output/corrupt.launch.txt"
 sleep 2
 "$adb" -s "$serial" shell pidof "$package" > "$output/corrupt.pid.txt"

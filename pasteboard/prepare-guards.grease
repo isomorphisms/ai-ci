@@ -52,6 +52,13 @@ setglobal ENV.ANDROID_DEX_FILE = "$checked/platform.dex"
 setglobal ENV.ANDROID_ASSET_DIR = "$checked/assets"
 setglobal ENV.ANDROID_GREASE = ENV.GREASE
 git -C "$consumer" rev-parse HEAD > "$output/positive-source.txt"
+cmp "$output/positive-source.txt" "$checked/consumer-commit.txt"
+test ! -s "$checked/consumer-dirty.txt"
+for name in consumer-commit.txt frontend-commit.txt backend-commit.txt { cp "$checked/$name" "$output/" }
+cp "$stage/qualification/receipt.tsv" "$output/ick-qualification.tsv"
+cp "$sdk/ndk/27.2.12479018/source.properties" "$output/ndk-source.properties"
+cp "$consumer/build/pasteboard-apks/pasteboard-x86_64.receipt.tsv" "$output/positive-apk.receipt.tsv"
+cp "$repository/pasteboard/observe-provenance.grease" "$output/observe-provenance.grease"
 for kind in exposed-provider uid-bypass {
   var source = "$output/$kind-source"
   mkdir -p "$source"

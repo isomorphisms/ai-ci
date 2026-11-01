@@ -21,6 +21,10 @@ consumer code. Bad checksums, malformed framing, invalid UTF-8, duplicate record
 and the compiled semantic mutant have distinct refusal controls. Fixture text
 includes indentation, CR/LF, code fences, supplementary Unicode and more than
 8192 bytes. Only synthetic fixture history may enter these evidence artifacts.
+The host oracle runtime is retained in an inner tar archive to preserve its
+executable modes across GitHub artifact download. Every Android stage checks
+the actual APK against the producer receipt and retains the consumer, frontend,
+backend, ICK and NDK identities alongside its result and device fingerprint.
 
 `prepare-guards.grease` builds an independent smali instrumentation controller
 and two deliberate source mutants: an exposed provider and a disabled native
