@@ -1,0 +1,28 @@
+name: Inspect the exact canonical response failure
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/ib-canonical-diagnostics.yml'
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      # Public controlled host fixture only; read-only failure retrieval.
+      # Candidate IB 9c599c726dd798477e55394c42234e060c0b460e.
+      # Original ZIP SHA-256 ec4a454c6b19b1cf18ff07e81bee1cf3561008049fa540ed0eebfa052ae99b49.
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          repository: isomorphisms/ib
+          github-token: ${{ github.token }}
+          run-id: 41284806549
+          artifact-ids: '13075165643'
+          merge-multiple: true
+          path: ${{ runner.temp }}/canonical-IB
+      - name: Read the actual canonical assertion output
+        shell: sh
+        run: cat "$RUNNER_TEMP/canonical-IB/native-canonical/frame.txt"
