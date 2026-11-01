@@ -12,7 +12,7 @@ test ! -e "$evidence"
 mkdir -p "$evidence"
 test "$(git -C "$source" rev-parse HEAD)" = "$revision"
 curl --fail --location --retry 3 "https://api.github.com/repos/dilapidated-shed/tablature/actions/runs/$run_id" -o "$evidence/producer-run.json"
-jq -e --arg revision "$revision" '.head_sha == $revision and .status == "completed" and .name == "Checked Idric core and signed Android candidates"' "$evidence/producer-run.json"
+jq -e --arg revision "$revision" '.head_sha == $revision and .status == "completed" and .conclusion == "success" and .name == "Checked Idric core and signed Android candidates"' "$evidence/producer-run.json"
 for abi in armeabi-v7a arm64-v8a x86_64 {
   var apk = "$input/android/chordreader-$abi.apk"
   var receipt = "$input/android/chordreader-$abi.receipt.tsv"
