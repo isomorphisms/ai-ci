@@ -236,3 +236,14 @@ restores and records its own geometry before coordinate input, asserts each
 actual SDK A/B/C effect and awaits exactly three durable acknowledgements. No
 application ordering or capture assertion changes.
 
+Run 41361592479 at consumer 7ea4fd0a4c1fd72fe14f5af32a6de9796d8b2ac5
+passes production APK packaging but stops while compiling the added credential
+mutant. Replacing its guard with a constant leaves `difference` set but unused;
+strict ICK rejects that warning. This is fixture compilation failure, not actual
+mutant rejection. The repaired negative condition consumes the comparison while
+accepting every possible bytewise difference (0..255), retaining UID, permission,
+shape and live Shizuku checks. The full native mutant now compiles and links
+locally through the qualified fbe86e23 ICK x86-64 stage with all warning errors
+enabled. Android refusal/mutant execution still requires a fresh run. Preparation
+now prints the exact compile log on failure instead of hiding it in the artifact.
+

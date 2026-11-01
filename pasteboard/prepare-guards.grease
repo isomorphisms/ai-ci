@@ -99,11 +99,12 @@ for kind in exposed-provider uid-bypass capability-bypass {
     rg -q -F 'caller == (uid_t)-1 || token' "$observer"
   } else {
     # Retain actual shell UID, Android permission and live Shizuku checks, but
-    # deliberately remove the independent private-credential comparison.
-    sed 's/if (difference != 0u) return 0;/if (0) return 0;/' "$observer" > "$source/changed.c"
+    # deliberately accept every bytewise credential difference (0..255).
+    # Keep the value consumed so strict unused-value warnings remain enabled.
+    sed 's/if (difference != 0u) return 0;/if (difference > 255u) return 0;/' "$observer" > "$source/changed.c"
     if cmp -s "$observer" "$source/changed.c" { echo 'FAIL capability mutation did not change source' >&2; exit 1 }
     mv "$source/changed.c" "$observer"
-    rg -q -F 'if (0) return 0;' "$observer"
+    rg -q -F 'if (difference > 255u) return 0;' "$observer"
   }
   git -C "$source" init --initial-branch=controlled-negative-fixture > "$output/$kind.git.txt"
   git -C "$source" add -A
@@ -113,8 +114,11 @@ for kind in exposed-provider uid-bypass capability-bypass {
   git -C "$source" bundle create "$output/$kind.source.bundle" HEAD
   setglobal ENV.ANDROID_SOURCE_COMMIT = $(git -C "$source" rev-parse HEAD)
   var native = "$output/$kind-native/libpasteboard.so"
-  make -f "$source/icky/Android.mk" native PROFILE=pasteboard ABI=x86_64 NDK="$sdk/ndk/27.2.12479018" \
-    AICI_ICK_ROOT="$repository" ICK_STAGE="$stage" BUILD="$output/$kind-native/objects" OUT="$native" > "$output/$kind-compile.txt" 2>&1
+  try {
+    make -f "$source/icky/Android.mk" native PROFILE=pasteboard ABI=x86_64 NDK="$sdk/ndk/27.2.12479018" \
+      AICI_ICK_ROOT="$repository" ICK_STAGE="$stage" BUILD="$output/$kind-native/objects" OUT="$native" > "$output/$kind-compile.txt" 2>&1
+  }
+  if (_error.code !== 0) { cat "$output/$kind-compile.txt"; exit 1 }
   bash "$backend/apk/build-nativeactivity-apk.sh" "$manifest" "$native" x86_64 "$output/$kind.apk" > "$output/$kind.package.txt" 2>&1
   sha256sum "$manifest" "$observer" "$client" "$output/$kind.apk" > "$output/$kind.sha256.txt"
 }
