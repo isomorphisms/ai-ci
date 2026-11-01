@@ -27,7 +27,7 @@ if (kind === 'full29') {
   setvar artifact = '13100798874'
   setvar size = '3025202'
   setvar digest = 'b9ae3e1a1714f8aec8cd5e137ab5e9998d897aa7e3e3b1f4a258cd3d920a5b3d'
-} elif (kind === 'd02search29') {
+} elif (kind === 'd02search29' or kind === 'd42full29') {
   setvar artifact = '13103337606'
   setvar size = '11189861'
   setvar digest = '931dca07059ba8427b8fc902ffba3dc749c177fb99a298d7188bc0fac363a3f6'
@@ -36,6 +36,11 @@ if (kind === 'full29') {
   setvar artifact = '13103920697'
   setvar size = '121927646'
   setvar digest = '2d8df9d91cb0bb38bce9053c09ab088a721050e5d7e92edc971b93ed9f70361c'
+  setvar source = 'd02fe516833d0941e8ff1ab2b84369c1661aee6c'
+} elif (kind === 'd42full29') {
+  setvar artifact = '13104564402'
+  setvar size = '139042233'
+  setvar digest = '94858a124f4f08ad4dea106e98eeb37430e512e4bd6c0ad262c952a5c7de831a'
   setvar source = 'd02fe516833d0941e8ff1ab2b84369c1661aee6c'
 } elif (kind === 'd02decoder29') {
   setvar artifact = '13103438329'
@@ -71,7 +76,7 @@ for file in @(awk '/\.(pid|exit|txt|log|tsv|xml)$/ && $0!~/[^A-Za-z0-9._\/-]/ {p
   } elif (file.endsWith('.logcat.txt')) {
     if (kind === 'd02search29') {
       printf 'complete_retained_reader_body\t%s\n' "$file"
-      awk '/IBIndependentReaderBody/ {print}' "$captured"
+      awk '/IBIndependentReaderBody|IBIndependentReadiness/ {print}' "$captured"
     }
     awk '/IBIndependentReaderBody|IBIndependentReaderSurface|IBIndependentMissingControl|IBIndependentCopyDisplay|IBIndependentClipboard|IBIndependentReaderStatus|IBIndependentReaderStack|IBIndependentHeldSource|Force stopping.*org[.]isomorphisms[.]ib|Killing.*org[.]isomorphisms[.]ib/ {line[++n]=$0}
       END {for(i=(n>70?n-69:1);i<=n;i++)print line[i]}' "$captured" |
