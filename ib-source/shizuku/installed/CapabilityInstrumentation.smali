@@ -1235,6 +1235,9 @@
     const-string v0, "http://10.0.2.2:18491/binary"
     const-string v1, "Document refused: unsupported-mime"
     invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->refusedNavigation(Ljava/lang/String;Ljava/lang/String;)V
+    const-string v0, "http://10.0.2.2:18491/binary-unlabelled"
+    const-string v1, "Document refused: unsupported-charset"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->refusedNavigation(Ljava/lang/String;Ljava/lang/String;)V
     const-string v0, "http://10.0.2.2:18491/truncated"
     const-string v1, "Acquisition or verified source readback failed. The previous document is retained."
     invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->refusedNavigation(Ljava/lang/String;Ljava/lang/String;)V

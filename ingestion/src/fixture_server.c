@@ -205,6 +205,11 @@ static void handle_request(int fd, const char *corpus_root) {
         truncated = 1;
     } else if (strcmp(path, "/binary") == 0) {
         relative = "bodies/binary.hex";
+        /* Isolate MIME refusal from an unobserved charset. */
+        content_type = "application/octet-stream; charset=utf-8";
+        hex = 1;
+    } else if (strcmp(path, "/binary-unlabelled") == 0) {
+        relative = "bodies/binary.hex";
         content_type = "application/octet-stream";
         hex = 1;
     } else if (strcmp(path, "/invalid-utf8") == 0) {
