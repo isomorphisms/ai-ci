@@ -462,6 +462,56 @@
     return-void
 .end method
 
+# Android returns false when ACTION_SET_SELECTION requests the existing
+# range. Establish and independently observe an empty selection first; the
+# following full-range action must still return true and update the SDK range.
+.method private clearSourceSelection(Landroid/view/accessibility/AccessibilityNodeInfo;)V
+    .registers 6
+    new-instance v0, Landroid/os/Bundle;
+    invoke-direct {v0}, Landroid/os/Bundle;-><init>()V
+    const-string v1, "ACTION_ARGUMENT_SELECTION_START_INT"
+    const/4 v2, 0x0
+    invoke-virtual {v0, v1, v2}, Landroid/os/Bundle;->putInt(Ljava/lang/String;I)V
+    const-string v1, "ACTION_ARGUMENT_SELECTION_END_INT"
+    invoke-virtual {v0, v1, v2}, Landroid/os/Bundle;->putInt(Ljava/lang/String;I)V
+    const v1, 0x20000
+    invoke-virtual {p1, v1, v0}, Landroid/view/accessibility/AccessibilityNodeInfo;->performAction(ILandroid/os/Bundle;)Z
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->waitForIdleSync()V
+    invoke-virtual {p1}, Landroid/view/accessibility/AccessibilityNodeInfo;->refresh()Z
+    move-result v0
+    if-eqz v0, :failed
+    invoke-virtual {p1}, Landroid/view/accessibility/AccessibilityNodeInfo;->getTextSelectionStart()I
+    move-result v0
+    if-nez v0, :failed
+    invoke-virtual {p1}, Landroid/view/accessibility/AccessibilityNodeInfo;->getTextSelectionEnd()I
+    move-result v0
+    if-nez v0, :failed
+    return-void
+  :failed
+    const-string v0, "FAIL actual SDK empty selection precondition"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private assertSourceSelection(Landroid/view/accessibility/AccessibilityNodeInfo;I)V
+    .registers 6
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->waitForIdleSync()V
+    invoke-virtual {p1}, Landroid/view/accessibility/AccessibilityNodeInfo;->refresh()Z
+    move-result v0
+    if-eqz v0, :failed
+    invoke-virtual {p1}, Landroid/view/accessibility/AccessibilityNodeInfo;->getTextSelectionStart()I
+    move-result v0
+    if-nez v0, :failed
+    invoke-virtual {p1}, Landroid/view/accessibility/AccessibilityNodeInfo;->getTextSelectionEnd()I
+    move-result v0
+    if-ne v0, p2, :failed
+    return-void
+  :failed
+    const-string v0, "FAIL actual SDK full source selection bounds"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    return-void
+.end method
+
 .method private exactSourceClipboard(Ljava/lang/String;)V
     .registers 10
     const/4 v7, 0x1
@@ -507,11 +557,13 @@
     invoke-virtual {v2, v5, v6}, Landroid/os/Bundle;->putInt(Ljava/lang/String;I)V
     const-string v5, "ACTION_ARGUMENT_SELECTION_END_INT"
     invoke-virtual {v2, v5, v3}, Landroid/os/Bundle;->putInt(Ljava/lang/String;I)V
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->clearSourceSelection(Landroid/view/accessibility/AccessibilityNodeInfo;)V
     const/4 v7, 0x4
     const v1, 0x20000
     invoke-virtual {v0, v1, v2}, Landroid/view/accessibility/AccessibilityNodeInfo;->performAction(ILandroid/os/Bundle;)Z
     move-result v1
     if-eqz v1, :failed
+    invoke-direct {p0, v0, v3}, Lacceptance/shizuku/CapabilityInstrumentation;->assertSourceSelection(Landroid/view/accessibility/AccessibilityNodeInfo;I)V
     const/4 v7, 0x5
     const/16 v1, 0x4000
     invoke-virtual {v0, v1}, Landroid/view/accessibility/AccessibilityNodeInfo;->performAction(I)Z

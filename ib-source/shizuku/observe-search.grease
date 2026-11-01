@@ -75,6 +75,19 @@ if test -s "$evidence/handoff.logcat.txt" {
   awk '/IBReader.*checked renderer|IBIndependentReaderStatus|IBIndependentSearchAddress/ {line[++n]=$0}
     END {for(i=(n>36?n-35:1);i<=n;i++)print line[i]}' "$evidence/handoff.logcat.txt" > "$evidence/checked-renderer-outcome.txt"
   cat "$evidence/checked-renderer-outcome.txt"
+  awk '
+    FNR==NR {
+      if($0 ~ /checked renderer frame=/) {
+        value=$NF
+        sub(/^Idric[.]Generated[.]/,"",value)
+        wanted[value]=1
+      }
+      next
+    }
+    $1=="method" {selected=($2 in wanted); title=$0; next}
+    selected && /^source:/ {print title; print; selected=0}
+  ' "$evidence/checked-renderer-outcome.txt" "$input/native-client/activity.dex.plan" > "$evidence/checked-renderer-methods.txt"
+  cat "$evidence/checked-renderer-methods.txt"
 }
 try { "$adb" -s "$serial" exec-out screencap -p > "$evidence/handoff.png" 2> "$evidence/screen-error.txt" }
 if (result !== 0) { exit "$result" }
