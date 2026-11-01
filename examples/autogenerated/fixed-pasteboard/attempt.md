@@ -161,6 +161,17 @@ the exact signed official 13.6 APK, then uses its real authorization UI. Its
 "Tap to manage authorized apps" text is verified in source blob
 `5e469e7d09916f7a7b4b743e124004cc0d6c3d33` at the pinned Shizuku commit.
 
+At ece12736459f9cdb54528237f5ff59a91735b7b9 / run 41354279642,
+API 34/35 both pass actual capture, long/exclusion policies, crash/restart,
+replacement, wrong-signer refusal and unchanged Gboard. API 35's system-bar
+layout is visually correct. The repaired controller executes and reports the
+expected real external-caller refusal; its exact code check then fails because
+am instrument's pretty reporter prints only REPORT_KEY_STREAMRESULT. The
+artifact contains the PASS text and no INSTRUMENTATION_CODE line. Android 15
+Instrument.java blob `e0d949e04a921457ff8ae05286ce9a85144743ab` confirms this
+format. The invocation now requests -r raw output; exact message and result-code
+assertions are retained. This is a qualifier-only correction, not an app change.
+
 Run 41347388884 at consumer 6b359f2ffd83b9a3fb67f343406c291e0c96f900
 proves real cross-application A/B/C capture before focus on API 29 and 34.
 API 29 also passes the exact long-text and exclusion policies, then its run-as

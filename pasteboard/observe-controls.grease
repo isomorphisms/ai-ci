@@ -37,7 +37,9 @@ proc diagnose(label) {
   try { "$adb" -s "$serial" shell ps -A -o USER,PID,NAME > "$output/$label.ps.txt" }
 }
 proc guard(phase, label, expected, result_code) {
-  "$adb" -s "$serial" shell am instrument -w -e phase "$phase" \
+  # Raw mode retains the exact result code even when the controller supplies
+  # REPORT_KEY_STREAMRESULT; Android's pretty mode prints only that stream.
+  "$adb" -s "$serial" shell am instrument -r -w -e phase "$phase" \
     org.isomorphisms.aici.pasteboardcontrols/acceptance.pasteboard.GuardControls > "$output/$label.txt" 2>&1
   "$adb" -s "$serial" logcat -d -s AndroidRuntime:E > "$output/$label.runtime.txt"
   try { rg -q -F "$expected" "$output/$label.txt" }
