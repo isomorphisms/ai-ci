@@ -117,3 +117,15 @@ Failure diagnostics additionally retain shell clipboard AppOps and a bounded
 companion thread dump; UI hierarchy acquisition also has an explicit timeout.
 All such commands are confined to the positively verified synthetic emulator.
 
+# Candidate 11 observation and process-lifecycle controls
+
+Run 41347388884 at consumer 6b359f2ffd83b9a3fb67f343406c291e0c96f900
+proves real cross-application A/B/C capture before focus on API 29 and 34.
+API 29 also passes the exact long-text and exclusion policies, then its run-as
+kill cannot address the reported PID. API 34's four-second long snapshot fails
+without enough retained diagnostics to establish latency versus reducer error.
+The test now waits up to 30 seconds for the same exact long entry assertion,
+preserves observer/history diagnostic classes, and diagnoses failure. Ordinary
+background ActivityManager kill must actually retire the original PID before
+restart. No content, order, delivery-count or lifecycle assertion is weakened.
+

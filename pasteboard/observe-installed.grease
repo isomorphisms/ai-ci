@@ -33,6 +33,7 @@ printf '%s\n' "$original_uid" > "$output/application-uid.txt"
 proc snapshot(label) {
   "$adb" -s "$serial" exec-out run-as "$package" cat files/history.v2 > "$output/$label.bin"
   "$oracle" validate "$output/$label.bin" > "$output/$label.integrity.txt"
+  "$adb" -s "$serial" logcat -d -s PasteboardObserver:I PasteboardDiagnostic:I PasteboardHistory:I >> "$output/observer-boundary.logcat.txt"
 }
 proc diagnose(label) {
   try { "$adb" -s "$serial" exec-out screencap -p > "$output/$label.png" }
@@ -40,8 +41,8 @@ proc diagnose(label) {
   try { "$adb" -s "$serial" shell ps -A -o USER,PID,NAME > "$output/$label.processes.txt" }
   try { "$adb" -s "$serial" shell cmd appops get com.android.shell READ_CLIPBOARD > "$output/$label.clipboard-appop.txt" 2>&1 }
   var worker = $(awk '$1 == "shell" && $3 ~ /:pasteboard_observer$/ {print $2}' "$output/$label.processes.txt")
-  try { printf '%s\n' "$worker" | rg -x '[1-9][0-9]*' > /dev/null }
-  if (_error.code === 0) {
+  if (worker !== '') {
+    printf '%s\n' "$worker" | rg -x '[1-9][0-9]*' > /dev/null
     try { timeout 20s "$adb" -s "$serial" shell debuggerd -j "$worker" > "$output/$label.worker-threads.txt" 2>&1 }
   }
 }
@@ -55,7 +56,7 @@ proc start_fixture(label) {
 }
 proc tap(x, y) { "$adb" -s "$serial" shell input tap "$x" "$y"; sleep 0.4 }
 proc copy_button(row, expected, label) {
-  "$adb" -s "$serial" logcat -d -s PasteboardObserver:I PasteboardDiagnostic:I >> "$output/observer-boundary.logcat.txt"
+  "$adb" -s "$serial" logcat -d -s PasteboardObserver:I PasteboardDiagnostic:I PasteboardHistory:I >> "$output/observer-boundary.logcat.txt"
   "$adb" -s "$serial" logcat -c
   var y = 70 + int(row) * 90
   tap 240 "$y"
@@ -153,9 +154,14 @@ diagnose automatic-return
 # in the separate focused fixture app, not in the history reducer or provider.
 start_fixture policy-inputs
 copy_button 3 'present=1 items=1 text=1 sensitive=0 exact fixture=3 origin=0' long
-sleep 4
-snapshot long
-"$oracle" entry "$output/long.bin" "$input/fixtures/long.txt" 1 0
+var long_retained = false
+for attempt in @(seq 1 30) {
+  snapshot long
+  try { "$oracle" entry "$output/long.bin" "$input/fixtures/long.txt" 1 0 > "$output/long.entry.txt" }
+  if (_error.code === 0) { setvar long_retained = true; break }
+  sleep 1
+}
+if (not long_retained) { diagnose long-capture; echo 'FAIL exact long clipboard capture before focus' >&2; exit 1 }
 copy_button 4 'present=1 items=1 text=1 sensitive=1 exact fixture=4 origin=0' sensitive
 copy_button 5 'present=1 items=1 text=1 sensitive=0 exact fixture=5 origin=0' nul
 copy_button 6 'present=1 items=2 text=0 sensitive=0 exact fixture=-1 origin=0' multiple
@@ -173,7 +179,15 @@ printf 'long_text_without_8192_limit\tPASS\nsensitive_text_excluded\tPASS\nembed
 # acknowledged records. Reboot does not imply Shizuku starts itself afterward.
 var pid = $("$adb" -s "$serial" shell pidof "$package" | tr -d '\r')
 printf '%s\n' "$pid" | rg -x '[1-9][0-9]*'
-"$adb" -s "$serial" shell run-as "$package" kill -9 "$pid"
+"$adb" -s "$serial" shell am kill --user 0 "$package" > "$output/background-kill.txt"
+var process_died = false
+for attempt in @(seq 1 30) {
+  try { "$adb" -s "$serial" shell pidof "$package" > "$output/after-background-kill.pid.txt" }
+  var replacement_pid = $(tr -d '\r' < "$output/after-background-kill.pid.txt")
+  if (replacement_pid !== pid) { setvar process_died = true; break }
+  sleep 0.2
+}
+if (not process_died) { diagnose background-kill; echo 'FAIL background application process did not die' >&2; exit 1 }
 start_app ordinary-restart
 snapshot ordinary-restart
 cmp "$output/policies.bin" "$output/ordinary-restart.bin"
