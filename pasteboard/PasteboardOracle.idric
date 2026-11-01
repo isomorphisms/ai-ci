@@ -96,6 +96,17 @@ examples =
       long_entry = Expected "long" "1" "0" "7" long_text
       long_state = Observed "1" long_text "1" "0"
         ["long", "observe", "again", "c", "b", "a"] [long_entry, observed_b, entry_c]
+      external_a = Expected "external" "1" "0" "9" text_a
+      hinted_external = Observed "1" text_a "1" "0"
+        ["external", "long", "observe", "again", "c", "b", "a"]
+        [external_a, long_entry, observed_b, entry_c]
+      own_copy = Observed "1" text_b "1" "0"
+        ["own-copy", "external", "long", "observe", "again", "c", "b", "a"]
+        [external_a, long_entry, observed_b, entry_c]
+      unknown_c = Expected "c" "1" "0" "11" text_c
+      unknown_hint = Observed "1" text_c "1" "0"
+        ["unknown-copy", "own-copy", "external", "long", "observe", "again", "c", "b", "a"]
+        [unknown_c, external_a, long_entry, observed_b]
   in
   [ ExpectTransition "initialize" [] "initialized" initial
   , ExpectTransition "capture" ["a", "1", text_a] "captured" a
@@ -120,6 +131,9 @@ examples =
   , ExpectTransition "capture" ["long", "7", long_text] "captured" long_state
   , ExpectTransition "capture" ["nul", "8", "before\0after"] "unsupported_text" long_state
   , ExpectTransition "select" ["archive"] "invalid_board" long_state
+  , ExpectTransition "capture" ["external", "9", text_a, "c"] "captured" hinted_external
+  , ExpectTransition "capture" ["own-copy", "10", text_b, "b"] "own_copy" own_copy
+  , ExpectTransition "capture" ["unknown-copy", "11", text_c, "missing-id"] "captured" unknown_hint
   ]
 
 covering
@@ -147,6 +161,9 @@ prepare directory = do
         ("long.txt", long_text), ("sensitive.txt", "sensitive fixture must not be retained"),
         ("nul.txt", "before\0after"), ("empty.txt", "")] $ \(name, text) ⇒
     must_write (directory ++ "/" ++ name) text
+  for_ (the (List Int32) [0 .. 19]) $ \number ⇒
+    must_write (directory ++ "/overflow-" ++ show number ++ ".txt")
+      ("Overflow fixture " ++ show number ++ "\n  preserved text\n")
   write_examples directory 0 initial examples
   must_write (directory ++ "/case-count.txt") (show (length examples) ++ "\n")
   putStrLn "PASS independent fixture and exact transition expectations generated"
@@ -411,6 +428,24 @@ main = do
       snapshot ← read_snapshot file
       expected ← read_text text_file
       assertion "excluded text absent" (not (any (\entry ⇒ entry.contents ≟ expected) snapshot.entries))
+    [_, "forgotten", file, text_file] ⇒ do
+      snapshot ← read_snapshot file
+      expected ← read_text text_file
+      assertion "deleted text absent from entries and seen marker"
+        (snapshot.seen /= expected && not (any (\entry ⇒ entry.contents ≟ expected) snapshot.entries))
+    [_, "count", file, count] ⇒ do
+      snapshot ← read_snapshot file
+      assertion "retained count" (show (length snapshot.entries) ≟ count)
+    [_, "added-deliveries", before, after, count] ⇒ do
+      previous ← read_snapshot before
+      next ← read_snapshot after
+      let added = length next.deliveries `minus` length previous.deliveries
+      assertion "exact added durable deliveries"
+        (show added ≟ count && drop added next.deliveries ≟ previous.deliveries)
+    _ :: "positions" :: file :: position :: text_files ⇒ do
+      snapshot ← read_snapshot file
+      expected ← traverse read_text text_files
+      assertion "exact spatial order" (map contents (filter (\entry ⇒ entry.position ≟ position) snapshot.entries) ≟ expected)
     [_, "mode", file, enabled, automatic] ⇒ do
       snapshot ← read_snapshot file
       assertion "checked capture mode" (snapshot.enabled ≟ enabled && snapshot.automatic ≟ automatic)

@@ -36,6 +36,7 @@ var smali = "$backend/dex/idric/build/oracles/smali-3.0.10.jar"
 printf '%s  %s\n' 32fa0e88a6c397b3922201adf5f3e534fbaed5a663c71d0c558c3ddce0af844a "$smali" | sha256sum -c -
 java -jar "$smali" assemble "$repository/pasteboard/TransitionObserver.smali" -o "$output/transition-observer.dex"
 for name in textA textB textC long sensitive nul empty { cp "$output/fixtures/$name.txt" "$output/copy-assets/" }
+for number in @(seq 0 19) { cp "$output/fixtures/overflow-$number.txt" "$output/copy-assets/" }
 make -f "$repository/pasteboard/fixture/Makefile" fixture ABI=x86_64 \
   NDK="$sdk/ndk/27.2.12479018" ICK_STAGE="$stage" \
   BUILD="$output/fixture-native" OUT="$output/fixture-native/libcopyfixture.so" > "$output/fixture-compile.txt" 2>&1

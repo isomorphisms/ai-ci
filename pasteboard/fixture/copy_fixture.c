@@ -7,14 +7,17 @@
 #include <android_native_app_glue.h>
 #include <jni.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 static JNIEnv *environment ← NULL;
 static int draw_needed ← 1;
-static const char *names[8] ← {"Copy A", "Copy B", "Copy C", "Copy long text",
-    "Copy sensitive text", "Copy embedded NUL", "Copy two items", "Clear clipboard"};
+static const char *names[10] ← {"Copy A", "Copy B", "Copy C", "Copy long text",
+    "Copy sensitive text", "Copy embedded NUL", "Copy two items", "Clear clipboard",
+    "Copy numbered fixture", "Copy non-text intent"};
 static const char *assets[7] ← {"textA.txt", "textB.txt", "textC.txt", "long.txt",
     "sensitive.txt", "nul.txt", "textA.txt"};
+static void verify_foreground_clipboard(struct android_app *app);
 
 static jmethodID method(const char *type, const char *name, const char *signature) {
     JNIEnv *e ← environment;
@@ -46,16 +49,36 @@ static void copy(struct android_app *app, int row) {
     jmethodID get ← method("android/content/Context", "getSystemService", "(Ljava/lang/String;)Ljava/lang/Object;");
     jstring name ← get ? (*e)->NewStringUTF(e, "clipboard") : NULL;
     jobject manager ← name ? (*e)->CallObjectMethod(e, app->activity->clazz, get, name) : NULL;
+    int performed ← 0;
     if (row == 7) {
         jmethodID clear ← method("android/content/ClipboardManager", "clearPrimaryClip", "()V");
-        if (manager && clear) (*e)->CallVoidMethod(e, manager, clear);
+        if (manager && clear) { (*e)->CallVoidMethod(e, manager, clear); performed ← 1; }
     } else {
-        jstring text ← asset_text(app, assets[row]);
+        char numbered[48];
+        if (row == 8) {
+            jmethodID intent ← method("android/app/Activity", "getIntent", "()Landroid/content/Intent;");
+            jobject launch ← intent ? (*e)->CallObjectMethod(e, app->activity->clazz, intent) : NULL;
+            jmethodID extra ← method("android/content/Intent", "getIntExtra", "(Ljava/lang/String;I)I");
+            jstring key ← extra ? (*e)->NewStringUTF(e, "fixture_index") : NULL;
+            const int index ← launch && key ? (*e)->CallIntMethod(e, launch, extra, key, -1) : -1;
+            if (index < 0 || index > 19) { (*e)->PopLocalFrame(e, NULL); return; }
+            (void)snprintf(numbered, sizeof(numbered), "overflow-%d.txt", index);
+        }
+        jstring text ← row < 7 ? asset_text(app, assets[row]) : row == 8 ? asset_text(app, numbered) : NULL;
         jclass type ← (*e)->FindClass(e, "android/content/ClipData");
         jmethodID plain ← type ? (*e)->GetStaticMethodID(e, type, "newPlainText",
             "(Ljava/lang/CharSequence;Ljava/lang/CharSequence;)Landroid/content/ClipData;") : NULL;
         jstring label ← plain ? (*e)->NewStringUTF(e, "ai-ci synthetic clipboard fixture") : NULL;
         jobject clip ← label && text ? (*e)->CallStaticObjectMethod(e, type, plain, label, text) : NULL;
+        if (row == 9 && label) {
+            jclass intent_type ← (*e)->FindClass(e, "android/content/Intent");
+            jmethodID constructor ← intent_type ? (*e)->GetMethodID(e, intent_type, "<init>", "(Ljava/lang/String;)V") : NULL;
+            jstring action ← constructor ? (*e)->NewStringUTF(e, "org.isomorphisms.aici.NON_TEXT_FIXTURE") : NULL;
+            jobject intent ← action ? (*e)->NewObject(e, intent_type, constructor, action) : NULL;
+            jmethodID nontext ← type ? (*e)->GetStaticMethodID(e, type, "newIntent",
+                "(Ljava/lang/CharSequence;Landroid/content/Intent;)Landroid/content/ClipData;") : NULL;
+            clip ← intent && nontext ? (*e)->CallStaticObjectMethod(e, type, nontext, label, intent) : NULL;
+        }
         if (clip && row == 4) {
             jmethodID description ← method("android/content/ClipData", "getDescription", "()Landroid/content/ClipDescription;");
             jobject detail ← description ? (*e)->CallObjectMethod(e, clip, description) : NULL;
@@ -77,13 +100,14 @@ static void copy(struct android_app *app, int row) {
             if (extra && add) (*e)->CallVoidMethod(e, clip, add, extra);
         }
         jmethodID set ← method("android/content/ClipboardManager", "setPrimaryClip", "(Landroid/content/ClipData;)V");
-        if (manager && clip && set) (*e)->CallVoidMethod(e, manager, set, clip);
+        if (manager && clip && set) { (*e)->CallVoidMethod(e, manager, set, clip); performed ← 1; }
     }
-    const int failed ← (*e)->ExceptionCheck(e);
+    const int failed ← !performed || (*e)->ExceptionCheck(e);
     if (failed) (*e)->ExceptionClear(e);
     __android_log_print(failed ? ANDROID_LOG_ERROR : ANDROID_LOG_INFO, "CopyFixture",
         "visible button %d SDK clipboard effect %s", row, failed ? "FAIL" : "PASS");
     (*e)->PopLocalFrame(e, NULL);
+    if (!failed) verify_foreground_clipboard(app);
 }
 
 static void verify_foreground_clipboard(struct android_app *app) {
@@ -96,7 +120,8 @@ static void verify_foreground_clipboard(struct android_app *app) {
     jobject clip ← manager && primary ? (*e)->CallObjectMethod(e, manager, primary) : NULL;
     jmethodID count ← method("android/content/ClipData", "getItemCount", "()I");
     jmethodID item ← method("android/content/ClipData", "getItemAt", "(I)Landroid/content/ClipData$Item;");
-    const int single ← clip && count && item && (*e)->CallIntMethod(e, clip, count) == 1;
+    const int item_count ← clip && count ? (*e)->CallIntMethod(e, clip, count) : 0;
+    const int single ← item_count == 1 && item;
     jobject value ← single ? (*e)->CallObjectMethod(e, clip, item, 0) : NULL;
     jmethodID text ← method("android/content/ClipData$Item", "getText", "()Ljava/lang/CharSequence;");
     jobject characters ← value && text ? (*e)->CallObjectMethod(e, value, text) : NULL;
@@ -109,8 +134,27 @@ static void verify_foreground_clipboard(struct android_app *app) {
         if (expected && (*e)->CallBooleanMethod(e, actual, equal, expected)) matched ← index;
         if (expected) (*e)->DeleteLocalRef(e, expected);
     }
+    for (int index ← 0; actual && equal && index < 20; ++index) {
+        char file[48];
+        (void)snprintf(file, sizeof(file), "overflow-%d.txt", index);
+        jstring expected ← asset_text(app, file);
+        if (expected && (*e)->CallBooleanMethod(e, actual, equal, expected)) matched ← 100 + index;
+        if (expected) (*e)->DeleteLocalRef(e, expected);
+    }
+    int sensitive ← 0;
+    jmethodID description ← method("android/content/ClipData", "getDescription", "()Landroid/content/ClipDescription;");
+    jobject detail ← clip && description ? (*e)->CallObjectMethod(e, clip, description) : NULL;
+    jmethodID get_extras ← method("android/content/ClipDescription", "getExtras", "()Landroid/os/PersistableBundle;");
+    jobject extras ← detail && get_extras ? (*e)->CallObjectMethod(e, detail, get_extras) : NULL;
+    jmethodID flag ← method("android/os/PersistableBundle", "getBoolean", "(Ljava/lang/String;Z)Z");
+    jstring key ← flag ? (*e)->NewStringUTF(e, "android.content.extra.IS_SENSITIVE") : NULL;
+    if (extras && key) sensitive ← (*e)->CallBooleanMethod(e, extras, flag, key, JNI_FALSE);
+    jmethodID get_origin ← method("android/os/PersistableBundle", "getString", "(Ljava/lang/String;)Ljava/lang/String;");
+    jstring origin_key ← get_origin ? (*e)->NewStringUTF(e, "com.isomorphisms.clipboard.ORIGIN") : NULL;
+    jobject origin ← extras && origin_key ? (*e)->CallObjectMethod(e, extras, get_origin, origin_key) : NULL;
     if (!(*e)->ExceptionCheck(e)) __android_log_print(ANDROID_LOG_INFO, "CopyFixture",
-        "foreground clipboard exact fixture=%d", matched);
+        "foreground clipboard present=%d items=%d text=%d sensitive=%d exact fixture=%d origin=%d",
+        clip != NULL, item_count, actual != NULL, sensitive, matched, origin != NULL);
     if ((*e)->ExceptionCheck(e)) (*e)->ExceptionClear(e);
     (*e)->PopLocalFrame(e, NULL);
 }
@@ -132,9 +176,9 @@ static void draw(struct android_app *app) {
     const float height ← (float)ANativeWindow_getHeight(app->window);
     const float top ← (float)app->contentRect.top;
     const float bottom ← app->contentRect.bottom > app->contentRect.top ? (float)app->contentRect.bottom : height;
-    const float step ← (bottom - top) ÷ 8.0f;
+    const float step ← (bottom - top) ÷ 10.0f;
     if (canvas && paint && color && size && rect && text && !(*e)->ExceptionCheck(e)) {
-        for (int row ← 0; row < 8; ++row) {
+        for (int row ← 0; row < 10; ++row) {
             (*e)->CallVoidMethod(e, paint, color, (jint)(row % 2 ? 0xff24495bu : 0xff19333fu));
             (*e)->CallVoidMethod(e, canvas, rect, 0.0f, top + (float)row * step, width,
                 top + (float)(row + 1) * step, paint);
@@ -160,8 +204,8 @@ static int32_t input(struct android_app *app, AInputEvent *event) {
     const float bottom ← app->contentRect.bottom > app->contentRect.top
         ? (float)app->contentRect.bottom : (float)ANativeWindow_getHeight(app->window);
     const float y ← AMotionEvent_getY(event, 0);
-    const int row ← (int)((y - top) * 8.0f ÷ (bottom - top));
-    if (row >= 0 && row < 8) copy(app, row);
+    const int row ← (int)((y - top) * 10.0f ÷ (bottom - top));
+    if (row >= 0 && row < 10) copy(app, row);
     return 1;
 }
 

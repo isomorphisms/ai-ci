@@ -1,0 +1,176 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 6) { echo 'requires ADB SERIAL API APK INDEPENDENT_INPUTS NEW_EVIDENCE' >&2; exit 2 }
+var adb = ARGV[0]
+var serial = ARGV[1]
+var api = ARGV[2]
+var apk = ARGV[3]
+var input = ARGV[4]
+var output = ARGV[5]
+if test -e "$output" { echo 'refusing reused control evidence' >&2; exit 2 }
+mkdir -p "$output"
+var oracle = "$input/oracle/pasteboard-oracle"
+var package = 'com.isomorphisms.pasteboard'
+var component = 'com.isomorphisms.pasteboard/android.app.NativeActivity'
+var fixture = 'org.isomorphisms.aici.clipboardfixture/android.app.NativeActivity'
+"$adb" -s "$serial" shell getprop ro.kernel.qemu | tr -d '\r' | rg -x 1
+"$adb" -s "$serial" shell getprop ro.build.version.sdk | tr -d '\r' | rg -x -F "$api"
+"$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 2000
+"$adb" -s "$serial" shell getprop ro.build.fingerprint > "$output/fingerprint.txt"
+sha256sum "$apk" "$input/guards/controls.apk" "$input/guards/exposed-provider.apk" "$input/guards/uid-bypass.apk" > "$output/sha256.txt"
+cp "$input/observer-commit.txt" "$output/"
+proc snapshot(label) {
+  "$adb" -s "$serial" exec-out run-as "$package" cat files/history.v2 > "$output/$label.bin"
+  "$oracle" validate "$output/$label.bin" > "$output/$label.integrity.txt"
+}
+proc tap(x, y) { "$adb" -s "$serial" shell input tap "$x" "$y"; sleep 0.4 }
+proc start_app(label) {
+  "$adb" -s "$serial" shell am start -W -n "$component" > "$output/$label.launch.txt"
+  sleep 1
+}
+proc automatic(label) { start_app "$label"; tap 450 60; tap 240 215; tap 240 747; sleep 4 }
+proc diagnose(label) {
+  try { "$adb" -s "$serial" exec-out screencap -p > "$output/$label.png" }
+  try { "$adb" -s "$serial" logcat -d -v threadtime > "$output/$label.logcat.txt" }
+  try { "$adb" -s "$serial" shell ps -A -o USER,PID,NAME > "$output/$label.ps.txt" }
+}
+proc guard(phase, label, expected) {
+  "$adb" -s "$serial" shell am instrument -w -e phase "$phase" \
+    org.isomorphisms.aici.pasteboardcontrols/acceptance.pasteboard.GuardControls > "$output/$label.txt" 2>&1
+  if not rg -q -F "$expected" "$output/$label.txt" { diagnose "$label"; cat "$output/$label.txt"; exit 1 }
+}
+proc copy_three(label) {
+  snapshot "$label-before"
+  "$adb" -s "$serial" shell am start -W -n "$fixture" > "$output/$label.fixture.txt"
+  sleep 1
+  for row in @(seq 0 2) {
+    "$adb" -s "$serial" logcat -c
+    var y = 70 + int(row) * 90
+    tap 240 "$y"
+    "$adb" -s "$serial" logcat -d -s CopyFixture:I > "$output/$label-$row.clipboard.txt"
+    rg -q -F "visible button $row SDK clipboard effect PASS" "$output/$label-$row.clipboard.txt"
+    rg -q -F "present=1 items=1 text=1 sensitive=0 exact fixture=$row origin=0" "$output/$label-$row.clipboard.txt"
+  }
+  var accepted = false
+  for attempt in @(seq 1 30) {
+    snapshot "$label-after"
+    try { "$oracle" added-deliveries "$output/$label-before.bin" "$output/$label-after.bin" 3 > "$output/$label.deliveries.txt" }
+    if (_error.code === 0) { setvar accepted = true; break }
+    sleep 1
+  }
+  if (not accepted) { diagnose "$label"; echo 'FAIL lifecycle callback delivery' >&2; exit 1 }
+  "$oracle" board "$output/$label-after.bin" 1 4 "$input/fixtures/textC.txt" "$input/fixtures/textB.txt" "$input/fixtures/textA.txt" "$input/fixtures/long.txt"
+}
+proc observer_pid(label) {
+  "$adb" -s "$serial" shell ps -A -o USER,PID,NAME > "$output/$label.processes.txt"
+  awk '$1 == "shell" && $3 ~ /:pasteboard_observer$/ {print $2}' "$output/$label.processes.txt"
+}
+proc manager_node(field, value, label) {
+  var found = false
+  for attempt in @(seq 1 15) {
+    "$adb" -s "$serial" shell uiautomator dump /data/local/tmp/pasteboard-manager.xml > "$output/$label.dump.txt" 2>&1
+    "$adb" -s "$serial" pull /data/local/tmp/pasteboard-manager.xml "$output/$label.xml" > "$output/$label.pull.txt"
+    try { "$oracle" ui-point "$output/$label.xml" "$field" "$value" > "$output/$label.point.txt" }
+    if (_error.code === 0) { setvar found = true; break }
+    sleep 0.5
+  }
+  if (not found) { diagnose "$label"; echo 'FAIL actual manager control unavailable' >&2; exit 1 }
+  var point = $(cat "$output/$label.point.txt")
+  "$adb" -s "$serial" shell input tap @[split(point)]
+  sleep 2
+}
+snapshot initial
+"$oracle" count "$output/initial.bin" 4
+"$oracle" mode "$output/initial.bin" 1 1
+"$adb" -s "$serial" install -r "$input/guards/controls.apk" > "$output/controls-install.txt"
+guard external external-positive 'PASS independent external provider caller refused by Android'
+"$adb" -s "$serial" install -r "$input/guards/exposed-provider.apk" > "$output/exposed-install.txt"
+start_app exposed-provider
+guard external exposed-mutant 'FAIL external observer call not rejected by Android permission'
+"$adb" -s "$serial" install -r "$apk" > "$output/restore-provider.txt"
+automatic restored-provider
+guard uid uid-positive 'PASS independent real application UID refused with a valid controlled capability'
+"$adb" -s "$serial" install -r "$input/guards/uid-bypass.apk" > "$output/uid-mutant-install.txt"
+automatic uid-mutant
+guard uid uid-mutant 'FAIL unprivileged observer heartbeat accepted'
+"$adb" -s "$serial" install -r "$apk" > "$output/restore-uid.txt"
+automatic restored-uid
+copy_three restored-callbacks
+printf 'real_external_provider_caller_refused\tPASS\ncompiled_exposed_provider_mutant_rejected\tPASS\nreal_application_UID_with_valid_capability_refused\tPASS\ncompiled_UID_bypass_mutant_rejected\tPASS\n' > "$output/result.tsv"
+
+# Kill only the verified emulator's exact shell-owned companion process.
+var old_pid = $(observer_pid observer-before-crash)
+printf '%s\n' "$old_pid" | rg -x '[1-9][0-9]*'
+"$adb" -s "$serial" shell kill -9 "$old_pid"
+start_app observer-reconnect
+var restarted = false
+for attempt in @(seq 1 40) {
+  var new_pid = $(observer_pid observer-reconnect)
+  if (new_pid !== '' and new_pid !== old_pid) { setvar restarted = true; break }
+  sleep 1
+}
+if (not restarted) { diagnose observer-reconnect; echo 'FAIL observer did not reconnect after crash' >&2; exit 1 }
+copy_three after-observer-crash
+printf 'observer_crash_and_reconnection\tPASS\nreconnection_has_exactly_one_delivery_per_copy\tPASS\n' >> "$output/result.tsv"
+
+# Use the real manager's authorization switch. A pm runtime-permission change
+# alone does not revoke Shizuku's cached authorization record.
+"$adb" -s "$serial" shell am start -W -a android.intent.action.MAIN -c android.intent.category.LAUNCHER \
+  -p moe.shizuku.privileged.api > "$output/manager.launch.txt"
+manager_node text 'Tap to manage authorized apps' manage-apps
+manager_node text "$package" revoke
+snapshot revoked-before
+"$adb" -s "$serial" shell am start -W -n "$fixture" > "$output/revoked.fixture.txt"
+sleep 1
+tap 240 70
+tap 240 160
+tap 240 250
+sleep 3
+snapshot revoked-after
+cmp "$output/revoked-before.bin" "$output/revoked-after.bin"
+"$adb" -s "$serial" shell am start -W -a android.intent.action.MAIN -c android.intent.category.LAUNCHER \
+  -p moe.shizuku.privileged.api > "$output/regrant-manager.launch.txt"
+manager_node text "$package" regrant
+automatic reauthorized
+copy_three after-regrant
+printf 'actual_manager_revocation_stops_capture\tPASS\nactual_manager_regrant_restores_capture\tPASS\n' >> "$output/result.tsv"
+
+# Expiration belongs to Android 13+. Shorten the real framework timeout only in
+# this verified emulator, then restore its prior DeviceConfig value.
+if (int(api) >= 33) {
+  var timeout_before = $("$adb" -s "$serial" shell device_config get clipboard auto_clear_timeout | tr -d '\r')
+  "$adb" -s "$serial" shell device_config put clipboard auto_clear_timeout 1500
+  "$adb" -s "$serial" shell am start -W -n "$fixture" > "$output/expiry.fixture.txt"
+  sleep 1
+  tap 240 70
+  sleep 5
+  "$adb" -s "$serial" logcat -c
+  "$adb" -s "$serial" shell input keyevent HOME
+  "$adb" -s "$serial" shell am start -W -n "$fixture" > "$output/expiry-readback.fixture.txt"
+  sleep 1
+  "$adb" -s "$serial" logcat -d -s CopyFixture:I > "$output/expiry.clipboard.txt"
+  if (timeout_before === 'null') { "$adb" -s "$serial" shell device_config delete clipboard auto_clear_timeout } else { "$adb" -s "$serial" shell device_config put clipboard auto_clear_timeout "$timeout_before" }
+  rg -q -F 'present=0 items=0 text=0 sensitive=0 exact fixture=-1 origin=0' "$output/expiry.clipboard.txt"
+  snapshot expired
+  "$oracle" count "$output/expired.bin" 4
+  "$oracle" entry "$output/expired.bin" "$input/fixtures/textA.txt" 1 0
+  printf 'framework_clipboard_expiration_preserves_history\tPASS\n' >> "$output/result.tsv"
+} else { printf 'framework_auto_expiration\tNOT_APPLICABLE_API_29\n' >> "$output/result.tsv" }
+
+snapshot before-reboot
+"$adb" -s "$serial" reboot
+"$adb" -s "$serial" wait-for-device
+var booted = false
+for attempt in @(seq 1 60) {
+  var state = $("$adb" -s "$serial" shell getprop sys.boot_completed | tr -d '\r')
+  if (state === '1') { setvar booted = true; break }
+  sleep 1
+}
+if (not booted) { echo 'FAIL emulator did not reboot' >&2; exit 1 }
+"$adb" -s "$serial" shell input keyevent 82
+start_app after-reboot
+snapshot after-reboot
+cmp "$output/before-reboot.bin" "$output/after-reboot.bin"
+printf 'device_restart_preserves_acknowledged_history\tPASS\nphysical_C67\tNOT_VERIFIED\nphysical_TAB_P10\tNOT_VERIFIED\n' >> "$output/result.tsv"
+diagnose final
+cat "$output/result.tsv"

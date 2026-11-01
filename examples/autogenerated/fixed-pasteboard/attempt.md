@@ -33,3 +33,12 @@ another language or backend. The generated ART caller independently assembles
 and decodes; execution remains pending. The copy fixture compiles with ICK and
 links against NDK 27.2.12479018. Grease parse/expression checks pass after replacing
 an invalid `@split(...)` spelling with documented `@[split(...)]` list splicing.
+
+The next stage adds explicit own-copy/intervening-capture expectations,
+twenty numbered overflow fixtures, real SDK readback after visible input,
+smali-only caller-identity controls and independently compiled permission/UID
+mutants. Lifecycle procedures cover observer crash, real manager revocation,
+framework expiration and reboot. These definitions have not yet passed Android
+execution. The private controlled capability is never printed or archived;
+neither identity control inserts clipboard history. General test-data and
+snapshot work remains checked Idriç, and procedures remain Grease.

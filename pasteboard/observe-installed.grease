@@ -46,6 +46,14 @@ proc start_fixture(label) {
   sleep 1
 }
 proc tap(x, y) { "$adb" -s "$serial" shell input tap "$x" "$y"; sleep 0.4 }
+proc copy_button(row, expected, label) {
+  "$adb" -s "$serial" logcat -c
+  var y = 70 + int(row) * 90
+  tap 240 "$y"
+  "$adb" -s "$serial" logcat -d -s CopyFixture:I > "$output/$label.clipboard.txt"
+  rg -q -F "visible button $row SDK clipboard effect PASS" "$output/$label.clipboard.txt"
+  rg -q -F "$expected" "$output/$label.clipboard.txt"
+}
 proc menu(row) {
   tap 450 60
   var y = 215 + int(row) * 76
@@ -54,11 +62,9 @@ proc menu(row) {
 proc close_menu() { tap 240 747 }
 proc copy_three(label) {
   start_fixture "$label"
-  tap 240 80
-  sleep 0.5
-  tap 240 190
-  sleep 0.5
-  tap 240 300
+  copy_button 0 'present=1 items=1 text=1 sensitive=0 exact fixture=0 origin=0' "$label-A"
+  copy_button 1 'present=1 items=1 text=1 sensitive=0 exact fixture=1 origin=0' "$label-B"
+  copy_button 2 'present=1 items=1 text=1 sensitive=0 exact fixture=2 origin=0' "$label-C"
   sleep 1
 }
 proc decision(button, label) {
@@ -131,20 +137,22 @@ diagnose automatic-return
 # Long, sensitive, embedded-NUL and multiple-item clipboard effects all originate
 # in the separate focused fixture app, not in the history reducer or provider.
 start_fixture policy-inputs
-tap 240 410
+copy_button 3 'present=1 items=1 text=1 sensitive=0 exact fixture=3 origin=0' long
 sleep 4
 snapshot long
 "$oracle" entry "$output/long.bin" "$input/fixtures/long.txt" 1 0
-tap 240 520
-tap 240 630
-tap 240 740
-tap 240 850
+copy_button 4 'present=1 items=1 text=1 sensitive=1 exact fixture=4 origin=0' sensitive
+copy_button 5 'present=1 items=1 text=1 sensitive=0 exact fixture=5 origin=0' nul
+copy_button 6 'present=1 items=2 text=0 sensitive=0 exact fixture=-1 origin=0' multiple
+copy_button 7 'present=0 items=0 text=0 sensitive=0 exact fixture=-1 origin=0' cleared
+copy_button 9 'present=1 items=1 text=0 sensitive=0 exact fixture=-1 origin=0' nontext
+copy_button 7 'present=0 items=0 text=0 sensitive=0 exact fixture=-1 origin=0' cleared-again
 sleep 2
 snapshot policies
 "$oracle" absent "$output/policies.bin" "$input/fixtures/sensitive.txt"
 "$oracle" absent "$output/policies.bin" "$input/fixtures/nul.txt"
 cmp "$output/long.bin" "$output/policies.bin"
-printf 'long_text_without_8192_limit\tPASS\nsensitive_text_excluded\tPASS\nembedded_NUL_refused\tPASS\nmultiple_items_refused\tPASS\nclipboard_clear_preserves_retained_text\tPASS\n' >> "$output/result.tsv"
+printf 'long_text_without_8192_limit\tPASS\nsensitive_text_excluded\tPASS\nembedded_NUL_refused\tPASS\nmultiple_items_refused\tPASS\nnon_text_refused\tPASS\nclipboard_clear_preserves_retained_text\tPASS\n' >> "$output/result.tsv"
 
 # Ordinary app-process death, exact candidate replacement and reboot retain the
 # acknowledged records. Reboot does not imply Shizuku starts itself afterward.

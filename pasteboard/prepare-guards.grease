@@ -1,0 +1,89 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 8) { echo 'requires AICI CONSUMER CHECKED ANDROID_NDK_REPOSITORY SDK ICK_X86_STAGE KEYSTORE NEW_OUTPUT' >&2; exit 2 }
+var repository = ARGV[0]
+var consumer = ARGV[1]
+var checked = ARGV[2]
+var backend = ARGV[3]
+var sdk = ARGV[4]
+var stage = ARGV[5]
+var keystore = ARGV[6]
+var output = ARGV[7]
+for path in "$repository" "$consumer" "$checked" "$backend" "$sdk" "$stage" "$keystore" "$output" {
+  if (path[0] !== '/') { echo 'absolute path required' >&2; exit 2 }
+}
+if test -e "$output" { echo 'refusing reused guard preparation' >&2; exit 2 }
+mkdir -p "$output"
+var tools = "$sdk/build-tools/36.0.0"
+var oracle = "$backend/dex/idric/build/oracles/smali-3.0.10.jar"
+printf '%s  %s\n' 32fa0e88a6c397b3922201adf5f3e534fbaed5a663c71d0c558c3ddce0af844a "$oracle" | sha256sum -c -
+# Independent instrumentation follows ai-ci's existing smali-only oracle APK
+# boundary. It is never used to produce candidate application code.
+java -jar "$oracle" assemble "$repository/pasteboard/guards" -o "$output/classes.dex"
+"$tools/aapt2" link --manifest "$repository/pasteboard/guards/AndroidManifest.xml" \
+  -I "$sdk/platforms/android-36/android.jar" -o "$output/controls-base.apk"
+cp "$output/controls-base.apk" "$output/controls-unsigned.apk"
+cd "$output"
+zip -q controls-unsigned.apk classes.dex
+"$tools/zipalign" -f -P 16 4 "$output/controls-unsigned.apk" "$output/controls-aligned.apk"
+"$tools/apksigner" sign --ks "$keystore" --ks-key-alias wegert-debug --ks-pass pass:wegert-debug \
+  --key-pass pass:wegert-debug --out "$output/controls.apk" "$output/controls-aligned.apk"
+"$tools/apksigner" verify --verbose --print-certs "$output/controls.apk" > "$output/controls-signer.txt"
+rg -x -F 'Signer #1 certificate SHA-256 digest: de9b1d47c5a65e6d46a204b79dd9ee566b9d3c9832ba81ebc4213d3392e92ff9' "$output/controls-signer.txt"
+var positive = "$consumer/build/pasteboard-apks/pasteboard-x86_64.apk"
+var version = $("$tools/aapt2" dump badging "$positive" | awk -F "'" '/^package:/{print $4}')
+printf '%s\n' "$version" | rg -x '[1-9][0-9]*'
+setglobal ENV.ANDROID_HOME = sdk
+setglobal ENV.ANDROID_BUILD_TOOLS = tools
+setglobal ENV.ANDROID_PACKAGE_ID = 'com.isomorphisms.pasteboard'
+setglobal ENV.ANDROID_VERSION_CODE = version
+setglobal ENV.ANDROID_VERSION_NAME = 'controlled-negative-fixture'
+setglobal ENV.ANDROID_MIN_SDK = '26'
+setglobal ENV.ANDROID_TARGET_SDK = '36'
+setglobal ENV.ANDROID_EXPECTED_LABEL = 'Pasteboard'
+setglobal ENV.ANDROID_KEYSTORE = keystore
+setglobal ENV.ANDROID_KEYSTORE_TYPE = 'JKS'
+setglobal ENV.ANDROID_KEY_ALIAS = 'wegert-debug'
+setglobal ENV.ANDROID_STORE_PASSWORD = 'wegert-debug'
+setglobal ENV.ANDROID_KEY_PASSWORD = 'wegert-debug'
+setglobal ENV.ANDROID_EXPECTED_CERT_SHA256 = 'de9b1d47c5a65e6d46a204b79dd9ee566b9d3c9832ba81ebc4213d3392e92ff9'
+setglobal ENV.ANDROID_REQUIRE_NO_DEX = '0'
+setglobal ENV.ANDROID_DEX_FILE = "$checked/platform.dex"
+setglobal ENV.ANDROID_ASSET_DIR = "$checked/assets"
+setglobal ENV.ANDROID_GREASE = ENV.GREASE
+git -C "$consumer" rev-parse HEAD > "$output/positive-source.txt"
+for kind in exposed-provider uid-bypass {
+  var source = "$output/$kind-source"
+  mkdir -p "$source"
+  git -C "$consumer" archive HEAD | tar -x -C "$source"
+  var manifest = "$source/pasteboard/app/src/main/AndroidManifest.xml"
+  var observer = "$source/pasteboard/app/src/main/c/observer/pb_observer.c"
+  if (kind === 'exposed-provider') {
+    sed 's/android:permission="android.permission.INTERACT_ACROSS_USERS_FULL"//' "$manifest" > "$source/changed.xml"
+    if cmp -s "$manifest" "$source/changed.xml" { echo 'FAIL manifest mutation did not change source' >&2; exit 1 }
+    mv "$source/changed.xml" "$manifest"
+  } else {
+    sed 's/caller != 2000u || token/caller == (uid_t)-1 || token/' "$observer" > "$source/changed.c"
+    if cmp -s "$observer" "$source/changed.c" { echo 'FAIL UID mutation did not change source' >&2; exit 1 }
+    mv "$source/changed.c" "$observer"
+    rg -q -F 'caller == (uid_t)-1 || token' "$observer"
+  }
+  git -C "$source" init --initial-branch=controlled-negative-fixture > "$output/$kind.git.txt"
+  git -C "$source" add -A
+  git -C "$source" -c user.name='ai-ci controlled fixture' -c user.email=qualification@isomorphisms.invalid \
+    commit -m "Known-bad $kind fixture from exact consumer source" >> "$output/$kind.git.txt"
+  git -C "$source" rev-parse HEAD > "$output/$kind.source.txt"
+  git -C "$source" bundle create "$output/$kind.source.bundle" HEAD
+  setglobal ENV.ANDROID_SOURCE_COMMIT = $(git -C "$source" rev-parse HEAD)
+  var native = "$consumer/build/pasteboard-apks/native/x86_64/libpasteboard.so"
+  if (kind === 'uid-bypass') {
+    setvar native = "$output/uid-native/libpasteboard.so"
+    make -f "$source/icky/Android.mk" native PROFILE=pasteboard ABI=x86_64 NDK="$sdk/ndk/27.2.12479018" \
+      AICI_ICK_ROOT="$repository" ICK_STAGE="$stage" BUILD="$output/uid-native/objects" OUT="$native" > "$output/uid-compile.txt" 2>&1
+  }
+  bash "$backend/apk/build-nativeactivity-apk.sh" "$manifest" "$native" x86_64 "$output/$kind.apk" > "$output/$kind.package.txt" 2>&1
+  sha256sum "$manifest" "$observer" "$output/$kind.apk" > "$output/$kind.sha256.txt"
+}
+git -C "$repository" rev-parse HEAD > "$output/observer-commit.txt"
+printf 'controller_oracle_packaging\tPASS\ncompiled_source_mutants\tPASS\nactual_external_caller_refusal\tNOT_VERIFIED\nactual_UID_guard_mutant_rejection\tNOT_VERIFIED\n' > "$output/preparation.tsv"
+cat "$output/preparation.tsv"

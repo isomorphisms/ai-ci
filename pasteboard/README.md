@@ -22,11 +22,21 @@ and the compiled semantic mutant have distinct refusal controls. Fixture text
 includes indentation, CR/LF, code fences, supplementary Unicode and more than
 8192 bytes. Only synthetic fixture history may enter these evidence artifacts.
 
+`prepare-guards.grease` builds an independent smali instrumentation controller
+and two deliberate source mutants: an exposed provider and a disabled native
+UID guard. The second control uses a valid private capability inside the
+verified emulator and a real unprivileged application caller. Its token never
+enters a shell argument, log, result or artifact. It sends no history event.
+`observe-controls.grease` requires distinct targeted failures for both mutants,
+then restores the exact positive APK before exercising companion crash,
+reconnection, real manager revocation/regrant, framework expiration and reboot.
+The fixture now confirms the actual clipboard value after every test copy;
+it logs only fixture indices and metadata, never text or origin identities.
+
 Record separate results for host tests, DEX/ART, installed loader, privileged
-callback delivery, user workflow and physical deployment. Current scripts cover
-the initial positive workflow, denial/unavailability, text policies and ordinary
-process/replacement persistence. Manager revocation, observer crash/reconnection,
-clipboard expiration, v1 migration, destructive-action UI, backup deletion and
-reboot coverage are still acceptance obligations. A partial result table is not
-a complete qualification receipt. Gboard itself and physical C67/TAB_P10 must be
-reported separately from preserving an emulator's existing keyboard setting.
+callback delivery, user workflow and physical deployment. These scripts are
+test definitions until exact-source Android receipts exist. V1 migration,
+destructive-action UI, backup deletion and complete spatial workflow remain
+acceptance obligations. A partial result table is not a complete qualification
+receipt. Gboard itself and physical C67/TAB_P10 must be reported separately from
+preserving an emulator's existing keyboard setting.
