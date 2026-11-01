@@ -58,3 +58,29 @@ for receipt in @(rg --files "$root/receipts") {
 }
 if (not found) { echo 'NO_COMMITTED_GOOGLE_RESPONSE_IN_CAPTURE' }
 echo 'Google search results and clicked-result navigation are not qualified by this diagnostic.'
+
+# Diagnose the separately captured installed transport refusal failure. These
+# fixed archives contain only the declared public/loopback test fixtures.
+var transport_artifact = '13081992802'
+var transport_digest = 'cfeb0ec501471b554bdccbef5ce79ed95bbb9e9577f90ea5437689b039e252ac'
+var transport_size = '11410257'
+if (api === '34') {
+  setvar transport_artifact = '13081263570'
+  setvar transport_digest = 'a17886df2a655b1a8ee9bc6e8a99cadbf29029fc7d8c9ef56e3c9f95972a2849'
+  setvar transport_size = '15509918'
+}
+curl --fail --location --silent --show-error --max-time 120 \
+  --header "Authorization: Bearer $authorization" \
+  "https://api.github.com/repos/isomorphisms/ai-ci/actions/artifacts/$transport_artifact/zip" --output "$evidence/transport-original.zip"
+test "$(wc -c < "$evidence/transport-original.zip")" = "$transport_size"
+printf '%s  %s\n' "$transport_digest" "$evidence/transport-original.zip" | sha256sum -c -
+mkdir -p "$evidence/transport-input"
+unzip -q "$evidence/transport-original.zip" -d "$evidence/transport-input"
+var transport_log = "$evidence/transport-input/ib-installed-replay/navigation/actual-transport-refusals.logcat.txt"
+echo 'Captured actual transport refusal failure, bounded process and UI outcomes:'
+awk '
+  /IBReader|IBIndependentReaderStatus|IBIndependentReaderBody|IBIndependentSearch|AndroidRuntime|System.err/ {line[++n]=$0}
+  END {for(i=(n>100?n-99:1);i<=n;i++)print line[i]}
+' "$transport_log" > "$evidence/actual-transport-failure.txt"
+cat "$evidence/actual-transport-failure.txt"
+head -n 24 "$evidence/transport-input/ib-installed-replay/navigation/actual-transport-refusals.txt"
