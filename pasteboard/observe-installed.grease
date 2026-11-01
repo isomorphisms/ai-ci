@@ -63,6 +63,9 @@ proc copy_button(row, expected, label) {
   "$adb" -s "$serial" logcat -d -s CopyFixture:I > "$output/$label.clipboard.txt"
   rg -q -F "visible button $row SDK clipboard effect PASS" "$output/$label.clipboard.txt"
   rg -q -F "$expected" "$output/$label.clipboard.txt"
+  if (int(row) < 4) {
+    rg -q -F "visible button $row plain SDK clip extras absent PASS" "$output/$label.clipboard.txt"
+  }
 }
 proc menu(row) {
   tap 450 60

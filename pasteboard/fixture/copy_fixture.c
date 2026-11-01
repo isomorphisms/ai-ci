@@ -79,6 +79,21 @@ static void copy(struct android_app *app, int row) {
                 "(Ljava/lang/CharSequence;Landroid/content/Intent;)Landroid/content/ClipData;") : NULL;
             clip ← intent && nontext ? (*e)->CallStaticObjectMethod(e, type, nontext, label, intent) : NULL;
         }
+        if (clip && row != 4) {
+            /* A/B/C/long/numbered exercise the public no-extras boundary.
+             * Assert it before the system may add classification metadata. */
+            jmethodID description ← method("android/content/ClipData", "getDescription", "()Landroid/content/ClipDescription;");
+            jobject detail ← description ? (*e)->CallObjectMethod(e, clip, description) : NULL;
+            jmethodID get_extras ← method("android/content/ClipDescription", "getExtras", "()Landroid/os/PersistableBundle;");
+            jobject extras ← detail && get_extras ? (*e)->CallObjectMethod(e, detail, get_extras) : NULL;
+            if (!detail || !get_extras || extras || (*e)->ExceptionCheck(e)) {
+                if ((*e)->ExceptionCheck(e)) (*e)->ExceptionClear(e);
+                __android_log_print(ANDROID_LOG_ERROR, "CopyFixture", "FAIL expected plain SDK clip without extras");
+                (*e)->PopLocalFrame(e, NULL);
+                return;
+            }
+            __android_log_print(ANDROID_LOG_INFO, "CopyFixture", "visible button %d plain SDK clip extras absent PASS", row);
+        }
         if (clip && row == 4) {
             jmethodID description ← method("android/content/ClipData", "getDescription", "()Landroid/content/ClipDescription;");
             jobject detail ← description ? (*e)->CallObjectMethod(e, clip, description) : NULL;

@@ -119,6 +119,11 @@ All such commands are confined to the positively verified synthetic emulator.
 
 # Candidate 11 observation and process-lifecycle controls
 
+Candidate 12 additionally asserts that independent SDK newPlainText clips have
+no optional extras before the actual copy. The installed A/B/C/long procedure
+requires that precondition receipt, so platform-added classification metadata
+cannot conceal a consumer rejection of ordinary clips without extras.
+
 Run 41347388884 at consumer 6b359f2ffd83b9a3fb67f343406c291e0c96f900
 proves real cross-application A/B/C capture before focus on API 29 and 34.
 API 29 also passes the exact long-text and exclusion policies, then its run-as
