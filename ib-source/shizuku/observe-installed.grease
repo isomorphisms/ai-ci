@@ -125,6 +125,7 @@ proc diagnose(label) {
   }
 }
 proc observe(phase, label, code, marker) {
+  "$grease" "$repository/ib-source/shizuku/prepare-test-screen.grease" "$adb" "$serial" "$evidence/$label.screen"
   try {
     timeout 150 "$adb" -s "$serial" shell am instrument -w -r -e phase "$phase" \
       org.isomorphisms.ib.acceptance/acceptance.shizuku.CapabilityInstrumentation > "$evidence/$label.txt" 2>&1
@@ -214,7 +215,16 @@ if (reader) {
   install_candidate boundary retained-update
   observe retained-example retained-after-update -1 'PASS installed native retained Example Domain reopened with Shizuku unavailable'
   "$adb" -s "$serial" reboot
-  timeout 90 "$adb" -s "$serial" wait-for-device
+  try { timeout 90 "$adb" -s "$serial" wait-for-device }
+  var reboot_transport = _error.code
+  printf '%s\n' "$reboot_transport" > "$evidence/reboot-transport.exit"
+  if (reboot_transport !== 0) {
+    try { timeout 5 "$adb" devices -l > "$evidence/reboot-transport.devices.txt" 2>&1 }
+    df -PB1 "$evidence" > "$evidence/reboot-transport.capacity.txt"
+    ps -eo pid,comm > "$evidence/reboot-transport.host-processes.txt"
+    echo 'FAIL emulator reboot transport did not return within the declared bound' >&2
+    exit 1
+  }
   var booted = false
   for attempt in @(seq 1 120) {
     var boot = $("$adb" -s "$serial" shell getprop sys.boot_completed | tr -d '\r')

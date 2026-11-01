@@ -123,6 +123,7 @@
     move-result-object v0
     const-string v1, "IBIndependentMissingControl"
     invoke-static {v1, v0}, Landroid/util/Log;->e(Ljava/lang/String;Ljava/lang/String;)I
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->logSurfaceDiagnostic()V
     const-string v0, "FAIL expected visible native control in declared package"
     invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
     const/4 v0, 0x0
@@ -488,6 +489,62 @@
 # Android returns false when ACTION_SET_SELECTION requests the existing
 # range. Request SDK removal and independently observe an empty range first; the
 # following full-range action must still return true and update the SDK range.
+
+# Best-effort diagnostics must never replace the original failed assertion.
+.method private logSurfaceDiagnostic()V
+    .registers 6
+  :begin
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->getTargetContext()Landroid/content/Context;
+    move-result-object v0
+    const-string v1, "power"
+    invoke-virtual {v0, v1}, Landroid/content/Context;->getSystemService(Ljava/lang/String;)Ljava/lang/Object;
+    move-result-object v0
+    check-cast v0, Landroid/os/PowerManager;
+    invoke-virtual {v0}, Landroid/os/PowerManager;->isInteractive()Z
+    move-result v0
+    new-instance v1, Ljava/lang/StringBuilder;
+    invoke-direct {v1}, Ljava/lang/StringBuilder;-><init>()V
+    const-string v2, "interactive="
+    invoke-virtual {v1, v2}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v1, v0}, Ljava/lang/StringBuilder;->append(Z)Ljava/lang/StringBuilder;
+    const-string v2, " activeWindowPackage="
+    invoke-virtual {v1, v2}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->getUiAutomation()Landroid/app/UiAutomation;
+    move-result-object v0
+    invoke-virtual {v0}, Landroid/app/UiAutomation;->getRootInActiveWindow()Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v0
+    if-eqz v0, :missing_root
+    invoke-virtual {v0}, Landroid/view/accessibility/AccessibilityNodeInfo;->getPackageName()Ljava/lang/CharSequence;
+    move-result-object v0
+    invoke-virtual {v1, v0}, Ljava/lang/StringBuilder;->append(Ljava/lang/CharSequence;)Ljava/lang/StringBuilder;
+    goto :root_record
+  :missing_root
+    const-string v0, "NULL"
+    invoke-virtual {v1, v0}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+  :root_record
+    invoke-virtual {v1}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+    move-result-object v0
+    const-string v1, "IBIndependentReaderSurface"
+    invoke-static {v1, v0}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
+    iget-object v0, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
+    if-eqz v0, :capture
+    new-instance v1, Lacceptance/shizuku/ReaderAddressSnapshot;
+    invoke-direct {v1, v0}, Lacceptance/shizuku/ReaderAddressSnapshot;-><init>(Landroid/app/Activity;)V
+    invoke-virtual {p0, v1}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
+  :capture
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->recordDocumentScreenshot()V
+    return-void
+  :end
+    .catch Ljava/lang/Throwable; {:begin .. :end} :caught
+  :caught
+    move-exception v0
+    invoke-virtual {v0}, Ljava/lang/Throwable;->toString()Ljava/lang/String;
+    move-result-object v0
+    const-string v1, "IBIndependentSurfaceDiagnosticUnavailable"
+    invoke-static {v1, v0}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
+    return-void
+.end method
+
 .method private clearSourceSelection(Landroid/view/accessibility/AccessibilityNodeInfo;)V
     .registers 6
     new-instance v0, Landroid/os/Bundle;
@@ -512,6 +569,23 @@
     if-lt v0, v2, :failed
     return-void
   :failed
+    invoke-virtual {p1}, Landroid/view/accessibility/AccessibilityNodeInfo;->getTextSelectionStart()I
+    move-result v0
+    invoke-virtual {p1}, Landroid/view/accessibility/AccessibilityNodeInfo;->getTextSelectionEnd()I
+    move-result v1
+    new-instance v2, Ljava/lang/StringBuilder;
+    invoke-direct {v2}, Ljava/lang/StringBuilder;-><init>()V
+    const-string v3, "A11y selection at failed clear="
+    invoke-virtual {v2, v3}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v2, v0}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    const-string v3, ","
+    invoke-virtual {v2, v3}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v2, v1}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    invoke-virtual {v2}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+    move-result-object v2
+    const-string v3, "IBIndependentReaderSurface"
+    invoke-static {v3, v2}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->logSurfaceDiagnostic()V
     const-string v0, "FAIL actual SDK empty selection precondition"
     invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
     return-void

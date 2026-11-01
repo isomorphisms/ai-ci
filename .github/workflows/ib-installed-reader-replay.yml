@@ -1,4 +1,4 @@
-name: Independent IB 57e03521 ChordReader SEARCH and decoding
+name: Independent IB d02fe516 ChordReader SEARCH and decoding
 on:
   pull_request:
     paths:
@@ -141,7 +141,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: ib-57-installed-api${{ matrix.api }}-${{ matrix.profile }}-replay-${{ github.event.pull_request.head.sha || github.sha }}
+          name: ib-d02-installed-api${{ matrix.api }}-${{ matrix.profile }}-replay-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
             ${{ runner.temp }}/ib-host-capacity
             ${{ runner.temp }}/ib-host.syntax.txt
@@ -155,6 +155,7 @@ jobs:
             ${{ runner.temp }}/ib-installed-replay/observed/*.tsv
             ${{ runner.temp }}/ib-installed-replay/observed/*.failure-source.tar.gz
             ${{ runner.temp }}/ib-installed-replay/observed/*.exit
+            ${{ runner.temp }}/ib-installed-replay/observed/*.screen
             ${{ runner.temp }}/ib-installed-replay/navigation
             ${{ runner.temp }}/ib-installed-replay/encoding
             ${{ runner.temp }}/ib-installed-replay/search

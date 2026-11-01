@@ -52,12 +52,13 @@ proc diagnose(label) {
       sed -E 's/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}-[0-9]{10,}/[REDACTED_SERVICE_NONCE]/g' > "$evidence/$label.logcat.txt"
   }
   if test -s "$evidence/$label.logcat.txt" {
-    awk '/IBIndependentFragmentViewport|IBIndependentReaderStatus|IBIndependentReaderStack|IBReader.*checked renderer/ {line[++n]=$0}
+    awk '/IBIndependentFragmentViewport|IBIndependentReaderSurface|IBIndependentSurfaceDiagnosticUnavailable|IBIndependentReaderStatus|IBIndependentReaderStack|IBReader.*checked renderer/ {line[++n]=$0}
       END {for(i=(n>30?n-29:1);i<=n;i++)print line[i]}' "$evidence/$label.logcat.txt"
   }
   try { "$adb" -s "$serial" exec-out screencap -p > "$evidence/$label.png" 2> "$evidence/$label.screen-error.txt" }
 }
 proc observe(phase, label, code, marker) {
+  "$grease" "$repository/ib-source/shizuku/prepare-test-screen.grease" "$adb" "$serial" "$evidence/$label.screen"
   try {
     timeout 240 "$adb" -s "$serial" shell am instrument -w -r -e phase "$phase" \
       org.isomorphisms.ib.acceptance/acceptance.shizuku.CapabilityInstrumentation > "$evidence/$label.txt" 2>&1
@@ -116,6 +117,7 @@ try { "$adb" -s "$serial" shell killall shizuku_server > "$evidence/completed-co
 var control_stop = _error.code
 if (control_stop !== 0 and control_stop !== 1) { exit 1 }
 "$adb" -s "$serial" shell "$starter" "--apk=$manager" > "$evidence/completed-control.start-server.txt" 2>&1
+"$grease" "$repository/ib-source/shizuku/prepare-test-screen.grease" "$adb" "$serial" "$evidence/completed-control.screen"
 fork {
   exec timeout 120 "$adb" -s "$serial" shell am instrument -w -r -e phase complete-held-source \
     org.isomorphisms.ib.acceptance/acceptance.shizuku.CapabilityInstrumentation > "$evidence/completed-control.txt" 2>&1
@@ -222,6 +224,7 @@ try { "$adb" -s "$serial" shell killall shizuku_server > "$evidence/held.stop-se
 var held_stop = _error.code
 if (held_stop !== 0 and held_stop !== 1) { exit 1 }
 "$adb" -s "$serial" shell "$starter" "--apk=$manager" > "$evidence/held.start-server.txt" 2>&1
+"$grease" "$repository/ib-source/shizuku/prepare-test-screen.grease" "$adb" "$serial" "$evidence/held.screen"
 fork {
   exec timeout 90 "$adb" -s "$serial" shell am instrument -w -r -e phase begin-held-source \
     org.isomorphisms.ib.acceptance/acceptance.shizuku.CapabilityInstrumentation > "$evidence/held-instrumentation.txt" 2>&1
@@ -244,10 +247,24 @@ if (not ui_ready) { echo 'FAIL held acquisition lacked its native input observat
 var original_pid = $("$adb" -s "$serial" shell pidof org.isomorphisms.ib.prepaint | tr -d '\r')
 printf '%s\n' "$original_pid" | rg -x '[1-9][0-9]*' > "$evidence/held-app.pid"
 "$adb" -s "$serial" shell am force-stop org.isomorphisms.ib.prepaint
+# A legitimate provider reconnect may already have created a new process.
+# Require the independently recorded original PID to die; a new PID must not
+# be confused with survival of the killed owner.
+var original_gone = false
+for attempt in @(seq 1 100) {
+  "$adb" -s "$serial" shell ps -A -o PID,NAME | tr -d '\r' > "$evidence/after-kill.processes.txt"
+  awk 'NR==1 {if($1!="PID" || $2!="NAME")exit 1} END {if(NR<2)exit 1}' "$evidence/after-kill.processes.txt"
+  if awk -v original="$original_pid" '$1==original {found=1} END {exit found?1:0}' "$evidence/after-kill.processes.txt" {
+    setvar original_gone = true
+    break
+  }
+  sleep 0.05
+}
+if (not original_gone) { echo 'FAIL original target PID remained after the held acquisition kill' >&2; exit 1 }
 try { "$adb" -s "$serial" shell pidof org.isomorphisms.ib.prepaint > "$evidence/killed-app.pid" 2>&1 }
-var missing_process = _error.code
-if (missing_process !== 1) { echo 'FAIL target process remained after the held acquisition kill' >&2; exit 1 }
-test ! -s "$evidence/killed-app.pid"
+var replacement_process = _error.code
+if (replacement_process !== 0 and replacement_process !== 1) { echo 'FAIL replacement process observation' >&2; exit 1 }
+printf '%s\n' "$replacement_process" > "$evidence/killed-app.pid.exit"
 try { wait "$pending_observer_pid" }
 var terminated_observer = _error.code
 setglobal pending_observer_pid = ''
@@ -289,5 +306,5 @@ sha256sum "$compiler" "$evidence/fixture-server" "$repository/ingestion/src/fixt
   "$input/native-client/ib-native-boundary.apk" "$input/native-client/ib-native-resume-noop.apk" \
   "$input/native-client/ib-native-detach-any.apk" "$current" "$evidence/1.original.html" \
   "$evidence/2.original.html" "$evidence/3.original.html" > "$evidence/sha256.txt"
-printf 'schema\tib-native-Activity-ownership-v2\napi\t%s\nframework_two_Activities_and_return\tPASS\nretained_current_source_on_resume\tPASS\nnew_navigation_after_return\tPASS\ndeliberately_stale_checked_destroy\tREFUSED\ncompiled_resume_noop\tREJECTED\ncompiled_detach_any_owner\tREJECTED\nthree_original_ranges_and_fixture_digests\tPASS\nchanged_committed_source\tREJECTED\nordered_history\tPASS\nresume_without_refetch\tPASS\noffline_Activity_return_Back_Forward\tPASS\nactual_ICU_request_before_process_kill\tPASS\ncompleted_response_unchanged_state_claim\tREJECTED\nheld_response_released_after_observed_process_death\tPASS\nsource_history_receipts_unchanged_after_pending_acquisition_loss\tPASS\nindependent_last_good_readback_after_process_loss\tPASS\nphysical_TAB_P10\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"
+printf 'schema\tib-native-Activity-ownership-v2\napi\t%s\nframework_two_Activities_and_return\tPASS\nretained_current_source_on_resume\tPASS\nnew_navigation_after_return\tPASS\ndeliberately_stale_checked_destroy\tREFUSED\ncompiled_resume_noop\tREJECTED\ncompiled_detach_any_owner\tREJECTED\nthree_original_ranges_and_fixture_digests\tPASS\nchanged_committed_source\tREJECTED\nordered_history\tPASS\nresume_without_refetch\tPASS\noffline_Activity_return_Back_Forward\tPASS\nactual_ICU_request_before_process_kill\tPASS\noriginal_application_PID_death\tPASS\nlegitimate_recreation_allowed_without_old_source_publication\tPASS\ncompleted_response_unchanged_state_claim\tREJECTED\nheld_response_released_after_observed_process_death\tPASS\nsource_history_receipts_unchanged_after_pending_acquisition_loss\tPASS\nindependent_last_good_readback_after_process_loss\tPASS\nphysical_TAB_P10\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"
 cat "$evidence/receipt.tsv"

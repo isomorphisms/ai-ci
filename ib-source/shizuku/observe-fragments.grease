@@ -54,7 +54,7 @@ proc diagnose(label) {
       sed -E 's/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}-[0-9]{10,}/[REDACTED_SERVICE_NONCE]/g' > "$evidence/$label.logcat.txt"
   }
   if test -s "$evidence/$label.logcat.txt" {
-    awk '/IBIndependentFragmentViewport|IBIndependentFragmentCoordinates|IBIndependentReaderStatus|IBIndependentReaderStack|IBReader.*checked renderer|IBReader.*fragment viewport/ {line[++n]=$0}
+    awk '/IBIndependentFragmentViewport|IBIndependentFragmentCoordinates|IBIndependentReaderSurface|IBIndependentSurfaceDiagnosticUnavailable|IBIndependentReaderStatus|IBIndependentReaderStack|IBReader.*checked renderer|IBReader.*fragment viewport/ {line[++n]=$0}
       END {for(i=(n>80?n-79:1);i<=n;i++)print line[i]}' "$evidence/$label.logcat.txt"
   }
   # Post-instrumentation screencap can show HOME. Preserve it as a
@@ -79,6 +79,7 @@ proc diagnose(label) {
   }
 }
 proc observe(phase, label, code, marker) {
+  "$grease" "$repository/ib-source/shizuku/prepare-test-screen.grease" "$adb" "$serial" "$evidence/$label.screen"
   try {
     timeout 240 "$adb" -s "$serial" shell am instrument -w -r -e phase "$phase" \
       org.isomorphisms.ib.acceptance/acceptance.shizuku.CapabilityInstrumentation > "$evidence/$label.txt" 2>&1
@@ -113,6 +114,8 @@ if (len(existing) !== 0) { echo 'FAIL reused authority before fragment observer'
 "$adb" -s "$serial" shell "$starter" "--apk=$manager" > "$evidence/start-server.txt" 2>&1
 install anchor-zero
 observe fragment-navigation zero-point-mutant 0 'java.lang.AssertionError: FAIL fragment target is outside the native viewport'
+install anchor-reset
+observe fragment-navigation stale-scroll-mutant 0 'java.lang.AssertionError: FAIL fragment target is outside the native viewport'
 snapshot before-positive
 install boundary
 # Root/unroot restarts adbd, which can terminate the shell-owned Shizuku
@@ -191,7 +194,8 @@ cmp "$evidence/committed-arena/responses.arena" "$evidence/offline-arena/respons
 git -C "$repository" rev-parse HEAD > "$evidence/observer-commit.txt"
 sha256sum "$compiler" "$evidence/fixture-server" "$repository/ingestion/src/fixture_server.c" \
   "$input/native-client/ib-native-boundary.apk" "$input/native-client/ib-native-anchor-zero.apk" \
+  "$input/native-client/ib-native-anchor-reset.apk" \
   "$repository/ib-source/reader/network-fixtures/bodies/anchor.html" "$evidence/plain.original.html" \
   "$evidence/anchor.original.html" "$current" > "$evidence/sha256.txt"
-printf 'schema\tib-native-fragment-viewport-v1\napi\t%s\nactual_touch_fragment_link\tPASS\nstrict_UTF8_fragment_target\tPASS\nSDK_target_visibility_and_beginning_exclusion\tPASS\ncompiled_native_zero_point\tREJECTED\noriginal_HTML_and_committed_ranges\tPASS\nchanged_committed_source\tREJECTED\nordered_history\tPASS\noffline_Back_Forward_positions\tPASS\nArena_bytes_unchanged_offline\tPASS\nphysical_TAB_P10\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"
+printf 'schema\tib-native-fragment-viewport-v2\napi\t%s\nactual_touch_fragment_link\tPASS\nstrict_UTF8_fragment_target\tPASS\nSDK_target_visibility_and_beginning_exclusion\tPASS\ncompiled_native_zero_point\tREJECTED\ncompiled_native_stale_cursor_animation\tREJECTED\noriginal_HTML_and_committed_ranges\tPASS\nchanged_committed_source\tREJECTED\nordered_history\tPASS\noffline_Back_Forward_positions\tPASS\nArena_bytes_unchanged_offline\tPASS\nphysical_TAB_P10\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"
 cat "$evidence/receipt.tsv"

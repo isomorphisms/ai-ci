@@ -31,12 +31,13 @@ proc diagnose(label) {
       sed -E 's/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}-[0-9]{10,}/[REDACTED_SERVICE_NONCE]/g' > "$evidence/$label.logcat.txt"
   }
   if test -s "$evidence/$label.logcat.txt" {
-    awk '/IBIndependentReaderStatus|IBIndependentReaderBody|IBIndependentClickedSearchURL|IBIndependentReaderStack|IBReader.*checked renderer/ {line[++n]=$0}
+    awk '/IBIndependentReaderSurface|IBIndependentSurfaceDiagnosticUnavailable|IBIndependentReaderStatus|IBIndependentReaderBody|IBIndependentClickedSearchURL|IBIndependentReaderStack|IBReader.*checked renderer/ {line[++n]=$0}
       END {for(i=(n>44?n-43:1);i<=n;i++)print line[i]}' "$evidence/$label.logcat.txt"
   }
   try { "$adb" -s "$serial" exec-out screencap -p > "$evidence/$label.png" 2> "$evidence/$label.screen-error.txt" }
 }
 proc observe(phase, label, marker) {
+  "$grease" "$repository/ib-source/shizuku/prepare-test-screen.grease" "$adb" "$serial" "$evidence/$label.screen"
   try {
     timeout 240 "$adb" -s "$serial" shell am instrument -w -r -e phase "$phase" \
       org.isomorphisms.ib.acceptance/acceptance.shizuku.CapabilityInstrumentation > "$evidence/$label.txt" 2>&1
@@ -52,6 +53,7 @@ proc observe(phase, label, marker) {
 # Try only Google's actual visible first-party continuation when its native
 # body is the exact observed redirect placeholder. This remains diagnostic:
 # a continuation response never becomes a public-result PASS automatically.
+"$grease" "$repository/ib-source/shizuku/prepare-test-screen.grease" "$adb" "$serial" "$evidence/continuation.screen"
 try {
   timeout 240 "$adb" -s "$serial" shell am instrument -w -r -e phase google-continuation \
     org.isomorphisms.ib.acceptance/acceptance.shizuku.CapabilityInstrumentation > "$evidence/continuation.txt" 2>&1

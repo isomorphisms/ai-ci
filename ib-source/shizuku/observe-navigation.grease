@@ -109,11 +109,12 @@ proc diagnose(label) {
   }
   try { "$adb" -s "$serial" exec-out screencap -p > "$evidence/$label.png" 2> "$evidence/$label.screen-error.txt" }
   if test -s "$evidence/$label.logcat.txt" {
-    awk '/IBReader|IBIndependentReaderStatus|IBIndependentSearch|AndroidRuntime/ {line[++n]=$0}
+    awk '/IBReader|IBIndependentReaderSurface|IBIndependentSurfaceDiagnosticUnavailable|IBIndependentReaderStatus|IBIndependentSearch|AndroidRuntime/ {line[++n]=$0}
       END {for(i=(n>36?n-35:1);i<=n;i++)print line[i]}' "$evidence/$label.logcat.txt"
   }
 }
 proc observe(phase, label, marker) {
+  "$grease" "$repository/ib-source/shizuku/prepare-test-screen.grease" "$adb" "$serial" "$evidence/$label.screen"
   try {
     timeout 480 "$adb" -s "$serial" shell am instrument -w -r -e phase "$phase" \
       org.isomorphisms.ib.acceptance/acceptance.shizuku.CapabilityInstrumentation > "$evidence/$label.txt" 2>&1

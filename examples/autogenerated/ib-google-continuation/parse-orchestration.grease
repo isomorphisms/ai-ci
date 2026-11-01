@@ -13,6 +13,7 @@ var programs = [
   'ib-source/shizuku/observe-fragments.grease',
   'ib-source/shizuku/observe-reader-lifecycle.grease',
   'ib-source/shizuku/observe-link-shapes.grease',
+  'ib-source/shizuku/prepare-test-screen.grease',
   'dex/observe-activity-lifecycle.grease',
   'ib-source/reader/observe-installed-profile.grease',
   'ib-source/reader/prepare-installed-replay.grease',

@@ -1,0 +1,19 @@
+#!/usr/bin/env grease
+# Test-only foreground setup, restricted to the declared emulators.
+set -eu -o pipefail
+if (len(ARGV) !== 3) { echo 'requires ADB SERIAL NEW_EVIDENCE' >&2; exit 2 }
+var adb = ARGV[0]
+var serial = ARGV[1]
+var evidence = ARGV[2]
+if test -e "$evidence" { echo 'FAIL reused emulator screen evidence' >&2; exit 2 }
+"$adb" -s "$serial" shell getprop ro.kernel.qemu | tr -d '\r' | rg -x 1
+"$adb" -s "$serial" shell getprop ro.product.cpu.abi | tr -d '\r' | rg -x x86_64
+"$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 2000
+var api = $("$adb" -s "$serial" shell getprop ro.build.version.sdk | tr -d '\r')
+if (api !== ENV.AICI_EXPECTED_ANDROID_API or (api !== '29' and api !== '34')) { exit 2 }
+mkdir -p "$evidence"
+"$adb" -s "$serial" shell dumpsys power > "$evidence/before.power.txt"
+"$adb" -s "$serial" shell input keyevent 224
+"$adb" -s "$serial" shell wm dismiss-keyguard > "$evidence/dismiss-keyguard.txt" 2>&1
+"$adb" -s "$serial" shell dumpsys power > "$evidence/after.power.txt"
+printf 'schema\tib-emulator-screen-preparation-v1\nAPI\t%s\nSDK_wakeup_and_nonsecure_keyguard_request\tEXECUTED\nShizuku_permission_changes\tNONE\nproduct_semantics\tNOT_RUN\nphysical_TAB_P10\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"
