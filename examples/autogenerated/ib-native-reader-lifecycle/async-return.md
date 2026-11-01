@@ -1,0 +1,5 @@
+# Wait for committed source presentation after offline return
+
+The original Activity can already display the same title that its asynchronous retained-source readback will restore. After actual framework return, the offline lifecycle oracle must wait for the real document and final static-document status before sending Back. Idle main-thread dispatch alone does not prove completion of a background Arena read. The added wait uses the existing literal source/body/status verifier; it does not read or mutate candidate job state. Runtime qualification remains separate from this source change.
+
+The read-only Google original-body inspector also prints actual anchor labels and parameter names on source-provided first-party search retry links. Only bounded gbv/udm/ie representation-mode values may be printed; opaque response query values remain omitted. It neither changes the initial Google query nor executes a retry or script. All original ranges and archive digests are independently reverified first.

@@ -47,8 +47,9 @@ var body = "$evidence/reverified-original/body"
 sha256sum "$body" > "$evidence/body.sha256"
 cat "$evidence/body.sha256"
 xmllint --version > "$evidence/parser-version.txt" 2>&1
-for kind in links refresh noscript title {
+for kind in links elements refresh noscript title {
   var query = '//a/@href'
+  if (kind === 'elements') { setvar query = '//a' }
   if (kind === 'refresh') { setvar query = '//meta[translate(@http-equiv,"REFSH","refsh")="refresh"]/@content' }
   if (kind === 'noscript') { setvar query = '//noscript//text()' }
   if (kind === 'title') { setvar query = '//title/text()' }
@@ -61,6 +62,23 @@ for kind in links refresh noscript title {
   printf '%s\n' "$kind"
   head -c 5000 "$evidence/$kind.observed.txt"
   printf '\n'
+}
+# Inspect only parameter names and non-secret representation-mode values on
+# actual first-party /search retry hrefs. Response-specific tokens stay omitted.
+var anchors = $(xmllint --html --recover --nonet --xpath 'count(//a)' "$body" 2> "$evidence/anchor-count.parser.txt")
+printf '%s\n' "$anchors" | rg -x '[0-9]+'
+if (int(anchors) > 256) { echo 'FAIL Google inspection anchor budget' >&2; exit 1 }
+for number in @(seq 1 "$anchors") {
+  var href = $(xmllint --html --recover --nonet --xpath "string((//a)[$number]/@href)" "$body" 2> "$evidence/anchor-$number.parser.txt")
+  if (href.startsWith('/search?') or href.startsWith('https://www.google.com/search?') or href.startsWith('https://google.com/search?')) {
+    var query = $(printf '%s\n' "$href" | sed 's/^[^?]*?//')
+    printf '%s\n' 'actual first-party search retry parameter names'
+    printf '%s\n' "$query" | tr '&' '\n' | sed 's/=.*//' | rg -x '[A-Za-z0-9_]{1,40}'
+    try { printf '%s\n' "$query" | tr '&' '\n' | rg '^(gbv|udm|ie)=[A-Za-z0-9._-]{1,40}$' > "$evidence/retry-$number.representation-mode.txt" }
+    var mode_status = _error.code
+    if (mode_status !== 0 and mode_status !== 1) { exit 1 }
+    cat "$evidence/retry-$number.representation-mode.txt"
+  }
 }
 printf 'schema\tib-Google-continuation-inspection-v1\napi\t%s\noriginal_range_digest_reverified\tPASS\nnetwork_retry\tNOT_RUN\nscript_execution\tNOT_RUN\nGoogle_results\tNOT_RUN\nphysical_TAB_P10\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"
 cat "$evidence/receipt.tsv"

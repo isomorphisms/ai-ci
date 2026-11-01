@@ -1799,6 +1799,7 @@
     move-result-object v1
     invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureOne()V
     invoke-direct {p0, v3, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->returnReaderActivity(Landroid/app/Activity;Landroid/app/Activity;)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureOne()V
     invoke-direct {p0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->staleReaderDestroy(Landroid/app/Activity;)V
     invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyBack()V
     invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureTwo()V
