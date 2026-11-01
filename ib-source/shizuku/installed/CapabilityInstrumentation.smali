@@ -2,7 +2,7 @@
 .super Landroid/app/Instrumentation;
 
 .field private phase:Ljava/lang/String;
-.field private observedActivity:Landroid/app/Activity;
+.field private volatile observedActivity:Landroid/app/Activity;
 
 .method public constructor <init>()V
     .registers 1
@@ -1254,6 +1254,13 @@
     return-void
 .end method
 
+.method public callActivityOnResume(Landroid/app/Activity;)V
+    .registers 2
+    invoke-super {p0, p1}, Landroid/app/Instrumentation;->callActivityOnResume(Landroid/app/Activity;)V
+    iput-object p1, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
+    return-void
+.end method
+
 .method private waitStatus(Ljava/lang/String;)V
     .registers 8
     const/16 v0, 0x258
@@ -1637,6 +1644,170 @@
     return-void
 .end method
 
+.method private lifecycleDocument(Ljava/lang/String;Ljava/lang/String;)V
+    .locals 6
+    const/16 v0, 300
+  :again
+    const-string v1, "org.isomorphisms.ib.prepaint"
+    const-string v2, "org.isomorphisms.ib.prepaint:id/reader_title"
+    invoke-direct {p0, v1, v2}, Lacceptance/shizuku/CapabilityInstrumentation;->node(Ljava/lang/String;Ljava/lang/String;)Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v1
+    invoke-virtual {v1}, Landroid/view/accessibility/AccessibilityNodeInfo;->getText()Ljava/lang/CharSequence;
+    move-result-object v1
+    if-eqz v1, :retry
+    invoke-interface {v1}, Ljava/lang/CharSequence;->toString()Ljava/lang/String;
+    move-result-object v1
+    invoke-virtual {p1, v1}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :retry
+    const-string v1, "org.isomorphisms.ib.prepaint"
+    const-string v2, "org.isomorphisms.ib.prepaint:id/reader_status"
+    invoke-direct {p0, v1, v2}, Lacceptance/shizuku/CapabilityInstrumentation;->node(Ljava/lang/String;Ljava/lang/String;)Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v1
+    invoke-virtual {v1}, Landroid/view/accessibility/AccessibilityNodeInfo;->getText()Ljava/lang/CharSequence;
+    move-result-object v1
+    if-eqz v1, :retry
+    invoke-interface {v1}, Ljava/lang/CharSequence;->toString()Ljava/lang/String;
+    move-result-object v1
+    const-string v2, "Static HTML — scripts and forms are unavailable."
+    invoke-virtual {v2, v1}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-nez v1, :ready
+  :retry
+    const-wide/16 v4, 100
+    invoke-static {v4, v5}, Landroid/os/SystemClock;->sleep(J)V
+    add-int/lit8 v0, v0, -1
+    if-gtz v0, :again
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->logReaderFailureStatus()V
+    invoke-static {p2}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    return-void
+  :ready
+    const-string v0, "Reader Two"
+    invoke-virtual {v0, p1}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v0
+    if-eqz v0, :one
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureTwo()V
+    return-void
+  :one
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureOne()V
+    return-void
+.end method
+
+.method private returnReaderActivity(Landroid/app/Activity;Landroid/app/Activity;)V
+    .locals 6
+    new-instance v0, Lacceptance/shizuku/ReaderLifecycleAction;
+    const/4 v1, 0
+    invoke-direct {v0, p2, v1}, Lacceptance/shizuku/ReaderLifecycleAction;-><init>(Landroid/app/Activity;I)V
+    invoke-virtual {p0, v0}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
+    const/16 v0, 100
+  :again
+    iget-object v1, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
+    if-ne v1, p1, :retry
+    invoke-virtual {p2}, Landroid/app/Activity;->isDestroyed()Z
+    move-result v1
+    if-nez v1, :returned
+  :retry
+    const-wide/16 v4, 100
+    invoke-static {v4, v5}, Landroid/os/SystemClock;->sleep(J)V
+    add-int/lit8 v0, v0, -1
+    if-gtz v0, :again
+    const-string v0, "FAIL Android did not destroy the newer reader and resume the original"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    return-void
+  :returned
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->waitForIdleSync()V
+    return-void
+.end method
+
+.method private secondReaderActivity()Landroid/app/Activity;
+    .locals 6
+    iget-object v2, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
+    new-instance v0, Lacceptance/shizuku/ReaderLifecycleAction;
+    const/4 v1, 1
+    invoke-direct {v0, v2, v1}, Lacceptance/shizuku/ReaderLifecycleAction;-><init>(Landroid/app/Activity;I)V
+    invoke-virtual {p0, v0}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
+    const/16 v0, 100
+  :again
+    iget-object v1, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
+    if-eqz v1, :retry
+    if-ne v1, v2, :created
+  :retry
+    const-wide/16 v4, 100
+    invoke-static {v4, v5}, Landroid/os/SystemClock;->sleep(J)V
+    add-int/lit8 v0, v0, -1
+    if-gtz v0, :again
+    const-string v0, "FAIL second native reader Activity instance"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    const/4 v1, 0
+    return-object v1
+  :created
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->waitForIdleSync()V
+    return-object v1
+.end method
+
+.method private staleReaderDestroy(Landroid/app/Activity;)V
+    .locals 2
+    new-instance v0, Lacceptance/shizuku/ReaderLifecycleAction;
+    const/4 v1, 2
+    invoke-direct {v0, p1, v1}, Lacceptance/shizuku/ReaderLifecycleAction;-><init>(Landroid/app/Activity;I)V
+    invoke-virtual {p0, v0}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
+    return-void
+.end method
+
+.method private readerLifecycle()V
+    .locals 5
+    const-string v0, "http://10.0.2.2:18491/valid"
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->enterReaderURL(Ljava/lang/String;)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureOne()V
+    iget-object v3, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->secondReaderActivity()Landroid/app/Activity;
+    move-result-object v4
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureOne()V
+    const-string v0, "http://10.0.2.2:18491/malformed"
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->enterReaderURL(Ljava/lang/String;)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureTwo()V
+    invoke-direct {p0, v3, v4}, Lacceptance/shizuku/CapabilityInstrumentation;->returnReaderActivity(Landroid/app/Activity;Landroid/app/Activity;)V
+    const-string v0, "Reader Two"
+    const-string v1, "FAIL resumed Activity did not reopen last committed document"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->lifecycleDocument(Ljava/lang/String;Ljava/lang/String;)V
+    invoke-direct {p0, v4}, Lacceptance/shizuku/CapabilityInstrumentation;->staleReaderDestroy(Landroid/app/Activity;)V
+    const-string v0, "http://10.0.2.2:18491/valid"
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->enterReaderURL(Ljava/lang/String;)V
+    const-string v0, "Reader One"
+    const-string v1, "FAIL resumed Activity navigation after stale destroy"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->lifecycleDocument(Ljava/lang/String;Ljava/lang/String;)V
+    invoke-static {}, Lorg/isomorphisms/ib/ReaderBridge;->history()Ljava/lang/String;
+    move-result-object v2
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyBack()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureTwo()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyForward()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureOne()V
+    invoke-direct {p0, v2}, Lacceptance/shizuku/CapabilityInstrumentation;->requireHistory(Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private offlineReaderLifecycle()V
+    .locals 4
+    const/4 v0, 0
+    const-string v1, "FAIL offline Activity lifecycle requires absent Shizuku"
+    invoke-static {v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitState(ILjava/lang/String;)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureOne()V
+    invoke-static {}, Lorg/isomorphisms/ib/ReaderBridge;->history()Ljava/lang/String;
+    move-result-object v2
+    iget-object v3, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->secondReaderActivity()Landroid/app/Activity;
+    move-result-object v1
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureOne()V
+    invoke-direct {p0, v3, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->returnReaderActivity(Landroid/app/Activity;Landroid/app/Activity;)V
+    invoke-direct {p0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->staleReaderDestroy(Landroid/app/Activity;)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyBack()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureTwo()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyForward()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureOne()V
+    invoke-direct {p0, v2}, Lacceptance/shizuku/CapabilityInstrumentation;->requireHistory(Ljava/lang/String;)V
+    return-void
+.end method
+
 .method private assertFragmentViewport(Z)V
     .registers 7
     const/16 v0, 20
@@ -1770,6 +1941,22 @@
     const-string v7, "NOT_NEEDED no Google redirect placeholder"
     goto :success
   :fragment_phase
+    const-string v1, "reader-lifecycle"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :offline_reader_lifecycle_phase
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->readerLifecycle()V
+    const-string v7, "PASS native reader Activity return retained source new navigation and stale destroy refusal"
+    goto :success
+  :offline_reader_lifecycle_phase
+    const-string v1, "offline-reader-lifecycle"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :fragment_navigation_phase
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->offlineReaderLifecycle()V
+    const-string v7, "PASS native reader Activity return and retained Back Forward without Shizuku"
+    goto :success
+  :fragment_navigation_phase
     const-string v1, "fragment-navigation"
     invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
     move-result v1

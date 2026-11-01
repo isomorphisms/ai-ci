@@ -1,0 +1,176 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 8) { echo 'usage: grease observe-reader-lifecycle.grease AICI INPUT SDK ICK ADB SERIAL INSTALLED NEW_EVIDENCE' >&2; exit 2 }
+var repository = ARGV[0]
+var input = ARGV[1]
+var sdk = ARGV[2]
+var compiler = ARGV[3]
+var adb = ARGV[4]
+var serial = ARGV[5]
+var installed = ARGV[6]
+var evidence = ARGV[7]
+var grease = ENV.IB_GREASE
+if test -e "$evidence" { echo 'FAIL reused Activity lifecycle evidence' >&2; exit 2 }
+mkdir -p "$evidence"
+"$adb" -s "$serial" shell getprop ro.kernel.qemu | tr -d '\r' | rg -x 1
+"$adb" -s "$serial" shell getprop ro.product.cpu.abi | tr -d '\r' | rg -x x86_64
+"$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 2000
+var api = $("$adb" -s "$serial" shell getprop ro.build.version.sdk | tr -d '\r')
+if (api !== ENV.AICI_EXPECTED_ANDROID_API) { exit 1 }
+var tools = "$sdk/build-tools/35.0.0"
+var baseline_uid = $("$adb" -s "$serial" shell pm list packages -U org.isomorphisms.ib.prepaint | tr -d '\r')
+proc install(lane) {
+  var apk = "$input/native-client/ib-native-$lane.apk"
+  "$tools/apksigner" verify --verbose --print-certs "$apk" > "$evidence/$lane.signer.txt"
+  rg -x -F 'Signer #1 certificate SHA-256 digest: de9b1d47c5a65e6d46a204b79dd9ee566b9d3c9832ba81ebc4213d3392e92ff9' "$evidence/$lane.signer.txt"
+  "$tools/aapt2" dump badging "$apk" > "$evidence/$lane.package.txt"
+  rg -q -F "package: name='org.isomorphisms.ib.prepaint' versionCode='3'" "$evidence/$lane.package.txt"
+  "$adb" -s "$serial" install -r "$apk" > "$evidence/$lane.install.txt" 2>&1
+  rg -x -F Success "$evidence/$lane.install.txt"
+  var uid = $("$adb" -s "$serial" shell pm list packages -U org.isomorphisms.ib.prepaint | tr -d '\r')
+  if (uid !== baseline_uid) { echo 'FAIL Activity lifecycle replacement changed application UID' >&2; exit 1 }
+  var path = $("$adb" -s "$serial" shell pm path org.isomorphisms.ib.prepaint | tr -d '\r' | sed -n 's/^package://p')
+  printf '%s\n' "$path" | rg -x '/data/app/[A-Za-z0-9_./~+=-]+/base\.apk'
+  "$adb" -s "$serial" pull "$path" "$evidence/$lane.installed.apk"
+  cmp "$apk" "$evidence/$lane.installed.apk"
+}
+proc snapshot(label) {
+  "$adb" -s "$serial" shell am force-stop org.isomorphisms.ib.prepaint
+  "$adb" -s "$serial" root > "$evidence/$label.root.txt" 2>&1
+  timeout 30 "$adb" -s "$serial" wait-for-device
+  "$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 0
+  "$adb" -s "$serial" pull /data/user/0/org.isomorphisms.ib.prepaint/files/arena "$evidence/$label-arena"
+  "$adb" -s "$serial" unroot > "$evidence/$label.unroot.txt" 2>&1
+  timeout 30 "$adb" -s "$serial" wait-for-device
+  "$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 2000
+  chmod 700 "$evidence/$label-arena"
+  mkdir -p -m 700 "$evidence/$label-arena/staging"
+}
+proc diagnose(label) {
+  try {
+    "$adb" -s "$serial" logcat -d -v threadtime 2>&1 |
+      sed -E 's/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}-[0-9]{10,}/[REDACTED_SERVICE_NONCE]/g' > "$evidence/$label.logcat.txt"
+  }
+  if test -s "$evidence/$label.logcat.txt" {
+    awk '/IBIndependentFragmentViewport|IBIndependentReaderStatus|IBIndependentReaderStack|IBReader.*checked renderer/ {line[++n]=$0}
+      END {for(i=(n>30?n-29:1);i<=n;i++)print line[i]}' "$evidence/$label.logcat.txt"
+  }
+  try { "$adb" -s "$serial" exec-out screencap -p > "$evidence/$label.png" 2> "$evidence/$label.screen-error.txt" }
+}
+proc observe(phase, label, code, marker) {
+  try {
+    timeout 240 "$adb" -s "$serial" shell am instrument -w -r -e phase "$phase" \
+      org.isomorphisms.ib.acceptance/acceptance.shizuku.CapabilityInstrumentation > "$evidence/$label.txt" 2>&1
+  }
+  var status = _error.code
+  printf '%s\n' "$status" > "$evidence/$label.exit"
+  cat "$evidence/$label.txt"
+  diagnose "$label"
+  if (status !== 0) { echo 'FAIL Activity lifecycle observer process' >&2; exit 1 }
+  rg -x -F "INSTRUMENTATION_CODE: $code" "$evidence/$label.txt"
+  rg -x -F "INSTRUMENTATION_RESULT: stream=$marker" "$evidence/$label.txt"
+}
+"$compiler" -fno-link-libatomic -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror \
+  "$repository/ingestion/src/fixture_server.c" -o "$evidence/fixture-server"
+var fixture_pid = ''
+trap --add EXIT { if (len(fixture_pid) > 0) { try { kill -KILL "$fixture_pid" } } }
+fork { exec "$evidence/fixture-server" 18491 "$repository/ib-source/reader/network-fixtures" > "$evidence/server.stdout" 2> "$evidence/server.stderr" }
+setglobal fixture_pid = $!
+var ready = false
+for attempt in @(seq 1 100) {
+  if rg -q -x -F 'READY 18491' "$evidence/server.stdout" { setvar ready = true; break }
+  sleep 0.1
+}
+if (not ready) { cat "$evidence/server.stderr"; echo 'FAIL Activity lifecycle fixture did not bind' >&2; exit 1 }
+var starter = "/data/local/tmp/ib-shizuku-$(sha256sum "$installed/observer.dex" | cut -d ' ' -f 1)/start"
+"$adb" -s "$serial" pull "$starter" "$evidence/observed-starter"
+cmp "$installed/official-starter" "$evidence/observed-starter"
+var manager = $("$adb" -s "$serial" shell pm path moe.shizuku.privileged.api | tr -d '\r' | sed -n 's/^package://p')
+printf '%s\n' "$manager" | rg -x '/data/app/[A-Za-z0-9_./~+=-]+/base\.apk'
+var existing = $("$adb" -s "$serial" shell ps -A -o PID,NAME | tr -d '\r' | awk '$2=="shizuku_server"{print $1}')
+if (len(existing) !== 0) {
+  "$adb" -s "$serial" shell killall shizuku_server > "$evidence/initial.stop-server.txt" 2>&1
+}
+"$adb" -s "$serial" shell "$starter" "--apk=$manager" > "$evidence/start-server.txt" 2>&1
+install resume-noop
+observe reader-lifecycle resume-noop 0 'java.lang.AssertionError: FAIL resumed Activity did not reopen last committed document'
+install detach-any
+observe reader-lifecycle detach-any 0 'java.lang.AssertionError: FAIL resumed Activity navigation after stale destroy'
+snapshot before-positive
+install boundary
+try { "$adb" -s "$serial" shell killall shizuku_server > "$evidence/before-positive.stop-server.txt" 2>&1 }
+var stopped = _error.code
+if (stopped !== 0 and stopped !== 1) { echo 'FAIL stopping lifecycle authority' >&2; exit 1 }
+"$adb" -s "$serial" shell "$starter" "--apk=$manager" > "$evidence/positive.start-server.txt" 2>&1
+observe reader-lifecycle actual-lifecycle -1 'PASS native reader Activity return retained source new navigation and stale destroy refusal'
+snapshot committed
+var current = "$evidence/committed-arena/last-source"
+var previous = "$evidence/before-positive-arena/last-source"
+var previous_lines = $(wc -l < "$previous")
+var current_lines = $(wc -l < "$current")
+if (int(current_lines) !== int(previous_lines) + 3) { echo 'FAIL Activity lifecycle did not retain exactly three new visits' >&2; exit 1 }
+var before_receipts = $(rg --files "$evidence/before-positive-arena/receipts" | wc -l)
+var after_receipts = $(rg --files "$evidence/committed-arena/receipts" | wc -l)
+if (int(after_receipts) !== int(before_receipts) + 3) { echo 'FAIL Activity resume refetched source or lost a retained receipt' >&2; exit 1 }
+var current_id = $(sed -n '2p' "$current")
+var current_generation = $(sed -n '3p' "$current")
+var previous_cursor = $(sed -n '5p' "$previous")
+printf '%s\n' "$previous_cursor" | awk '$0!~/^(0|[1-9][0-9]*)$/ || $0+0>124 {exit 1}'
+if (int(previous_cursor) !== int(previous_lines) - 7) { echo 'FAIL lifecycle baseline is not the last retained visit' >&2; exit 1 }
+var cursor = int(previous_cursor) + 3
+tail -n 4 "$current" | head -n 3 > "$evidence/new-visits.tsv"
+printf 'IBLAST2\n%s\n%s\nIBH1\n%s\n' "$current_id" "$current_generation" "$cursor" > "$evidence/expected-index-prefix"
+head -n -1 "$previous" | tail -n +6 >> "$evidence/expected-index-prefix"
+cat "$evidence/new-visits.tsv" >> "$evidence/expected-index-prefix"
+var index_digest = $(sha256sum "$evidence/expected-index-prefix" | cut -d ' ' -f 1)
+cp "$evidence/expected-index-prefix" "$evidence/expected-index"
+printf '%s\n' "$index_digest" >> "$evidence/expected-index"
+cmp "$evidence/expected-index" "$current"
+var latest_offset = ''
+var latest_identity = ''
+var latest_generation = ''
+for position in 1 2 3 {
+  var row = $(sed -n "${position}p" "$evidence/new-visits.tsv")
+  var identity = $(printf '%s\n' "$row" | cut -f 1)
+  var generation = $(printf '%s\n' "$row" | cut -f 2)
+  printf '%s\n' "$identity" | rg -x '[0-9a-f]{48}'
+  printf '%s\n' "$generation" | awk '$0!~/^[1-9][0-9]*$/ || length($0)>10 || $0+0>2147483647 {exit 1}'
+  var address = 'http://10.0.2.2:18491/valid'
+  var fixture = "$repository/ib-source/reader/network-fixtures/bodies/valid.html"
+  if (position === '2') {
+    setvar address = 'http://10.0.2.2:18491/malformed'
+    setvar fixture = "$repository/ib-source/reader/network-fixtures/bodies/malformed.html"
+  }
+  sh "$repository/ib-source/verify.sh" "$evidence/committed-arena" "$identity" "$generation" "$address" > "$evidence/$position.readback.txt" 2>&1
+  cat "$evidence/$position.readback.txt"
+  var receipt = "$evidence/committed-arena/receipts/$identity.tsv"
+  var offset = $(awk -F '\t' '$1=="arena_offset"{print $2}' "$receipt")
+  var amount = $(awk -F '\t' '$1=="byte_count"{print $2}' "$receipt")
+  dd "if=$evidence/committed-arena/responses.arena" "of=$evidence/$position.original.html" \
+    bs=65536 iflag=skip_bytes,count_bytes "skip=$offset" "count=$amount" status=none
+  cmp "$fixture" "$evidence/$position.original.html"
+  setglobal latest_offset = offset
+  setglobal latest_identity = identity
+  setglobal latest_generation = generation
+}
+if (current_id !== latest_identity or current_generation !== latest_generation) { echo 'FAIL lifecycle selected source differs from its final retained visit' >&2; exit 1 }
+cp -R "$evidence/committed-arena" "$evidence/corrupted-host-arena"
+printf '!' | dd "of=$evidence/corrupted-host-arena/responses.arena" bs=1 "seek=$latest_offset" count=1 conv=notrunc status=none
+try {
+  sh "$repository/ib-source/verify.sh" "$evidence/corrupted-host-arena" "$latest_identity" "$latest_generation" \
+    http://10.0.2.2:18491/valid > "$evidence/changed-source.txt" 2>&1
+}
+if (_error.code !== 1) { echo 'FAIL changed lifecycle source missed its designated refusal' >&2; exit 1 }
+rg -x -F 'ai-ci ib-source: committed bytes differ from receipt SHA-256' "$evidence/changed-source.txt"
+"$adb" -s "$serial" shell killall shizuku_server
+observe offline-reader-lifecycle offline-lifecycle -1 'PASS native reader Activity return and retained Back Forward without Shizuku'
+snapshot offline
+cmp "$current" "$evidence/offline-arena/last-source"
+cmp "$evidence/committed-arena/responses.arena" "$evidence/offline-arena/responses.arena"
+git -C "$repository" rev-parse HEAD > "$evidence/observer-commit.txt"
+sha256sum "$compiler" "$evidence/fixture-server" "$repository/ingestion/src/fixture_server.c" \
+  "$input/native-client/ib-native-boundary.apk" "$input/native-client/ib-native-resume-noop.apk" \
+  "$input/native-client/ib-native-detach-any.apk" "$current" "$evidence/1.original.html" \
+  "$evidence/2.original.html" "$evidence/3.original.html" > "$evidence/sha256.txt"
+printf 'schema\tib-native-Activity-ownership-v1\napi\t%s\nframework_two_Activities_and_return\tPASS\nretained_current_source_on_resume\tPASS\nnew_navigation_after_return\tPASS\ndeliberately_stale_checked_destroy\tREFUSED\ncompiled_resume_noop\tREJECTED\ncompiled_detach_any_owner\tREJECTED\nthree_original_ranges_and_fixture_digests\tPASS\nchanged_committed_source\tREJECTED\nordered_history\tPASS\nresume_without_refetch\tPASS\noffline_Activity_return_Back_Forward\tPASS\nphysical_TAB_P10\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"
+cat "$evidence/receipt.tsv"
