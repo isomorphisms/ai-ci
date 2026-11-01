@@ -11,31 +11,24 @@ concurrency:
   group: ib-reader-diagnostics-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 jobs:
-  inspect:
+  navigation:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - api: 29
-            artifact: '13076686531'
-            digest: a2ba5ad52f6f323111c3b4dcaa94960f96e228012e326d211c23dbd9c61e3258
-          - api: 34
-            artifact: '13076552160'
-            digest: 663f8a810205fd485b8deefb6a227ba1c4a1193cad3d6c5a039aa9d6a70c4ef2
     steps:
-      # Exact observer f496c134, unchanged IB 0592dd8e.
-      # Original archive digests are recorded in the explicit matrix above.
-      # Completed older one-off retrievals remain in Git/run history.
+      # Exact IB eaa430ab maintained checked SEARCH/Activity source.
+      # Public controlled fixture; read-only diagnostic, not acceptance.
+      # Original ZIP SHA-256 295265e43d1ad0b1dad2ba5825aad27074405ba397f8ab66fc2d209f86384616.
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
-          repository: isomorphisms/ai-ci
+          repository: isomorphisms/ib
           github-token: ${{ github.token }}
-          run-id: 41288756080
-          artifact-ids: ${{ matrix.artifact }}
+          run-id: 41293789306
+          artifact-ids: '13078454294'
           merge-multiple: true
           path: ${{ runner.temp }}/reader-SDK
-      - name: Read the actual accessible reflow label before the assertion
+      - name: Read the exact failed native navigation stage
         shell: sh
-        run: grep -F IBIndependentReflowLabel "$RUNNER_TEMP/reader-SDK/observed/actual-reflow-and-clipboard.logcat.txt"
+        run: cat "$RUNNER_TEMP/reader-SDK/observed-api34/navigation/actual-link-history.txt"
+      - name: Read bounded actual observer and framework failure evidence
+        shell: sh
+        run: grep -m 160 -E 'AssertionError|at acceptance[.]|IBIndependent|FATAL EXCEPTION|Unable to|ActivityTaskManager.*(ib[.]prepaint|shizuku)' "$RUNNER_TEMP/reader-SDK/observed-api34/navigation/actual-link-history.logcat.txt"
