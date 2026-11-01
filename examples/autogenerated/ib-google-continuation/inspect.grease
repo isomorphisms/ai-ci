@@ -1,0 +1,66 @@
+#!/usr/bin/env grease
+# Inspect the unchanged original response; never execute response scripts.
+set -eu -o pipefail
+if (len(ARGV) !== 6) { echo 'usage: grease inspect.grease AICI ARTIFACT DIGEST SIZE NEW_EVIDENCE API' >&2; exit 2 }
+var repository = ARGV[0]
+var artifact = ARGV[1]
+var digest = ARGV[2]
+var size = ARGV[3]
+var evidence = ARGV[4]
+var api = ARGV[5]
+if (api === '29') {
+  if (artifact !== '13092417318' or digest !== '2660c5cf5cc3226c82586f45324a6e83344a53b8d9eaeeca4a6f1932cf99c02e' or size !== '12968633') { exit 2 }
+} elif (api === '34') {
+  if (artifact !== '13092696825' or digest !== '3b021cb657bdaf70d7cd9ccaff38de5d3ddac057d67e5ca970c1428281844243' or size !== '20806041') { exit 2 }
+} else { exit 2 }
+if test -e "$evidence" { echo 'FAIL reused continuation inspection' >&2; exit 2 }
+mkdir -p "$evidence/input"
+var authorization = ENV.GITHUB_TOKEN
+var grease = ENV.IB_GREASE
+curl --fail --location --silent --show-error --max-time 120 \
+  --header "Authorization: Bearer $authorization" \
+  "https://api.github.com/repos/isomorphisms/ai-ci/actions/artifacts/$artifact/zip" --output "$evidence/original.zip"
+test "$(wc -c < "$evidence/original.zip")" = "$size"
+printf '%s  %s\n' "$digest" "$evidence/original.zip" | sha256sum -c -
+unzip -q "$evidence/original.zip" -d "$evidence/input"
+var handoff = "$evidence/input/ib-installed-replay/search/handoff"
+var root = "$handoff/actual-arena"
+chmod 700 "$root"
+var wanted = 'https://google.com/search?q=IB+caf%C3%A9+%2B+%252F+%F0%9F%8C%8D+chords'
+var final_url = 'https://www.google.com/search?q=IB+caf%C3%A9+%2B+%252F+%F0%9F%8C%8D+chords'
+var identity = ''
+var generation = ''
+var matches = 0
+for receipt in @(rg --files "$root/receipts") {
+  if rg -q -x -F "requested_url	$wanted" "$receipt" {
+    setglobal matches = matches + 1
+    setglobal identity = $(awk -F '\t' '$1=="request_id"{print $2}' "$receipt")
+    setglobal generation = $(awk -F '\t' '$1=="source_generation"{print $2}' "$receipt")
+  }
+}
+if (matches !== 1) { echo 'FAIL unique original Google response not found' >&2; exit 1 }
+"$grease" "$repository/ib-source/reader/verify-decoder-original.grease" \
+  "$repository" "$root" "$identity" "$generation" "$wanted" \
+  iso-8859-1 - "$evidence/reverified-original" observed-google-legacy-v1 "$final_url"
+cmp "$handoff/Google-original/body" "$evidence/reverified-original/body"
+var body = "$evidence/reverified-original/body"
+sha256sum "$body" > "$evidence/body.sha256"
+cat "$evidence/body.sha256"
+xmllint --version > "$evidence/parser-version.txt" 2>&1
+for kind in links refresh noscript title {
+  var query = '//a/@href'
+  if (kind === 'refresh') { setvar query = '//meta[translate(@http-equiv,"REFSH","refsh")="refresh"]/@content' }
+  if (kind === 'noscript') { setvar query = '//noscript//text()' }
+  if (kind === 'title') { setvar query = '//title/text()' }
+  try { xmllint --html --recover --nonet --xpath "$query" "$body" > "$evidence/$kind.raw" 2> "$evidence/$kind.parser.txt" }
+  var status = _error.code
+  printf '%s\n' "$status" > "$evidence/$kind.exit"
+  if (status !== 0 and status !== 10) { cat "$evidence/$kind.parser.txt"; echo 'FAIL independent HTML observation' >&2; exit 1 }
+  # Print paths and visible text without response-specific query tokens.
+  sed -E 's/\?[^"]*/?[QUERY_OMITTED]/g' "$evidence/$kind.raw" > "$evidence/$kind.observed.txt"
+  printf '%s\n' "$kind"
+  head -c 5000 "$evidence/$kind.observed.txt"
+  printf '\n'
+}
+printf 'schema\tib-Google-continuation-inspection-v1\napi\t%s\noriginal_range_digest_reverified\tPASS\nnetwork_retry\tNOT_RUN\nscript_execution\tNOT_RUN\nGoogle_results\tNOT_RUN\nphysical_TAB_P10\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"
+cat "$evidence/receipt.tsv"
