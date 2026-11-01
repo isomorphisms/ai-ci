@@ -1809,6 +1809,103 @@
     return-void
 .end method
 
+.method private linkShapeDocument(I)V
+    .locals 3
+    if-eqz p1, :base
+    const/4 v0, 1
+    if-eq p1, v0, :relative
+    const/4 v0, 2
+    if-eq p1, v0, :root
+    const/4 v0, 3
+    if-eq p1, v0, :query
+    const/4 v0, 4
+    if-eq p1, v0, :absolute
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->waitExampleDocument()V
+    const-string v0, "https://example.com/"
+    goto :address
+  :base
+    const-string v0, "Link Base"
+    const-string v1, "The supported base selects the relative destination."
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitNetworkDocument(Ljava/lang/String;Ljava/lang/String;)V
+    const-string v0, "http://10.0.2.2:18491/link-start"
+    goto :address
+  :relative
+    const-string v0, "Link Relative"
+    const-string v1, "The relative destination was acquired through ICU."
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitNetworkDocument(Ljava/lang/String;Ljava/lang/String;)V
+    const-string v0, "http://10.0.2.2:18491/link-base/relative"
+    goto :address
+  :root
+    const-string v0, "Link Root"
+    const-string v1, "The root relative destination was acquired through ICU."
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitNetworkDocument(Ljava/lang/String;Ljava/lang/String;)V
+    const-string v0, "http://10.0.2.2:18491/link-root"
+    goto :address
+  :query
+    const-string v0, "Link Query"
+    const-string v1, "The query only destination was acquired through ICU."
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitNetworkDocument(Ljava/lang/String;Ljava/lang/String;)V
+    const-string v0, "http://10.0.2.2:18491/link-root?stage=query"
+    goto :address
+  :absolute
+    const-string v0, "Link Absolute"
+    const-string v1, "The absolute destination precedes the cross origin HTTPS link."
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitNetworkDocument(Ljava/lang/String;Ljava/lang/String;)V
+    const-string v0, "http://10.0.2.2:18491/link-absolute"
+  :address
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->requireFragmentAddress(Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private linkShapeHistory()V
+    .locals 3
+    invoke-static {}, Lorg/isomorphisms/ib/ReaderBridge;->history()Ljava/lang/String;
+    move-result-object v2
+    const/4 v0, 4
+  :back
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyBack()V
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->linkShapeDocument(I)V
+    add-int/lit8 v0, v0, -1
+    if-gez v0, :back
+    const/4 v0, 1
+  :forward
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyForward()V
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->linkShapeDocument(I)V
+    add-int/lit8 v0, v0, 1
+    const/4 v1, 5
+    if-le v0, v1, :forward
+    invoke-direct {p0, v2}, Lacceptance/shizuku/CapabilityInstrumentation;->requireHistory(Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private linkShapes()V
+    .locals 2
+    const-string v0, "http://10.0.2.2:18491/link-start"
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->enterReaderURL(Ljava/lang/String;)V
+    const/4 v0, 0
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->linkShapeDocument(I)V
+    const/4 v0, 1
+  :next
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->tapNextLink()V
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->linkShapeDocument(I)V
+    add-int/lit8 v0, v0, 1
+    const/4 v1, 5
+    if-le v0, v1, :next
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->linkShapeHistory()V
+    return-void
+.end method
+
+.method private offlineLinkShapes()V
+    .locals 2
+    const/4 v0, 0
+    const-string v1, "FAIL retained link shapes require absent Shizuku"
+    invoke-static {v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitState(ILjava/lang/String;)V
+    const/4 v0, 5
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->linkShapeDocument(I)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->linkShapeHistory()V
+    return-void
+.end method
+
 .method private assertFragmentViewport(Z)V
     .registers 7
     const/16 v0, 20
@@ -1942,6 +2039,22 @@
     const-string v7, "NOT_NEEDED no Google redirect placeholder"
     goto :success
   :fragment_phase
+    const-string v1, "link-shapes"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :offline_link_shapes_phase
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->linkShapes()V
+    const-string v7, "PASS actual native base relative root query absolute and cross origin HTTPS link acquisition"
+    goto :success
+  :offline_link_shapes_phase
+    const-string v1, "offline-link-shapes"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :reader_lifecycle_phase
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->offlineLinkShapes()V
+    const-string v7, "PASS all acquired link shapes retain offline Back Forward source identity"
+    goto :success
+  :reader_lifecycle_phase
     const-string v1, "reader-lifecycle"
     invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
     move-result v1

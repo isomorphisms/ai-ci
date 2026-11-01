@@ -68,7 +68,15 @@ proc observe(phase, label, code, marker) {
   diagnose "$label"
   if (status !== 0) { echo 'FAIL Activity lifecycle observer process' >&2; exit 1 }
   rg -x -F "INSTRUMENTATION_CODE: $code" "$evidence/$label.txt"
-  rg -x -F "INSTRUMENTATION_RESULT: stream=$marker" "$evidence/$label.txt"
+  if (label === 'detach-any') {
+    # Android may deliver the old destroy callback before or after retained
+    # readback finishes. Both exact failures mean that callback detached the
+    # resumed owner; crashes and unrelated assertions remain unacceptable.
+    rg -x -e 'INSTRUMENTATION_RESULT: stream=java.lang.AssertionError: FAIL resumed Activity did not reopen last committed document' \
+      -e 'INSTRUMENTATION_RESULT: stream=java.lang.AssertionError: FAIL resumed Activity navigation after stale destroy' "$evidence/$label.txt"
+  } else {
+    rg -x -F "INSTRUMENTATION_RESULT: stream=$marker" "$evidence/$label.txt"
+  }
 }
 "$compiler" -fno-link-libatomic -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror \
   "$repository/ingestion/src/fixture_server.c" -o "$evidence/fixture-server"
@@ -162,7 +170,12 @@ try {
 }
 if (_error.code !== 1) { echo 'FAIL changed lifecycle source missed its designated refusal' >&2; exit 1 }
 rg -x -F 'ai-ci ib-source: committed bytes differ from receipt SHA-256' "$evidence/changed-source.txt"
-"$adb" -s "$serial" shell killall shizuku_server
+# The readback snapshot restarts adbd and may already have ended the
+# shell-owned server. Both an observed stop and an already absent server are
+# legitimate; the SDK phase independently requires UNAVAILABLE before replay.
+try { "$adb" -s "$serial" shell killall shizuku_server > "$evidence/offline.stop-server.txt" 2>&1 }
+var offline_stop = _error.code
+if (offline_stop !== 0 and offline_stop !== 1) { echo 'FAIL ending acquisition authority before offline replay' >&2; exit 1 }
 observe offline-reader-lifecycle offline-lifecycle -1 'PASS native reader Activity return and retained Back Forward without Shizuku'
 snapshot offline
 cmp "$current" "$evidence/offline-arena/last-source"

@@ -196,6 +196,16 @@ static void handle_request(int fd, const char *corpus_root) {
 
     if (strcmp(path, "/valid") == 0) {
         relative = "bodies/valid.html";
+    } else if (strcmp(path, "/link-start") == 0) {
+        relative = "bodies/link-base.html";
+    } else if (strcmp(path, "/link-base/relative") == 0) {
+        relative = "bodies/link-relative.html";
+    } else if (strcmp(path, "/link-root") == 0) {
+        relative = "bodies/link-root.html";
+    } else if (strcmp(path, "/link-root?stage=query") == 0) {
+        relative = "bodies/link-query.html";
+    } else if (strcmp(path, "/link-absolute") == 0) {
+        relative = "bodies/link-absolute.html";
     } else if (strcmp(path, "/anchor-fixture") == 0) {
         relative = "bodies/anchor.html";
     } else if (strcmp(path, "/malformed") == 0) {

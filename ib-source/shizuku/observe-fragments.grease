@@ -157,7 +157,12 @@ try {
 var corrupted_status = _error.code
 if (corrupted_status !== 1) { echo 'FAIL changed fragment source missed its designated refusal' >&2; exit 1 }
 rg -x -F 'ai-ci ib-source: committed bytes differ from receipt SHA-256' "$evidence/changed-source.txt"
-"$adb" -s "$serial" shell killall shizuku_server
+# The readback snapshot restarts adbd and may already have ended the
+# shell-owned server. Both an observed stop and an already absent server are
+# legitimate; the SDK phase independently requires UNAVAILABLE before replay.
+try { "$adb" -s "$serial" shell killall shizuku_server > "$evidence/offline.stop-server.txt" 2>&1 }
+var offline_stop = _error.code
+if (offline_stop !== 0 and offline_stop !== 1) { echo 'FAIL ending acquisition authority before offline replay' >&2; exit 1 }
 observe offline-fragments offline-fragments -1 'PASS retained fragment viewport and Back Forward without Shizuku'
 snapshot offline
 cmp "$current" "$evidence/offline-arena/last-source"
