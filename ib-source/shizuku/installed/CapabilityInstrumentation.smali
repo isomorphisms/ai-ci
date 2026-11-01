@@ -2091,6 +2091,105 @@
     return-void
 .end method
 
+.method private earlyNativeLinkTouch()V
+    .locals 10
+    const-string v0, "http://10.0.2.2:18491/valid"
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->enterReaderURL(Ljava/lang/String;)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureOne()V
+    # Pause before reflow to exercise the SDK's idle smooth-scroll branch.
+    # Never delay the subsequent touch past its measured frame window.
+    const-wide/16 v0, 0x2ee
+    invoke-static {v0, v1}, Landroid/os/SystemClock;->sleep(J)V
+    iget-object v0, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
+    new-instance v5, Lacceptance/shizuku/EarlyLinkTouchProbe;
+    invoke-direct {v5, v0}, Lacceptance/shizuku/EarlyLinkTouchProbe;-><init>(Landroid/app/Activity;)V
+    invoke-virtual {p0, v5}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
+    iget-object v0, v5, Lacceptance/shizuku/EarlyLinkTouchProbe;->problem:Ljava/lang/String;
+    if-nez v0, :problem
+    const-string v0, "org.isomorphisms.ib.prepaint"
+    const-string v1, "org.isomorphisms.ib.prepaint:id/reflow_button"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->click(Ljava/lang/String;Ljava/lang/String;)V
+    iget-object v0, v5, Lacceptance/shizuku/EarlyLinkTouchProbe;->ready:Ljava/util/concurrent/CountDownLatch;
+    const-wide/16 v1, 5
+    sget-object v3, Ljava/util/concurrent/TimeUnit;->SECONDS:Ljava/util/concurrent/TimeUnit;
+    invoke-virtual {v0, v1, v2, v3}, Ljava/util/concurrent/CountDownLatch;->await(JLjava/util/concurrent/TimeUnit;)Z
+    move-result v0
+    if-eqz v0, :timing
+    iget-object v0, v5, Lacceptance/shizuku/EarlyLinkTouchProbe;->problem:Ljava/lang/String;
+    if-nez v0, :problem
+    iget-wide v6, v5, Lacceptance/shizuku/EarlyLinkTouchProbe;->frameAt:J
+    const-wide/16 v0, 0
+    cmp-long v4, v6, v0
+    if-lez v4, :timing
+    iget-wide v0, v5, Lacceptance/shizuku/EarlyLinkTouchProbe;->frameCommittedAt:J
+    sub-long/2addr v0, v6
+    const-wide/16 v2, 0
+    cmp-long v4, v0, v2
+    if-ltz v4, :timing
+    const-wide/16 v2, 0x64
+    cmp-long v4, v0, v2
+    if-gtz v4, :timing
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->tapNextLink()V
+    iget-wide v0, v5, Lacceptance/shizuku/EarlyLinkTouchProbe;->upAt:J
+    const-wide/16 v2, 0
+    cmp-long v4, v0, v2
+    if-lez v4, :finished_input_clock
+    const-string v9, "child_UP"
+    goto :touch_clock
+  :finished_input_clock
+    # injectInputEvent(sync=true) has completed even when the parent consumed it.
+    invoke-static {}, Landroid/os/SystemClock;->uptimeMillis()J
+    move-result-wide v0
+    const-string v9, "synchronous_input_completion"
+  :touch_clock
+    sub-long/2addr v0, v6
+    iget v2, v5, Lacceptance/shizuku/EarlyLinkTouchProbe;->downs:I
+    iget v3, v5, Lacceptance/shizuku/EarlyLinkTouchProbe;->ups:I
+    new-instance v8, Ljava/lang/StringBuilder;
+    invoke-direct {v8}, Ljava/lang/StringBuilder;-><init>()V
+    const-string v4, "frame_to_touch_ms="
+    invoke-virtual {v8, v4}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v8, v0, v1}, Ljava/lang/StringBuilder;->append(J)Ljava/lang/StringBuilder;
+    const-string v4, " time_source="
+    invoke-virtual {v8, v4}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v8, v9}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    const-string v4, " child_downs="
+    invoke-virtual {v8, v4}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v8, v2}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    const-string v4, " child_ups="
+    invoke-virtual {v8, v4}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v8, v3}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    invoke-virtual {v8}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+    move-result-object v8
+    const-string v9, "IBIndependentEarlyLinkTouch"
+    invoke-static {v9, v8}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
+    const-wide/16 v6, 0
+    cmp-long v4, v0, v6
+    if-ltz v4, :timing
+    const-wide/16 v6, 0xc8
+    cmp-long v4, v0, v6
+    if-gez v4, :timing
+    const/4 v4, 1
+    if-ne v2, v4, :missed
+    if-ne v3, v4, :missed
+    const/4 v0, 3
+    iput v0, v5, Lacceptance/shizuku/EarlyLinkTouchProbe;->mode:I
+    invoke-virtual {p0, v5}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureTwo()V
+    return-void
+  :problem
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    return-void
+  :timing
+    const-string v0, "FAIL early native link timing window was not exercised"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    return-void
+  :missed
+    const-string v0, "FAIL early native link touch reached the document"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    return-void
+.end method
+
 .method private fragmentNavigation()V
     .registers 4
     const-string v0, "http://10.0.2.2:18491/anchor-fixture"
@@ -2159,6 +2258,14 @@
   :launched
     iput-object v0, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
     iget-object v0, p0, Lacceptance/shizuku/CapabilityInstrumentation;->phase:Ljava/lang/String;
+    const-string v1, "early-native-link"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :google_continuation_phase
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->earlyNativeLinkTouch()V
+    const-string v7, "PASS frame-timed native Next touch reaches the document and acquires Reader Two through ICU"
+    goto :success
+  :google_continuation_phase
     const-string v1, "google-continuation"
     invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
     move-result v1

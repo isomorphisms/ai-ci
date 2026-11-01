@@ -39,7 +39,7 @@ printf 'schema\tib-installed-replay-v1\nsource\td02fe516833d0941e8ff1ab2b84369c1
 git -C "$repository" rev-parse HEAD > "$evidence/observer-commit.txt"
 for name in ib-native-boundary.apk ib-native-uid-bypass.apk ib-native-death-noop.apk \
   ib-native-strict-flags.apk ib-native-stale-authorization.apk ib-native-anchor-zero.apk \
-  ib-native-resume-noop.apk ib-native-detach-any.apk ib-native-anchor-reset.apk {
+  ib-native-resume-noop.apk ib-native-detach-any.apk ib-native-anchor-reset.apk ib-native-single-scroll.apk {
   var expected = $(awk -v name="$name" '{n=split($2,p,"/"); if(p[n]==name)print $1}' "$evidence/input/native-client/sha256.txt")
   printf '%s\n' "$expected" | awk 'length($0)!=64 || $0~/[^0-9a-f]/ {exit 1} END {if(NR!=1)exit 1}'
   printf '%s  %s\n' "$expected" "$evidence/input/native-client/$name" | sha256sum -c -
