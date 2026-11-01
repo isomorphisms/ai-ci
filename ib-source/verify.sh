@@ -40,12 +40,15 @@ awk -F '\t' '
         count=split("schema request_id source_key source_generation requested_url resolved_url http_status mime_type charset content_encoding utf8 redirect_count declared_length received_length transport arena_name arena_offset arena_end byte_count sha256 reopen_check acquisition_complete navigation_admitted", names," ")
         for (i=1;i<=count;i++) allowed[names[i]]=1
         allowed["redirect_chain"]=1
+        allowed["transfer_decoding"]=1
     }
     NF!=2 || !allowed[$1] || $2=="" { bad=1 }
+    $1=="transfer_decoding" && $2!="identity" && $2!="chunked" { bad=1 }
     { seen[$1]++ }
     END {
         for (i=1;i<=count;i++) if (seen[names[i]]!=1) bad=1
-        if (bad || seen["redirect_chain"]>1 || NR!=count+seen["redirect_chain"]) exit 1
+        if (bad || seen["redirect_chain"]>1 || seen["transfer_decoding"]>1 ||
+            NR!=count+seen["redirect_chain"]+seen["transfer_decoding"]) exit 1
     }
 ' "$receipt" || fail 'receipt field set or duplicates invalid'
 field() { awk -F '\t' -v key="$1" '$1==key{print $2}' "$receipt"; }
