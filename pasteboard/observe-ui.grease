@@ -131,6 +131,8 @@ snapshot before-pending-delete
 "$adb" -s "$serial" shell -T run-as "$package" tee files/history.pending.999999.1 \
   < "$output/before-pending-delete.bin" > "$output/interrupted-snapshot-seed.bin"
 cmp "$output/before-pending-delete.bin" "$output/interrupted-snapshot-seed.bin"
+"$adb" -s "$serial" shell -T run-as "$package" /system/bin/chmod 600 files/history.pending.999999.1
+"$adb" -s "$serial" shell -T run-as "$package" /system/bin/ls -ld files/history.pending.999999.1 > "$output/interrupted-snapshot-mode.txt"
 for number in @(seq 1 4) { card_menu 0; tap 240 443; tap 240 215 }
 snapshot deleted
 "$oracle" count "$output/deleted.bin" 0
