@@ -100,6 +100,42 @@ automatic restored-uid
 copy_three restored-callbacks
 printf 'real_external_provider_caller_refused\tPASS\ncompiled_exposed_provider_mutant_rejected\tPASS\nreal_application_UID_with_valid_capability_refused\tPASS\ncompiled_UID_bypass_mutant_rejected\tPASS\n' > "$output/result.tsv"
 
+# A real SDK value copied during Pause must not appear when capture resumes.
+# Leave that value on Android's clipboard across listener re-registration.
+start_app pause
+"$adb" -s "$serial" shell -T run-as "$package" sha256sum files/observer.key > "$output/capture-session-before.sha256"
+tap 450 60
+tap 240 367
+tap 240 747
+snapshot paused-before
+"$oracle" mode "$output/paused-before.bin" 0 1
+"$adb" -s "$serial" shell am force-stop org.isomorphisms.aici.clipboardfixture
+"$adb" -s "$serial" shell am start -W -n "$fixture" --ei fixture_index 17 > "$output/paused.fixture.txt"
+sleep 1
+"$adb" -s "$serial" logcat -c
+tap 240 790
+"$adb" -s "$serial" logcat -d -s CopyFixture:I > "$output/paused.clipboard.txt"
+rg -q -F 'visible button 8 SDK clipboard effect PASS' "$output/paused.clipboard.txt"
+rg -q -F 'present=1 items=1 text=1 sensitive=0 exact fixture=117 origin=0' "$output/paused.clipboard.txt"
+sleep 3
+snapshot paused-after
+cmp "$output/paused-before.bin" "$output/paused-after.bin"
+start_app resume
+tap 450 60
+tap 240 367
+tap 240 747
+sleep 4
+snapshot resumed
+"$adb" -s "$serial" shell -T run-as "$package" sha256sum files/observer.key > "$output/capture-session-after.sha256"
+if cmp -s "$output/capture-session-before.sha256" "$output/capture-session-after.sha256" {
+  diagnose resume-session; echo 'FAIL resume retained the paused capture credential' >&2; exit 1
+}
+"$oracle" mode "$output/resumed.bin" 1 1
+"$oracle" count "$output/resumed.bin" 4
+"$oracle" absent "$output/resumed.bin" "$input/fixtures/overflow-17.txt"
+copy_three after-pause-resume
+printf 'pause_excludes_actual_external_clipboard_value\tPASS\nresume_rotates_private_capture_session\tPASS\nresume_does_not_replay_paused_values\tPASS\nresume_restores_exact_callback_delivery\tPASS\n' >> "$output/result.tsv"
+
 # Kill only the verified emulator's exact shell-owned companion process.
 var old_pid = $(observer_pid observer-before-crash)
 printf '%s\n' "$old_pid" | rg -x '[1-9][0-9]*'
