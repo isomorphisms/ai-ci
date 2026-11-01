@@ -52,3 +52,11 @@ per-instance Binder identity, null initialization and separate static storage.
 with the exact ownership assertion and status 73; a verifier crash cannot count
 as that rejection. Neither this class-shape test nor its host decoder proves
 Shizuku authorization or an actual transaction.
+
+The constructor continuation independently passes a Unicode-bearing Collection
+into a generated ArrayList subclass and a value above 32 bits into a generated
+Date subclass. Ignoring the Collection argument is a valid compiled DEX mutant;
+it must fail the exact constructor assertion with status 73. Reference and wide
+argument slots are observed through platform behavior, independently of the
+writer's instruction dump. A context-bearing Shizuku service still needs its
+own installed-process acceptance.

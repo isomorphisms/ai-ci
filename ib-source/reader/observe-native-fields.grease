@@ -25,7 +25,7 @@ var remote = "/data/local/tmp/native-reference-fields-$digest"
 java -jar "$smali" assemble "$repository/ib-source/reader/NativeReferenceFieldsObserver.smali" -o "$evidence/observer.dex"
 "$adb" -s "$serial" push "$evidence/observer.dex" "$remote/observer.dex"
 "$adb" -s "$serial" shell chmod 444 "$remote/observer.dex"
-for lane in native-reference-fields native-reference-fields-static-mutant native-reference-fields-interface-mutant {
+for lane in native-reference-fields native-reference-fields-static-mutant native-reference-fields-interface-mutant native-reference-fields-constructor-mutant {
   test -s "$input/$lane.dex"
   "$adb" -s "$serial" push "$input/$lane.dex" "$remote/$lane.dex"
   "$adb" -s "$serial" shell chmod 444 "$remote/$lane.dex"
@@ -49,6 +49,10 @@ for lane in native-reference-fields native-reference-fields-static-mutant native
     setvar wanted = 73
     setvar marker = 'FAIL native class interface ownership'
   }
+  if (lane === 'native-reference-fields-constructor-mutant') {
+    setvar wanted = 73
+    setvar marker = 'FAIL native constructor incoming values'
+  }
   if (status !== wanted) {
     try { "$adb" -s "$serial" logcat -d -v threadtime > "$evidence/$lane.logcat.txt" 2>&1 }
     echo "FAIL wrong ART exit: $lane observed $status expected $wanted" >&2
@@ -58,5 +62,6 @@ for lane in native-reference-fields native-reference-fields-static-mutant native
 }
 git -C "$repository" rev-parse HEAD > "$evidence/observer-commit.txt"
 sha256sum "$evidence/observer.dex" "$input/native-reference-fields.dex" \
-  "$input/native-reference-fields-static-mutant.dex" "$input/native-reference-fields-interface-mutant.dex" > "$evidence/sha256.txt"
-printf 'schema\tnative-reference-fields-art-v2\napi\t%s\nabi\tx86_64\nindependent_instance_references\tPASS\nclass_interface_ownership\tPASS\nstatic_instance_kind_mutant\tREJECTED\ninterface_list_mutant\tREJECTED\nShizuku_transaction\tNOT_RUN\nphysical_TAB_P10\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"
+  "$input/native-reference-fields-static-mutant.dex" "$input/native-reference-fields-interface-mutant.dex" \
+  "$input/native-reference-fields-constructor-mutant.dex" > "$evidence/sha256.txt"
+printf 'schema\tnative-reference-fields-art-v3\napi\t%s\nabi\tx86_64\nindependent_instance_references\tPASS\nclass_interface_ownership\tPASS\nreference_and_wide_constructors\tPASS\nstatic_instance_kind_mutant\tREJECTED\ninterface_list_mutant\tREJECTED\nconstructor_argument_mutant\tREJECTED\nShizuku_transaction\tNOT_RUN\nphysical_TAB_P10\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"
