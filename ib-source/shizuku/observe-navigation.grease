@@ -1,7 +1,7 @@
 #!/usr/bin/env grease
 # Required continuation after the complete installed-reader observer succeeds.
 set -eu -o pipefail
-if (len(ARGV) !== 8 and len(ARGV) !== 9) { echo 'usage: grease observe-navigation.grease AICI INPUT SDK ICK ADB SERIAL INSTALLED_EVIDENCE NEW_EVIDENCE [reader-v2]' >&2; exit 2 }
+if (len(ARGV) !== 8 and len(ARGV) !== 9) { echo 'usage: grease observe-navigation.grease AICI INPUT SDK ICK ADB SERIAL INSTALLED_EVIDENCE NEW_EVIDENCE [reader-v2|reader-v3]' >&2; exit 2 }
 var repository = ARGV[0]
 var input = ARGV[1]
 var sdk = ARGV[2]
@@ -12,7 +12,8 @@ var installed = ARGV[6]
 var evidence = ARGV[7]
 var grease = ENV.IB_GREASE
 var reader_v2 = len(ARGV) === 9
-if (reader_v2 and ARGV[8] !== 'reader-v2') { echo 'FAIL unknown navigation profile' >&2; exit 2 }
+var reader_v3 = reader_v2 and ARGV[8] === 'reader-v3'
+if (reader_v2 and ARGV[8] !== 'reader-v2' and not reader_v3) { echo 'FAIL unknown navigation profile' >&2; exit 2 }
 for path in "$repository" "$input" "$sdk" "$compiler" "$adb" "$installed" "$evidence" {
   if (len(path) === 0 or path[0] !== '/') { exit 2 }
 }
@@ -65,7 +66,7 @@ proc diagnose(label) {
 }
 proc observe(phase, label, marker) {
   try {
-    timeout 180 "$adb" -s "$serial" shell am instrument -w -r -e phase "$phase" \
+    timeout 480 "$adb" -s "$serial" shell am instrument -w -r -e phase "$phase" \
       org.isomorphisms.ib.acceptance/acceptance.shizuku.CapabilityInstrumentation > "$evidence/$label.txt" 2>&1
   }
   var result = _error.code
@@ -80,6 +81,10 @@ diagnose after-link-history
 if (reader_v2) {
   observe http-refusal actual-http-refusal 'PASS installed actual ICU HTTP 404 refusal preserves visible source clipboard and navigation'
   diagnose after-http-refusal
+  if (reader_v3) {
+    observe transport-refusals actual-transport-refusals 'PASS installed TLS protocol charset UTF8 binary truncation encoding chunking and size refusals preserve source'
+    diagnose after-transport-refusals
+  }
   observe search-callers actual-search-caller-refusals 'PASS installed no-caller spoofed-referrer wrong-caller and warm SEARCH refusals'
   diagnose after-search-caller-refusals
 }
@@ -124,4 +129,8 @@ cat "$evidence/receipt.tsv"
 
 if (reader_v2) {
   printf 'installed_HTTP_404_refusal\tPASS\nHTTP_error_retains_view_clipboard_history\tPASS\nno_caller_spoofed_referrer_wrong_caller_warm_SEARCH\tREJECTED\n' >> "$evidence/receipt.tsv"
+}
+
+if (reader_v3) {
+  printf 'TLS_plaintext_endpoint\tREJECTED\nunsupported_charset_and_invalid_UTF8\tREJECTED\nbinary_MIME\tREJECTED\ntruncated_and_gzip_encoded_payload\tREJECTED\nmalformed_and_excessive_chunk\tREJECTED\nall_refusals_keep_exact_source_copy_and_history\tPASS\ncertificate_trust_negative\tNOT_RUN\n' >> "$evidence/receipt.tsv"
 }

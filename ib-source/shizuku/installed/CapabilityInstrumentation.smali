@@ -1198,6 +1198,55 @@
     return-void
 .end method
 
+
+.method private refusedNavigation(Ljava/lang/String;Ljava/lang/String;)V
+    .registers 7
+    invoke-static {}, Lorg/isomorphisms/ib/ReaderBridge;->history()Ljava/lang/String;
+    move-result-object v0
+    invoke-direct {p0, p1}, Lacceptance/shizuku/CapabilityInstrumentation;->enterReaderURL(Ljava/lang/String;)V
+    invoke-direct {p0, p2}, Lacceptance/shizuku/CapabilityInstrumentation;->waitStatus(Ljava/lang/String;)V
+    const-string v1, "Reader Two"
+    invoke-direct {p0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->assertDocumentTitle(Ljava/lang/String;)V
+    invoke-static {}, Lorg/isomorphisms/ib/ReaderBridge;->history()Ljava/lang/String;
+    move-result-object v1
+    invoke-virtual {v0, v1}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-nez v1, :preserved
+    const-string v1, "FAIL refused transport or document changed last-good navigation"
+    invoke-static {v1}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+  :preserved
+    const-string v1, "Reader Two\n\nSecond retained fixture acquired through ICU.\n\nFirst"
+    invoke-direct {p0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->exactSourceClipboard(Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private transportRefusals()V
+    .registers 3
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureTwo()V
+    const-string v0, "https://10.0.2.2:18491/valid"
+    const-string v1, "Acquisition or verified source readback failed. The previous document is retained."
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->refusedNavigation(Ljava/lang/String;Ljava/lang/String;)V
+    const-string v0, "http://10.0.2.2:18491/unknown-charset"
+    const-string v1, "Document refused: unsupported-charset"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->refusedNavigation(Ljava/lang/String;Ljava/lang/String;)V
+    const-string v0, "http://10.0.2.2:18491/invalid-utf8"
+    const-string v1, "Document refused: invalid-utf8"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->refusedNavigation(Ljava/lang/String;Ljava/lang/String;)V
+    const-string v0, "http://10.0.2.2:18491/binary"
+    const-string v1, "Document refused: unsupported-mime"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->refusedNavigation(Ljava/lang/String;Ljava/lang/String;)V
+    const-string v0, "http://10.0.2.2:18491/truncated"
+    const-string v1, "Acquisition or verified source readback failed. The previous document is retained."
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->refusedNavigation(Ljava/lang/String;Ljava/lang/String;)V
+    const-string v0, "http://10.0.2.2:18491/gzip-truncated"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->refusedNavigation(Ljava/lang/String;Ljava/lang/String;)V
+    const-string v0, "http://10.0.2.2:18491/malformed-chunk"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->refusedNavigation(Ljava/lang/String;Ljava/lang/String;)V
+    const-string v0, "http://10.0.2.2:18491/excessive-chunk"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->refusedNavigation(Ljava/lang/String;Ljava/lang/String;)V
+    return-void
+.end method
+
 .method public onStart()V
     .registers 10
   :begin
@@ -1225,6 +1274,14 @@
   :launched
     iput-object v0, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
     iget-object v0, p0, Lacceptance/shizuku/CapabilityInstrumentation;->phase:Ljava/lang/String;
+    const-string v1, "transport-refusals"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :encoded_document_phase
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->transportRefusals()V
+    const-string v7, "PASS installed TLS protocol charset UTF8 binary truncation encoding chunking and size refusals preserve source"
+    goto :success
+  :encoded_document_phase
     const-string v1, "encoded-documents"
     invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
     move-result v1

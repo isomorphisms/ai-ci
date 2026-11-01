@@ -160,6 +160,32 @@ static void handle_request(int fd, const char *corpus_root) {
         return;
     }
 
+    if (strcmp(path, "/malformed-chunk") == 0) {
+        static const char response[] =
+            "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\n"
+            "Content-Encoding: identity\r\nTransfer-Encoding: chunked\r\n"
+            "Connection: close\r\n\r\n4\r\n<htm\r\nZ\r\nbad\r\n0\r\n\r\n";
+        (void)write_all(fd, response, sizeof(response) - 1u);
+        return;
+    }
+    if (strcmp(path, "/excessive-chunk") == 0) {
+        static const char headers[] =
+            "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\n"
+            "Content-Encoding: identity\r\nTransfer-Encoding: chunked\r\n"
+            "Connection: close\r\n\r\n400001\r\n";
+        unsigned char block[8192];
+        memset(block, 'A', sizeof(block));
+        size_t remaining = 4194305u;
+        int sent = write_all(fd, headers, sizeof(headers) - 1u);
+        while (sent && remaining > 0) {
+            size_t amount = remaining < sizeof(block) ? remaining : sizeof(block);
+            sent = write_all(fd, block, amount);
+            remaining -= amount;
+        }
+        if (sent) (void)write_all(fd, "\r\n0\r\n\r\n", 7u);
+        return;
+    }
+
     const char *relative = "bodies/valid.html";
     const char *content_type = "text/html; charset=utf-8";
     const char *encoding = "identity";
@@ -177,6 +203,10 @@ static void handle_request(int fd, const char *corpus_root) {
     } else if (strcmp(path, "/truncated") == 0) {
         relative = "bodies/valid.html";
         truncated = 1;
+    } else if (strcmp(path, "/binary") == 0) {
+        relative = "bodies/binary.hex";
+        content_type = "application/octet-stream";
+        hex = 1;
     } else if (strcmp(path, "/invalid-utf8") == 0) {
         relative = "bodies/invalid-utf8.hex";
         hex = 1;

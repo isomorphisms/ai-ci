@@ -107,7 +107,7 @@ jobs:
           disable-animations: true
           script: |
             .tools/runtime/.build/grease/bin/grease ib-source/shizuku/observe-installed.grease "$GITHUB_WORKSPACE" "$RUNNER_TEMP/ib-installed-replay/input/native-client" "$RUNNER_TEMP/ib-installed-replay/input/oracles/smali.jar" "$ANDROID_HOME" "$RUNNER_TEMP/ib-installed-replay/input/platform-inputs/public-test-keystore" "$RUNNER_TEMP/ib-installed-replay/input/platform-inputs/shizuku-official.apk" "$ANDROID_HOME/platform-tools/adb" emulator-5554 "$RUNNER_TEMP/ib-installed-replay/observed" reader
-            .tools/runtime/.build/grease/bin/grease ib-source/shizuku/observe-navigation.grease "$GITHUB_WORKSPACE" "$RUNNER_TEMP/ib-installed-replay/input" "$ANDROID_HOME" "$AICI_FIXTURE_ICK" "$ANDROID_HOME/platform-tools/adb" emulator-5554 "$RUNNER_TEMP/ib-installed-replay/observed" "$RUNNER_TEMP/ib-installed-replay/navigation" reader-v2
+            .tools/runtime/.build/grease/bin/grease ib-source/shizuku/observe-navigation.grease "$GITHUB_WORKSPACE" "$RUNNER_TEMP/ib-installed-replay/input" "$ANDROID_HOME" "$AICI_FIXTURE_ICK" "$ANDROID_HOME/platform-tools/adb" emulator-5554 "$RUNNER_TEMP/ib-installed-replay/observed" "$RUNNER_TEMP/ib-installed-replay/navigation" reader-v3
             .tools/runtime/.build/grease/bin/grease ib-source/shizuku/observe-encoding.grease "$GITHUB_WORKSPACE" "$RUNNER_TEMP/ib-installed-replay/input" "$ANDROID_HOME" "$AICI_FIXTURE_ICK" "$ANDROID_HOME/platform-tools/adb" emulator-5554 "$RUNNER_TEMP/ib-installed-replay/observed" "$RUNNER_TEMP/ib-installed-replay/navigation" "$RUNNER_TEMP/ib-installed-replay/encoding"
       - name: Observe actual ChordReader caller controls and SEARCH into the unchanged native reader
         if: matrix.profile == 'search'
