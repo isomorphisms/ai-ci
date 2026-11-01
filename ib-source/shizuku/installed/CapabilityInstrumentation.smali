@@ -2,6 +2,7 @@
 .super Landroid/app/Instrumentation;
 
 .field private phase:Ljava/lang/String;
+.field private observedActivity:Landroid/app/Activity;
 
 .method public constructor <init>()V
     .registers 1
@@ -434,7 +435,14 @@
 .end method
 
 .method private exactExampleClipboard()V
-    .registers 9
+    .registers 2
+    const-string v0, "This domain is for use in documentation examples without needing permission. This is not a service; avoid relying on it for testing and monitoring purposes."
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->exactSourceClipboard(Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private exactSourceClipboard(Ljava/lang/String;)V
+    .registers 10
     const-string v0, "org.isomorphisms.ib.prepaint"
     const-string v1, "org.isomorphisms.ib.prepaint:id/reader_body"
     invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->node(Ljava/lang/String;Ljava/lang/String;)Landroid/view/accessibility/AccessibilityNodeInfo;
@@ -510,7 +518,7 @@
     if-eqz v1, :failed
     invoke-interface {v1}, Ljava/lang/CharSequence;->toString()Ljava/lang/String;
     move-result-object v1
-    const-string v2, "This domain is for use in documentation examples without needing permission. This is not a service; avoid relying on it for testing and monitoring purposes."
+    move-object v2, p1
     invoke-virtual {v2, v1}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
     move-result v2
     if-eqz v2, :failed
@@ -575,6 +583,247 @@
     return-void
 .end method
 
+.method private waitNetworkDocument(Ljava/lang/String;Ljava/lang/String;)V
+    .registers 10
+    const/16 v0, 0x258
+  :again
+    const-string v1, "org.isomorphisms.ib.prepaint"
+    const-string v2, "org.isomorphisms.ib.prepaint:id/reader_body"
+    invoke-direct {p0, v1, v2}, Lacceptance/shizuku/CapabilityInstrumentation;->node(Ljava/lang/String;Ljava/lang/String;)Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v1
+    invoke-virtual {v1}, Landroid/view/accessibility/AccessibilityNodeInfo;->getText()Ljava/lang/CharSequence;
+    move-result-object v1
+    if-eqz v1, :retry
+    invoke-interface {v1}, Ljava/lang/CharSequence;->toString()Ljava/lang/String;
+    move-result-object v1
+    const-string v2, "\\s+"
+    const-string v3, " "
+    invoke-virtual {v1, v2, v3}, Ljava/lang/String;->replaceAll(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+    move-result-object v1
+    move-object v2, p2
+    invoke-virtual {v1, v2}, Ljava/lang/String;->contains(Ljava/lang/CharSequence;)Z
+    move-result v2
+    if-eqz v2, :retry
+    const-string v1, "org.isomorphisms.ib.prepaint"
+    const-string v2, "org.isomorphisms.ib.prepaint:id/reader_status"
+    invoke-direct {p0, v1, v2}, Lacceptance/shizuku/CapabilityInstrumentation;->node(Ljava/lang/String;Ljava/lang/String;)Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v1
+    invoke-virtual {v1}, Landroid/view/accessibility/AccessibilityNodeInfo;->getText()Ljava/lang/CharSequence;
+    move-result-object v1
+    if-eqz v1, :retry
+    invoke-interface {v1}, Ljava/lang/CharSequence;->toString()Ljava/lang/String;
+    move-result-object v1
+    const-string v2, "Static HTML — scripts and forms are unavailable."
+    invoke-virtual {v2, v1}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :retry
+    const-string v1, "Static HTML — scripts and forms are unavailable."
+    invoke-direct {p0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->assertStatus(Ljava/lang/String;)V
+    invoke-direct {p0, p1}, Lacceptance/shizuku/CapabilityInstrumentation;->assertDocumentTitle(Ljava/lang/String;)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->recordDocumentScreenshot()V
+    return-void
+  :retry
+    const-wide/16 v5, 0x64
+    invoke-static {v5, v6}, Landroid/os/SystemClock;->sleep(J)V
+    add-int/lit8 v0, v0, -0x1
+    if-gtz v0, :again
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->logReaderFailureBody()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->logReaderFailureStatus()V
+    const-string v0, "FAIL actual acquired controlled native document"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private enterReaderURL(Ljava/lang/String;)V
+    .registers 7
+    const/4 v0, 0x3
+    const-string v1, "FAIL authorized acquisition capability before native navigation"
+    invoke-static {v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitState(ILjava/lang/String;)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->sources()V
+    const-string v0, "org.isomorphisms.ib.prepaint"
+    const-string v1, "org.isomorphisms.ib.prepaint:id/reader_input"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->node(Ljava/lang/String;Ljava/lang/String;)Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v1
+    new-instance v2, Landroid/os/Bundle;
+    invoke-direct {v2}, Landroid/os/Bundle;-><init>()V
+    const-string v3, "ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE"
+    move-object v4, p1
+    invoke-virtual {v2, v3, v4}, Landroid/os/Bundle;->putCharSequence(Ljava/lang/String;Ljava/lang/CharSequence;)V
+    const v3, 0x200000
+    invoke-virtual {v1, v3, v2}, Landroid/view/accessibility/AccessibilityNodeInfo;->performAction(ILandroid/os/Bundle;)Z
+    move-result v1
+    if-nez v1, :entered
+    const-string v1, "FAIL native URL input refused text entry"
+    invoke-static {v1}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+  :entered
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->waitForIdleSync()V
+    const-string v1, "org.isomorphisms.ib.prepaint:id/read_button"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->click(Ljava/lang/String;Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private tapNextLink()V
+    .registers 14
+    iget-object v10, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
+    new-instance v9, Lacceptance/shizuku/VisibleLinkPoint;
+    invoke-direct {v9, v10}, Lacceptance/shizuku/VisibleLinkPoint;-><init>(Landroid/app/Activity;)V
+    invoke-virtual {p0, v9}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
+    iget-object v10, v9, Lacceptance/shizuku/VisibleLinkPoint;->problem:Ljava/lang/String;
+    if-eqz v10, :visible
+    invoke-static {v10}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+  :visible
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->getUiAutomation()Landroid/app/UiAutomation;
+    move-result-object v10
+    invoke-static {}, Landroid/os/SystemClock;->uptimeMillis()J
+    move-result-wide v0
+    move-wide v2, v0
+    const/4 v4, 0x0
+    iget v5, v9, Lacceptance/shizuku/VisibleLinkPoint;->x:F
+    iget v6, v9, Lacceptance/shizuku/VisibleLinkPoint;->y:F
+    const/4 v7, 0x0
+    invoke-static/range {v0 .. v7}, Landroid/view/MotionEvent;->obtain(JJIFFI)Landroid/view/MotionEvent;
+    move-result-object v8
+    const/16 v11, 0x1002
+    invoke-virtual {v8, v11}, Landroid/view/MotionEvent;->setSource(I)V
+    const/4 v11, 0x1
+    invoke-virtual {v10, v8, v11}, Landroid/app/UiAutomation;->injectInputEvent(Landroid/view/InputEvent;Z)Z
+    move-result v11
+    invoke-virtual {v8}, Landroid/view/MotionEvent;->recycle()V
+    if-eqz v11, :failed
+    const-wide/16 v11, 0x32
+    invoke-static {v11, v12}, Landroid/os/SystemClock;->sleep(J)V
+    invoke-static {}, Landroid/os/SystemClock;->uptimeMillis()J
+    move-result-wide v2
+    const/4 v4, 0x1
+    invoke-static/range {v0 .. v7}, Landroid/view/MotionEvent;->obtain(JJIFFI)Landroid/view/MotionEvent;
+    move-result-object v8
+    const/16 v11, 0x1002
+    invoke-virtual {v8, v11}, Landroid/view/MotionEvent;->setSource(I)V
+    const/4 v11, 0x1
+    invoke-virtual {v10, v8, v11}, Landroid/app/UiAutomation;->injectInputEvent(Landroid/view/InputEvent;Z)Z
+    move-result v11
+    invoke-virtual {v8}, Landroid/view/MotionEvent;->recycle()V
+    if-eqz v11, :failed
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->waitForIdleSync()V
+    return-void
+  :failed
+    const-string v0, "FAIL actual down/up input at visible Next link"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private fixtureOne()V
+    .registers 3
+    const-string v0, "Reader One"
+    const-string v1, "First retained fixture:"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitNetworkDocument(Ljava/lang/String;Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private fixtureTwo()V
+    .registers 3
+    const-string v0, "Reader Two"
+    const-string v1, "Second retained fixture acquired through ICU."
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitNetworkDocument(Ljava/lang/String;Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private historyBack()V
+    .registers 3
+    const-string v0, "org.isomorphisms.ib.prepaint"
+    const-string v1, "org.isomorphisms.ib.prepaint:id/back_button"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->click(Ljava/lang/String;Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private historyForward()V
+    .registers 3
+    const-string v0, "org.isomorphisms.ib.prepaint"
+    const-string v1, "org.isomorphisms.ib.prepaint:id/forward_button"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->click(Ljava/lang/String;Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private scrollFixture()V
+    .registers 6
+    const-string v0, "org.isomorphisms.ib.prepaint"
+    const-string v1, "org.isomorphisms.ib.prepaint:id/reader_body"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->node(Ljava/lang/String;Ljava/lang/String;)Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v0
+    invoke-virtual {v0}, Landroid/view/accessibility/AccessibilityNodeInfo;->getParent()Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v0
+    if-eqz v0, :failed
+    invoke-virtual {v0}, Landroid/view/accessibility/AccessibilityNodeInfo;->getClassName()Ljava/lang/CharSequence;
+    move-result-object v1
+    if-eqz v1, :failed
+    invoke-interface {v1}, Ljava/lang/CharSequence;->toString()Ljava/lang/String;
+    move-result-object v1
+    const-string v2, "android.widget.ScrollView"
+    invoke-virtual {v2, v1}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :failed
+    const/16 v1, 0x2000
+    invoke-virtual {v0, v1}, Landroid/view/accessibility/AccessibilityNodeInfo;->performAction(I)Z
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->waitForIdleSync()V
+    const/16 v1, 0x1000
+    invoke-virtual {v0, v1}, Landroid/view/accessibility/AccessibilityNodeInfo;->performAction(I)Z
+    move-result v1
+    if-eqz v1, :failed
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->waitForIdleSync()V
+    return-void
+  :failed
+    const-string v0, "FAIL actual native ScrollView fixture movement"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private networkNavigation()V
+    .registers 3
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->waitExampleDocument()V
+    const-string v0, "http://10.0.2.2:18491/valid"
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->enterReaderURL(Ljava/lang/String;)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureOne()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->tapNextLink()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureTwo()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyBack()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureOne()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyForward()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureTwo()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyBack()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureOne()V
+    const-string v0, "Reader One\n\nNext\n\nFirst retained fixture: café 🌍; co­operate across source-backed wraps.\n\nParagraph 01 preserves a separate source block for scrolling and reflow.\n\nParagraph 02 preserves a separate source block for scrolling and reflow.\n\nParagraph 03 preserves a separate source block for scrolling and reflow.\n\nParagraph 04 preserves a separate source block for scrolling and reflow.\n\nParagraph 05 preserves a separate source block for scrolling and reflow.\n\nParagraph 06 preserves a separate source block for scrolling and reflow.\n\nParagraph 07 preserves a separate source block for scrolling and reflow.\n\nParagraph 08 preserves a separate source block for scrolling and reflow.\n\nParagraph 09 preserves a separate source block for scrolling and reflow.\n\nParagraph 10 preserves a separate source block for scrolling and reflow.\n\nParagraph 11 preserves a separate source block for scrolling and reflow.\n\nParagraph 12 preserves a separate source block for scrolling and reflow.\n\nParagraph 13 preserves a separate source block for scrolling and reflow.\n\nParagraph 14 preserves a separate source block for scrolling and reflow.\n\nParagraph 15 preserves a separate source block for scrolling and reflow.\n\nParagraph 16 preserves a separate source block for scrolling and reflow.\n\nParagraph 17 preserves a separate source block for scrolling and reflow.\n\nParagraph 18 preserves a separate source block for scrolling and reflow.\n\nParagraph 19 preserves a separate source block for scrolling and reflow.\n\nParagraph 20 preserves a separate source block for scrolling and reflow."
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->exactSourceClipboard(Ljava/lang/String;)V
+    const-string v0, "org.isomorphisms.ib.prepaint"
+    const-string v1, "org.isomorphisms.ib.prepaint:id/reflow_button"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->click(Ljava/lang/String;Ljava/lang/String;)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureOne()V
+    const-string v0, "Reflow: Squared"
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->assertReflowLabel(Ljava/lang/String;)V
+    const-string v0, "Reader One\n\nNext\n\nFirst retained fixture: café 🌍; co­operate across source-backed wraps.\n\nParagraph 01 preserves a separate source block for scrolling and reflow.\n\nParagraph 02 preserves a separate source block for scrolling and reflow.\n\nParagraph 03 preserves a separate source block for scrolling and reflow.\n\nParagraph 04 preserves a separate source block for scrolling and reflow.\n\nParagraph 05 preserves a separate source block for scrolling and reflow.\n\nParagraph 06 preserves a separate source block for scrolling and reflow.\n\nParagraph 07 preserves a separate source block for scrolling and reflow.\n\nParagraph 08 preserves a separate source block for scrolling and reflow.\n\nParagraph 09 preserves a separate source block for scrolling and reflow.\n\nParagraph 10 preserves a separate source block for scrolling and reflow.\n\nParagraph 11 preserves a separate source block for scrolling and reflow.\n\nParagraph 12 preserves a separate source block for scrolling and reflow.\n\nParagraph 13 preserves a separate source block for scrolling and reflow.\n\nParagraph 14 preserves a separate source block for scrolling and reflow.\n\nParagraph 15 preserves a separate source block for scrolling and reflow.\n\nParagraph 16 preserves a separate source block for scrolling and reflow.\n\nParagraph 17 preserves a separate source block for scrolling and reflow.\n\nParagraph 18 preserves a separate source block for scrolling and reflow.\n\nParagraph 19 preserves a separate source block for scrolling and reflow.\n\nParagraph 20 preserves a separate source block for scrolling and reflow."
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->exactSourceClipboard(Ljava/lang/String;)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->scrollFixture()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyForward()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureTwo()V
+    return-void
+.end method
+
+.method private offlineNetworkHistory()V
+    .registers 3
+    const/4 v0, 0x0
+    const-string v1, "FAIL offline network history requires absent Shizuku"
+    invoke-static {v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitState(ILjava/lang/String;)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureTwo()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyBack()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureOne()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyBack()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->waitExampleDocument()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyForward()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureOne()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyForward()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureTwo()V
+    return-void
+.end method
+
 .method public onStart()V
     .registers 10
   :begin
@@ -599,6 +848,7 @@
     const-string v0, "FAIL installed checked Activity launch"
     invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
   :launched
+    iput-object v0, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
     iget-object v0, p0, Lacceptance/shizuku/CapabilityInstrumentation;->phase:Ljava/lang/String;
     const-string v1, "missing"
     invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
@@ -636,12 +886,28 @@
     const-string v1, "retained-example"
     invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
     move-result v1
-    if-eqz v1, :authorization
+    if-eqz v1, :network
     const/4 v1, 0x0
     const-string v2, "FAIL retained-source control requires absent Shizuku"
     invoke-static {v1, v2}, Lacceptance/shizuku/CapabilityInstrumentation;->waitState(ILjava/lang/String;)V
     invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->waitExampleDocument()V
     const-string v7, "PASS installed native retained Example Domain reopened with Shizuku unavailable"
+    goto :success
+  :network
+    const-string v1, "network-navigation"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :offline_network
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->networkNavigation()V
+    const-string v7, "PASS installed actual link acquisition Back Forward Unicode source clipboard reflow and scrolling"
+    goto :success
+  :offline_network
+    const-string v1, "offline-network-history"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :authorization
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->offlineNetworkHistory()V
+    const-string v7, "PASS installed retained three-document Back Forward without Shizuku"
     goto :success
   :authorization
     const-string v1, "authorize"
