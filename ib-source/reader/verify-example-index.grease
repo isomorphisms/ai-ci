@@ -1,0 +1,31 @@
+#!/usr/bin/env grease
+# Literal independent expectation for the one-document installed reader test.
+# This is not a second general history implementation or an admission owner.
+set -eu -o pipefail
+if (len(ARGV) !== 4) { echo 'usage: grease verify-example-index.grease INDEX SOURCE GENERATION NEW_EVIDENCE' >&2; exit 2 }
+var index = ARGV[0]
+var identity = ARGV[1]
+var generation = ARGV[2]
+var evidence = ARGV[3]
+if test -e "$evidence" { echo 'FAIL reused index evidence' >&2; exit 2 }
+mkdir -p "$evidence"
+printf '%s\n' "$identity" | rg -x '[0-9a-f]{48}' > "$evidence/identity.txt"
+printf '%s\n' "$generation" | rg -x '[1-9][0-9]{0,9}' > "$evidence/generation.txt"
+if (int(generation) > 2147483647) { echo 'FAIL native index generation bound' >&2; exit 1 }
+var observed_lines = $(wc -l < "$index")
+if (int(observed_lines) !== 7) { echo 'FAIL native example index framing' >&2; exit 1 }
+var claimed = $(tail -n 1 "$index")
+printf '%s\n' "$claimed" > "$evidence/claimed.txt"
+if ! rg -x '[0-9a-f]{64}' "$evidence/claimed.txt" {
+  echo 'FAIL native example index digest framing' >&2; exit 1
+}
+head -n 6 "$index" > "$evidence/actual-prefix"
+var actual_digest = $(sha256sum "$evidence/actual-prefix" | cut -d ' ' -f 1)
+if (actual_digest !== claimed) {
+  echo 'FAIL native example index digest mismatch' >&2; exit 1
+}
+printf 'IBLAST2\n%s\n%s\nIBH1\n0\n%s\t%s\n' "$identity" "$generation" "$identity" "$generation" > "$evidence/expected-prefix"
+if ! cmp -s "$evidence/expected-prefix" "$evidence/actual-prefix" {
+  echo 'FAIL native example index selected occurrence' >&2; exit 1
+}
+echo 'PASS independent single retained occurrence and complete index digest'

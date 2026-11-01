@@ -1,0 +1,178 @@
+# Completed source/tool recovery is retained for manual replay; active
+# product acceptance and current SDK diagnostics have separate workflows.
+name: Inspect the source-bound IB native reader failure
+on:
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      # Exact compact diagnostic from the changed-source Windows decoder run.
+      # This reads only the verified fresh emulator's public Example fixture.
+      # Candidate: isomorphisms/ib fabac08af063a923e50448b696c900b4a0f89caf.
+      # Original ZIP SHA-256: 9d859291b206e2476d42d6a8845e1ee1b0762bef0040d32aeac2b0f5677a4eed.
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          repository: isomorphisms/ib
+          github-token: ${{ github.token }}
+          run-id: 41279724988
+          artifact-ids: '13074170263'
+          merge-multiple: true
+          path: ${{ runner.temp }}/failed-IB
+      - name: Read the actual SDK refusal and source-completion stages
+        shell: sh
+        run: grep -E 'IBIndependentReaderStatus|committed source acquired=|checked renderer callback' "$RUNNER_TEMP/failed-IB/observed-api29/installed/actual-native-document.logcat.txt"
+      - name: List the independent public-source snapshot
+        shell: sh
+        run: tar -tzf "$RUNNER_TEMP/failed-IB/observed-api29/installed/actual-native-document.failure-source.tar.gz"
+      - name: Read original response receipt observations
+        shell: sh
+        run: tar -xOzf "$RUNNER_TEMP/failed-IB/observed-api29/installed/actual-native-document.failure-source.tar.gz" --wildcards './receipts/*.tsv'
+      - name: Extract the independently retained public source
+        shell: sh
+        run: tar -xzf "$RUNNER_TEMP/failed-IB/observed-api29/installed/actual-native-document.failure-source.tar.gz" -C "$RUNNER_TEMP/failed-IB"
+      - name: Read the observed 577-byte public source for extraction diagnosis
+        shell: sh
+        run: dd if="$RUNNER_TEMP/failed-IB/responses.arena" bs=1 count=577 status=none
+      - name: Read the acknowledged immutable source and history index
+        shell: sh
+        run: cat "$RUNNER_TEMP/failed-IB/last-source"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ib-native-diagnostics-fabac08
+          path: ${{ runner.temp }}/failed-IB
+          if-no-files-found: error
+  oracles:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      # Read-only retrieval of independent tools from exact IB head 175fdbf.
+      # Original ZIP SHA-256: 373de2dfaab75015796e2e5b3cb654ed01671305c9abfe99cec25d1917762e33.
+      # This candidate failed the reader test. No application acceptance is
+      # inferred from extracting its already hash-pinned independent tools.
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          repository: isomorphisms/ib
+          github-token: ${{ github.token }}
+          run-id: 41268776178
+          artifact-ids: '13069265407'
+          merge-multiple: true
+          path: ${{ runner.temp }}/IB-tools
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ib-independent-tools-175fdbf
+          path: |
+            ${{ runner.temp }}/IB-tools/oracles/baksmali.jar
+            ${{ runner.temp }}/IB-tools/oracles/smali.jar
+            ${{ runner.temp }}/IB-tools/platform-inputs/public-test-keystore
+            ${{ runner.temp }}/IB-tools/platform-inputs/shizuku-official.apk
+          if-no-files-found: error
+  recover:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      # Exact commit source only. No checkout retains authentication.
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphisms/ib
+          ref: 8eb2a1eff42cef1371b8ff064cd2c23d1da89ca9
+          path: source/ib
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphisms/android-NDK
+          ref: b0f135d7d3536093874fdcae62cf57520f6f1af3
+          path: source/android-NDK
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphisms/Idric
+          ref: 740bbf2b1d9e811fd00c719c3473eede17ceea3b
+          path: source/Idric
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphisms/ai-ci
+          ref: d62e6fe89f944585052cfc626e9c51dd1133034c
+          path: source/ai-ci
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: dilapidated-shed/icu
+          ref: 5b0ab280c3f2613ab933ed230b5cc50f50b9613f
+          path: source/icu
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: dilapidated-shed/Idric-Net
+          ref: b21801b72acb8ab835c297bbe298af8599550134
+          path: source/Idric-Net
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphisms/sd-card-append-fat
+          ref: 05a0cb7246c5a9f46abfbe92925812e7b607f454
+          path: source/appendfat
+          persist-credentials: false
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ib-campaign-exact-source-checkouts
+          path: source
+          include-hidden-files: true
+          if-no-files-found: error
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          repository: isomorphisms/ib
+          github-token: ${{ github.token }}
+          run-id: 41263232232
+          artifact-ids: '13066916697'
+          merge-multiple: true
+          path: ${{ runner.temp }}/trace-IB
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ib-exact-frontend-replay-6d50def
+          path: ${{ runner.temp }}/trace-IB/frontend-replay.tar.gz
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ib-exact-backend-replay-6d50def
+          path: ${{ runner.temp }}/trace-IB/backend-replay.tar.gz
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ib-trace-art-diagnostics-6d50def
+          path: |
+            ${{ runner.temp }}/trace-IB/art-api29/*.logcat.txt
+            ${{ runner.temp }}/trace-IB/art-api29/*.txt
+            ${{ runner.temp }}/trace-IB/art-api29/*.exit
+            ${{ runner.temp }}/trace-IB/replay-bundles.sha256
+          if-no-files-found: error
+  decoding:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      # Exact full candidate artifact is needed for the independent ART
+      # positive decoder's captured runtime failure, not source reconstruction.
+      # ZIP SHA-256: c4e320875a83c8f7659f58ef3ab529b17e410ba3bfe76244a4ad7fec3a8b906e.
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          repository: isomorphisms/ib
+          github-token: ${{ github.token }}
+          run-id: 41279724988
+          artifact-ids: '13073378636'
+          merge-multiple: true
+          path: ${{ runner.temp }}/decoder-IB
+      - name: Read the independent positive decoder ART exception
+        shell: sh
+        run: grep -E 'AndroidRuntime:|FATAL EXCEPTION|VerifyError' "$RUNNER_TEMP/decoder-IB/observed-api29/core/prepaint-DecodedSource.logcat.txt"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ib-decoder-runtime-fabac08
+          path: |
+            ${{ runner.temp }}/decoder-IB/observed-api29/core/prepaint-DecodedSource.*
+            ${{ runner.temp }}/decoder-IB/observed-api34/core/prepaint-DecodedSource.*
+          if-no-files-found: error

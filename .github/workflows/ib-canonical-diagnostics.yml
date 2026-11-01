@@ -1,0 +1,88 @@
+name: Inspect exact IB reader SDK diagnostics
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/ib-canonical-diagnostics.yml'
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: read
+concurrency:
+  group: ib-reader-diagnostics-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  navigation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      # Exact IB eaa430ab maintained checked SEARCH/Activity source.
+      # Public controlled fixture; read-only diagnostic, not acceptance.
+      # Original ZIP SHA-256 295265e43d1ad0b1dad2ba5825aad27074405ba397f8ab66fc2d209f86384616.
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          repository: isomorphisms/ib
+          github-token: ${{ github.token }}
+          run-id: 41293789306
+          artifact-ids: '13078454294'
+          merge-multiple: true
+          path: ${{ runner.temp }}/reader-SDK
+      - name: Read the exact failed native navigation stage
+        shell: sh
+        run: cat "$RUNNER_TEMP/reader-SDK/observed-api34/navigation/actual-link-history.txt"
+      - name: Read bounded actual observer and framework failure evidence
+        shell: sh
+        run: grep -m 160 -E 'AssertionError|at acceptance[.]|IBIndependent|FATAL EXCEPTION|IBReader|IBSource|IBWorker|IBIngress' "$RUNNER_TEMP/reader-SDK/observed-api34/navigation/actual-link-history.logcat.txt"
+
+      - name: Inspect retained index cursor without changing acceptance
+        shell: sh
+        run: |
+          index="$RUNNER_TEMP/reader-SDK/observed-api29/navigation/actual-arena/last-source"
+          if test -f "$index"; then
+            printf 'Recorded index header, cursor and retained occurrences (public fixture only):\n'
+            sed -n '1,8p' "$index"
+            printf 'Expected three-document cursor: 2; recorded cursor: '
+            sed -n '5p' "$index"
+          else
+            printf 'Retained index was not present in this selected source-bound artifact.\n'
+          fi
+      - name: Retain bounded failed-window evidence for cause classification
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ib-eaa430ab-observer-window-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            ${{ runner.temp }}/reader-SDK/observed-api29/navigation/actual-arena/last-source
+            ${{ runner.temp }}/reader-SDK/observed-api29/navigation/index-positive.txt
+            ${{ runner.temp }}/reader-SDK/observed-api34/navigation/actual-link-history.txt
+            ${{ runner.temp }}/reader-SDK/observed-api34/navigation/actual-link-history.png
+            ${{ runner.temp }}/reader-SDK/observed-api34/navigation/actual-link-history.logcat.txt
+          if-no-files-found: warn
+
+      - name: Compare exact independent cursor prefixes byte for byte
+        shell: sh
+        run: |
+          root="$RUNNER_TEMP/reader-SDK/observed-api29/navigation/index-positive"
+          observed="$root/actual-prefix"
+          expected="$root/expected-prefix"
+          if test -f "$observed" && test -f "$expected"; then
+            printf 'Observed and expected digest/byte count:\n'
+            sha256sum "$observed" "$expected"
+            wc -c "$observed" "$expected"
+            printf 'Independent comparator byte differences (do not alter acceptance):\n'
+            cmp -l "$observed" "$expected" || true
+            printf 'Expected prefix escaped-byte record:\n'
+            od -An -c "$expected"
+            printf 'Observed prefix escaped-byte record:\n'
+            od -An -c "$observed"
+          else
+            printf 'Independent comparison files were not in the selected immutable artifact.\n'
+          fi
+      - name: Retain independent oracle byte-comparison evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ib-eaa430ab-index-prefixes-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            ${{ runner.temp }}/reader-SDK/observed-api29/navigation/index-positive/actual-prefix
+            ${{ runner.temp }}/reader-SDK/observed-api29/navigation/index-positive/expected-prefix
+          if-no-files-found: warn

@@ -1,0 +1,62 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 6) { echo 'usage: grease verify-encoding-index.grease AICI ARENA INDEX PRIOR_THREE_INDEX FIXTURES NEW_EVIDENCE' >&2; exit 2 }
+var repository = ARGV[0]
+var root = ARGV[1]
+var index = ARGV[2]
+var prior = ARGV[3]
+var fixtures = ARGV[4]
+var evidence = ARGV[5]
+var grease = ENV.IB_GREASE
+for path in "$repository" "$root" "$index" "$prior" "$fixtures" "$evidence" {
+  if (len(path) === 0 or path[0] !== '/') { exit 2 }
+}
+if test -e "$evidence" { echo 'FAIL reused encoding index evidence' >&2; exit 2 }
+mkdir -p "$evidence"
+"$grease" "$repository/ib-source/reader/verify-network-index.grease" \
+  "$repository" "$root" "$prior" "$fixtures" "$evidence/previous-sources"
+var lines = $(wc -l < "$index")
+if (int(lines) !== 11) { echo 'FAIL encoded five-document index framing' >&2; exit 1 }
+head -n 10 "$index" > "$evidence/prefix"
+var claimed = $(tail -n 1 "$index")
+printf '%s\n' "$claimed" > "$evidence/claimed"
+rg -x '[0-9a-f]{64}' "$evidence/claimed"
+var actual = $(sha256sum "$evidence/prefix" | cut -d ' ' -f 1)
+if (actual !== claimed) { echo 'FAIL encoded index digest mismatch' >&2; exit 1 }
+sed -n '6,8p' "$index" > "$evidence/first-three"
+sed -n '6,8p' "$prior" > "$evidence/prior-three"
+cmp "$evidence/first-three" "$evidence/prior-three"
+sed -n '6,10p' "$index" > "$evidence/entries"
+awk -F '\t' 'NF!=2 || length($1)!=48 || $1!~/^[0-9a-f]+$/ || $2!~/^[1-9][0-9]*$/ || length($2)>10 || $2+0>2147483647 {exit 1}' "$evidence/entries"
+cut -f 1 "$evidence/entries" | sort -u > "$evidence/identities"
+var distinct = $(wc -l < "$evidence/identities")
+if (int(distinct) !== 5) { echo 'FAIL encoded sources reused identities' >&2; exit 1 }
+var windows = $(sed -n '9p' "$index")
+var latin = $(sed -n '10p' "$index")
+var selected_id = $(printf '%s\n' "$latin" | cut -f 1)
+var selected_generation = $(printf '%s\n' "$latin" | cut -f 2)
+printf 'IBLAST2\n%s\n%s\nIBH1\n4\n' "$selected_id" "$selected_generation" > "$evidence/expected-prefix"
+cat "$evidence/entries" >> "$evidence/expected-prefix"
+if ! cmp -s "$evidence/expected-prefix" "$evidence/prefix" { echo 'FAIL encoded selected occurrence' >&2; exit 1 }
+proc verify_entry(row, name, charset) {
+  var identity = $(printf '%s\n' "$row" | cut -f 1)
+  var generation = $(printf '%s\n' "$row" | cut -f 2)
+  "$grease" "$repository/ib-source/reader/verify-decoder-original.grease" \
+    "$repository" "$root" "$identity" "$generation" "http://10.0.2.2:18491/$name" "$charset" \
+    "$fixtures/bodies/$name.hex" "$evidence/$name" > "$evidence/$name.txt" 2>&1
+  cat "$evidence/$name.txt"
+}
+verify_entry "$windows" windows-1252 windows-1252
+verify_entry "$latin" latin-1 iso-8859-1
+var windows_id = $(printf '%s\n' "$windows" | cut -f 1)
+var windows_generation = $(printf '%s\n' "$windows" | cut -f 2)
+try {
+  "$grease" "$repository/ib-source/reader/verify-decoder-original.grease" \
+    "$repository" "$root" "$windows_id" "$windows_generation" http://10.0.2.2:18491/windows-1252 iso-8859-1 \
+    "$fixtures/bodies/windows-1252.hex" "$evidence/wrong-label" > "$evidence/wrong-label.txt" 2>&1
+}
+var result = _error.code
+cat "$evidence/wrong-label.txt"
+if (result !== 1) { echo 'FAIL encoding label control missed its assertion' >&2; exit 1 }
+rg -x -F 'FAIL original source field charset' "$evidence/wrong-label.txt"
+echo 'PASS independent original non-UTF-8 bytes metadata identity generation digest and ordered retained history'

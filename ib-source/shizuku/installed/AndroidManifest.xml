@@ -1,0 +1,13 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.isomorphisms.ib.acceptance" android:versionCode="1" android:versionName="1">
+    <uses-sdk android:minSdkVersion="29" android:targetSdkVersion="34" />
+    <queries>
+        <package android:name="org.isomorphisms.ib.prepaint" />
+        <package android:name="moe.shizuku.privileged.api" />
+    </queries>
+    <application android:label="Independent IB boundary observer" android:allowBackup="false" />
+    <instrumentation android:name="acceptance.shizuku.CapabilityInstrumentation"
+        android:targetPackage="org.isomorphisms.ib.prepaint" />
+    <instrumentation android:name="acceptance.shizuku.ProviderIntruder"
+        android:targetPackage="org.isomorphisms.ib.acceptance" />
+</manifest>
