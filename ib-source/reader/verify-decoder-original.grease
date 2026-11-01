@@ -118,8 +118,7 @@ if (int(pointer) > int(allocation)) { echo 'FAIL original source commit pointer'
 expect received_length "$length"
 if (continued) {
   var declared = $(field declared_length)
-  if (observed_transfer === 'chunked') { expect declared_length -1 }
-  elif (declared !== '-1' and declared !== length) { echo 'FAIL original source declared length' >&2; exit 1 }
+  if (observed_transfer === 'chunked') { expect declared_length -1 } elif (declared !== '-1' and declared !== length) { echo 'FAIL original source declared length' >&2; exit 1 }
 } elif (captured) { expect declared_length -1 } else { expect declared_length "$length" }
 dd "if=$root/responses.arena" "of=$evidence/body" bs=65536 iflag=skip_bytes,count_bytes \
   "skip=$offset" "count=$length" status=none
