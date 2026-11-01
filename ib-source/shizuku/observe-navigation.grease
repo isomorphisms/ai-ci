@@ -1,7 +1,7 @@
 #!/usr/bin/env grease
 # Required continuation after the complete installed-reader observer succeeds.
 set -eu -o pipefail
-if (len(ARGV) !== 8 and len(ARGV) !== 9) { echo 'usage: grease observe-navigation.grease AICI INPUT SDK ICK ADB SERIAL INSTALLED_EVIDENCE NEW_EVIDENCE [reader-v2|reader-v3]' >&2; exit 2 }
+if (len(ARGV) !== 8 and len(ARGV) !== 9) { echo 'usage: grease observe-navigation.grease AICI INPUT SDK ICK ADB SERIAL INSTALLED_EVIDENCE NEW_EVIDENCE [reader-v2|reader-v3|reader-v4]' >&2; exit 2 }
 var repository = ARGV[0]
 var input = ARGV[1]
 var sdk = ARGV[2]
@@ -12,7 +12,8 @@ var installed = ARGV[6]
 var evidence = ARGV[7]
 var grease = ENV.IB_GREASE
 var reader_v2 = len(ARGV) === 9
-var reader_v3 = reader_v2 and ARGV[8] === 'reader-v3'
+var reader_v4 = reader_v2 and ARGV[8] === 'reader-v4'
+var reader_v3 = reader_v2 and (ARGV[8] === 'reader-v3' or reader_v4)
 if (reader_v2 and ARGV[8] !== 'reader-v2' and not reader_v3) { echo 'FAIL unknown navigation profile' >&2; exit 2 }
 for path in "$repository" "$input" "$sdk" "$compiler" "$adb" "$installed" "$evidence" {
   if (len(path) === 0 or path[0] !== '/') { exit 2 }
@@ -100,6 +101,47 @@ rg -x -F Success "$evidence/update.txt"
 var updated_uid = $("$adb" -s "$serial" shell pm list packages -U org.isomorphisms.ib.prepaint | tr -d '\r')
 if (updated_uid !== uid) { echo 'FAIL retained navigation update changed UID' >&2; exit 1 }
 observe offline-network-history updated-history 'PASS installed retained three-document Back Forward without Shizuku'
+if (reader_v4) {
+  "$adb" -s "$serial" shell am force-stop org.isomorphisms.ib.prepaint
+  "$adb" -s "$serial" root > "$evidence/recovery-root.txt" 2>&1
+  timeout 30 "$adb" -s "$serial" wait-for-device
+  "$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 0
+  "$adb" -s "$serial" pull /data/user/0/org.isomorphisms.ib.prepaint/files/arena "$evidence/pre-recovery-arena"
+  chmod 700 "$evidence/pre-recovery-arena"
+  mkdir -m 700 "$evidence/pre-recovery-arena/staging"
+  "$grease" "$repository/ib-source/reader/verify-network-index.grease" "$repository" \
+    "$evidence/pre-recovery-arena" "$evidence/pre-recovery-arena/last-source" "$fixtures" "$evidence/pre-recovery-positive" \
+    > "$evidence/pre-recovery-positive.txt" 2>&1
+  cat "$evidence/pre-recovery-positive.txt"
+  var prior_one = $(sed -n '7p' "$evidence/pre-recovery-arena/last-source")
+  var prior_id = $(printf '%s\n' "$prior_one" | cut -f 1)
+  var prior_generation = $(printf '%s\n' "$prior_one" | cut -f 2)
+  printf 'IBLAST2\n%s\n%s\nIBH1\n1\n' "$prior_id" "$prior_generation" > "$evidence/expected-previous-prefix"
+  sed -n '6,8p' "$evidence/pre-recovery-arena/last-source" >> "$evidence/expected-previous-prefix"
+  var prior_digest = $(sha256sum "$evidence/expected-previous-prefix" | cut -d ' ' -f 1)
+  cp "$evidence/expected-previous-prefix" "$evidence/expected-previous"
+  printf '%s\n' "$prior_digest" >> "$evidence/expected-previous"
+  cmp "$evidence/expected-previous" "$evidence/pre-recovery-arena/last-source.previous"
+  head -n 8 "$evidence/pre-recovery-arena/last-source" | sed '5s/^2$/1/' > "$evidence/recovery-corrupted-prefix"
+  if cmp -s "$evidence/pre-recovery-positive/actual-prefix" "$evidence/recovery-corrupted-prefix" {
+    echo 'FAIL unchanged journal corruption' >&2; exit 1
+  }
+  var altered_digest = $(sha256sum "$evidence/recovery-corrupted-prefix" | cut -d ' ' -f 1)
+  cp "$evidence/recovery-corrupted-prefix" "$evidence/recovery-forged-index"
+  printf '%s\n' "$altered_digest" >> "$evidence/recovery-forged-index"
+  var device_uid = $("$adb" -s "$serial" shell pm list packages -U org.isomorphisms.ib.prepaint | tr -d '\r' | sed -n 's/^package:org.isomorphisms.ib.prepaint uid:\([0-9][0-9]*\)$/\1/p')
+  printf '%s\n' "$device_uid" | rg -x '[1-9][0-9]{4,}'
+  "$adb" -s "$serial" push "$evidence/recovery-forged-index" /data/user/0/org.isomorphisms.ib.prepaint/files/arena/last-source
+  "$adb" -s "$serial" shell chown "$device_uid:$device_uid" /data/user/0/org.isomorphisms.ib.prepaint/files/arena/last-source
+  "$adb" -s "$serial" shell chmod 600 /data/user/0/org.isomorphisms.ib.prepaint/files/arena/last-source
+  "$adb" -s "$serial" pull /data/user/0/org.isomorphisms.ib.prepaint/files/arena/last-source "$evidence/installed-forged-index"
+  cmp "$evidence/recovery-forged-index" "$evidence/installed-forged-index"
+  "$adb" -s "$serial" unroot > "$evidence/recovery-unroot.txt" 2>&1
+  timeout 30 "$adb" -s "$serial" wait-for-device
+  "$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 2000
+  observe corrupt-history-recovered recovered-journal 'PASS installed checksummed journal corruption recovers previous source and offline history'
+  diagnose after-journal-recovery
+}
 "$adb" -s "$serial" shell am force-stop org.isomorphisms.ib.prepaint
 "$adb" -s "$serial" root > "$evidence/snapshot-root.txt" 2>&1
 timeout 30 "$adb" -s "$serial" wait-for-device
@@ -137,4 +179,9 @@ if (reader_v2) {
 
 if (reader_v3) {
   printf 'TLS_plaintext_endpoint\tREJECTED\nunsupported_charset_and_invalid_UTF8\tREJECTED\nbinary_MIME\tREJECTED\ntruncated_and_gzip_encoded_payload\tREJECTED\nmalformed_and_excessive_chunk\tREJECTED\nall_refusals_keep_exact_source_copy_and_history\tPASS\ncertificate_trust_negative\tNOT_RUN\n' >> "$evidence/receipt.tsv"
+}
+
+if (reader_v4) {
+  cmp "$evidence/pre-recovery-arena/responses.arena" "$evidence/actual-arena/responses.arena"
+  printf 'checksummed_semantic_journal_corruption\tREJECTED\nprevious_head_visible_recovery\tPASS\no_refetch_during_recovery\tPASS\noriginal_Arena_bytes_unchanged\tPASS\n' >> "$evidence/receipt.tsv"
 }
