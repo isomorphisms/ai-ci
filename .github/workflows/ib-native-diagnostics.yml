@@ -143,3 +143,28 @@ jobs:
             ${{ runner.temp }}/trace-IB/art-api29/*.exit
             ${{ runner.temp }}/trace-IB/replay-bundles.sha256
           if-no-files-found: error
+  decoding:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      # Exact full candidate artifact is needed for the independent ART
+      # positive decoder's captured runtime failure, not source reconstruction.
+      # ZIP SHA-256: c4e320875a83c8f7659f58ef3ab529b17e410ba3bfe76244a4ad7fec3a8b906e.
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          repository: isomorphisms/ib
+          github-token: ${{ github.token }}
+          run-id: 41279724988
+          artifact-ids: '13073378636'
+          merge-multiple: true
+          path: ${{ runner.temp }}/decoder-IB
+      - name: Read the independent positive decoder ART exception
+        shell: sh
+        run: grep -E 'AndroidRuntime:|FATAL EXCEPTION|VerifyError' "$RUNNER_TEMP/decoder-IB/observed-api29/core/prepaint-DecodedSource.logcat.txt"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ib-decoder-runtime-fabac08
+          path: |
+            ${{ runner.temp }}/decoder-IB/observed-api29/core/prepaint-DecodedSource.*
+            ${{ runner.temp }}/decoder-IB/observed-api34/core/prepaint-DecodedSource.*
+          if-no-files-found: error
