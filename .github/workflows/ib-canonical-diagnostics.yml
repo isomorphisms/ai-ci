@@ -32,3 +32,28 @@ jobs:
       - name: Read bounded actual observer and framework failure evidence
         shell: sh
         run: grep -m 160 -E 'AssertionError|at acceptance[.]|IBIndependent|FATAL EXCEPTION|IBReader|IBSource|IBWorker|IBIngress' "$RUNNER_TEMP/reader-SDK/observed-api34/navigation/actual-link-history.logcat.txt"
+
+      - name: Inspect retained index cursor without changing acceptance
+        shell: sh
+        run: |
+          index="$RUNNER_TEMP/reader-SDK/observed-api29/navigation/actual-arena/last-source"
+          if test -f "$index"; then
+            printf 'Recorded index header, cursor and retained occurrences (public fixture only):\n'
+            sed -n '1,8p' "$index"
+            printf 'Expected three-document cursor: 2; recorded cursor: '
+            sed -n '5p' "$index"
+          else
+            printf 'Retained index was not present in this selected source-bound artifact.\n'
+          fi
+      - name: Retain bounded failed-window evidence for cause classification
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ib-eaa430ab-observer-window-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            ${{ runner.temp }}/reader-SDK/observed-api29/navigation/actual-arena/last-source
+            ${{ runner.temp }}/reader-SDK/observed-api29/navigation/index-positive.txt
+            ${{ runner.temp }}/reader-SDK/observed-api34/navigation/actual-link-history.txt
+            ${{ runner.temp }}/reader-SDK/observed-api34/navigation/actual-link-history.png
+            ${{ runner.temp }}/reader-SDK/observed-api34/navigation/actual-link-history.logcat.txt
+          if-no-files-found: warn
