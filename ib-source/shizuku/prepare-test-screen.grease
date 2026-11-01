@@ -20,7 +20,8 @@ mkdir -p "$evidence"
 # Reader/system focus assertions remain unchanged; never dismiss reader ANRs.
 "$adb" -s "$serial" shell cmd package resolve-activity --brief \
   -a android.intent.action.MAIN -c android.intent.category.HOME > "$evidence/home-activity.txt"
-if tr -d '\r' < "$evidence/home-activity.txt" | rg -q -x 'com\.google\.android\.apps\.nexuslauncher/[A-Za-z0-9_.$]+' {
+tr -d '\r' < "$evidence/home-activity.txt" > "$evidence/home-activity.normalized.txt"
+if rg -q -x 'com\.google\.android\.apps\.nexuslauncher/[A-Za-z0-9_.$]+' "$evidence/home-activity.normalized.txt" {
   "$adb" -s "$serial" shell am force-stop com.google.android.apps.nexuslauncher > "$evidence/stop-observed-launcher.txt" 2>&1
 }
 "$adb" -s "$serial" shell dumpsys power > "$evidence/after.power.txt"
