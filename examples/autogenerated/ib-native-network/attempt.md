@@ -98,3 +98,20 @@ exact text (1 through 8). The source label, sentinel replacement, full expected
 source string and both mode choices remain required. These observations do
 not qualify clipboard or link behavior until the new unchanged-candidate
 replay succeeds.
+
+
+At observer 693df653/run 41291043724, both APIs pass real SDK selection,
+exact source clipboard in both visible modes, offline reopen, replacement
+update and emulator reboot against unchanged IB 0592dd8e. The host index
+verifier then stops at a pipeline used as a command conditional (Grease
+strict_errexit, OILS-ERR-300). This is an orchestration defect, not observed
+source corruption. Its digest framing now writes the value first and tests
+one rg command. Strict mode, exact checksum and literal selected occurrence
+remain required.
+
+A host smoke check now executes that exact oracle before Android, with a
+literal valid seven-line index and changed-byte, correctly rehashed wrong
+cursor, invalid-digest and extra-line controls. Each has a designated exit
+and marker, preventing Grease runtime refusal from being accepted as semantic
+mutation rejection. The fixture is host-only; it makes no acquisition,
+canonical-write, Android or physical-device claim.

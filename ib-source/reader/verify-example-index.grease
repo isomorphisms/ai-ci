@@ -15,7 +15,8 @@ if (int(generation) > 2147483647) { echo 'FAIL native index generation bound' >&
 var observed_lines = $(wc -l < "$index")
 if (int(observed_lines) !== 7) { echo 'FAIL native example index framing' >&2; exit 1 }
 var claimed = $(tail -n 1 "$index")
-if ! printf '%s\n' "$claimed" | rg -x '[0-9a-f]{64}' > "$evidence/claimed.txt" {
+printf '%s\n' "$claimed" > "$evidence/claimed.txt"
+if ! rg -x '[0-9a-f]{64}' "$evidence/claimed.txt" {
   echo 'FAIL native example index digest framing' >&2; exit 1
 }
 head -n 6 "$index" > "$evidence/actual-prefix"

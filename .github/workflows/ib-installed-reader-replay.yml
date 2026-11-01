@@ -65,6 +65,9 @@ jobs:
         run: |
           .tools/runtime/.build/grease/bin/grease -c 'sudo apt-get update
           sudo apt-get install --no-install-recommends -y ripgrep'
+      - name: Execute the index oracle and corruption controls before Android
+        shell: sh
+        run: .tools/runtime/.build/grease/bin/grease ib-source/reader/test-example-index.grease "$GITHUB_WORKSPACE" "$RUNNER_TEMP/ib-installed-replay/index-host"
       - name: Prepare emulator KVM access
         shell: sh
         run: .tools/runtime/.build/grease/bin/grease -c 'sudo chmod 666 /dev/kvm'
@@ -106,4 +109,5 @@ jobs:
             ${{ runner.temp }}/ib-installed-replay/observed/*.failure-source.tar.gz
             ${{ runner.temp }}/ib-installed-replay/observed/*.exit
             ${{ runner.temp }}/ib-installed-replay/navigation
+            ${{ runner.temp }}/ib-installed-replay/index-host
           if-no-files-found: warn
