@@ -463,14 +463,14 @@
 .end method
 
 # Android returns false when ACTION_SET_SELECTION requests the existing
-# range. Establish and independently observe an empty selection first; the
+# range. Request SDK removal and independently observe an empty range first; the
 # following full-range action must still return true and update the SDK range.
 .method private clearSourceSelection(Landroid/view/accessibility/AccessibilityNodeInfo;)V
     .registers 6
     new-instance v0, Landroid/os/Bundle;
     invoke-direct {v0}, Landroid/os/Bundle;-><init>()V
     const-string v1, "ACTION_ARGUMENT_SELECTION_START_INT"
-    const/4 v2, 0x0
+    const/4 v2, -0x1
     invoke-virtual {v0, v1, v2}, Landroid/os/Bundle;->putInt(Ljava/lang/String;I)V
     const-string v1, "ACTION_ARGUMENT_SELECTION_END_INT"
     invoke-virtual {v0, v1, v2}, Landroid/os/Bundle;->putInt(Ljava/lang/String;I)V
@@ -482,10 +482,11 @@
     if-eqz v0, :failed
     invoke-virtual {p1}, Landroid/view/accessibility/AccessibilityNodeInfo;->getTextSelectionStart()I
     move-result v0
-    if-nez v0, :failed
     invoke-virtual {p1}, Landroid/view/accessibility/AccessibilityNodeInfo;->getTextSelectionEnd()I
-    move-result v0
-    if-nez v0, :failed
+    move-result v1
+    if-ne v0, v1, :failed
+    const/4 v2, -0x1
+    if-lt v0, v2, :failed
     return-void
   :failed
     const-string v0, "FAIL actual SDK empty selection precondition"

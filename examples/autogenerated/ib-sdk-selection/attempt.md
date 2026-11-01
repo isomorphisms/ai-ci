@@ -11,9 +11,9 @@ declared proven.
 Primary platform source:
 https://github.com/aosp-mirror/platform_frameworks_base/blob/android-14.0.0_r1/core/java/android/widget/TextView.java#L14276
 
-The observer now establishes a collapsed [0,0] selection through the real
+The observer now requests the SDK's explicit [-1,-1] selection removal through its real
 SDK action, waits for the UI queue, refreshes its actual AccessibilityNode,
-and requires the independently observed empty range. It then requires
+and requires the independently observed range to be empty (absent or collapsed). It then requires
 the original full-range ACTION_SET_SELECTION to return true, refreshes
 again and verifies exactly [0, UTF16 display length] before invoking COPY.
 The stale clipboard sentinel, owned source-selection label, exact source
@@ -44,3 +44,10 @@ No earlier or later passing checkpoint is transferred to those failed jobs.
 The first 231/84007 byte scaled consumer still fails on both APIs with the
 old backend. Its reusable compiler repair remains independently qualified
 before being pinned into IB. Physical TAB_P10 remains BLOCKED / NOT_RUN.
+
+The SDK removal branch is used explicitly instead of a [0,0] request:
+a collapsed-position request also starts selection action mode asynchronously.
+The normalizing action's Boolean is not treated as proof; the actual refreshed
+start/end must be equal and at least -1. The original full-selection action
+must still report true and expose exactly [0, display length], followed by
+the exact source-owned clipboard result. No failure is converted into PASS.
