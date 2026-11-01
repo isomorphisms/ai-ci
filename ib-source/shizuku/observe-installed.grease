@@ -13,6 +13,7 @@ var adb = ARGV[6]
 var serial = ARGV[7]
 var evidence = ARGV[8]
 var grease = ENV.IB_GREASE
+if ! command -v rg > /dev/null { echo 'FAIL required independent verifier ripgrep is unavailable' >&2; exit 2 }
 var reader = false
 if (len(ARGV) === 10) {
   if (ARGV[9] !== 'reader') { echo 'FAIL unknown installed observer mode' >&2; exit 2 }

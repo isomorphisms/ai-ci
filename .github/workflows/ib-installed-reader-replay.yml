@@ -46,6 +46,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: .tools/runtime/.build/grease/bin/grease ib-source/reader/prepare-installed-replay.grease "$GITHUB_WORKSPACE" "$RUNNER_TEMP/ib-installed-replay"
+      - name: Install the independent observer's declared text verifier
+        shell: sh
+        run: |
+          .tools/runtime/.build/grease/bin/grease -c 'sudo apt-get update
+          sudo apt-get install --no-install-recommends -y ripgrep'
       - name: Prepare emulator KVM access
         shell: sh
         run: .tools/runtime/.build/grease/bin/grease -c 'sudo chmod 666 /dev/kvm'
