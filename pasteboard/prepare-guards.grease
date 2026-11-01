@@ -75,7 +75,7 @@ cp "$stage/qualification/receipt.tsv" "$output/ick-qualification.tsv"
 cp "$sdk/ndk/27.2.12479018/source.properties" "$output/ndk-source.properties"
 cp "$consumer/build/pasteboard-apks/pasteboard-x86_64.receipt.tsv" "$output/positive-apk.receipt.tsv"
 cp "$repository/pasteboard/observe-provenance.grease" "$output/observe-provenance.grease"
-for kind in exposed-provider uid-bypass {
+for kind in exposed-provider uid-bypass capability-bypass {
   var source = "$output/$kind-source"
   mkdir -p "$source"
   git -C "$consumer" archive HEAD | tar -x -C "$source"
@@ -92,11 +92,18 @@ for kind in exposed-provider uid-bypass {
     sed 's/for (unsigned i = 0; i < 5; ++i)/for (unsigned i = 0; i < 3; ++i)/' "$client" > "$source/changed-client.c"
     if cmp -s "$client" "$source/changed-client.c" { echo 'FAIL provider contract mutation did not change source' >&2; exit 1 }
     mv "$source/changed-client.c" "$client"
-  } else {
+  } elif (kind === 'uid-bypass') {
     sed 's/caller != 2000u || token/caller == (uid_t)-1 || token/' "$observer" > "$source/changed.c"
     if cmp -s "$observer" "$source/changed.c" { echo 'FAIL UID mutation did not change source' >&2; exit 1 }
     mv "$source/changed.c" "$observer"
     rg -q -F 'caller == (uid_t)-1 || token' "$observer"
+  } else {
+    # Retain actual shell UID, Android permission and live Shizuku checks, but
+    # deliberately remove the independent private-credential comparison.
+    sed 's/if (difference != 0u) return 0;/if (0) return 0;/' "$observer" > "$source/changed.c"
+    if cmp -s "$observer" "$source/changed.c" { echo 'FAIL capability mutation did not change source' >&2; exit 1 }
+    mv "$source/changed.c" "$observer"
+    rg -q -F 'if (0) return 0;' "$observer"
   }
   git -C "$source" init --initial-branch=controlled-negative-fixture > "$output/$kind.git.txt"
   git -C "$source" add -A
@@ -112,5 +119,5 @@ for kind in exposed-provider uid-bypass {
   sha256sum "$manifest" "$observer" "$client" "$output/$kind.apk" > "$output/$kind.sha256.txt"
 }
 git -C "$repository" rev-parse HEAD > "$output/observer-commit.txt"
-printf 'controller_oracle_packaging\tPASS\ncompiled_source_mutants\tPASS\nactual_external_caller_refusal\tNOT_VERIFIED\nactual_UID_guard_mutant_rejection\tNOT_VERIFIED\n' > "$output/preparation.tsv"
+printf 'controller_oracle_packaging\tPASS\ncompiled_source_mutants\tPASS\nactual_external_caller_refusal\tNOT_VERIFIED\nactual_UID_guard_mutant_rejection\tNOT_VERIFIED\nactual_private_capability_guard_mutant_rejection\tNOT_VERIFIED\n' > "$output/preparation.tsv"
 cat "$output/preparation.tsv"

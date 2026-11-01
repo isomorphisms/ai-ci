@@ -19,7 +19,7 @@ var fixture = 'org.isomorphisms.aici.clipboardfixture/android.app.NativeActivity
 "$adb" -s "$serial" shell getprop ro.build.version.sdk | tr -d '\r' | rg -x -F "$api"
 "$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 2000
 "$adb" -s "$serial" shell getprop ro.build.fingerprint > "$output/fingerprint.txt"
-sha256sum "$apk" "$input/guards/controls.apk" "$input/guards/exposed-provider.apk" "$input/guards/uid-bypass.apk" > "$output/sha256.txt"
+sha256sum "$apk" "$input/guards/controls.apk" "$input/guards/exposed-provider.apk" "$input/guards/uid-bypass.apk" "$input/guards/capability-bypass.apk" > "$output/sha256.txt"
 cp "$input/observer-commit.txt" "$output/"
 proc snapshot(label) {
   "$adb" -s "$serial" exec-out run-as "$package" cat files/history.v2 > "$output/$label.bin"
@@ -46,6 +46,24 @@ proc guard(phase, label, expected, result_code) {
   try { rg -q -F "$expected" "$output/$label.txt" }
   if (_error.code !== 0) { diagnose "$label"; cat "$output/$label.txt"; exit 1 }
   try { rg -q -x -F "INSTRUMENTATION_CODE: $result_code" "$output/$label.txt" }
+  if (_error.code !== 0) { diagnose "$label"; cat "$output/$label.txt"; exit 1 }
+}
+proc shell_capability(label, accepted) {
+  # Synthetic invalid credential only. The real private key never enters a
+  # command argument or receipt. Android's shell command retains actual UID
+  # 2000 and exercises the real provider, not a history-model injection.
+  "$adb" -s "$serial" shell content call --uri content://com.isomorphisms.pasteboard.shizuku \
+    --method observer_heartbeat --arg zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz \
+    > "$output/$label.txt" 2>&1
+  # Execute the identical refusal requirement against positive and mutant.
+  # A different failure (including a framework exception) cannot reject it.
+  try { rg -q -x -F 'Result: Bundle[{accepted=-1}]' "$output/$label.txt" }
+  var refusal_result = _error.code
+  var required_result = 0
+  if (int(accepted) === 1) { setvar required_result = 1 }
+  if (refusal_result !== required_result) { diagnose "$label"; cat "$output/$label.txt"; exit 1 }
+  printf 'required_refusal_assertion_exit\t%s\nexpected_assertion_exit\t%s\n' "$refusal_result" "$required_result" > "$output/$label.verdict.tsv"
+  try { rg -q -x -F "Result: Bundle[{accepted=$accepted}]" "$output/$label.txt" }
   if (_error.code !== 0) { diagnose "$label"; cat "$output/$label.txt"; exit 1 }
 }
 proc copy_three(label) {
@@ -104,8 +122,18 @@ automatic uid-mutant
 guard uid uid-mutant 'FAIL unprivileged observer heartbeat accepted' 0
 "$adb" -s "$serial" install -r "$apk" > "$output/restore-uid.txt"
 automatic restored-uid
+snapshot wrong-capability-before
+shell_capability wrong-capability-positive -1
+snapshot wrong-capability-after
+cmp "$output/wrong-capability-before.bin" "$output/wrong-capability-after.bin"
+"$adb" -s "$serial" install -r "$input/guards/capability-bypass.apk" > "$output/capability-mutant-install.txt"
+automatic capability-mutant
+shell_capability capability-mutant 1
+"$adb" -s "$serial" install -r "$apk" > "$output/restore-capability.txt"
+automatic restored-capability
+shell_capability restored-capability -1
 copy_three restored-callbacks
-printf 'real_external_provider_caller_refused\tPASS\ncompiled_exposed_provider_mutant_rejected\tPASS\nreal_application_UID_with_valid_capability_refused\tPASS\ncompiled_UID_bypass_mutant_rejected\tPASS\n' > "$output/result.tsv"
+printf 'real_external_provider_caller_refused\tPASS\ncompiled_exposed_provider_mutant_rejected\tPASS\nreal_application_UID_with_valid_capability_refused\tPASS\ncompiled_UID_bypass_mutant_rejected\tPASS\nreal_shell_UID_with_wrong_capability_refused\tPASS\ncompiled_capability_bypass_mutant_rejected\tPASS\n' > "$output/result.tsv"
 
 # A real SDK value copied during Pause must not appear when capture resumes.
 # Leave that value on Android's clipboard across listener re-registration.

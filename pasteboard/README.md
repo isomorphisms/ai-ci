@@ -36,14 +36,18 @@ the actual APK against the producer receipt and retains the consumer, frontend,
 backend, ICK and NDK identities alongside its result and device fingerprint.
 
 `prepare-guards.grease` builds an independent smali instrumentation controller
-and two deliberate source mutants: an exposed provider and a disabled native
-UID guard. The second control uses a valid private capability inside the
+and three deliberate source mutants: an exposed provider, a disabled native
+UID guard and a disabled private-credential comparison. The UID control uses a valid private capability inside the
 verified emulator and a real unprivileged application caller. Its token never
 enters a shell argument, log, result or artifact. It sends no history event.
 The exposed-provider control also disables the reinforcing native manifest
 permission check and recompiles the actual native source, isolating Android's
 permission gate from application startup validation.
-`observe-controls.grease` requires distinct targeted failures for both mutants,
+The credential control uses the real shell UID and a fixed invalid credential
+which cannot equal the private hex key. It requires explicit provider refusal
+without changing history; the comparison-bypass mutant must expose acceptance
+while retaining the other authorization checks.
+`observe-controls.grease` requires distinct targeted failures for all three mutants,
 then restores the exact positive APK before exercising companion crash,
 reconnection, real manager revocation/regrant, framework expiration and reboot.
 The fixture now confirms the actual clipboard value after every test copy;

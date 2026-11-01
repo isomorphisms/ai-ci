@@ -210,3 +210,18 @@ preserves observer/history diagnostic classes, and diagnoses failure. Ordinary
 background ActivityManager kill must actually retire the original PID before
 restart. No content, order, delivery-count or lifecycle assertion is weakened.
 
+The independent authorization audit adds a separate real-shell wrong-credential
+control. A fixed 64-character non-hex credential cannot equal the app's generated
+hex key; no real credential enters a command argument or receipt. The actual
+Android `content call` must return the provider's explicit refusal and leave
+history unchanged. A newly source-compiled comparison-bypass mutant retains
+Android permission, actual UID 2000 and fresh Shizuku authorization; the same
+call must expose its acceptance. Restoring the candidate must restore refusal
+and exact real A/B/C callback delivery. This closes a qualification gap without
+changing application semantics or accepting history-model injection.
+The platform command explicitly unpacks the returned Bundle before printing
+`Result:`: API 29 source blob `55dbc17dba5d30e9a060f572b8baaebe954e8833`
+and API 34/35 blob `f0ac53014bd37640cd8d80d8a9c1c989346437c6`.
+The identical refusal assertion must exit zero for the candidate and one for
+the compiled mutant; an exception or unrelated command error cannot qualify it.
+
