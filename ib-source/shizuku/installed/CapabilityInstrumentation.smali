@@ -107,6 +107,10 @@
     invoke-interface {v5, v4}, Ljava/util/List;->get(I)Ljava/lang/Object;
     move-result-object v5
     check-cast v5, Landroid/view/accessibility/AccessibilityNodeInfo;
+    # Refresh the SDK snapshot, keeping package/id/cardinality checks unchanged.
+    invoke-virtual {v5}, Landroid/view/accessibility/AccessibilityNodeInfo;->refresh()Z
+    move-result v4
+    if-eqz v4, :retry
     return-object v5
   :retry
     const-wide/16 v7, 0x64
@@ -785,6 +789,13 @@
     const-string v3, " "
     invoke-virtual {v1, v2, v3}, Ljava/lang/String;->replaceAll(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
     move-result-object v1
+    const/4 v4, 0x1
+    if-ne v0, v4, :body_predicate
+    const-string v4, "IBIndependentReadinessBody"
+    invoke-static {v4, v1}, Landroid/util/Log;->e(Ljava/lang/String;Ljava/lang/String;)I
+    const-string v4, "IBIndependentReadinessExpectedBody"
+    invoke-static {v4, p2}, Landroid/util/Log;->e(Ljava/lang/String;Ljava/lang/String;)I
+  :body_predicate
     move-object v2, p2
     invoke-virtual {v1, v2}, Ljava/lang/String;->contains(Ljava/lang/CharSequence;)Z
     move-result v2
@@ -798,6 +809,11 @@
     if-eqz v1, :retry
     invoke-interface {v1}, Ljava/lang/CharSequence;->toString()Ljava/lang/String;
     move-result-object v1
+    const/4 v4, 0x1
+    if-ne v0, v4, :status_predicate
+    const-string v4, "IBIndependentReadinessStatus"
+    invoke-static {v4, v1}, Landroid/util/Log;->e(Ljava/lang/String;Ljava/lang/String;)I
+  :status_predicate
     const-string v2, "Static HTML — scripts and forms are unavailable."
     invoke-virtual {v2, v1}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
     move-result v1

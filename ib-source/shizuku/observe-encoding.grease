@@ -111,7 +111,14 @@ observe offline-encoded-documents rebooted-codecs 'PASS installed original-byte 
 timeout 30 "$adb" -s "$serial" wait-for-device
 "$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 0
 "$adb" -s "$serial" pull /data/user/0/org.isomorphisms.ib.prepaint/files/arena "$evidence/actual-arena"
-"$adb" -s "$serial" unroot > "$evidence/snapshot-unroot.txt" 2>&1
+try { "$adb" -s "$serial" unroot > "$evidence/snapshot-unroot.txt" 2>&1 }
+var unroot_status = _error.code
+printf '%s\n' "$unroot_status" > "$evidence/snapshot-unroot.exit"
+cat "$evidence/snapshot-unroot.txt"
+# API 29 can acknowledge the daemon restart and exit 1 as its transport closes.
+# Accept only that exact observed acknowledgement, then require a new shell UID.
+if (unroot_status !== 0 and unroot_status !== 1) { exit "$unroot_status" }
+tr -d '\r' < "$evidence/snapshot-unroot.txt" | rg -x -F 'restarting adbd as non root'
 timeout 30 "$adb" -s "$serial" wait-for-device
 "$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 2000
 chmod 700 "$evidence/actual-arena"

@@ -15,5 +15,13 @@ mkdir -p "$evidence"
 "$adb" -s "$serial" shell dumpsys power > "$evidence/before.power.txt"
 "$adb" -s "$serial" shell input keyevent 224
 "$adb" -s "$serial" shell wm dismiss-keyguard > "$evidence/dismiss-keyguard.txt" 2>&1
+# The frozen API 34 failure screenshot identified Pixel Launcher's ANR dialog.
+# Observe HOME on this guarded emulator and stop only that unrelated launcher.
+# Reader/system focus assertions remain unchanged; never dismiss reader ANRs.
+"$adb" -s "$serial" shell cmd package resolve-activity --brief \
+  -a android.intent.action.MAIN -c android.intent.category.HOME > "$evidence/home-activity.txt"
+if tr -d '\r' < "$evidence/home-activity.txt" | rg -q -x 'com\.google\.android\.apps\.nexuslauncher/[A-Za-z0-9_.$]+' {
+  "$adb" -s "$serial" shell am force-stop com.google.android.apps.nexuslauncher > "$evidence/stop-observed-launcher.txt" 2>&1
+}
 "$adb" -s "$serial" shell dumpsys power > "$evidence/after.power.txt"
-printf 'schema\tib-emulator-screen-preparation-v1\nAPI\t%s\nSDK_wakeup_and_nonsecure_keyguard_request\tEXECUTED\nShizuku_permission_changes\tNONE\nproduct_semantics\tNOT_RUN\nphysical_TAB_P10\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"
+printf 'schema\tib-emulator-screen-preparation-v2\nAPI\t%s\nSDK_wakeup_and_nonsecure_keyguard_request\tEXECUTED\nobserved_HOME_package\tRETAINED\nPixel_Launcher_stop_if_observed\tEMULATOR_SETUP_ONLY\nShizuku_permission_changes\tNONE\nproduct_semantics\tNOT_RUN\nphysical_TAB_P10\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"

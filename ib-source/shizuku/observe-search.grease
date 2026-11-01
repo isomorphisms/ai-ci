@@ -10,6 +10,7 @@ var installed = ARGV[5]
 var navigation = ARGV[6]
 var chord = ARGV[7]
 var evidence = ARGV[8]
+var grease = ENV.IB_GREASE
 for path in "$repository" "$input" "$sdk" "$adb" "$installed" "$navigation" "$chord" "$evidence" {
   if (len(path) === 0 or path[0] !== '/') { exit 2 }
 }
@@ -122,7 +123,6 @@ for receipt in @(rg --files "$root/receipts") {
 }
 if (matches !== 1) { echo 'FAIL actual Google acquisition did not leave one unique captured response' >&2; exit 1 }
 var original_oracle = "$repository/ib-source/reader/verify-decoder-original.grease"
-var grease = ENV.IB_GREASE
 proc verify_captured(directory, output) {
   "$grease" "$original_oracle" "$repository" "$directory" "$google_id" "$google_generation" "$wanted" \
     iso-8859-1 - "$output" observed-google-legacy-v1 "$final_url"

@@ -115,6 +115,13 @@ if (len(existing) !== 0) { echo 'FAIL reused authority before fragment observer'
 install anchor-zero
 observe fragment-navigation zero-point-mutant 0 'java.lang.AssertionError: FAIL fragment target is outside the native viewport'
 install anchor-reset
+# The first negative's independent screenshot snapshot restarted adbd.
+# Restore the same observed official authority before testing old scroll
+# behavior; capability absence is not its designated mutation outcome.
+try { "$adb" -s "$serial" shell killall shizuku_server > "$evidence/stale-scroll.stop-server.txt" 2>&1 }
+var stale_stop = _error.code
+if (stale_stop !== 0 and stale_stop !== 1) { exit 1 }
+"$adb" -s "$serial" shell "$starter" "--apk=$manager" > "$evidence/stale-scroll.start-server.txt" 2>&1
 observe fragment-navigation stale-scroll-mutant 0 'java.lang.AssertionError: FAIL fragment target is outside the native viewport'
 snapshot before-positive
 install boundary
