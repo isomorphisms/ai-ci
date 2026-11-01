@@ -57,3 +57,32 @@ jobs:
             ${{ runner.temp }}/reader-SDK/observed-api34/navigation/actual-link-history.png
             ${{ runner.temp }}/reader-SDK/observed-api34/navigation/actual-link-history.logcat.txt
           if-no-files-found: warn
+
+      - name: Compare exact independent cursor prefixes byte for byte
+        shell: sh
+        run: |
+          root="$RUNNER_TEMP/reader-SDK/observed-api29/navigation/index-positive"
+          observed="$root/actual-prefix"
+          expected="$root/expected-prefix"
+          if test -f "$observed" && test -f "$expected"; then
+            printf 'Observed and expected digest/byte count:\n'
+            sha256sum "$observed" "$expected"
+            wc -c "$observed" "$expected"
+            printf 'Independent comparator byte differences (do not alter acceptance):\n'
+            cmp -l "$observed" "$expected" || true
+            printf 'Expected prefix escaped-byte record:\n'
+            od -An -c "$expected"
+            printf 'Observed prefix escaped-byte record:\n'
+            od -An -c "$observed"
+          else
+            printf 'Independent comparison files were not in the selected immutable artifact.\n'
+          fi
+      - name: Retain independent oracle byte-comparison evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ib-eaa430ab-index-prefixes-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            ${{ runner.temp }}/reader-SDK/observed-api29/navigation/index-positive/actual-prefix
+            ${{ runner.temp }}/reader-SDK/observed-api29/navigation/index-positive/expected-prefix
+          if-no-files-found: warn
