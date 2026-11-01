@@ -53,6 +53,7 @@ proc diagnose(label) {
   }
   try { "$adb" -s "$serial" exec-out screencap -p > "$evidence/$label.png" 2> "$evidence/$label.screen-error.txt" }
   if test -s "$evidence/$label.logcat.txt" {
+    awk '/IBIndependentReadiness|IBIndependentFragmentAddressExpected|IBIndependentFragmentAddressObserved/ {print}' "$evidence/$label.logcat.txt"
     awk '/IBReader|IBIndependent|ANR in|FATAL EXCEPTION|AndroidRuntime/ {line[++n]=$0}
       END {for(i=(n>56?n-55:1);i<=n;i++)print line[i]}' "$evidence/$label.logcat.txt"
   }

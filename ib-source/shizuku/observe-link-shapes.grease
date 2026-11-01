@@ -52,6 +52,7 @@ proc diagnose(label) {
       sed -E 's/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}-[0-9]{10,}/[REDACTED_SERVICE_NONCE]/g' > "$evidence/$label.logcat.txt"
   }
   if test -s "$evidence/$label.logcat.txt" {
+    awk '/IBIndependentReadiness|IBIndependentFragmentAddressExpected|IBIndependentFragmentAddressObserved/ {print}' "$evidence/$label.logcat.txt"
     awk '/IBIndependentFragmentViewport|IBIndependentReaderSurface|IBIndependentSurfaceDiagnosticUnavailable|IBIndependentReaderStatus|IBIndependentReaderStack|IBReader.*checked renderer/ {line[++n]=$0}
       END {for(i=(n>30?n-29:1);i<=n;i++)print line[i]}' "$evidence/$label.logcat.txt"
   }

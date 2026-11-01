@@ -109,6 +109,7 @@ proc diagnose(label) {
   }
   try { "$adb" -s "$serial" exec-out screencap -p > "$evidence/$label.png" 2> "$evidence/$label.screen-error.txt" }
   if test -s "$evidence/$label.logcat.txt" {
+    awk '/IBIndependentReadiness|IBIndependentFragmentAddressExpected|IBIndependentFragmentAddressObserved/ {print}' "$evidence/$label.logcat.txt"
     awk '/IBReader|IBIndependentReaderSurface|IBIndependentSurfaceDiagnosticUnavailable|IBIndependentReaderStatus|IBIndependentSearch|AndroidRuntime/ {line[++n]=$0}
       END {for(i=(n>36?n-35:1);i<=n;i++)print line[i]}' "$evidence/$label.logcat.txt"
   }

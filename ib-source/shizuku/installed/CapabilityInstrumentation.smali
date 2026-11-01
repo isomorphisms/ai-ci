@@ -2045,15 +2045,30 @@
 .end method
 
 .method private requireFragmentAddress(Ljava/lang/String;)V
-    .registers 5
-    iget-object v0, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
-    new-instance v1, Lacceptance/shizuku/ReaderAddressSnapshot;
-    invoke-direct {v1, v0}, Lacceptance/shizuku/ReaderAddressSnapshot;-><init>(Landroid/app/Activity;)V
-    invoke-virtual {p0, v1}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
-    iget-object v0, v1, Lacceptance/shizuku/ReaderAddressSnapshot;->address:Ljava/lang/String;
-    invoke-virtual {p1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
-    move-result v0
-    if-nez v0, :done
+    .registers 8
+    # A fragment reuses the same text/title/status. Wait for the actual native
+    # address after injected input instead of accepting the old document's text
+    # as proof that InputDispatcher has completed the touch.
+    const/16 v0, 0x64
+  :again
+    iget-object v1, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
+    new-instance v2, Lacceptance/shizuku/ReaderAddressSnapshot;
+    invoke-direct {v2, v1}, Lacceptance/shizuku/ReaderAddressSnapshot;-><init>(Landroid/app/Activity;)V
+    invoke-virtual {p0, v2}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
+    iget-object v3, v2, Lacceptance/shizuku/ReaderAddressSnapshot;->address:Ljava/lang/String;
+    invoke-virtual {p1, v3}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v4
+    if-nez v4, :done
+    const-wide/16 v4, 0x64
+    invoke-static {v4, v5}, Landroid/os/SystemClock;->sleep(J)V
+    add-int/lit8 v0, v0, -0x1
+    if-gtz v0, :again
+    const-string v4, "IBIndependentFragmentAddressExpected"
+    invoke-static {v4, p1}, Landroid/util/Log;->e(Ljava/lang/String;Ljava/lang/String;)I
+    invoke-static {v3}, Ljava/lang/String;->valueOf(Ljava/lang/Object;)Ljava/lang/String;
+    move-result-object v3
+    const-string v4, "IBIndependentFragmentAddressObserved"
+    invoke-static {v4, v3}, Landroid/util/Log;->e(Ljava/lang/String;Ljava/lang/String;)I
     const-string v0, "FAIL native fragment navigation address"
     invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
   :done
