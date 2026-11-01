@@ -40,13 +40,13 @@ timeout 30 "$adb" -s "$serial" wait-for-device
 timeout 30 "$adb" -s "$serial" wait-for-device
 "$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 2000
 cmp "$navigation/actual-arena/last-source" "$evidence/after-caller-controls.index"
-rg -x -F 'source	86dc5406fdceb593fa5062d4e67312e5a15b75fc' "$chord/input-identity.tsv"
+rg -x -F 'source	e6c84d645ad7086a11ae2735258188a49e444d13' "$chord/input-identity.tsv"
 var candidate = "$chord/input/android/chordreader-x86_64.apk"
 var tools = "$sdk/build-tools/35.0.0"
 "$tools/apksigner" verify --verbose --print-certs "$candidate" > "$evidence/chord-signer.txt" 2>&1
 rg -x -F 'Signer #1 certificate SHA-256 digest: de9b1d47c5a65e6d46a204b79dd9ee566b9d3c9832ba81ebc4213d3392e92ff9' "$evidence/chord-signer.txt"
 "$tools/aapt2" dump badging "$candidate" > "$evidence/chord-badging.txt"
-rg -F "package: name='org.isomorphisms.chordreader.dev' versionCode='1001'" "$evidence/chord-badging.txt"
+rg -F "package: name='org.isomorphisms.chordreader.dev' versionCode='1002'" "$evidence/chord-badging.txt"
 rg -x -F "native-code: 'x86_64'" "$evidence/chord-badging.txt"
 var old_chord = $("$adb" -s "$serial" shell pm list packages org.isomorphisms.chordreader.dev | tr -d '\r')
 if (len(old_chord) !== 0) { echo 'FAIL handoff observer requires its fresh emulator ChordReader namespace' >&2; exit 1 }
@@ -162,7 +162,7 @@ cat "$original_receipt"
 git -C "$repository" rev-parse HEAD > "$evidence/observer-commit.txt"
 sha256sum "$candidate" "$input/native-client/ib-native-boundary.apk" "$installed/observer.dex" \
   "$evidence/actual-arena/last-source" "$evidence/actual-arena/responses.arena" > "$evidence/sha256.txt"
-printf 'schema\tib-chordreader-handoff-v1\napi\t%s\nabi\tx86_64\nChordReader_source\t86dc5406fdceb593fa5062d4e67312e5a15b75fc\nno_caller_referrer_wrong_caller_warm_SEARCH\tREJECTED\ncaller_refusal_preserves_committed_index\tPASS\nactual_ChordReader_search_button\tPASS\nframework_for_result_caller\tPASS\nexact_once_encoded_Google_request\tPASS\nGoogle_results\tNOT_RUN\nclicked_Google_result\tNOT_RUN\nphysical_TAB_P10\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"
+printf 'schema\tib-chordreader-handoff-v1\napi\t%s\nabi\tx86_64\nChordReader_source\te6c84d645ad7086a11ae2735258188a49e444d13\nno_caller_referrer_wrong_caller_warm_SEARCH\tREJECTED\ncaller_refusal_preserves_committed_index\tPASS\nactual_ChordReader_search_button\tPASS\nframework_for_result_caller\tPASS\nexact_once_encoded_Google_request\tPASS\nGoogle_results\tNOT_RUN\nclicked_Google_result\tNOT_RUN\nphysical_TAB_P10\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"
 cat "$evidence/receipt.tsv"
 
 printf 'independent_Google_original_range_digest\tPASS\nGoogle_original_byte_generation_request_identity_mutations\tREJECTED\nGoogle_raw_receipt_admission\tNO\n' >> "$evidence/receipt.tsv"
