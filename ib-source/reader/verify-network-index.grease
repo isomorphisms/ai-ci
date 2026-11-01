@@ -1,0 +1,53 @@
+#!/usr/bin/env grease
+# Literal independent expectation: Example, fixture one, fixture two, selected two.
+set -eu -o pipefail
+if (len(ARGV) !== 5) { echo 'usage: grease verify-network-index.grease AICI ARENA INDEX FIXTURES NEW_EVIDENCE' >&2; exit 2 }
+var repository = ARGV[0]
+var root = ARGV[1]
+var index = ARGV[2]
+var fixtures = ARGV[3]
+var evidence = ARGV[4]
+for path in "$repository" "$root" "$index" "$fixtures" "$evidence" {
+  if (len(path) === 0 or path[0] !== '/') { exit 2 }
+}
+if test -e "$evidence" { echo 'FAIL reused network index evidence' >&2; exit 2 }
+mkdir -p "$evidence"
+var observed_lines = $(wc -l < "$index")
+if (int(observed_lines) !== 9) { echo 'FAIL native three-document index framing' >&2; exit 1 }
+var claimed = $(tail -n 1 "$index")
+printf '%s\n' "$claimed" | rg -x '[0-9a-f]{64}' > "$evidence/claimed.txt"
+head -n 8 "$index" > "$evidence/actual-prefix"
+var actual_digest = $(sha256sum "$evidence/actual-prefix" | cut -d ' ' -f 1)
+if (actual_digest !== claimed) {
+  echo 'FAIL native three-document index digest mismatch' >&2; exit 1
+}
+var first = $(sed -n '6p' "$index")
+var second = $(sed -n '7p' "$index")
+var third = $(sed -n '8p' "$index")
+for line in "$first" "$second" "$third" {
+  printf '%s\n' "$line" | awk -F '\t' 'NF!=2 || $1!~/^[0-9a-f]+$/ || length($1)!=48 || $2!~/^[1-9][0-9]*$/ || length($2)>10 || $2+0>2147483647 {exit 1}'
+}
+var identity = $(printf '%s\n' "$third" | cut -f 1)
+var generation = $(printf '%s\n' "$third" | cut -f 2)
+printf 'IBLAST2\n%s\n%s\nIBH1\n2\n%s\n%s\n%s\n' "$identity" "$generation" "$first" "$second" "$third" > "$evidence/expected-prefix"
+if ! cmp -s "$evidence/expected-prefix" "$evidence/actual-prefix" {
+  echo 'FAIL native three-document selected occurrence' >&2; exit 1
+}
+printf '%s\n%s\n%s\n' "$first" "$second" "$third" | cut -f 1 | sort -u > "$evidence/identities.txt"
+var distinct_count = $(wc -l < "$evidence/identities.txt")
+if (int(distinct_count) !== 3) { echo 'FAIL distinct retained source identities' >&2; exit 1 }
+proc verify_entry(row, requested, label, expected_body) {
+  var selected_id = $(printf '%s\n' "$row" | cut -f 1)
+  var selected_generation = $(printf '%s\n' "$row" | cut -f 2)
+  sh "$repository/ib-source/verify.sh" "$root" "$selected_id" "$selected_generation" "$requested" \
+    > "$evidence/$label.txt" 2>&1
+  cat "$evidence/$label.txt"
+  if (len(expected_body) > 0) {
+    var expected_digest = $(sha256sum "$expected_body" | cut -d ' ' -f 1)
+    rg -x -F "sha256	$expected_digest" "$root/receipts/$selected_id.tsv"
+  }
+}
+verify_entry "$first" https://example.com/ example ''
+verify_entry "$second" http://10.0.2.2:18491/valid fixture-one "$fixtures/bodies/valid.html"
+verify_entry "$third" http://10.0.2.2:18491/malformed fixture-two "$fixtures/bodies/malformed.html"
+echo 'PASS independent ordered three-document identity generation digest and actual fixture bytes'

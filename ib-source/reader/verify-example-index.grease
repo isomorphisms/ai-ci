@@ -12,13 +12,15 @@ mkdir -p "$evidence"
 printf '%s\n' "$identity" | rg -x '[0-9a-f]{48}' > "$evidence/identity.txt"
 printf '%s\n' "$generation" | rg -x '[1-9][0-9]{0,9}' > "$evidence/generation.txt"
 if (int(generation) > 2147483647) { echo 'FAIL native index generation bound' >&2; exit 1 }
-if test "$(wc -l < "$index")" -ne 7 { echo 'FAIL native example index framing' >&2; exit 1 }
+var observed_lines = $(wc -l < "$index")
+if (int(observed_lines) !== 7) { echo 'FAIL native example index framing' >&2; exit 1 }
 var claimed = $(tail -n 1 "$index")
 if ! printf '%s\n' "$claimed" | rg -x '[0-9a-f]{64}' > "$evidence/claimed.txt" {
   echo 'FAIL native example index digest framing' >&2; exit 1
 }
 head -n 6 "$index" > "$evidence/actual-prefix"
-if test "$(sha256sum "$evidence/actual-prefix" | cut -d ' ' -f 1)" != "$claimed" {
+var actual_digest = $(sha256sum "$evidence/actual-prefix" | cut -d ' ' -f 1)
+if (actual_digest !== claimed) {
   echo 'FAIL native example index digest mismatch' >&2; exit 1
 }
 printf 'IBLAST2\n%s\n%s\nIBH1\n0\n%s\t%s\n' "$identity" "$generation" "$identity" "$generation" > "$evidence/expected-prefix"

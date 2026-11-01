@@ -225,8 +225,10 @@ if (reader) {
   printf '%s\n' "$id" | rg -x '[0-9a-f]{48}'
   printf '%s\n' "$generation" | rg -x '[1-9][0-9]{0,9}'
   var index_oracle = "$repository/ib-source/reader/verify-example-index.grease"
-  "$grease" "$index_oracle" "$evidence/actual-arena/last-source" "$id" "$generation" "$evidence/index-positive" > "$evidence/index-positive.txt" 2>&1
+  try { "$grease" "$index_oracle" "$evidence/actual-arena/last-source" "$id" "$generation" "$evidence/index-positive" > "$evidence/index-positive.txt" 2>&1 }
+  var index_status = _error.code
   cat "$evidence/index-positive.txt"
+  if (index_status !== 0) { exit "$index_status" }
   # Corrupt the selected cursor, then independently forge a correct checksum.
   # The first mutation must fail digest verification; the second must fail the
   # literal expected selected occurrence even though its digest is correct.
@@ -241,8 +243,10 @@ if (reader) {
   try { "$grease" "$index_oracle" "$evidence/forged-index-prefix" "$id" "$generation" "$evidence/index-forged" > "$evidence/index-forged.txt" 2>&1 }
   if (_error.code !== 1) { echo 'FAIL forged cursor did not reach its intended refusal' >&2; exit 1 }
   rg -x -F 'FAIL native example index selected occurrence' "$evidence/index-forged.txt"
-  sh "$repository/ib-source/verify.sh" "$evidence/actual-arena" "$id" "$generation" https://example.com/ > "$evidence/independent-source-readback.txt" 2>&1
+  try { sh "$repository/ib-source/verify.sh" "$evidence/actual-arena" "$id" "$generation" https://example.com/ > "$evidence/independent-source-readback.txt" 2>&1 }
+  var source_status = _error.code
   cat "$evidence/independent-source-readback.txt"
+  if (source_status !== 0) { exit "$source_status" }
   cp -R "$evidence/actual-arena" "$evidence/corrupted-arena"
   var offset = $(awk -F '\t' '$1=="arena_offset"{print $2}' "$evidence/corrupted-arena/receipts/$id.tsv")
   printf '%s\n' "$offset" | rg -x '[0-9]+'

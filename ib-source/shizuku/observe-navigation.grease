@@ -1,0 +1,115 @@
+#!/usr/bin/env grease
+# Required continuation after the complete installed-reader observer succeeds.
+set -eu -o pipefail
+if (len(ARGV) !== 8) { echo 'usage: grease observe-navigation.grease AICI INPUT SDK ICK ADB SERIAL INSTALLED_EVIDENCE NEW_EVIDENCE' >&2; exit 2 }
+var repository = ARGV[0]
+var input = ARGV[1]
+var sdk = ARGV[2]
+var compiler = ARGV[3]
+var adb = ARGV[4]
+var serial = ARGV[5]
+var installed = ARGV[6]
+var evidence = ARGV[7]
+var grease = ENV.IB_GREASE
+for path in "$repository" "$input" "$sdk" "$compiler" "$adb" "$installed" "$evidence" {
+  if (len(path) === 0 or path[0] !== '/') { exit 2 }
+}
+if test -e "$evidence" { echo 'FAIL reused native navigation evidence' >&2; exit 2 }
+mkdir -p "$evidence"
+"$adb" -s "$serial" shell getprop ro.kernel.qemu | tr -d '\r' | rg -x 1
+"$adb" -s "$serial" shell getprop ro.product.cpu.abi | tr -d '\r' | rg -x x86_64
+"$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 2000
+var api = $("$adb" -s "$serial" shell getprop ro.build.version.sdk | tr -d '\r')
+if (api !== ENV.AICI_EXPECTED_ANDROID_API or (api !== '29' and api !== '34')) { exit 1 }
+rg -x -F 'independent_committed_readback	PASS' "$installed/reader-receipt.tsv"
+rg -x -F 'changed_committed_byte	REJECTED' "$installed/reader-receipt.tsv"
+rg -x -F 'actual_reflow_selector	PASS' "$installed/reader-receipt.tsv"
+var candidate = "$input/native-client/ib-native-boundary.apk"
+var installed_path = $("$adb" -s "$serial" shell pm path org.isomorphisms.ib.prepaint | tr -d '\r' | sed -n 's/^package://p')
+printf '%s\n' "$installed_path" | rg -x '/data/app/[A-Za-z0-9_./~+=-]+/base\.apk'
+"$adb" -s "$serial" pull "$installed_path" "$evidence/installed-before.apk"
+cmp "$candidate" "$evidence/installed-before.apk"
+var uid = $("$adb" -s "$serial" shell pm list packages -U org.isomorphisms.ib.prepaint | tr -d '\r')
+printf '%s\n' "$uid" | rg -x 'package:org\.isomorphisms\.ib\.prepaint uid:[1-9][0-9]{4,}'
+"$compiler" -fno-link-libatomic -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror \
+  "$repository/ingestion/src/fixture_server.c" -o "$evidence/fixture-server"
+var fixtures = "$repository/ib-source/reader/network-fixtures"
+var network_fixture_pid = ''
+trap --add EXIT {
+  if (len(network_fixture_pid) > 0) { try { kill -KILL "$network_fixture_pid" } }
+}
+fork { exec "$evidence/fixture-server" 18491 "$fixtures" > "$evidence/server.stdout" 2> "$evidence/server.stderr" }
+setglobal network_fixture_pid = $!
+var ready = false
+for attempt in @(seq 1 100) {
+  if rg -q -x -F 'READY 18491' "$evidence/server.stdout" { setvar ready = true; break }
+  sleep 0.1
+}
+if (not ready) { cat "$evidence/server.stderr" >&2; echo 'FAIL declared host fixture did not bind' >&2; exit 1 }
+var starter = "/data/local/tmp/ib-shizuku-$(sha256sum "$installed/observer.dex" | cut -d ' ' -f 1)/start"
+"$adb" -s "$serial" pull "$starter" "$evidence/observed-starter"
+cmp "$installed/official-starter" "$evidence/observed-starter"
+var manager = $("$adb" -s "$serial" shell pm path moe.shizuku.privileged.api | tr -d '\r' | sed -n 's/^package://p')
+printf '%s\n' "$manager" | rg -x '/data/app/[A-Za-z0-9_./~+=-]+/base\.apk'
+var existing = $("$adb" -s "$serial" shell ps -A -o PID,NAME | tr -d '\r' | awk '$2=="shizuku_server"{print $1}')
+if (len(existing) !== 0) { echo 'FAIL reused Shizuku server in network continuation' >&2; exit 1 }
+"$adb" -s "$serial" shell "$starter" "--apk=$manager" > "$evidence/start-server.txt" 2>&1
+proc diagnose(label) {
+  try {
+    "$adb" -s "$serial" logcat -d -v threadtime 2>&1 |
+      sed -E 's/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}-[0-9]{10,}/[REDACTED_SERVICE_NONCE]/g' > "$evidence/$label.logcat.txt"
+  }
+  try { "$adb" -s "$serial" exec-out screencap -p > "$evidence/$label.png" 2> "$evidence/$label.screen-error.txt" }
+}
+proc observe(phase, label, marker) {
+  try {
+    timeout 180 "$adb" -s "$serial" shell am instrument -w -r -e phase "$phase" \
+      org.isomorphisms.ib.acceptance/acceptance.shizuku.CapabilityInstrumentation > "$evidence/$label.txt" 2>&1
+  }
+  var result = _error.code
+  printf '%s\n' "$result" > "$evidence/$label.exit"
+  cat "$evidence/$label.txt"
+  if (result !== 0) { diagnose "$label"; exit 1 }
+  if ! rg -x -F 'INSTRUMENTATION_CODE: -1' "$evidence/$label.txt" { diagnose "$label"; exit 1 }
+  if ! rg -x -F "INSTRUMENTATION_RESULT: stream=$marker" "$evidence/$label.txt" { diagnose "$label"; exit 1 }
+}
+observe network-navigation actual-link-history 'PASS installed actual link acquisition Back Forward Unicode source clipboard reflow and scrolling'
+diagnose after-link-history
+"$adb" -s "$serial" shell am force-stop org.isomorphisms.ib.prepaint
+"$adb" -s "$serial" shell killall shizuku_server
+observe offline-network-history offline-history 'PASS installed retained three-document Back Forward without Shizuku'
+"$adb" -s "$serial" install -r "$candidate" > "$evidence/update.txt" 2>&1
+rg -x -F Success "$evidence/update.txt"
+var updated_uid = $("$adb" -s "$serial" shell pm list packages -U org.isomorphisms.ib.prepaint | tr -d '\r')
+if (updated_uid !== uid) { echo 'FAIL retained navigation update changed UID' >&2; exit 1 }
+observe offline-network-history updated-history 'PASS installed retained three-document Back Forward without Shizuku'
+"$adb" -s "$serial" shell am force-stop org.isomorphisms.ib.prepaint
+"$adb" -s "$serial" root > "$evidence/snapshot-root.txt" 2>&1
+timeout 30 "$adb" -s "$serial" wait-for-device
+"$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 0
+"$adb" -s "$serial" pull /data/user/0/org.isomorphisms.ib.prepaint/files/arena "$evidence/actual-arena"
+"$adb" -s "$serial" unroot > "$evidence/snapshot-unroot.txt" 2>&1
+timeout 30 "$adb" -s "$serial" wait-for-device
+"$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 2000
+chmod 700 "$evidence/actual-arena"
+mkdir -m 700 "$evidence/actual-arena/staging"
+var index = "$evidence/actual-arena/last-source"
+var index_oracle = "$repository/ib-source/reader/verify-network-index.grease"
+try { "$grease" "$index_oracle" "$repository" "$evidence/actual-arena" "$index" "$fixtures" "$evidence/index-positive" > "$evidence/index-positive.txt" 2>&1 }
+var index_status = _error.code
+cat "$evidence/index-positive.txt"
+if (index_status !== 0) { exit "$index_status" }
+head -n 8 "$index" | sed '5s/^2$/1/' > "$evidence/changed-prefix"
+if cmp -s "$evidence/changed-prefix" "$evidence/index-positive/actual-prefix" { echo 'FAIL index mutation did not change cursor' >&2; exit 1 }
+var changed_digest = $(sha256sum "$evidence/changed-prefix" | cut -d ' ' -f 1)
+cp "$evidence/changed-prefix" "$evidence/forged-index"
+printf '%s\n' "$changed_digest" >> "$evidence/forged-index"
+try { "$grease" "$index_oracle" "$repository" "$evidence/actual-arena" "$evidence/forged-index" "$fixtures" "$evidence/index-negative" > "$evidence/index-negative.txt" 2>&1 }
+if (_error.code !== 1) { echo 'FAIL forged selected cursor was accepted or missed its assertion' >&2; exit 1 }
+rg -x -F 'FAIL native three-document selected occurrence' "$evidence/index-negative.txt"
+git -C "$repository" rev-parse HEAD > "$evidence/observer-commit.txt"
+sha256sum "$compiler" "$evidence/fixture-server" "$repository/ingestion/src/fixture_server.c" \
+  "$fixtures/bodies/valid.html" "$fixtures/bodies/malformed.html" "$candidate" \
+  "$evidence/actual-arena/last-source" "$evidence/actual-arena/responses.arena" > "$evidence/sha256.txt"
+printf 'schema\tib-installed-network-navigation-v1\napi\t%s\nabi\tx86_64\nhost_fixture_toolchain\tick\nactual_touch_link_acquisition\tPASS\nrelative_link\tPASS\nnative_Back_Forward\tPASS\nUnicode_soft_hyphen_source_clipboard\tPASS\nvisible_reflow_selector\tPASS\nSDK_scroll_action\tPASS\noffline_three_document_history\tPASS\nupdate_retains_source_identity\tPASS\nindependent_source_and_fixture_digests\tPASS\nforged_cursor\tREJECTED\nphysical_TAB_P10\tNOT_RUN\nSEARCH\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"
+cat "$evidence/receipt.tsv"
