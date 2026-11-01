@@ -27,6 +27,9 @@ and two deliberate source mutants: an exposed provider and a disabled native
 UID guard. The second control uses a valid private capability inside the
 verified emulator and a real unprivileged application caller. Its token never
 enters a shell argument, log, result or artifact. It sends no history event.
+The exposed-provider control also disables the reinforcing native manifest
+permission check and recompiles the actual native source, isolating Android's
+permission gate from application startup validation.
 `observe-controls.grease` requires distinct targeted failures for both mutants,
 then restores the exact positive APK before exercising companion crash,
 reconnection, real manager revocation/regrant, framework expiration and reboot.

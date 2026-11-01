@@ -58,10 +58,17 @@ for kind in exposed-provider uid-bypass {
   git -C "$consumer" archive HEAD | tar -x -C "$source"
   var manifest = "$source/pasteboard/app/src/main/AndroidManifest.xml"
   var observer = "$source/pasteboard/app/src/main/c/observer/pb_observer.c"
+  var client = "$source/pasteboard/app/src/main/c/observer/pb_shizuku_client.c"
   if (kind === 'exposed-provider') {
     sed 's/android:permission="android.permission.INTERACT_ACROSS_USERS_FULL"//' "$manifest" > "$source/changed.xml"
     if cmp -s "$manifest" "$source/changed.xml" { echo 'FAIL manifest mutation did not change source' >&2; exit 1 }
     mv "$source/changed.xml" "$manifest"
+    # The positive application also validates its manifest permissions at
+    # startup. Remove that reinforcing check in this deliberate mutant so the
+    # independent caller isolates the Android permission boundary itself.
+    sed 's/for (unsigned i = 0; i < 5; ++i)/for (unsigned i = 0; i < 3; ++i)/' "$client" > "$source/changed-client.c"
+    if cmp -s "$client" "$source/changed-client.c" { echo 'FAIL provider contract mutation did not change source' >&2; exit 1 }
+    mv "$source/changed-client.c" "$client"
   } else {
     sed 's/caller != 2000u || token/caller == (uid_t)-1 || token/' "$observer" > "$source/changed.c"
     if cmp -s "$observer" "$source/changed.c" { echo 'FAIL UID mutation did not change source' >&2; exit 1 }
@@ -75,14 +82,11 @@ for kind in exposed-provider uid-bypass {
   git -C "$source" rev-parse HEAD > "$output/$kind.source.txt"
   git -C "$source" bundle create "$output/$kind.source.bundle" HEAD
   setglobal ENV.ANDROID_SOURCE_COMMIT = $(git -C "$source" rev-parse HEAD)
-  var native = "$consumer/build/pasteboard-apks/native/x86_64/libpasteboard.so"
-  if (kind === 'uid-bypass') {
-    setvar native = "$output/uid-native/libpasteboard.so"
-    make -f "$source/icky/Android.mk" native PROFILE=pasteboard ABI=x86_64 NDK="$sdk/ndk/27.2.12479018" \
-      AICI_ICK_ROOT="$repository" ICK_STAGE="$stage" BUILD="$output/uid-native/objects" OUT="$native" > "$output/uid-compile.txt" 2>&1
-  }
+  var native = "$output/$kind-native/libpasteboard.so"
+  make -f "$source/icky/Android.mk" native PROFILE=pasteboard ABI=x86_64 NDK="$sdk/ndk/27.2.12479018" \
+    AICI_ICK_ROOT="$repository" ICK_STAGE="$stage" BUILD="$output/$kind-native/objects" OUT="$native" > "$output/$kind-compile.txt" 2>&1
   bash "$backend/apk/build-nativeactivity-apk.sh" "$manifest" "$native" x86_64 "$output/$kind.apk" > "$output/$kind.package.txt" 2>&1
-  sha256sum "$manifest" "$observer" "$output/$kind.apk" > "$output/$kind.sha256.txt"
+  sha256sum "$manifest" "$observer" "$client" "$output/$kind.apk" > "$output/$kind.sha256.txt"
 }
 git -C "$repository" rev-parse HEAD > "$output/observer-commit.txt"
 printf 'controller_oracle_packaging\tPASS\ncompiled_source_mutants\tPASS\nactual_external_caller_refusal\tNOT_VERIFIED\nactual_UID_guard_mutant_rejection\tNOT_VERIFIED\n' > "$output/preparation.tsv"

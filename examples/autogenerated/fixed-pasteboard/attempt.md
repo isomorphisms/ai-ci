@@ -51,3 +51,14 @@ new binary roundtrip control passes locally, including a zero byte at offset 6
 in nul.txt and in the framed ART request. No consumer assertion changed. Spatial
 UI, real legacy-APK upgrade and corrupt migration procedures are now defined;
 their Android execution is still pending.
+
+Consumer 96b7af1d1b76fc660e91a3a91366ee0906d3b071, run 41331507210,
+fails actual fixture installation on API 29/34 with
+INSTALL_FAILED_INVALID_APK / Failed to extract native libraries, res=-2.
+Inspection shows the fixture requested extractNativeLibs=false while the
+canonical packager emitted a compressed .so. The fixture now explicitly selects
+normal native extraction, matching its actual packaging. Installation must be
+rerun; a packaging receipt alone is not installed acceptance. The exposed
+provider mutant also removes its reinforcing native manifest-permission check
+and is genuinely recompiled, so the independent caller isolates Android's
+permission enforcement rather than failing startup for a different reason.
