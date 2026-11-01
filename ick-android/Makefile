@@ -267,3 +267,4 @@ restore-stage:
 	test -x "$(ICK_COMPILER)"
 	test "$$("$(ICK_COMPILER)" -dumpmachine)" = "$(GNU_TARGET)"
 	test -x "$$("$(ICK_COMPILER)" -print-prog-name=cc1)"
+	grep -Fqx "$$(printf 'source\t%s' '$(ICK_REVISION)')" "$(ICK_STAGE)/qualification/receipt.tsv"

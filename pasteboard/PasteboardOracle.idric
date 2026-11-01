@@ -86,7 +86,7 @@ examples =
       moved = { entries := [moved_a, entry_c, entry_b] } recopy
       pinned_a = Expected "a" "0" "1" "4" text_a
       pinned = { entries := [pinned_a, entry_c, entry_b] } moved
-      deleted = { entries := [entry_c, entry_b] } moved
+      deleted = Observed "1" "" "1" "0" ["again", "c", "b", "a"] [entry_c, entry_b]
       automatic = { automatic := "1" } deleted
       observed_b = Expected "b" "1" "0" "6" text_b
       observer = Observed "1" text_b "1" "1"
@@ -262,7 +262,7 @@ validate_record : List Int → Either Text Snapshot
 validate_record bytes =
   if length bytes < 40 then Left "short record" else
   if take 8 bytes /= [80, 66, 72, 73, 83, 84, 50, 0] then Left "record magic" else
-  if little_endian (take 4 (drop 8 bytes)) /= 2 || little_endian (take 4 (drop 12 bytes)) /= 40
+  if not (elem (little_endian (take 4 (drop 8 bytes))) [2, 3]) || little_endian (take 4 (drop 12 bytes)) /= 40
     then Left "record version" else
   if little_endian (take 8 (drop 24 bytes)) /= cast (length (drop 40 bytes)) then Left "record length" else
   if cast (crc (take 36 bytes)) /= little_endian (take 4 (drop 36 bytes)) then Left "header checksum" else
