@@ -35,3 +35,83 @@ jobs:
             ${{ runner.temp }}/failed-IB/native-client/receipt.tsv
             ${{ runner.temp }}/failed-IB/native-client/*-commit.txt
           if-no-files-found: error
+  recover:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      # Exact commit source only. No checkout retains authentication.
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphisms/ib
+          ref: 8eb2a1eff42cef1371b8ff064cd2c23d1da89ca9
+          path: source/ib
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphisms/android-NDK
+          ref: b0f135d7d3536093874fdcae62cf57520f6f1af3
+          path: source/android-NDK
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphisms/Idric
+          ref: 740bbf2b1d9e811fd00c719c3473eede17ceea3b
+          path: source/Idric
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphisms/ai-ci
+          ref: d62e6fe89f944585052cfc626e9c51dd1133034c
+          path: source/ai-ci
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: dilapidated-shed/icu
+          ref: 5b0ab280c3f2613ab933ed230b5cc50f50b9613f
+          path: source/icu
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: dilapidated-shed/Idric-Net
+          ref: b21801b72acb8ab835c297bbe298af8599550134
+          path: source/Idric-Net
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphisms/sd-card-append-fat
+          ref: 05a0cb7246c5a9f46abfbe92925812e7b607f454
+          path: source/appendfat
+          persist-credentials: false
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ib-campaign-exact-source-checkouts
+          path: source
+          include-hidden-files: true
+          if-no-files-found: error
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          repository: isomorphisms/ib
+          github-token: ${{ github.token }}
+          run-id: 41263232232
+          artifact-ids: '13066916697'
+          merge-multiple: true
+          path: ${{ runner.temp }}/trace-IB
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ib-exact-frontend-replay-6d50def
+          path: ${{ runner.temp }}/trace-IB/frontend-replay.tar.gz
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ib-exact-backend-replay-6d50def
+          path: ${{ runner.temp }}/trace-IB/backend-replay.tar.gz
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ib-trace-art-diagnostics-6d50def
+          path: |
+            ${{ runner.temp }}/trace-IB/art-api29/*.logcat.txt
+            ${{ runner.temp }}/trace-IB/art-api29/*.txt
+            ${{ runner.temp }}/trace-IB/art-api29/*.exit
+            ${{ runner.temp }}/trace-IB/replay-bundles.sha256
+          if-no-files-found: error
