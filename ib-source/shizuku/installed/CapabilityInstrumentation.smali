@@ -1754,6 +1754,33 @@
     return-void
 .end method
 
+.method private heldSource(Z)V
+    .locals 3
+    if-eqz p1, :last_good
+    const-string v0, "http://10.0.2.2:18491/valid"
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->enterReaderURL(Ljava/lang/String;)V
+  :last_good
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureOne()V
+    const-string v0, "http://10.0.2.2:18491/held-uncommitted"
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->enterReaderURL(Ljava/lang/String;)V
+    const-string v0, "IBIndependentHeldSource"
+    const-string v1, "READY controlled pending acquisition"
+    if-eqz p1, :report_held
+    const-string v1, "CONTROL completed acquisition permitted"
+  :report_held
+    invoke-static {v0, v1}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->recordDocumentScreenshot()V
+    if-eqz p1, :pending
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureTwo()V
+    return-void
+  :pending
+    const-wide/32 v0, 180000
+    invoke-static {v0, v1}, Landroid/os/SystemClock;->sleep(J)V
+    const-string v0, "FAIL host did not kill the Activity process during the held ICU response"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    return-void
+.end method
+
 .method private readerLifecycle()V
     .locals 5
     const-string v0, "http://10.0.2.2:18491/valid"
@@ -1845,7 +1872,7 @@
     const-string v0, "Link Query"
     const-string v1, "The query only destination was acquired through ICU."
     invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitNetworkDocument(Ljava/lang/String;Ljava/lang/String;)V
-    const-string v0, "http://10.0.2.2:18491/link-root?stage=query"
+    const-string v0, "http://10.0.2.2:18491/link-root?stage=query&unicode=IB+caf%C3%A9+%2B+%252F+%F0%9F%8C%8D+chords"
     goto :address
   :absolute
     const-string v0, "Link Absolute"
@@ -2067,9 +2094,27 @@
     const-string v1, "offline-reader-lifecycle"
     invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
     move-result v1
-    if-eqz v1, :fragment_navigation_phase
+    if-eqz v1, :held_source_phase
     invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->offlineReaderLifecycle()V
     const-string v7, "PASS native reader Activity return and retained Back Forward without Shizuku"
+    goto :success
+  :held_source_phase
+    const-string v1, "begin-held-source"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :complete_held_source_phase
+    const/4 v1, 0
+    invoke-direct {p0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->heldSource(Z)V
+    const-string v7, "FAIL held-source observer returned before the controlled process kill"
+    goto :success
+  :complete_held_source_phase
+    const-string v1, "complete-held-source"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :fragment_navigation_phase
+    const/4 v1, 1
+    invoke-direct {p0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->heldSource(Z)V
+    const-string v7, "PASS controlled completed held acquisition is admitted"
     goto :success
   :fragment_navigation_phase
     const-string v1, "fragment-navigation"

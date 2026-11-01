@@ -8,6 +8,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <time.h>
 #include <unistd.h>
 
 #define REQUEST_MAX 16384
@@ -137,7 +138,29 @@ static int send_response(int fd, int status, const char *reason,
            (body_length == 0 || write_all(fd, body, body_length));
 }
 
-static void handle_request(int fd, const char *corpus_root) {
+/* Test-only response barrier. The independent host releases this ordinary
+ * file only after killing the real target process. No product IPC or network
+ * implementation participates in this synchronization. */
+static int hold_response(const char *release_path) {
+    if (release_path == NULL) return 0;
+    puts("HELD_REQUEST");
+    fflush(stdout);
+    const struct timespec interval = {0, 100000000};
+    for (unsigned int attempt = 0; attempt < 600u && running; ++attempt) {
+        struct stat state;
+        if (stat(release_path, &state) == 0 && S_ISREG(state.st_mode)) {
+            puts("HELD_RELEASED");
+            fflush(stdout);
+            return 1;
+        }
+        (void)nanosleep(&interval, NULL);
+    }
+    puts("HELD_TIMEOUT");
+    fflush(stdout);
+    return 0;
+}
+
+static void handle_request(int fd, const char *corpus_root, const char *release_path) {
     char request[REQUEST_MAX + 1];
     ssize_t amount = recv(fd, request, REQUEST_MAX, 0);
     if (amount <= 0) return;
@@ -194,7 +217,10 @@ static void handle_request(int fd, const char *corpus_root) {
     int hex = 0;
     int truncated = 0;
 
-    if (strcmp(path, "/valid") == 0) {
+    if (strcmp(path, "/held-uncommitted") == 0) {
+        if (!hold_response(release_path)) return;
+        relative = "bodies/malformed.html";
+    } else if (strcmp(path, "/valid") == 0) {
         relative = "bodies/valid.html";
     } else if (strcmp(path, "/link-start") == 0) {
         relative = "bodies/link-base.html";
@@ -202,7 +228,7 @@ static void handle_request(int fd, const char *corpus_root) {
         relative = "bodies/link-relative.html";
     } else if (strcmp(path, "/link-root") == 0) {
         relative = "bodies/link-root.html";
-    } else if (strcmp(path, "/link-root?stage=query") == 0) {
+    } else if (strcmp(path, "/link-root?stage=query&unicode=IB+caf%C3%A9+%2B+%252F+%F0%9F%8C%8D+chords") == 0) {
         relative = "bodies/link-query.html";
     } else if (strcmp(path, "/link-absolute") == 0) {
         relative = "bodies/link-absolute.html";
@@ -276,14 +302,22 @@ static int parse_port(const char *text) {
 }
 
 int main(int argc, char **argv) {
-    if (argc != 3) {
-        fprintf(stderr, "usage: %s PORT CORPUS_ROOT\n", argv[0]);
+    if (argc != 3 && argc != 4) {
+        fprintf(stderr, "usage: %s PORT CORPUS_ROOT [NEW_RELEASE_FILE]\n", argv[0]);
         return 2;
     }
     int port = parse_port(argv[1]);
     if (port < 0) {
         fputs("invalid port\n", stderr);
         return 2;
+    }
+    const char *release_path = argc == 4 ? argv[3] : NULL;
+    if (release_path != NULL) {
+        struct stat state;
+        if (release_path[0] != '/' || lstat(release_path, &state) == 0 || errno != ENOENT) {
+            fputs("release file must be a new absolute path\n", stderr);
+            return 2;
+        }
     }
     signal(SIGTERM, stop_server);
     signal(SIGINT, stop_server);
@@ -318,7 +352,7 @@ int main(int argc, char **argv) {
             close(listener);
             return 1;
         }
-        handle_request(client, argv[2]);
+        handle_request(client, argv[2], release_path);
         close(client);
     }
     close(listener);

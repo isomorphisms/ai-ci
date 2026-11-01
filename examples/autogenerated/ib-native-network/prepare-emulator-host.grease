@@ -1,0 +1,48 @@
+#!/usr/bin/env grease
+# Reclaim only this job's reproducible ICK object/materialization trees.
+set -eu -o pipefail
+if (len(ARGV) !== 3) { echo 'requires AICI INSTALLED_ICK NEW_EVIDENCE' >&2; exit 2 }
+var repository = ARGV[0]
+var compiler = ARGV[1]
+var evidence = ARGV[2]
+var scratch = ENV.RUNNER_TEMP
+if (ENV.GITHUB_ACTIONS !== 'true' or ENV.RUNNER_OS !== 'Linux' or ENV.RUNNER_ARCH !== 'X64') { exit 2 }
+if (len(scratch) < 2 or scratch[0] !== '/' or compiler !== "$scratch/ick-host-stage/bin/gcc") { exit 2 }
+if test -e "$evidence" { echo 'FAIL reused host capacity evidence' >&2; exit 2 }
+if test -L "$scratch/ick-host-build" { echo 'FAIL unexpected symlinked build workspace' >&2; exit 2 }
+test -x "$compiler"
+test "$(git -C "$repository/.ick-host-source" rev-parse HEAD)" = fbe86e23d55cfec2000c08e61deea2a407fd7175
+mkdir -p "$evidence"
+sha256sum "$compiler" > "$evidence/ICK.before.sha256"
+df -PB1 "$scratch" > "$evidence/before.capacity.txt"
+for intermediate in "$scratch/ick-host-build/objects" "$scratch/ick-host-build/source" {
+  if test -L "$intermediate" { echo 'FAIL unexpected symlinked ICK intermediate' >&2; exit 2 }
+  if test -d "$intermediate" {
+    du -sk "$intermediate" >> "$evidence/reclaimed.paths.txt"
+    rm -rf -- "$intermediate"
+  }
+}
+sha256sum "$compiler" > "$evidence/ICK.after.sha256"
+cmp "$evidence/ICK.before.sha256" "$evidence/ICK.after.sha256"
+# Prove that the retained exact ICK, its libexec and runtime still work after
+# removing build intermediates. These maintained glyphs cannot compile under
+# an ordinary GCC fallback, and the wrong-division variant must return 2.
+for level in 0 2 {
+  "$compiler" -fno-link-libatomic -std=c17 "-O$level" -Wall -Wextra -Werror \
+    "$repository/ick-host/assignment-arrow.c" -o "$evidence/glyphs-O$level"
+  "$evidence/glyphs-O$level" > "$evidence/glyphs-O$level.txt"
+}
+"$compiler" -fno-link-libatomic -std=c17 -O2 -Wall -Wextra -Werror -DICK_HOST_WRONG_DIVISION \
+  "$repository/ick-host/assignment-arrow.c" -o "$evidence/wrong-division"
+try { "$evidence/wrong-division" > "$evidence/wrong-division.txt" 2>&1 }
+if (_error.code !== 2) { echo 'FAIL ICK semantic negative after intermediate reclamation' >&2; exit 1 }
+try {
+  "$compiler" -std=c17 -DICK_HOST_REJECT_PP_DIVISION -c "$repository/ick-host/assignment-arrow.c" \
+    -o "$evidence/refused-preprocessor.o" > "$evidence/refused-preprocessor.txt" 2>&1
+}
+if (_error.code !== 1) { echo 'FAIL ICK preprocessor refusal after intermediate reclamation' >&2; exit 1 }
+test ! -e "$evidence/refused-preprocessor.o"
+grep -F 'not valid in preprocessor expressions' "$evidence/refused-preprocessor.txt"
+df -PB1 "$scratch" > "$evidence/after.capacity.txt"
+printf 'schema\tib-host-emulator-capacity-v1\nICK_source\tfbe86e23d55cfec2000c08e61deea2a407fd7175\ninstalled_compiler_digest\tUNCHANGED\nICK_after_pruning_O0_O2\tPASS\nwrong_division_control\tREJECTED\npreprocessor_control\tREJECTED\nremoved\tonly_job_owned_ICK_objects_and_materialized_source\nAndroid\tNOT_RUN\nphysical_TAB_P10\tNOT_RUN\n' > "$evidence/receipt.tsv"
+cat "$evidence/before.capacity.txt" "$evidence/after.capacity.txt" "$evidence/receipt.tsv"

@@ -81,8 +81,14 @@ proc observe(phase, label, code, marker) {
 "$compiler" -fno-link-libatomic -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror \
   "$repository/ingestion/src/fixture_server.c" -o "$evidence/fixture-server"
 var fixture_pid = ''
-trap --add EXIT { if (len(fixture_pid) > 0) { try { kill -KILL "$fixture_pid" } } }
-fork { exec "$evidence/fixture-server" 18491 "$repository/ib-source/reader/network-fixtures" > "$evidence/server.stdout" 2> "$evidence/server.stderr" }
+var pending_observer_pid = ''
+trap --add EXIT {
+  if (len(pending_observer_pid) > 0) { try { kill -KILL "$pending_observer_pid" } }
+  if (len(fixture_pid) > 0) { try { kill -KILL "$fixture_pid" } }
+}
+var release_file = "$evidence/release-held-response"
+if test -e "$release_file" { exit 2 }
+fork { exec "$evidence/fixture-server" 18491 "$repository/ib-source/reader/network-fixtures" "$release_file" > "$evidence/server.stdout" 2> "$evidence/server.stderr" }
 setglobal fixture_pid = $!
 var ready = false
 for attempt in @(seq 1 100) {
@@ -104,8 +110,47 @@ install resume-noop
 observe reader-lifecycle resume-noop 0 'java.lang.AssertionError: FAIL resumed Activity did not reopen last committed document'
 install detach-any
 observe reader-lifecycle detach-any 0 'java.lang.AssertionError: FAIL resumed Activity navigation after stale destroy'
-snapshot before-positive
 install boundary
+snapshot completed-control-before
+try { "$adb" -s "$serial" shell killall shizuku_server > "$evidence/completed-control.stop-server.txt" 2>&1 }
+var control_stop = _error.code
+if (control_stop !== 0 and control_stop !== 1) { exit 1 }
+"$adb" -s "$serial" shell "$starter" "--apk=$manager" > "$evidence/completed-control.start-server.txt" 2>&1
+fork {
+  exec timeout 120 "$adb" -s "$serial" shell am instrument -w -r -e phase complete-held-source \
+    org.isomorphisms.ib.acceptance/acceptance.shizuku.CapabilityInstrumentation > "$evidence/completed-control.txt" 2>&1
+}
+setglobal pending_observer_pid = $!
+var control_request = false
+for attempt in @(seq 1 500) {
+  if rg -q -x -F HELD_REQUEST "$evidence/server.stdout" { setvar control_request = true; break }
+  sleep 0.1
+}
+if (not control_request) { cat "$evidence/completed-control.txt"; echo 'FAIL completed-response control did not reach real ICU request' >&2; exit 1 }
+printf 'release\n' > "$release_file"
+try { wait "$pending_observer_pid" }
+var completed_status = _error.code
+setglobal pending_observer_pid = ''
+printf '%s\n' "$completed_status" > "$evidence/completed-control.exit"
+cat "$evidence/completed-control.txt"
+if (completed_status !== 0) { echo 'FAIL completed-response control process' >&2; exit 1 }
+rg -q -x -F 'INSTRUMENTATION_CODE: -1' "$evidence/completed-control.txt"
+rg -q -x -F 'INSTRUMENTATION_RESULT: stream=PASS controlled completed held acquisition is admitted' "$evidence/completed-control.txt"
+test "$(rg -c -x -F HELD_REQUEST "$evidence/server.stdout")" = 1
+test "$(rg -c -x -F HELD_RELEASED "$evidence/server.stdout")" = 1
+# This process loss happens after successful admission. The independent
+# unchanged-state claim must fail, proving that the later kill-before-release
+# observation cannot pass merely by comparing arbitrary old paths.
+snapshot before-positive
+try { cmp "$evidence/completed-control-before-arena/last-source" "$evidence/before-positive-arena/last-source" > "$evidence/completed-control.unchanged-claim.txt" 2>&1 }
+var unchanged_control = _error.code
+if (unchanged_control !== 1) { echo 'FAIL completed source was misclassified as unchanged interrupted state' >&2; exit 1 }
+var control_identity = $(sed -n '2p' "$evidence/before-positive-arena/last-source")
+var control_generation = $(sed -n '3p' "$evidence/before-positive-arena/last-source")
+sh "$repository/ib-source/verify.sh" "$evidence/before-positive-arena" "$control_identity" "$control_generation" \
+  http://10.0.2.2:18491/held-uncommitted > "$evidence/completed-control.readback.txt" 2>&1
+cat "$evidence/completed-control.readback.txt"
+rm "$release_file"
 try { "$adb" -s "$serial" shell killall shizuku_server > "$evidence/before-positive.stop-server.txt" 2>&1 }
 var stopped = _error.code
 if (stopped !== 0 and stopped !== 1) { echo 'FAIL stopping lifecycle authority' >&2; exit 1 }
@@ -170,6 +215,65 @@ try {
 }
 if (_error.code !== 1) { echo 'FAIL changed lifecycle source missed its designated refusal' >&2; exit 1 }
 rg -x -F 'ai-ci ib-source: committed bytes differ from receipt SHA-256' "$evidence/changed-source.txt"
+# Independent process-loss acceptance starts only after the complete
+# committed source was read back above. The fixture withholds its response
+# until the host has observed the actual ICU request and killed the app.
+try { "$adb" -s "$serial" shell killall shizuku_server > "$evidence/held.stop-server.txt" 2>&1 }
+var held_stop = _error.code
+if (held_stop !== 0 and held_stop !== 1) { exit 1 }
+"$adb" -s "$serial" shell "$starter" "--apk=$manager" > "$evidence/held.start-server.txt" 2>&1
+fork {
+  exec timeout 90 "$adb" -s "$serial" shell am instrument -w -r -e phase begin-held-source \
+    org.isomorphisms.ib.acceptance/acceptance.shizuku.CapabilityInstrumentation > "$evidence/held-instrumentation.txt" 2>&1
+}
+setglobal pending_observer_pid = $!
+var held_ready = false
+for attempt in @(seq 1 500) {
+  var held_count = $(rg -c -x -F HELD_REQUEST "$evidence/server.stdout")
+  if (held_count === '2') { setvar held_ready = true; break }
+  sleep 0.1
+}
+if (not held_ready) { cat "$evidence/held-instrumentation.txt"; echo 'FAIL real ICU did not reach the held response' >&2; exit 1 }
+var ui_ready = false
+for attempt in @(seq 1 50) {
+  "$adb" -s "$serial" logcat -d -v raw -s IBIndependentHeldSource:I '*:S' > "$evidence/held-ready.log"
+  if rg -q -x -F 'READY controlled pending acquisition' "$evidence/held-ready.log" { setvar ui_ready = true; break }
+  sleep 0.1
+}
+if (not ui_ready) { echo 'FAIL held acquisition lacked its native input observation' >&2; exit 1 }
+var original_pid = $("$adb" -s "$serial" shell pidof org.isomorphisms.ib.prepaint | tr -d '\r')
+printf '%s\n' "$original_pid" | rg -x '[1-9][0-9]*' > "$evidence/held-app.pid"
+"$adb" -s "$serial" shell am force-stop org.isomorphisms.ib.prepaint
+try { "$adb" -s "$serial" shell pidof org.isomorphisms.ib.prepaint > "$evidence/killed-app.pid" 2>&1 }
+var missing_process = _error.code
+if (missing_process !== 1) { echo 'FAIL target process remained after the held acquisition kill' >&2; exit 1 }
+test ! -s "$evidence/killed-app.pid"
+try { wait "$pending_observer_pid" }
+var terminated_observer = _error.code
+setglobal pending_observer_pid = ''
+printf '%s\n' "$terminated_observer" > "$evidence/held-instrumentation.exit"
+if (terminated_observer !== 0 and terminated_observer !== 1) { echo 'FAIL controlled process kill did not end its observer' >&2; exit 1 }
+cat "$evidence/held-instrumentation.txt"
+if rg -q -x -F 'INSTRUMENTATION_CODE: -1' "$evidence/held-instrumentation.txt" { echo 'FAIL held observer completed before its controlled process kill' >&2; exit 1 }
+printf 'release\n' > "$release_file"
+var released = false
+for attempt in @(seq 1 100) {
+  var release_count = $(rg -c -x -F HELD_RELEASED "$evidence/server.stdout")
+  if (release_count === '2') { setvar released = true; break }
+  sleep 0.1
+}
+if (not released) { echo 'FAIL held response was not released after process death' >&2; exit 1 }
+test "$(rg -c -x -F HELD_REQUEST "$evidence/server.stdout")" = 2
+test "$(rg -c -x -F HELD_RELEASED "$evidence/server.stdout")" = 2
+if rg -q -x -F HELD_TIMEOUT "$evidence/server.stdout" { echo 'FAIL held source timed out instead of being killed' >&2; exit 1 }
+snapshot killed-during-ICU
+cmp "$current" "$evidence/killed-during-ICU-arena/last-source"
+cmp "$evidence/committed-arena/responses.arena" "$evidence/killed-during-ICU-arena/responses.arena"
+var killed_receipts = $(rg --files "$evidence/killed-during-ICU-arena/receipts" | wc -l)
+if (int(killed_receipts) !== int(after_receipts)) { echo 'FAIL incomplete killed acquisition published a receipt' >&2; exit 1 }
+sh "$repository/ib-source/verify.sh" "$evidence/killed-during-ICU-arena" "$current_id" "$current_generation" \
+  http://10.0.2.2:18491/valid > "$evidence/killed-last-good.readback.txt" 2>&1
+cat "$evidence/killed-last-good.readback.txt"
 # The readback snapshot restarts adbd and may already have ended the
 # shell-owned server. Both an observed stop and an already absent server are
 # legitimate; the SDK phase independently requires UNAVAILABLE before replay.
@@ -185,5 +289,5 @@ sha256sum "$compiler" "$evidence/fixture-server" "$repository/ingestion/src/fixt
   "$input/native-client/ib-native-boundary.apk" "$input/native-client/ib-native-resume-noop.apk" \
   "$input/native-client/ib-native-detach-any.apk" "$current" "$evidence/1.original.html" \
   "$evidence/2.original.html" "$evidence/3.original.html" > "$evidence/sha256.txt"
-printf 'schema\tib-native-Activity-ownership-v1\napi\t%s\nframework_two_Activities_and_return\tPASS\nretained_current_source_on_resume\tPASS\nnew_navigation_after_return\tPASS\ndeliberately_stale_checked_destroy\tREFUSED\ncompiled_resume_noop\tREJECTED\ncompiled_detach_any_owner\tREJECTED\nthree_original_ranges_and_fixture_digests\tPASS\nchanged_committed_source\tREJECTED\nordered_history\tPASS\nresume_without_refetch\tPASS\noffline_Activity_return_Back_Forward\tPASS\nphysical_TAB_P10\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"
+printf 'schema\tib-native-Activity-ownership-v2\napi\t%s\nframework_two_Activities_and_return\tPASS\nretained_current_source_on_resume\tPASS\nnew_navigation_after_return\tPASS\ndeliberately_stale_checked_destroy\tREFUSED\ncompiled_resume_noop\tREJECTED\ncompiled_detach_any_owner\tREJECTED\nthree_original_ranges_and_fixture_digests\tPASS\nchanged_committed_source\tREJECTED\nordered_history\tPASS\nresume_without_refetch\tPASS\noffline_Activity_return_Back_Forward\tPASS\nactual_ICU_request_before_process_kill\tPASS\ncompleted_response_unchanged_state_claim\tREJECTED\nheld_response_released_after_observed_process_death\tPASS\nsource_history_receipts_unchanged_after_pending_acquisition_loss\tPASS\nindependent_last_good_readback_after_process_loss\tPASS\nphysical_TAB_P10\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"
 cat "$evidence/receipt.tsv"
