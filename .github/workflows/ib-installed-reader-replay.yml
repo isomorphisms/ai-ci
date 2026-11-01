@@ -1,4 +1,4 @@
-name: Independent installed replay of IB a7349efc
+name: Independent IB a7349efc ChordReader SEARCH and decoding
 on:
   pull_request:
     paths:
@@ -15,7 +15,7 @@ permissions:
   actions: read
 jobs:
   installed:
-    name: installed API ${{ matrix.api }}
+    name: installed API ${{ matrix.api }} / ${{ matrix.profile }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     strategy:
@@ -24,8 +24,16 @@ jobs:
         include:
           - api: 29
             target: default
+            profile: decoding
           - api: 34
             target: google_apis
+            profile: decoding
+          - api: 29
+            target: default
+            profile: search
+          - api: 34
+            target: google_apis
+            profile: search
     env:
       IB_GREASE: ${{ github.workspace }}/.tools/runtime/.build/grease/bin/grease
     steps:
@@ -60,6 +68,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: .tools/runtime/.build/grease/bin/grease ib-source/reader/prepare-installed-replay.grease "$GITHUB_WORKSPACE" "$RUNNER_TEMP/ib-installed-replay"
+      - name: Verify the exact qualified ChordReader APK input
+        if: matrix.profile == 'search'
+        shell: sh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: .tools/runtime/.build/grease/bin/grease ib-source/reader/prepare-chord-handoff.grease "$RUNNER_TEMP/chord-search-input"
       - name: Install the independent observer's declared text verifier
         shell: sh
         run: |
@@ -79,6 +93,7 @@ jobs:
         with:
           packages: 'build-tools;35.0.0 platforms;android-34'
       - name: Independently observe the unchanged installed candidate navigation and original-byte decoding
+        if: matrix.profile == 'decoding'
         uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
         env:
           AICI_EXPECTED_ANDROID_API: '${{ matrix.api }}'
@@ -94,11 +109,28 @@ jobs:
             .tools/runtime/.build/grease/bin/grease ib-source/shizuku/observe-installed.grease "$GITHUB_WORKSPACE" "$RUNNER_TEMP/ib-installed-replay/input/native-client" "$RUNNER_TEMP/ib-installed-replay/input/oracles/smali.jar" "$ANDROID_HOME" "$RUNNER_TEMP/ib-installed-replay/input/platform-inputs/public-test-keystore" "$RUNNER_TEMP/ib-installed-replay/input/platform-inputs/shizuku-official.apk" "$ANDROID_HOME/platform-tools/adb" emulator-5554 "$RUNNER_TEMP/ib-installed-replay/observed" reader
             .tools/runtime/.build/grease/bin/grease ib-source/shizuku/observe-navigation.grease "$GITHUB_WORKSPACE" "$RUNNER_TEMP/ib-installed-replay/input" "$ANDROID_HOME" "$AICI_FIXTURE_ICK" "$ANDROID_HOME/platform-tools/adb" emulator-5554 "$RUNNER_TEMP/ib-installed-replay/observed" "$RUNNER_TEMP/ib-installed-replay/navigation" reader-v2
             .tools/runtime/.build/grease/bin/grease ib-source/shizuku/observe-encoding.grease "$GITHUB_WORKSPACE" "$RUNNER_TEMP/ib-installed-replay/input" "$ANDROID_HOME" "$AICI_FIXTURE_ICK" "$ANDROID_HOME/platform-tools/adb" emulator-5554 "$RUNNER_TEMP/ib-installed-replay/observed" "$RUNNER_TEMP/ib-installed-replay/navigation" "$RUNNER_TEMP/ib-installed-replay/encoding"
+      - name: Observe actual ChordReader caller controls and SEARCH into the unchanged native reader
+        if: matrix.profile == 'search'
+        uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
+        env:
+          AICI_EXPECTED_ANDROID_API: '${{ matrix.api }}'
+          AICI_FIXTURE_ICK: ${{ steps.ick.outputs.compiler }}
+        with:
+          api-level: ${{ matrix.api }}
+          target: ${{ matrix.target }}
+          arch: x86_64
+          disk-size: 2048M
+          emulator-options: -no-window -no-audio -no-snapshot -no-boot-anim -memory 2048 -gpu swiftshader_indirect
+          disable-animations: true
+          script: |
+            .tools/runtime/.build/grease/bin/grease ib-source/shizuku/observe-installed.grease "$GITHUB_WORKSPACE" "$RUNNER_TEMP/ib-installed-replay/input/native-client" "$RUNNER_TEMP/ib-installed-replay/input/oracles/smali.jar" "$ANDROID_HOME" "$RUNNER_TEMP/ib-installed-replay/input/platform-inputs/public-test-keystore" "$RUNNER_TEMP/ib-installed-replay/input/platform-inputs/shizuku-official.apk" "$ANDROID_HOME/platform-tools/adb" emulator-5554 "$RUNNER_TEMP/ib-installed-replay/observed" reader
+            .tools/runtime/.build/grease/bin/grease ib-source/shizuku/observe-navigation.grease "$GITHUB_WORKSPACE" "$RUNNER_TEMP/ib-installed-replay/input" "$ANDROID_HOME" "$AICI_FIXTURE_ICK" "$ANDROID_HOME/platform-tools/adb" emulator-5554 "$RUNNER_TEMP/ib-installed-replay/observed" "$RUNNER_TEMP/ib-installed-replay/navigation"
+            .tools/runtime/.build/grease/bin/grease ib-source/shizuku/observe-search.grease "$GITHUB_WORKSPACE" "$RUNNER_TEMP/ib-installed-replay/input" "$ANDROID_HOME" "$ANDROID_HOME/platform-tools/adb" emulator-5554 "$RUNNER_TEMP/ib-installed-replay/observed" "$RUNNER_TEMP/ib-installed-replay/navigation" "$RUNNER_TEMP/chord-search-input" "$RUNNER_TEMP/ib-installed-replay/search"
       - name: Retain independent identity, status, source and installed observations
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: ib-a734-installed-api${{ matrix.api }}-replay-${{ github.event.pull_request.head.sha || github.sha }}
+          name: ib-a734-installed-api${{ matrix.api }}-${{ matrix.profile }}-replay-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
             ${{ runner.temp }}/ib-installed-replay/input-identity.tsv
             ${{ runner.temp }}/ib-installed-replay/observer-commit.txt
@@ -111,5 +143,7 @@ jobs:
             ${{ runner.temp }}/ib-installed-replay/observed/*.exit
             ${{ runner.temp }}/ib-installed-replay/navigation
             ${{ runner.temp }}/ib-installed-replay/encoding
+            ${{ runner.temp }}/ib-installed-replay/search
+            ${{ runner.temp }}/chord-search-input/input-identity.tsv
             ${{ runner.temp }}/ib-installed-replay/index-host
           if-no-files-found: warn
