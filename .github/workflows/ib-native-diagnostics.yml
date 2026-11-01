@@ -1,8 +1,7 @@
+# Completed source/tool recovery is retained for manual replay; active
+# product acceptance and current SDK diagnostics have separate workflows.
 name: Inspect the source-bound IB native reader failure
 on:
-  pull_request:
-    paths:
-      - '.github/workflows/ib-native-diagnostics.yml'
   workflow_dispatch:
 permissions:
   actions: read
