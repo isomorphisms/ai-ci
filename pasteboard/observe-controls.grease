@@ -54,7 +54,7 @@ proc shell_capability(label, accepted) {
   # 2000 and exercises the real provider, not a history-model injection.
   "$adb" -s "$serial" shell content call --uri content://com.isomorphisms.pasteboard.shizuku \
     --method observer_heartbeat --arg zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz \
-    > "$output/$label.txt" 2>&1
+    2>&1 | tr -d '\r' > "$output/$label.txt"
   # Execute the identical refusal requirement against positive and mutant.
   # A different failure (including a framework exception) cannot reject it.
   try { rg -q -x -F 'Result: Bundle[{accepted=-1}]' "$output/$label.txt" }

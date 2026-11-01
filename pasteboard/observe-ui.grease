@@ -18,6 +18,14 @@ var fixture = 'org.isomorphisms.aici.clipboardfixture/android.app.NativeActivity
 "$adb" -s "$serial" shell getprop ro.kernel.qemu | tr -d '\r' | rg -x 1
 "$adb" -s "$serial" shell getprop ro.build.version.sdk | tr -d '\r' | rg -x -F "$api"
 "$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 2000
+# API 29 reset the display override on the preceding real reboot. Restore and
+# retain this stage's declared geometry before issuing any coordinate input.
+"$adb" -s "$serial" shell wm size 480x960
+"$adb" -s "$serial" shell wm density 160
+"$adb" -s "$serial" shell wm size | tr -d '\r' > "$output/display-size.txt"
+"$adb" -s "$serial" shell wm density | tr -d '\r' > "$output/display-density.txt"
+rg -q -x '(Physical|Override) size: 480x960' "$output/display-size.txt"
+rg -q -x '(Physical|Override) density: 160' "$output/display-density.txt"
 "$adb" -s "$serial" shell getprop ro.build.fingerprint > "$output/fingerprint.txt"
 sha256sum "$apk" > "$output/apk.sha256"
 cp "$input/observer-commit.txt" "$output/"
@@ -107,12 +115,18 @@ start_app initial
 menu 0
 tap 240 747
 sleep 4
+snapshot reset-order-before
 "$adb" -s "$serial" shell am start -W -n "$fixture" > "$output/reset-order.fixture.txt"
 sleep 1
-tap 240 70
-tap 240 160
-tap 240 250
-sleep 2
+for row in @(seq 0 2) {
+  "$adb" -s "$serial" logcat -c
+  var y = 70 + int(row) * 90
+  tap 240 "$y"
+  "$adb" -s "$serial" logcat -d -s CopyFixture:I > "$output/reset-order-$row.clipboard.txt"
+  rg -q -F "visible button $row SDK clipboard effect PASS" "$output/reset-order-$row.clipboard.txt"
+  rg -q -F "present=1 items=1 text=1 sensitive=0 exact fixture=$row origin=0" "$output/reset-order-$row.clipboard.txt"
+}
+await_delivery reset-order "$output/reset-order-before.bin" 3
 start_app spatial
 await_state spatial board 1 4 "$input/fixtures/textC.txt" "$input/fixtures/textB.txt" "$input/fixtures/textA.txt" "$input/fixtures/long.txt"
 diagnose three-board-layout

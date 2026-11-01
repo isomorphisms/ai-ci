@@ -225,3 +225,14 @@ and API 34/35 blob `f0ac53014bd37640cd8d80d8a9c1c989346437c6`.
 The identical refusal assertion must exit zero for the candidate and one for
 the compiled mutant; an exception or unrelated command error cannot qualify it.
 
+At consumer 2da8967cde5ee5433577f00f65f470958ed15d58, run 41359814484,
+API 34 and 35 pass the complete observer/lifecycle/UI workflow, including actual
+framework expiration, reboot, all sixteen protected cards and archive controls.
+API 29 passes the observer, permission, pause/reconnect, manual/foreground and
+reboot controls but its following UI setup fails order. Its actual screenshot
+and native/fixture viewport receipts are 1080x1920 after reboot, rather than the
+declared 480x960; the three fixed input points copy A, A and B. The UI stage now
+restores and records its own geometry before coordinate input, asserts each
+actual SDK A/B/C effect and awaits exactly three durable acknowledgements. No
+application ordering or capture assertion changes.
+
