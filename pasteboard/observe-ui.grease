@@ -34,7 +34,10 @@ proc menu(row) { tap 450 60; var y = 215 + int(row) * 76; tap 240 "$y" }
 proc card_menu(index) {
   var x = 214
   if (int(index) % 2 !== 0) { setvar x = 450 }
-  var y = 100 + (int(index) // 2) * 104
+  # Calibrated from actual 480x960 screenshots: API 29 has a 48px navigation
+  # bar; API 34/35 has a 24px gesture bar. Keep every point inside its card.
+  var y = 108 + (int(index) // 2) * 106
+  if (int(api) === 29) { setvar y = 104 + (int(index) // 2) * 104 }
   tap "$x" "$y"
 }
 proc diagnose(label) {

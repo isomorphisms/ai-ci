@@ -135,6 +135,32 @@ and shell-induced-crash AndroidRuntime receipt before restart and exact data
 comparison. It never force-stops the package, resets storage or calls a model.
 An actual identified framework crash dialog is closed if present.
 
+The API 35 consumer at cfe03efcfa324c7cf75bd28d28e16bf104fc1e48 passes
+installed/ART/migration controls but fails the automatic-mode action with an
+actual 0,0,480,960 viewport and system-bar overlap. The consumer repairs its
+public WindowInsets boundary. Independently observed API 29/34 screenshots
+also show that one fixed card-menu pitch cannot address the last API 34 row:
+the old point falls in a gap. The automation now uses observed per-API row
+points while retaining all sixteen individual pin assertions.
+
+The same run's API 34 procedure proves actual exact-PID crash/restart recovery,
+same-signer replacement, incompatible-signer refusal and unchanged Gboard.
+Its later guard procedure contains an invalid Grease command, `if not rg`,
+which skips the intended assertions. All four saved instrumentation files say
+Process crashed, so those PASS labels are invalid and are not qualification.
+The repaired procedure requires both each exact expected message and its exact
+instrumentation result code, and preserves AndroidRuntime diagnostics before
+fixture log resets. The controller's unknown-phase path now initializes its
+result before branching; its former fallthrough leaves a result register
+undefined for ART verification. Queries explicitly expose only the controlled
+consumer package/provider. Fresh ART execution must establish these repairs.
+
+The manager's implicit MAIN/LAUNCHER package intent also cannot resolve on the
+observed Android image. Qualification now names the exported MainActivity from
+the exact signed official 13.6 APK, then uses its real authorization UI. Its
+"Tap to manage authorized apps" text is verified in source blob
+`5e469e7d09916f7a7b4b743e124004cc0d6c3d33` at the pinned Shizuku commit.
+
 Run 41347388884 at consumer 6b359f2ffd83b9a3fb67f343406c291e0c96f900
 proves real cross-application A/B/C capture before focus on API 29 and 34.
 API 29 also passes the exact long-text and exclusion policies, then its run-as

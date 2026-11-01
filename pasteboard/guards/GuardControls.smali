@@ -158,8 +158,9 @@
     const-string v5, "PASS independent real application UID refused with a valid controlled capability"
     goto :success
     :unknown
-    const-string v0, "FAIL unknown guard phase"
-    invoke-static {v0}, Lacceptance/pasteboard/GuardControls;->failure(Ljava/lang/String;)V
+    const-string v5, "FAIL unknown guard phase"
+    const/4 v6, 0x0
+    goto :finish
     :success
     const/4 v6, -0x1
     :end

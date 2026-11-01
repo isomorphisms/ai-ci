@@ -36,10 +36,14 @@ proc diagnose(label) {
   try { "$adb" -s "$serial" logcat -d -v threadtime > "$output/$label.logcat.txt" }
   try { "$adb" -s "$serial" shell ps -A -o USER,PID,NAME > "$output/$label.ps.txt" }
 }
-proc guard(phase, label, expected) {
+proc guard(phase, label, expected, result_code) {
   "$adb" -s "$serial" shell am instrument -w -e phase "$phase" \
     org.isomorphisms.aici.pasteboardcontrols/acceptance.pasteboard.GuardControls > "$output/$label.txt" 2>&1
-  if not rg -q -F "$expected" "$output/$label.txt" { diagnose "$label"; cat "$output/$label.txt"; exit 1 }
+  "$adb" -s "$serial" logcat -d -s AndroidRuntime:E > "$output/$label.runtime.txt"
+  try { rg -q -F "$expected" "$output/$label.txt" }
+  if (_error.code !== 0) { diagnose "$label"; cat "$output/$label.txt"; exit 1 }
+  try { rg -q -x -F "INSTRUMENTATION_CODE: $result_code" "$output/$label.txt" }
+  if (_error.code !== 0) { diagnose "$label"; cat "$output/$label.txt"; exit 1 }
 }
 proc copy_three(label) {
   snapshot "$label-before"
@@ -85,16 +89,16 @@ snapshot initial
 "$oracle" count "$output/initial.bin" 4
 "$oracle" mode "$output/initial.bin" 1 1
 "$adb" -s "$serial" install -r "$input/guards/controls.apk" > "$output/controls-install.txt"
-guard external external-positive 'PASS independent external provider caller refused by Android'
+guard external external-positive 'PASS independent external provider caller refused by Android' -1
 "$adb" -s "$serial" install -r "$input/guards/exposed-provider.apk" > "$output/exposed-install.txt"
 start_app exposed-provider
-guard external exposed-mutant 'FAIL external observer call not rejected by Android permission'
+guard external exposed-mutant 'FAIL external observer call not rejected by Android permission' 0
 "$adb" -s "$serial" install -r "$apk" > "$output/restore-provider.txt"
 automatic restored-provider
-guard uid uid-positive 'PASS independent real application UID refused with a valid controlled capability'
+guard uid uid-positive 'PASS independent real application UID refused with a valid controlled capability' -1
 "$adb" -s "$serial" install -r "$input/guards/uid-bypass.apk" > "$output/uid-mutant-install.txt"
 automatic uid-mutant
-guard uid uid-mutant 'FAIL unprivileged observer heartbeat accepted'
+guard uid uid-mutant 'FAIL unprivileged observer heartbeat accepted' 0
 "$adb" -s "$serial" install -r "$apk" > "$output/restore-uid.txt"
 automatic restored-uid
 copy_three restored-callbacks
@@ -153,8 +157,8 @@ printf 'observer_crash_and_reconnection\tPASS\nreconnection_has_exactly_one_deli
 
 # Use the real manager's authorization switch. A pm runtime-permission change
 # alone does not revoke Shizuku's cached authorization record.
-"$adb" -s "$serial" shell am start -W -a android.intent.action.MAIN -c android.intent.category.LAUNCHER \
-  -p moe.shizuku.privileged.api > "$output/manager.launch.txt"
+"$adb" -s "$serial" shell am start -W \
+  -n moe.shizuku.privileged.api/moe.shizuku.manager.MainActivity > "$output/manager.launch.txt"
 manager_node text 'Tap to manage authorized apps' manage-apps
 manager_node text "$package" revoke
 snapshot revoked-before
@@ -166,8 +170,8 @@ tap 240 250
 sleep 3
 snapshot revoked-after
 cmp "$output/revoked-before.bin" "$output/revoked-after.bin"
-"$adb" -s "$serial" shell am start -W -a android.intent.action.MAIN -c android.intent.category.LAUNCHER \
-  -p moe.shizuku.privileged.api > "$output/regrant-manager.launch.txt"
+"$adb" -s "$serial" shell am start -W \
+  -n moe.shizuku.privileged.api/moe.shizuku.manager.MainActivity > "$output/regrant-manager.launch.txt"
 manager_node text "$package" regrant
 automatic reauthorized
 copy_three after-regrant
