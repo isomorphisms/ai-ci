@@ -1,4 +1,4 @@
-name: Independent installed replay of IB 54b4bdaf
+name: Independent installed replay of IB 0592dd8e
 on:
   pull_request:
     paths:
@@ -94,7 +94,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: ib-54b4-installed-api${{ matrix.api }}-replay-${{ github.event.pull_request.head.sha || github.sha }}
+          name: ib-0592-installed-api${{ matrix.api }}-replay-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
             ${{ runner.temp }}/ib-installed-replay/input-identity.tsv
             ${{ runner.temp }}/ib-installed-replay/observer-commit.txt

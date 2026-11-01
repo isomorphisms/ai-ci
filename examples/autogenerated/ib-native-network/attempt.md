@@ -56,3 +56,29 @@ Both APIs must perform the entire installed-reader profile and then the
 required actual network/history continuation. Missing prerequisites fail.
 The old bc92da70 inputs and failures remain in Git/run history. No historical
 candidate is relabeled a successful modern profile.
+
+
+The extended observer at ab91ef6 failed before its first Activity observation.
+Diagnostic run 41288256448/job 124793910916 records ART rejecting onStart at
+offset 0x2e: its null-launch failure branch assigned v0 a String, and the join
+then stored v0 into an Activity field. A return after that failure removes the
+invalid branch into the typed Activity capture. The candidate APK and compiler
+are unchanged by this observer repair. The failure remains FAIL, not a valid
+mutation rejection or product result.
+
+IB 0592dd8e/run 41285921461 passes the canonical transfer/HTTP status/readback
+host controls and compiled source controls, emits the maintained Activity,
+and displays the acquired Example document on both APIs. Its older observer
+then reports a reflow-label mismatch before copying. The new observer logs
+the actual accessible label before the exact comparison. Android API 29
+TextView exposes its transformed text to accessibility, so a style transform
+must be distinguished from the raw TextView value used by the checked
+selector. No matching rule is relaxed here.
+
+The installed replay now consumes the exact 0592dd8e archive:
+artifact 13076175417, 778240917 bytes, SHA-256
+a0a6673d49782ffc2092aae8138cf58ebf6b4eb9d946caa78a3091269120a940.
+Both APIs still require all original positive/negative checks plus the
+network continuation. Fresh installed clipboard/reflow/link qualification is
+pending; original 54b4bdaf UI reopen/update/reboot observations remain scoped
+to their original run.

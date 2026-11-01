@@ -182,6 +182,8 @@
     if-eqz v0, :failed
     invoke-interface {v0}, Ljava/lang/CharSequence;->toString()Ljava/lang/String;
     move-result-object v0
+    const-string v1, "IBIndependentReflowLabel"
+    invoke-static {v1, v0}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
     invoke-virtual {p1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
     move-result v1
     if-nez v1, :done
@@ -847,6 +849,7 @@
     if-nez v0, :launched
     const-string v0, "FAIL installed checked Activity launch"
     invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    return-void
   :launched
     iput-object v0, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
     iget-object v0, p0, Lacceptance/shizuku/CapabilityInstrumentation;->phase:Ljava/lang/String;
