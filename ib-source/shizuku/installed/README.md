@@ -34,3 +34,14 @@ exact candidate executes successfully; no fixture or SDK pass implies it ran.
 Neither mode establishes physical TAB_P10 acceptance, clickable link/history,
 source-faithful selection or SEARCH behavior.
 Synchronous SDK RPC timeout behavior also requires further qualification.
+
+The source-bound Example response retained at IB fabac08a/run 41279724988
+has a title and a static paragraph, with no static heading or link. Its
+577 original bytes are not a browser-generated DOM. The UI assertion now checks
+the observed paragraph in reader_body and the independently expected title in
+the visible reader_title toolbar, plus the explicit static-HTML limitation.
+Activity.getTitle is insufficient with this no-action-bar theme. The candidate
+must actually publish its extracted title to that visible SDK TextView. The
+older candidate lacking that view is a retained regression negative, not a
+successful document observation. No heading, link or JavaScript output is
+invented to satisfy the test.

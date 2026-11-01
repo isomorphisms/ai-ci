@@ -170,6 +170,27 @@
     return-void
 .end method
 
+.method private assertDocumentTitle(Ljava/lang/String;)V
+    .registers 5
+    const-string v0, "org.isomorphisms.ib.prepaint"
+    const-string v1, "org.isomorphisms.ib.prepaint:id/reader_title"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->node(Ljava/lang/String;Ljava/lang/String;)Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v0
+    invoke-virtual {v0}, Landroid/view/accessibility/AccessibilityNodeInfo;->getText()Ljava/lang/CharSequence;
+    move-result-object v0
+    if-eqz v0, :failed
+    invoke-interface {v0}, Ljava/lang/CharSequence;->toString()Ljava/lang/String;
+    move-result-object v0
+    invoke-virtual {p1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-nez v1, :done
+  :failed
+    const-string v0, "FAIL extracted title in visible native toolbar"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+  :done
+    return-void
+.end method
+
 .method private permissionDecision(Ljava/lang/String;)V
     .registers 6
     const-string v0, "moe.shizuku.privileged.api"
@@ -356,11 +377,7 @@
     const-string v3, " "
     invoke-virtual {v1, v2, v3}, Ljava/lang/String;->replaceAll(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
     move-result-object v1
-    const-string v2, "Example Domain"
-    invoke-virtual {v1, v2}, Ljava/lang/String;->contains(Ljava/lang/CharSequence;)Z
-    move-result v2
-    if-eqz v2, :retry
-    const-string v2, "documentation examples"
+    const-string v2, "This domain is for use in documentation examples without needing permission."
     invoke-virtual {v1, v2}, Ljava/lang/String;->contains(Ljava/lang/CharSequence;)Z
     move-result v2
     if-eqz v2, :retry
@@ -379,6 +396,8 @@
     if-eqz v1, :retry
     const-string v1, "Static HTML — scripts and forms are unavailable."
     invoke-direct {p0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->assertStatus(Ljava/lang/String;)V
+    const-string v1, "Example Domain"
+    invoke-direct {p0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->assertDocumentTitle(Ljava/lang/String;)V
     invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->recordDocumentScreenshot()V
     return-void
   :retry

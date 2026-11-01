@@ -36,3 +36,12 @@ source, DEX, ABI or semantic expectation changes. The exact archived candidate
 and all compiled source controls are replayed on API 29 and 34. The failed run
 remains FAIL; neither an observer verifier failure nor an unexplained kill is
 accepted as a mutant rejection.
+
+The corrected observer at ai-ci e3c1da56ce36acae2374cf1410e889d3f384d65c
+replayed those unchanged IB fabac08a bytes in run 41283288967. API 29 job
+124779416579 and API 34 job 124779416354 both PASS: the positive returned zero
+with its exact decoder marker, and all four compiled mutations returned 137
+with their designated semantic diagnostics. Earlier v3 component and mutation
+controls also ran. This qualifies checked committed-source decoding on ART;
+it does not qualify the installed SDK octet carrier, HTTP input, or physical
+TAB_P10.
