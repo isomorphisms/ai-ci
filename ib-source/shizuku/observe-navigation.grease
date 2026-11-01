@@ -39,8 +39,10 @@ printf '%s\n' "$uid" | rg -x 'package:org\.isomorphisms\.ib\.prepaint uid:[1-9][
   "$repository/ingestion/src/fixture_server.c" -o "$evidence/fixture-server"
 var fixtures = "$repository/ib-source/reader/network-fixtures"
 var network_fixture_pid = ''
+var untrusted_tls_pid = ''
 trap --add EXIT {
   if (len(network_fixture_pid) > 0) { try { kill -KILL "$network_fixture_pid" } }
+  if (len(untrusted_tls_pid) > 0) { try { kill -KILL "$untrusted_tls_pid" } }
 }
 fork { exec "$evidence/fixture-server" 18491 "$fixtures" > "$evidence/server.stdout" 2> "$evidence/server.stderr" }
 setglobal network_fixture_pid = $!
@@ -50,6 +52,48 @@ for attempt in @(seq 1 100) {
   sleep 0.1
 }
 if (not ready) { cat "$evidence/server.stderr" >&2; echo 'FAIL declared host fixture did not bind' >&2; exit 1 }
+# A real certificate-chain refusal is separate from the plaintext TLS probe.
+if (reader_v4) {
+  var tls_private = $(mktemp -d)
+  chmod 700 "$tls_private"
+  openssl version -a > "$evidence/openssl-version.txt"
+  var openssl_program = $(command -v openssl)
+  sha256sum "$openssl_program" > "$evidence/openssl-program.sha256"
+  openssl req -x509 -newkey rsa:2048 -sha256 -days 1 -noenc \
+    -subj /CN=ib-untrusted-fixture \
+    -addext subjectAltName=IP:127.0.0.1,IP:10.0.2.2 \
+    -keyout "$tls_private/key.pem" -out "$evidence/untrusted-certificate.pem" \
+    > "$tls_private/request.stdout" 2> "$tls_private/request.stderr"
+  fork {
+    exec openssl s_server -accept 18492 -cert "$evidence/untrusted-certificate.pem" \
+      -key "$tls_private/key.pem" -www -quiet \
+      > "$evidence/untrusted-server.stdout" 2> "$evidence/untrusted-server.stderr"
+  }
+  setglobal untrusted_tls_pid = $!
+  var tls_ready = false
+  for attempt in @(seq 1 15) {
+    try {
+      timeout 2 openssl s_client -connect 127.0.0.1:18492 \
+        -CAfile "$evidence/untrusted-certificate.pem" -verify_ip 127.0.0.1 \
+        -verify_return_error < /dev/null > "$evidence/fixture-trusted-handshake.txt" 2>&1
+    }
+    var trusted_status = _error.code
+    if (trusted_status === 0) { setvar tls_ready = true; break }
+    sleep 0.1
+  }
+  if (not tls_ready) { cat "$evidence/fixture-trusted-handshake.txt"; echo 'FAIL declared TLS fixture did not provide a verifiable certificate' >&2; exit 1 }
+  rg -F 'Verify return code: 0 (ok)' "$evidence/fixture-trusted-handshake.txt"
+  try {
+    timeout 15 openssl s_client -connect 127.0.0.1:18492 \
+      -verify_ip 127.0.0.1 -verify_return_error < /dev/null \
+      > "$evidence/fixture-untrusted-handshake.txt" 2>&1
+  }
+  var untrusted_status = _error.code
+  printf '%s\n' "$untrusted_status" > "$evidence/fixture-untrusted-handshake.exit"
+  if (untrusted_status !== 1) { cat "$evidence/fixture-untrusted-handshake.txt"; echo 'FAIL unknown certificate fixture was not refused by default trust' >&2; exit 1 }
+  rg -F 'verify error:num=18:self-signed certificate' "$evidence/fixture-untrusted-handshake.txt"
+  openssl x509 -in "$evidence/untrusted-certificate.pem" -noout -fingerprint -sha256 -dates > "$evidence/untrusted-certificate.txt"
+}
 var starter = "/data/local/tmp/ib-shizuku-$(sha256sum "$installed/observer.dex" | cut -d ' ' -f 1)/start"
 "$adb" -s "$serial" pull "$starter" "$evidence/observed-starter"
 cmp "$installed/official-starter" "$evidence/observed-starter"
@@ -89,6 +133,10 @@ if (reader_v2) {
   if (reader_v3) {
     observe transport-refusals actual-transport-refusals 'PASS installed TLS protocol charset UTF8 binary truncation encoding chunking and size refusals preserve source'
     diagnose after-transport-refusals
+    if (reader_v4) {
+      observe untrusted-tls actual-untrusted-certificate 'PASS installed ICU rejects a real untrusted TLS certificate and retains source copy and history'
+      diagnose after-untrusted-certificate
+    }
   }
   observe search-callers actual-search-caller-refusals 'PASS installed no-caller spoofed-referrer wrong-caller and warm SEARCH refusals'
   diagnose after-search-caller-refusals
@@ -178,10 +226,16 @@ if (reader_v2) {
 }
 
 if (reader_v3) {
-  printf 'TLS_plaintext_endpoint\tREJECTED\nunsupported_charset_and_invalid_UTF8\tREJECTED\nbinary_MIME\tREJECTED\ntruncated_and_gzip_encoded_payload\tREJECTED\nmalformed_and_excessive_chunk\tREJECTED\nall_refusals_keep_exact_source_copy_and_history\tPASS\ncertificate_trust_negative\tNOT_RUN\n' >> "$evidence/receipt.tsv"
+  printf 'TLS_plaintext_endpoint\tREJECTED\nunsupported_charset_and_invalid_UTF8\tREJECTED\nbinary_MIME\tREJECTED\ntruncated_and_gzip_encoded_payload\tREJECTED\nmalformed_and_excessive_chunk\tREJECTED\nall_refusals_keep_exact_source_copy_and_history\tPASS\n' >> "$evidence/receipt.tsv"
 }
 
 if (reader_v4) {
   cmp "$evidence/pre-recovery-arena/responses.arena" "$evidence/actual-arena/responses.arena"
   printf 'checksummed_semantic_journal_corruption\tREJECTED\nprevious_head_visible_recovery\tPASS\no_refetch_during_recovery\tPASS\noriginal_Arena_bytes_unchanged\tPASS\n' >> "$evidence/receipt.tsv"
+}
+
+if (reader_v3) {
+  if (reader_v4) {
+    printf 'certificate_trust_negative\tREJECTED\nfixture_explicit_trust_control\tPASS\nfixture_default_trust_control\tREJECTED\n' >> "$evidence/receipt.tsv"
+  } else { printf 'certificate_trust_negative\tNOT_RUN\n' >> "$evidence/receipt.tsv" }
 }
