@@ -29,7 +29,7 @@ unzip -q "$evidence/original.zip" -d "$evidence/input"
 var log = "$evidence/input/ib-installed-replay/search/handoff.logcat.txt"
 awk '
   /IBIndependentSearchAddress/ {seen=1}
-  seen && /IBIndependentSearchAddress|IBIndependentReaderStatus|IBIndependentReaderBody|IBReader|AndroidRuntime/ {
+  seen && /IBIndependentSearchAddress|IBIndependentReaderStatus|IBIndependentReaderBody|IBReader|AndroidRuntime|System.err|StackOverflow|OutOfMemory|ExceptionDescribe/ {
     if(++shown<=80) print
   }
 ' "$log" > "$evidence/actual-Google-view.txt"
