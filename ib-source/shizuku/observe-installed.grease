@@ -81,7 +81,12 @@ proc install_candidate(lane, label) {
   "$adb" -s "$serial" shell dumpsys package org.isomorphisms.ib.prepaint > "$evidence/$label.installed-package.txt"
 }
 proc diagnose(label) {
-  try { "$adb" -s "$serial" logcat -d -v threadtime > "$evidence/$label.logcat.txt" 2>&1 }
+  # User-service attachment nonces are not source/provenance identifiers.
+  # Preserve numeric stages and caller observations while redacting them.
+  try {
+    "$adb" -s "$serial" logcat -d -v threadtime 2>&1 |
+      sed -E 's/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}-[0-9]{10,}/[REDACTED_SERVICE_NONCE]/g' > "$evidence/$label.logcat.txt"
+  }
   try { "$adb" -s "$serial" exec-out screencap -p > "$evidence/$label.screen.png" 2> "$evidence/$label.screen-error.txt" }
   try { "$adb" -s "$serial" shell uiautomator dump /data/local/tmp/ib-boundary-diagnostic.xml > "$evidence/$label.dump.txt" 2>&1 }
   try { "$adb" -s "$serial" pull /data/local/tmp/ib-boundary-diagnostic.xml "$evidence/$label.ui.xml" > "$evidence/$label.pull-ui.txt" 2>&1 }
