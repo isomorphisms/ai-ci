@@ -46,3 +46,40 @@ jobs:
       - name: Read the exact API 34 independent index failure
         shell: sh
         run: cat "$RUNNER_TEMP/reader-IB/observed-api34/installed/index-positive.txt"
+  reflow_label:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      # Exact IB 0592dd8 native-reader candidate, public Example only.
+      # ZIP SHA-256 e0fe44024db1a1290cede98338c849c83b867ed2032ff8272970405dcf7e8eac.
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          repository: isomorphisms/ib
+          github-token: ${{ github.token }}
+          run-id: 41285921461
+          artifact-ids: '13075803624'
+          merge-multiple: true
+          path: ${{ runner.temp }}/reflow-IB
+      - name: Read the actual API 29 rendered controls
+        shell: sh
+        run: cat "$RUNNER_TEMP/reflow-IB/observed-api29/installed/actual-reflow-and-clipboard.ui.xml"
+      - name: Read the actual API 34 rendered controls
+        shell: sh
+        run: cat "$RUNNER_TEMP/reflow-IB/observed-api34/installed/actual-reflow-and-clipboard.ui.xml"
+  observer_verifier:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      # Exact independent observer ab91ef6, replaying the unchanged 54b4bdaf APK.
+      # API 29 replay ZIP SHA-256 0572ac97cae9dc9c034414666f1109712c46222e93500748376eb059838cbb00.
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          repository: isomorphisms/ai-ci
+          github-token: ${{ github.token }}
+          run-id: 41287153951
+          artifact-ids: '13074784259'
+          merge-multiple: true
+          path: ${{ runner.temp }}/observer-IB
+      - name: Read the actual new observer runtime exception
+        shell: sh
+        run: grep -E 'AndroidRuntime:|VerifyError|Rejecting' "$RUNNER_TEMP/observer-IB/observed/absent-and-unauthorized.logcat.txt"
