@@ -12,8 +12,17 @@ the emulator and shell identity before changing display geometry, starting the
 official pinned Shizuku server, or inspecting private synthetic fixture history.
 The decisive A/B/C check reads durable history while the copy fixture remains
 focused, then checks it again after Pasteboard resumes. Permission decisions use
-the real Shizuku dialog and confirm that it names Pasteboard. No clipboard
-polling or accessibility content extraction is used by the candidate.
+the real Shizuku dialog and confirm that it names Pasteboard.
+
+The process-death control schedules a framework crash of the verified app PID,
+requires its actual disappearance and matching AndroidRuntime crash receipt,
+then compares exact history after restart. It does not substitute force-stop
+for ordinary process death. Background am kill is insufficient for a live
+provider process. AOSP ActivityManagerShellCommand runCrash definitions are
+pinned to Android 10 blob `8f16ed4768deed6ecf407063ce3f94cf0220cd09`, Android 14
+`569f55f7890fa51a4a7dea37f6188a9be4f4892b` and Android 15
+`bbd432340e8f559d513da79207d8de92fa0020aa`.
+No clipboard polling or accessibility content extraction is used by the candidate.
 
 The oracle checks checksums, strict UTF-8, framed snapshots, unique identities
 and contents, visible capacity and exact expected text/order independently of

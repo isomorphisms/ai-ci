@@ -124,6 +124,17 @@ no optional extras before the actual copy. The installed A/B/C/long procedure
 requires that precondition receipt, so platform-added classification metadata
 cannot conceal a consumer rejection of ordinary clips without extras.
 
+At consumer 61e975827252cc54aac2ad8e9c515022bb54cc19 / run 41350659918,
+both API 29 and 34 pass actual A/B/C capture, exact long text and all exclusion
+policies; both migration jobs also pass. ActivityManager am kill leaves the
+live app/provider process alive on both APIs. This command only targets cached
+processes, so it cannot establish the required process death here. The next
+procedure uses the documented framework am crash command on the exact app PID,
+requires that original PID to disappear and requires the matching process/PID
+and shell-induced-crash AndroidRuntime receipt before restart and exact data
+comparison. It never force-stops the package, resets storage or calls a model.
+An actual identified framework crash dialog is closed if present.
+
 Run 41347388884 at consumer 6b359f2ffd83b9a3fb67f343406c291e0c96f900
 proves real cross-application A/B/C capture before focus on API 29 and 34.
 API 29 also passes the exact long-text and exclusion policies, then its run-as

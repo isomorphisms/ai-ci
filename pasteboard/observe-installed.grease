@@ -182,7 +182,10 @@ printf 'long_text_without_8192_limit\tPASS\nsensitive_text_excluded\tPASS\nembed
 # acknowledged records. Reboot does not imply Shizuku starts itself afterward.
 var pid = $("$adb" -s "$serial" shell pidof "$package" | tr -d '\r')
 printf '%s\n' "$pid" | rg -x '[1-9][0-9]*'
-"$adb" -s "$serial" shell am kill --user 0 "$package" > "$output/background-kill.txt"
+# am kill only targets sufficiently cached processes; this live provider is
+# not eligible. The framework crash command schedules an actual runtime crash
+# of the exact process, without package force-stop or a storage/model call.
+"$adb" -s "$serial" shell am crash --user 0 "$pid" > "$output/process-crash.txt"
 var process_died = false
 for attempt in @(seq 1 30) {
   try { "$adb" -s "$serial" shell pidof "$package" > "$output/after-background-kill.pid.txt" }
@@ -190,7 +193,21 @@ for attempt in @(seq 1 30) {
   if (replacement_pid !== pid) { setvar process_died = true; break }
   sleep 0.2
 }
-if (not process_died) { diagnose background-kill; echo 'FAIL background application process did not die' >&2; exit 1 }
+if (not process_died) { diagnose process-crash; echo 'FAIL application process did not die after framework crash' >&2; exit 1 }
+"$adb" -s "$serial" logcat -d -s AndroidRuntime:E > "$output/process-crash.logcat.txt"
+rg -q -F "Process: $package, PID: $pid" "$output/process-crash.logcat.txt"
+rg -q -F 'shell-induced crash' "$output/process-crash.logcat.txt"
+# Close only the framework's identified crash dialog if it is actually shown.
+try { timeout 30s "$adb" -s "$serial" shell uiautomator dump /data/local/tmp/pasteboard-crash.xml > "$output/process-crash.dump.txt" 2>&1 }
+if (_error.code === 0) {
+  "$adb" -s "$serial" pull /data/local/tmp/pasteboard-crash.xml "$output/process-crash.xml" > "$output/process-crash.pull.txt"
+  try { "$oracle" ui-point "$output/process-crash.xml" resource-id android:id/aerr_close > "$output/process-crash-close.point.txt" }
+  if (_error.code === 0) {
+    var point = $(cat "$output/process-crash-close.point.txt")
+    "$adb" -s "$serial" shell input tap @[split(point)]
+    sleep 0.5
+  }
+}
 start_app ordinary-restart
 snapshot ordinary-restart
 cmp "$output/policies.bin" "$output/ordinary-restart.bin"
