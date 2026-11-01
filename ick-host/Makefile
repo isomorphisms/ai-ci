@@ -35,6 +35,7 @@ dependencies:
 extra-packages:
 	test -s "$(ICK_BUILD)/apt-sources/ubuntu.sources"
 	test -n "$(PACKAGES)"
+	sudo timeout 240 apt-get $(BOOTSTRAP_APT) update
 	sudo timeout 240 apt-get $(BOOTSTRAP_APT) install -y $(PACKAGES)
 
 qualify: qualify-complex
