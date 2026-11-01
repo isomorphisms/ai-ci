@@ -72,3 +72,13 @@ download reset the host oracle's executable mode. Preparation now retains an
 inner oracle runtime archive; the consumer restores and self-tests it before
 booting Android. Migration assertions are unchanged. Per-stage provenance now
 binds the actual APK digest to the producer and checked compiler identities.
+
+At consumer 819108c319477056d4490e937fded1ba3561fe1c / run 41336882942,
+the restored host oracle executes. API 34 passes real legacy upgrade, retirement,
+corrupt legacy refusal, installed loader and restart/replacement. Its automatic
+mode remains disabled after the intended visible menu touches; the assertion
+refuses the result before any observer success claim. Screenshots and input
+metadata are added around that action. API 29 reaches exact migrated contents
+but cannot exec a standalone test command under run-as. Absence checks now use
+the actual system ls result and require an ENOENT diagnostic, retaining the
+same file-absence assertion without relying on a shell builtin as an executable.

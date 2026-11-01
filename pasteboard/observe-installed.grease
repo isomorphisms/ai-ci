@@ -86,7 +86,13 @@ proc decision(button, label) {
 }
 snapshot initial
 "$oracle" board "$output/initial.bin" 1 0
-menu 0
+tap 450 60
+diagnose automatic-menu-open
+tap 240 215
+diagnose automatic-menu-requested
+snapshot automatic-requested
+try { "$oracle" mode "$output/automatic-requested.bin" 1 1 > "$output/automatic-requested.mode.txt" }
+if (_error.code !== 0) { diagnose automatic-mode-refused; cat "$output/automatic-requested.mode.txt"; exit 1 }
 close_menu
 copy_three unavailable
 start_app unavailable-return
