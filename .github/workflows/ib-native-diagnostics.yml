@@ -12,28 +12,31 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      # Read-only extraction of the exact failed candidate's official artifact.
-      # Its 686167484-byte ZIP exceeds the connector's 512 MiB retrieval limit.
-      # Original digest: 08acba8351de284176dbca4e5ba59f149963cf337966f96c0132d17b8580b440.
-      # Source head: isomorphisms/ib 80dd9a1b09515682be73ea7fce774842c0c95b3d.
+      # Exact compact diagnostic from the changed-source Windows decoder run.
+      # This reads only the verified fresh emulator's public Example fixture.
+      # Candidate: isomorphisms/ib fabac08af063a923e50448b696c900b4a0f89caf.
+      # Original ZIP SHA-256: 9d859291b206e2476d42d6a8845e1ee1b0762bef0040d32aeac2b0f5677a4eed.
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           repository: isomorphisms/ib
           github-token: ${{ github.token }}
-          run-id: 41260392191
-          artifact-ids: '13065198302'
+          run-id: 41279724988
+          artifact-ids: '13074170263'
           merge-multiple: true
           path: ${{ runner.temp }}/failed-IB
+      - name: Read the actual SDK refusal and source-completion stages
+        shell: sh
+        run: grep -E 'IBIndependentReaderStatus|committed source acquired=|checked renderer callback' "$RUNNER_TEMP/failed-IB/observed-api29/installed/actual-native-document.logcat.txt"
+      - name: List the independent public-source snapshot
+        shell: sh
+        run: tar -tzf "$RUNNER_TEMP/failed-IB/observed-api29/installed/actual-native-document.failure-source.tar.gz"
+      - name: Read original response receipt observations
+        shell: sh
+        run: tar -xOzf "$RUNNER_TEMP/failed-IB/observed-api29/installed/actual-native-document.failure-source.tar.gz" --wildcards './receipts/*.tsv'
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: ib-native-diagnostics-80dd9a1
-          path: |
-            ${{ runner.temp }}/failed-IB/installed-api29/*.logcat.txt
-            ${{ runner.temp }}/failed-IB/installed-api29/*.ui.xml
-            ${{ runner.temp }}/failed-IB/installed-api29/*.screen.png
-            ${{ runner.temp }}/failed-IB/installed-api29/*.txt
-            ${{ runner.temp }}/failed-IB/native-client/receipt.tsv
-            ${{ runner.temp }}/failed-IB/native-client/*-commit.txt
+          name: ib-native-diagnostics-fabac08
+          path: ${{ runner.temp }}/failed-IB
           if-no-files-found: error
   oracles:
     runs-on: ubuntu-24.04
