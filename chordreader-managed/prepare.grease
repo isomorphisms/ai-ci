@@ -7,6 +7,7 @@ var input = ARGV[2]
 var revision = ARGV[3]
 var run_id = ARGV[4]
 var evidence = ARGV[5]
+var android_home = ENV.ANDROID_HOME
 test ! -e "$evidence"
 mkdir -p "$evidence"
 test "$(git -C "$source" rev-parse HEAD)" = "$revision"
@@ -20,9 +21,9 @@ for abi in armeabi-v7a arm64-v8a x86_64 {
   rg -x -F "$(printf 'version_code\t1002')" "$receipt"
   var digest = $(sha256sum "$apk" | cut -d ' ' -f 1)
   rg -x -F "$(printf 'apk_sha256\t%s' "$digest")" "$receipt"
-  "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$apk" > "$evidence/$abi.signer.txt"
+  "$android_home/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$apk" > "$evidence/$abi.signer.txt"
   rg -F 'Signer #1 certificate SHA-256 digest: de9b1d47c5a65e6d46a204b79dd9ee566b9d3c9832ba81ebc4213d3392e92ff9' "$evidence/$abi.signer.txt"
-  "$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging "$apk" > "$evidence/$abi.badging.txt"
+  "$android_home/build-tools/36.0.0/aapt2" dump badging "$apk" > "$evidence/$abi.badging.txt"
   rg -F "package: name='org.isomorphisms.chordreader.dev' versionCode='1002' versionName='0.2-dev'" "$evidence/$abi.badging.txt"
   unzip -p "$apk" assets/chordreader-pitch.dex > "$evidence/$abi.dex"
   cmp "$evidence/$abi.dex" "$input/exec/chordreader-pitch.dex"
