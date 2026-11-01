@@ -1920,6 +1920,7 @@
     invoke-static {v2, v3}, Landroid/os/SystemClock;->sleep(J)V
     add-int/lit8 v0, v0, -1
     if-gtz v0, :again
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->recordDocumentScreenshot()V
     invoke-static {v1}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
   :done
     invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->recordDocumentScreenshot()V

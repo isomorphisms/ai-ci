@@ -47,15 +47,36 @@ proc snapshot(label) {
   mkdir -m 700 "$evidence/$label-arena/staging"
 }
 proc diagnose(label) {
+  var capture_phase = 'fragment-navigation'
+  if (label === 'offline-fragments') { setvar capture_phase = 'offline-fragments' }
   try {
     "$adb" -s "$serial" logcat -d -v threadtime 2>&1 |
       sed -E 's/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}-[0-9]{10,}/[REDACTED_SERVICE_NONCE]/g' > "$evidence/$label.logcat.txt"
   }
   if test -s "$evidence/$label.logcat.txt" {
-    awk '/IBIndependentFragmentViewport|IBIndependentReaderStatus|IBIndependentReaderStack|IBReader.*checked renderer/ {line[++n]=$0}
-      END {for(i=(n>30?n-29:1);i<=n;i++)print line[i]}' "$evidence/$label.logcat.txt"
+    awk '/IBIndependentFragmentViewport|IBIndependentFragmentCoordinates|IBIndependentReaderStatus|IBIndependentReaderStack|IBReader.*checked renderer|IBReader.*fragment viewport/ {line[++n]=$0}
+      END {for(i=(n>80?n-79:1);i<=n;i++)print line[i]}' "$evidence/$label.logcat.txt"
   }
+  # Post-instrumentation screencap can show HOME. Preserve it as a
+  # diagnostic only, and separately read the SDK's in-process screenshot.
   try { "$adb" -s "$serial" exec-out screencap -p > "$evidence/$label.png" 2> "$evidence/$label.screen-error.txt" }
+  try {
+    "$adb" -s "$serial" root > "$evidence/$label.capture-root.txt" 2>&1
+    timeout 30 "$adb" -s "$serial" wait-for-device
+    "$adb" -s "$serial" pull /data/user/0/org.isomorphisms.ib.prepaint/cache/ib-acceptance-$capture_phase.png \
+      "$evidence/$label.sdk-document.png" > "$evidence/$label.capture-pull.txt" 2>&1
+  }
+  try { "$adb" -s "$serial" unroot > "$evidence/$label.capture-unroot.txt" 2>&1 }
+  timeout 30 "$adb" -s "$serial" wait-for-device
+  "$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 2000
+  if (label === 'actual-fragment') {
+    if test -s "$evidence/$label.sdk-document.png" {
+      sha256sum "$evidence/$label.sdk-document.png"
+      printf '%s\n' 'IB_SCREENSHOT_BEGIN'
+      base64 --wrap=4096 "$evidence/$label.sdk-document.png"
+      printf '%s\n' 'IB_SCREENSHOT_END'
+    }
+  }
 }
 proc observe(phase, label, code, marker) {
   try {

@@ -1,4 +1,4 @@
-name: Independent IB e1a64d97 native fragment replay
+name: Independent IB 1a0a0602 native reader profile replay
 on:
   pull_request:
     paths:
@@ -15,12 +15,14 @@ permissions:
   actions: read
 jobs:
   installed:
-    name: native fragments API ${{ matrix.api }}
+    name: API ${{ matrix.api }} / ${{ matrix.profile }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
+        api: [29, 34]
+        profile: [fragments, lifecycle, links]
         include:
           - api: 29
             target: default
@@ -84,7 +86,7 @@ jobs:
       - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd
         with:
           packages: 'build-tools;35.0.0 platforms;android-34'
-      - name: Replay actual fragment touch, compiled viewport control and offline history
+      - name: Replay the required installed native profile
         uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
         env:
           AICI_EXPECTED_ANDROID_API: '${{ matrix.api }}'
@@ -96,14 +98,12 @@ jobs:
           disk-size: 2048M
           emulator-options: -no-window -no-audio -no-snapshot -no-boot-anim -memory 2048 -gpu swiftshader_indirect
           disable-animations: true
-          script: |
-            .tools/runtime/.build/grease/bin/grease ib-source/shizuku/observe-installed.grease "$GITHUB_WORKSPACE" "$RUNNER_TEMP/ib-installed-replay/input/native-client" "$RUNNER_TEMP/ib-installed-replay/input/oracles/smali.jar" "$ANDROID_HOME" "$RUNNER_TEMP/ib-installed-replay/input/platform-inputs/public-test-keystore" "$RUNNER_TEMP/ib-installed-replay/input/platform-inputs/shizuku-official.apk" "$ANDROID_HOME/platform-tools/adb" emulator-5554 "$RUNNER_TEMP/ib-installed-replay/observed" reader-v2
-            .tools/runtime/.build/grease/bin/grease ib-source/shizuku/observe-fragments.grease "$GITHUB_WORKSPACE" "$RUNNER_TEMP/ib-installed-replay/input" "$ANDROID_HOME" "$AICI_FIXTURE_ICK" "$ANDROID_HOME/platform-tools/adb" emulator-5554 "$RUNNER_TEMP/ib-installed-replay/observed" "$RUNNER_TEMP/ib-installed-replay/fragments"
+          script: .tools/runtime/.build/grease/bin/grease ib-source/reader/observe-installed-profile.grease "$GITHUB_WORKSPACE" "$RUNNER_TEMP/ib-installed-replay/input" "$ANDROID_HOME" "$AICI_FIXTURE_ICK" "${{ matrix.profile }}" "$RUNNER_TEMP/ib-installed-replay/profile"
       - name: Retain independent identity, status, source and installed observations
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: ib-e1-fragment-api${{ matrix.api }}-replay-${{ github.event.pull_request.head.sha || github.sha }}
+          name: ib-1a0-acceptance-api${{ matrix.api }}-${{ matrix.profile }}-replay-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
             ${{ runner.temp }}/ib-orchestration
             ${{ runner.temp }}/ib-installed-replay/input-identity.tsv
@@ -115,6 +115,6 @@ jobs:
             ${{ runner.temp }}/ib-installed-replay/observed/*.tsv
             ${{ runner.temp }}/ib-installed-replay/observed/*.failure-source.tar.gz
             ${{ runner.temp }}/ib-installed-replay/observed/*.exit
-            ${{ runner.temp }}/ib-installed-replay/fragments
+            ${{ runner.temp }}/ib-installed-replay/profile
             ${{ runner.temp }}/ib-installed-replay/index-host
           if-no-files-found: warn

@@ -14,6 +14,7 @@ var programs = [
   'ib-source/shizuku/observe-reader-lifecycle.grease',
   'ib-source/shizuku/observe-link-shapes.grease',
   'dex/observe-activity-lifecycle.grease',
+  'ib-source/reader/observe-installed-profile.grease',
   'ib-source/reader/verify-google-href.grease',
   'ib-source/reader/test-google-href.grease'
 ]
