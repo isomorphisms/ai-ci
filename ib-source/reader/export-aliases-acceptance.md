@@ -23,3 +23,13 @@ This diagnosis is an inference from the decoded observer until fresh execution.
 No candidate DEX, public ABI, compiler semantics or expected counter result is
 changed by the observer repair. New API 29/34 execution, including intended
 compiled-mutant rejection, remains required before qualification.
+
+At android-NDK 114a5481cd1cdc15ce02a7b134b798a3124f7ec7, run
+41276459197 reached the exact positive diagnostic and exit zero on both APIs.
+Its driver nevertheless refused the observation: `setglobal` changed a global
+binding while `var marker_found` remained false in the loop's local scope.
+The same mistake affected the expected mutant status and diagnostic. A direct
+execution on the pinned host Grease reproduces the false refusal; using
+`setvar` preserves the intended local values for both lanes. The driver now
+uses that operation. This run remains FAIL and its alias mutant was NOT_RUN;
+fresh execution must observe both lanes before acceptance.

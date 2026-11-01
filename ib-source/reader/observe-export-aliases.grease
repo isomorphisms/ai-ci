@@ -43,11 +43,11 @@ for lane in managed mutant {
   var expected_status = 0
   var expected_marker = 'PASS independent pure partial and IO export alias saturation on ART'
   if (lane === 'mutant') {
-    setglobal expected_status = 137
-    setglobal expected_marker = 'FAIL checked IO alias applies supplied effect exactly once'
+    setvar expected_status = 137
+    setvar expected_marker = 'FAIL checked IO alias applies supplied effect exactly once'
   }
   var marker_found = false
-  if rg -x -F "$expected_marker" "$evidence/$lane.txt" { setglobal marker_found = true }
+  if rg -x -F "$expected_marker" "$evidence/$lane.txt" { setvar marker_found = true }
   if (status !== expected_status or not marker_found) {
     try { "$adb" -s "$serial" logcat -d -v threadtime -s AndroidRuntime:E > "$evidence/$lane.runtime-errors.txt" 2>&1 }
     cat "$evidence/$lane.runtime-errors.txt"

@@ -21,9 +21,42 @@
 
 .method private static failure(Ljava/lang/String;)V
     .registers 2
+    invoke-static {}, Lacceptance/shizuku/CapabilityInstrumentation;->dumpMainStack()V
     new-instance v0, Ljava/lang/AssertionError;
     invoke-direct {v0, p0}, Ljava/lang/AssertionError;-><init>(Ljava/lang/Object;)V
     throw v0
+.end method
+
+.method private static dumpMainStack()V
+    .registers 7
+  :trace_start
+    invoke-static {}, Landroid/os/Looper;->getMainLooper()Landroid/os/Looper;
+    move-result-object v0
+    if-eqz v0, :trace_end
+    invoke-virtual {v0}, Landroid/os/Looper;->getThread()Ljava/lang/Thread;
+    move-result-object v1
+    invoke-virtual {v1}, Ljava/lang/Thread;->getStackTrace()[Ljava/lang/StackTraceElement;
+    move-result-object v2
+    const/4 v3, 0
+    const/16 v4, 24
+    const-string v5, "IBIndependentReaderStack"
+  :trace_next
+    array-length v6, v2
+    if-ge v3, v6, :trace_end
+    if-ge v3, v4, :trace_end
+    aget-object v0, v2, v3
+    invoke-virtual {v0}, Ljava/lang/StackTraceElement;->toString()Ljava/lang/String;
+    move-result-object v0
+    invoke-static {v5, v0}, Landroid/util/Log;->e(Ljava/lang/String;Ljava/lang/String;)I
+    add-int/lit8 v3, v3, 1
+    goto :trace_next
+  :trace_end
+    return-void
+  :trace_catch_end
+    .catch Ljava/lang/Throwable; {:trace_start .. :trace_catch_end} :trace_unavailable
+  :trace_unavailable
+    move-exception v0
+    return-void
 .end method
 
 .method private static waitState(ILjava/lang/String;)V
