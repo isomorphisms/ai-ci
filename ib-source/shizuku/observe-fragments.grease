@@ -94,6 +94,13 @@ install anchor-zero
 observe fragment-navigation zero-point-mutant 0 'java.lang.AssertionError: FAIL fragment target is outside the native viewport'
 snapshot before-positive
 install boundary
+# Root/unroot restarts adbd, which can terminate the shell-owned Shizuku
+# server. Establish the same observed official authority after the snapshot;
+# a missing server must not be misreported as a candidate viewport failure.
+try { "$adb" -s "$serial" shell killall shizuku_server > "$evidence/before-positive.stop-server.txt" 2>&1 }
+var stopped = _error.code
+if (stopped !== 0 and stopped !== 1) { echo 'FAIL stopping fragment test authority' >&2; exit 1 }
+"$adb" -s "$serial" shell "$starter" "--apk=$manager" > "$evidence/positive.start-server.txt" 2>&1
 observe fragment-navigation actual-fragment -1 'PASS native fragment touch reaches Unicode target and retained Back Forward'
 snapshot committed
 var current = "$evidence/committed-arena/last-source"
