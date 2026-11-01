@@ -35,7 +35,7 @@
 .end method
 
 .method private static observe(I)V
-    .registers 12
+    .registers 16
     new-instance v0, Ljava/lang/StringBuilder;
     invoke-direct {v0}, Ljava/lang/StringBuilder;-><init>()V
     const/4 v1, 0
@@ -91,8 +91,21 @@
     invoke-virtual {v6, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
     invoke-virtual {v6}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
     move-result-object v6
+    sget-object v8, Ljava/lang/System;->out:Ljava/io/PrintStream;
+    const-string v9, "BEGIN original byte count for checked projection"
+    invoke-virtual {v8, v9}, Ljava/io/PrintStream;->println(Ljava/lang/String;)V
+    invoke-virtual {v8, v3}, Ljava/io/PrintStream;->println(I)V
+    invoke-static {}, Ljava/lang/System;->nanoTime()J
+    move-result-wide v10
     invoke-static {v5, v2}, LIdric/Generated;->project_committed_representation(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
     move-result-object v7
+    invoke-static {}, Ljava/lang/System;->nanoTime()J
+    move-result-wide v12
+    sub-long v10, v12, v10
+    sget-object v8, Ljava/lang/System;->out:Ljava/io/PrintStream;
+    const-string v9, "checked projection elapsed nanoseconds"
+    invoke-virtual {v8, v9}, Ljava/io/PrintStream;->println(Ljava/lang/String;)V
+    invoke-virtual {v8, v10, v11}, Ljava/io/PrintStream;->println(J)V
     invoke-virtual {v6, v7}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
     move-result v8
     if-nez v8, :passed
@@ -128,7 +141,16 @@
 .method public static main([Ljava/lang/String;)V
     .registers 7
   :start
+    invoke-static {}, Ljava/lang/Thread;->currentThread()Ljava/lang/Thread;
+    move-result-object v0
+    new-instance v1, Lacceptance/SourceStackSampler;
+    invoke-direct {v1, v0}, Lacceptance/SourceStackSampler;-><init>(Ljava/lang/Thread;)V
+    invoke-virtual {v1}, Ljava/lang/Thread;->start()V
     const/16 v0, 32
+    invoke-static {v0}, Lacceptance/LargeSourceObserver;->observe(I)V
+    const/16 v0, 1200
+    invoke-static {v0}, Lacceptance/LargeSourceObserver;->observe(I)V
+    const/16 v0, 4500
     invoke-static {v0}, Lacceptance/LargeSourceObserver;->observe(I)V
     const/16 v0, 12000
     invoke-static {v0}, Lacceptance/LargeSourceObserver;->observe(I)V

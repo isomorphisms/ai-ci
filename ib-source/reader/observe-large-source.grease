@@ -16,7 +16,7 @@ mkdir -p "$evidence/observer-source"
 "$adb" -s "$serial" shell getprop ro.product.cpu.abi | tr -d '\r' | rg -x x86_64
 var api = $("$adb" -s "$serial" shell getprop ro.build.version.sdk | tr -d '\r')
 if (api !== ENV.AICI_EXPECTED_ANDROID_API or (api !== '29' and api !== '34')) { exit 1 }
-cp "$repository/ib-source/reader/LargeSourceObserver.smali" "$repository/ib-source/reader/AssertionFailure.smali" "$evidence/observer-source/"
+cp "$repository/ib-source/reader/LargeSourceObserver.smali" "$repository/ib-source/reader/AssertionFailure.smali" "$repository/ib-source/reader/SourceStackSampler.smali" "$evidence/observer-source/"
 java -jar "$smali" assemble "$evidence/observer-source" -o "$evidence/observer.dex"
 var digest = $(sha256sum "$input/prepaint/reader.dex" | cut -d ' ' -f 1)
 var remote = "/data/local/tmp/ib-scale-$digest"
