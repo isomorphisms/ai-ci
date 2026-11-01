@@ -37,7 +37,16 @@ for lane in prepaint prepaint-decoding-gate-mutant {
   printf '%s\n' "$status" > "$evidence/$lane.exit"
   cat "$evidence/$lane.txt"
   if (lane === 'prepaint') {
-    if (status !== 0) { echo 'FAIL unchanged checked large source projection' >&2; exit 1 }
+    if (status !== 0) {
+      awk '
+        FNR==NR {if($0 ~ /^__idric(Managed[0-9]+|Apply|RecursiveGroup_.*|TailGroup_.*)$/) wanted[$0]=1; next}
+        $1=="method" {selected=($2 in wanted); title=$0; next}
+        selected && /^source:/ {print title; print; selected=0}
+      ' "$evidence/$lane.txt" "$input/$lane/reader.dex.plan" > "$evidence/failing-checked-methods.txt"
+      cat "$evidence/failing-checked-methods.txt"
+      echo 'FAIL unchanged checked large source projection' >&2
+      exit 1
+    }
     rg -x -F 'PASS independent exact 231 and 84007 byte legacy source projections' "$evidence/$lane.txt"
   } else {
     if (status !== 137) { echo 'FAIL compiled source-admission mutant did not reach its designated rejection' >&2; exit 1 }
