@@ -95,6 +95,25 @@ proc diagnose(label) {
   # Private worker stderr is bounded by its native owner; never collect this
   # diagnostic surface from a physical device or an arbitrary user URL.
   try { "$adb" -s "$serial" shell -T "find /data/local/tmp -maxdepth 2 -type f -path '/data/local/tmp/ib-reader-*/worker.grease.stderr' -exec cat {} ';'" > "$evidence/$label.worker-stderr.txt" 2>&1 }
+  if (label === 'actual-native-document') {
+    # This is the failed, finished instrumentation phase on the verified fresh
+    # emulator. Only the fixed public Example input has acquired source bytes.
+    # The independent post-failure observer may snapshot that private store;
+    # no candidate receives root and this path cannot run on physical hardware.
+    try {
+      "$adb" -s "$serial" root > "$evidence/$label.snapshot-root.txt" 2>&1
+      timeout 30 "$adb" -s "$serial" wait-for-device
+      "$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 0
+      "$adb" -s "$serial" pull /data/user/0/org.isomorphisms.ib.prepaint/files/arena "$evidence/$label.failure-arena" > "$evidence/$label.snapshot-pull.txt" 2>&1
+      tar -C "$evidence/$label.failure-arena" -czf "$evidence/$label.failure-source.tar.gz" .
+      sha256sum "$evidence/$label.failure-source.tar.gz" > "$evidence/$label.failure-source.sha256.txt"
+    }
+    try {
+      "$adb" -s "$serial" unroot > "$evidence/$label.snapshot-unroot.txt" 2>&1
+      timeout 30 "$adb" -s "$serial" wait-for-device
+      "$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 2000
+    }
+  }
 }
 proc observe(phase, label, code, marker) {
   try {
