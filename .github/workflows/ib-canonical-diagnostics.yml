@@ -31,4 +31,4 @@ jobs:
         run: cat "$RUNNER_TEMP/reader-SDK/observed-api34/navigation/actual-link-history.txt"
       - name: Read bounded actual observer and framework failure evidence
         shell: sh
-        run: grep -m 160 -E 'AssertionError|at acceptance[.]|IBIndependent|FATAL EXCEPTION|Unable to|ActivityTaskManager.*(ib[.]prepaint|shizuku)' "$RUNNER_TEMP/reader-SDK/observed-api34/navigation/actual-link-history.logcat.txt"
+        run: grep -m 160 -E 'AssertionError|at acceptance[.]|IBIndependent|FATAL EXCEPTION|IBReader|IBSource|IBWorker|IBIngress' "$RUNNER_TEMP/reader-SDK/observed-api34/navigation/actual-link-history.logcat.txt"
