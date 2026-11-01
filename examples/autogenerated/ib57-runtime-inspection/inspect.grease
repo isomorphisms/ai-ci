@@ -69,6 +69,10 @@ for file in @(awk '/\.(pid|exit|txt|log|tsv|xml)$/ && $0!~/[^A-Za-z0-9._\/-]/ {p
     cat "$captured" >> "$evidence/$records.observed.txt"
     cat "$evidence/$records.observed.txt"
   } elif (file.endsWith('.logcat.txt')) {
+    if (kind === 'd02search29') {
+      printf 'complete_retained_reader_body\t%s\n' "$file"
+      awk '/IBIndependentReaderBody/ {print}' "$captured"
+    }
     awk '/IBIndependentReaderBody|IBIndependentReaderSurface|IBIndependentMissingControl|IBIndependentCopyDisplay|IBIndependentClipboard|IBIndependentReaderStatus|IBIndependentReaderStack|IBIndependentHeldSource|Force stopping.*org[.]isomorphisms[.]ib|Killing.*org[.]isomorphisms[.]ib/ {line[++n]=$0}
       END {for(i=(n>70?n-69:1);i<=n;i++)print line[i]}' "$captured" |
       sed -E 's/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}-[0-9]{10,}/[REDACTED_SERVICE_NONCE]/g' > "$evidence/$records.observed.txt"
