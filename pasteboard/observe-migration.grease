@@ -17,7 +17,7 @@ var package = 'com.isomorphisms.pasteboard'
 var component = 'com.isomorphisms.pasteboard/android.app.NativeActivity'
 var fixture = 'org.isomorphisms.aici.clipboardfixture/android.app.NativeActivity'
 proc private_absent(path, label) {
-  try { "$adb" -s "$serial" exec-out run-as "$package" /system/bin/ls -ld "$path" > "$output/$label.absence.txt" 2>&1 }
+  try { "$adb" -s "$serial" shell -T run-as "$package" /system/bin/ls -ld "$path" > "$output/$label.absence.txt" 2>&1 }
   var result = _error.code
   if (result === 0) { echo 'FAIL private history path unexpectedly exists' >&2; exit 1 }
   rg -q -F 'No such file or directory' "$output/$label.absence.txt"

@@ -82,3 +82,11 @@ metadata are added around that action. API 29 reaches exact migrated contents
 but cannot exec a standalone test command under run-as. Absence checks now use
 the actual system ls result and require an ENOENT diagnostic, retaining the
 same file-absence assertion without relying on a shell builtin as an executable.
+
+At consumer c971ecf8db1f01af620c24e666dddf981bca0265 / run 41338823550,
+the ls diagnostic is retained but adb exec-out returns zero without propagating
+its remote failure. The absence check now uses shell -T, whose actual exit-code
+propagation is already exercised by the ART mutant control. Migration and the
+complete clipboard workflow run in separate fresh emulator jobs, so a migration
+failure cannot prevent independent observation of UI/clipboard behavior. Each
+still has its original assertions and exact-source receipts.
