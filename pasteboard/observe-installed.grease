@@ -49,6 +49,7 @@ proc start_fixture(label) {
 }
 proc tap(x, y) { "$adb" -s "$serial" shell input tap "$x" "$y"; sleep 0.4 }
 proc copy_button(row, expected, label) {
+  "$adb" -s "$serial" logcat -d -s PasteboardObserver:I PasteboardDiagnostic:I >> "$output/observer-boundary.logcat.txt"
   "$adb" -s "$serial" logcat -c
   var y = 70 + int(row) * 90
   tap 240 "$y"
