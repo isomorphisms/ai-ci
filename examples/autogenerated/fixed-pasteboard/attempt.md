@@ -184,6 +184,22 @@ the visible manual-capture button. Even a successful manual diagnostic leaves
 the original focus assertion failed. No production repair is guessed from the
 earlier incomplete trace.
 
+The diagnostic at 881950c7475f4a1f6a6892a75c57ab770a17d4b3 / run
+41357353376 resolves that failure. API 35 records focus at 22:43:58.046,
+then the successful SDK read at 22:44:00.067 after checked-state validation.
+The one-second test snapshot precedes the completed transaction. The later
+snapshot has exact A/C/B/long and exactly two new deliveries: one focus capture
+and one explicit manual capture. This is delayed completion, not dropped text.
+
+Qualification now waits a bounded number of attempts for the same exact durable
+state, requires exactly one focus delivery, and independently exercises the
+visible manual capture with one additional delivery and unchanged duplicate
+placement. UI operations similarly await their exact saved state; tap-to-copy
+waits for real focused-fixture SDK readback and one acknowledged own-copy
+delivery. These are test-side saved-state/SDK observations, not product polling.
+All sixteen pin assertions, ordering, deletion and retention checks remain.
+Application code and candidate version 14 remain unchanged.
+
 Run 41347388884 at consumer 6b359f2ffd83b9a3fb67f343406c291e0c96f900
 proves real cross-application A/B/C capture before focus on API 29 and 34.
 API 29 also passes the exact long-text and exclusion policies, then its run-as

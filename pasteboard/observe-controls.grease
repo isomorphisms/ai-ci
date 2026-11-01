@@ -205,8 +205,14 @@ rg -q -F 'present=1 items=1 text=1 sensitive=0 exact fixture=0 origin=0' "$outpu
 start_app foreground-fallback
 snapshot foreground-fallback
 "$oracle" mode "$output/foreground-fallback.bin" 1 0
-try { "$oracle" board "$output/foreground-fallback.bin" 1 4 "$input/fixtures/textA.txt" "$input/fixtures/textC.txt" "$input/fixtures/textB.txt" "$input/fixtures/long.txt" > "$output/foreground-fallback.order.txt" }
-if (_error.code !== 0) {
+var foreground_retained = false
+for attempt in @(seq 1 30) {
+  snapshot foreground-fallback
+  try { "$oracle" board "$output/foreground-fallback.bin" 1 4 "$input/fixtures/textA.txt" "$input/fixtures/textC.txt" "$input/fixtures/textB.txt" "$input/fixtures/long.txt" > "$output/foreground-fallback.order.txt" }
+  if (_error.code === 0) { setvar foreground_retained = true; break }
+  sleep 0.2
+}
+if (not foreground_retained) {
   diagnose foreground-fallback
   # Separate a focus-event failure from a focused SDK-read or model failure.
   # The original assertion remains failed even if this manual diagnostic works.
@@ -220,13 +226,28 @@ if (_error.code !== 0) {
   echo 'FAIL exact foreground fallback after actual external copy' >&2
   exit 1
 }
+"$oracle" added-deliveries "$output/disconnected-after.bin" "$output/foreground-fallback.bin" 1
+# Verify the visible manual control against the same real SDK value, after the
+# focus capture has actually committed. A duplicate must retain its position.
+tap 450 60
+tap 240 519
+tap 240 747
+var manual_retained = false
+for attempt in @(seq 1 30) {
+  snapshot foreground-manual
+  try { "$oracle" added-deliveries "$output/foreground-fallback.bin" "$output/foreground-manual.bin" 1 > "$output/foreground-manual.deliveries.txt" }
+  if (_error.code === 0) { setvar manual_retained = true; break }
+  sleep 0.2
+}
+if (not manual_retained) { diagnose foreground-manual; echo 'FAIL actual visible manual capture' >&2; exit 1 }
+"$oracle" board "$output/foreground-manual.bin" 1 4 "$input/fixtures/textA.txt" "$input/fixtures/textC.txt" "$input/fixtures/textB.txt" "$input/fixtures/long.txt"
 var starter = "/data/local/tmp/pasteboard-shizuku-$api/start"
 var manager_path = $("$adb" -s "$serial" shell pm path moe.shizuku.privileged.api | tr -d '\r' | sed -n 's/^package://p')
 "$adb" -s "$serial" shell "$starter" "--apk=$manager_path" > "$output/server-restart.txt" 2>&1
 sleep 3
 automatic server-restored
 copy_three after-server-restored
-printf 'server_disconnect_does_not_fabricate_automatic_history\tPASS\nexplicit_foreground_mode_still_operates\tPASS\nserver_restart_restores_authorized_observer\tPASS\n' >> "$output/result.tsv"
+printf 'server_disconnect_does_not_fabricate_automatic_history\tPASS\nexplicit_foreground_mode_still_operates\tPASS\nvisible_manual_capture_uses_actual_SDK_value\tPASS\nserver_restart_restores_authorized_observer\tPASS\n' >> "$output/result.tsv"
 
 # Expiration belongs to Android 13+. Shorten the real framework timeout only in
 # this verified emulator, then restore its prior DeviceConfig value.

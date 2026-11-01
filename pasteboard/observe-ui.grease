@@ -44,6 +44,45 @@ proc diagnose(label) {
   "$adb" -s "$serial" exec-out screencap -p > "$output/$label.png"
   "$adb" -s "$serial" logcat -d -v threadtime > "$output/$label.logcat.txt"
 }
+proc await_state(label, verb, ...arguments) {
+  var matched = false
+  for attempt in @(seq 1 30) {
+    snapshot "$label"
+    try { "$oracle" "$verb" "$output/$label.bin" @arguments > "$output/$label.expectation.txt" }
+    if (_error.code === 0) {
+      printf 'matched_after_attempts\t%s\n' "$attempt" > "$output/$label.settled.txt"
+      setvar matched = true
+      break
+    }
+    sleep 0.2
+  }
+  if (not matched) { diagnose "$label"; cat "$output/$label.expectation.txt"; exit 1 }
+}
+proc await_delivery(label, before, count) {
+  var matched = false
+  for attempt in @(seq 1 30) {
+    snapshot "$label"
+    try { "$oracle" added-deliveries "$before" "$output/$label.bin" "$count" > "$output/$label.deliveries.txt" }
+    if (_error.code === 0) { setvar matched = true; break }
+    sleep 0.2
+  }
+  if (not matched) { diagnose "$label"; cat "$output/$label.deliveries.txt"; exit 1 }
+}
+proc clipboard_readback(label, expected) {
+  var matched = false
+  for attempt in @(seq 1 15) {
+    "$adb" -s "$serial" logcat -d -s PasteboardDiagnostic:I PasteboardObserver:I PasteboardHistory:I >> "$output/observer-boundary.logcat.txt"
+    "$adb" -s "$serial" logcat -c
+    "$adb" -s "$serial" shell input keyevent HOME
+    "$adb" -s "$serial" shell am start -W -n "$fixture" > "$output/$label.fixture.txt"
+    sleep 0.5
+    "$adb" -s "$serial" logcat -d -s CopyFixture:I > "$output/$label.clipboard.txt"
+    try { rg -q -F "$expected" "$output/$label.clipboard.txt" }
+    if (_error.code === 0) { setvar matched = true; break }
+    sleep 0.2
+  }
+  if (not matched) { diagnose "$label"; cat "$output/$label.clipboard.txt"; exit 1 }
+}
 proc numbered(number, label) {
   "$adb" -s "$serial" shell am force-stop org.isomorphisms.aici.clipboardfixture
   "$adb" -s "$serial" shell am start -W -n "$fixture" --ei fixture_index "$number" > "$output/$label.fixture.txt"
@@ -75,44 +114,29 @@ tap 240 160
 tap 240 250
 sleep 2
 start_app spatial
-snapshot spatial
-"$oracle" board "$output/spatial.bin" 1 4 "$input/fixtures/textC.txt" "$input/fixtures/textB.txt" "$input/fixtures/textA.txt" "$input/fixtures/long.txt"
+await_state spatial board 1 4 "$input/fixtures/textC.txt" "$input/fixtures/textB.txt" "$input/fixtures/textA.txt" "$input/fixtures/long.txt"
 diagnose three-board-layout
 
 # Tap-to-copy must set the actual SDK clipboard without promoting the card.
 tap 100 135
-sleep 1
-"$adb" -s "$serial" logcat -c
-"$adb" -s "$serial" shell am start -W -n "$fixture" > "$output/copied.fixture.txt"
-sleep 1
-"$adb" -s "$serial" logcat -d -s CopyFixture:I > "$output/copied.clipboard.txt"
-rg -q -F 'present=1 items=1 text=1 sensitive=0 exact fixture=2 origin=1' "$output/copied.clipboard.txt"
-snapshot copied
+clipboard_readback copied 'present=1 items=1 text=1 sensitive=0 exact fixture=2 origin=1'
+await_delivery copied "$output/spatial.bin" 1
 "$oracle" board "$output/copied.bin" 1 4 "$input/fixtures/textC.txt" "$input/fixtures/textB.txt" "$input/fixtures/textA.txt" "$input/fixtures/long.txt"
 start_app copy-long-card
 tap 350 240
-sleep 1
-"$adb" -s "$serial" logcat -c
-"$adb" -s "$serial" shell am start -W -n "$fixture" > "$output/copied-long.fixture.txt"
-sleep 1
-"$adb" -s "$serial" logcat -d -s CopyFixture:I > "$output/copied-long.clipboard.txt"
-rg -q -F 'present=1 items=1 text=1 sensitive=0 exact fixture=3 origin=1' "$output/copied-long.clipboard.txt"
-snapshot copied-long
+clipboard_readback copied-long 'present=1 items=1 text=1 sensitive=0 exact fixture=3 origin=1'
+await_delivery copied-long "$output/copied.bin" 1
 "$oracle" board "$output/copied-long.bin" 1 4 "$input/fixtures/textC.txt" "$input/fixtures/textB.txt" "$input/fixtures/textA.txt" "$input/fixtures/long.txt"
 start_app move-left
 "$adb" -s "$serial" shell input swipe 110 135 20 135 300
-snapshot moved-left
-"$oracle" entry "$output/moved-left.bin" "$input/fixtures/textC.txt" 0 0
+await_state moved-left entry "$input/fixtures/textC.txt" 0 0
 "$adb" -s "$serial" shell input swipe 60 50 400 50 300
-snapshot selected-left
-"$oracle" board "$output/selected-left.bin" 0 4 "$input/fixtures/textC.txt"
+await_state selected-left board 0 4 "$input/fixtures/textC.txt"
 "$adb" -s "$serial" shell input swipe 110 135 350 135 300
 "$adb" -s "$serial" shell input swipe 400 50 60 50 300
-snapshot moved-back
-"$oracle" board "$output/moved-back.bin" 1 4 "$input/fixtures/textC.txt" "$input/fixtures/textB.txt" "$input/fixtures/textA.txt" "$input/fixtures/long.txt"
+await_state moved-back board 1 4 "$input/fixtures/textC.txt" "$input/fixtures/textB.txt" "$input/fixtures/textA.txt" "$input/fixtures/long.txt"
 "$adb" -s "$serial" shell input swipe 400 50 60 50 300
-snapshot selected-right
-"$oracle" board "$output/selected-right.bin" 2 4
+await_state selected-right board 2 4
 tap 110 135
 snapshot empty-slot
 cmp "$output/selected-right.bin" "$output/empty-slot.bin"
@@ -124,11 +148,10 @@ tap 240 291
 card_menu 0
 tap 240 443
 tap 240 215
-snapshot protected-delete
-"$oracle" entry "$output/protected-delete.bin" "$input/fixtures/textC.txt" 1 1
+await_state protected-delete entry "$input/fixtures/textC.txt" 1 1
 card_menu 0
 tap 240 291
-snapshot before-pending-delete
+await_state before-pending-delete entry "$input/fixtures/textC.txt" 1 0
 # Reproduce a crash-left pending file from history already captured through
 # actual SDK copies. This does not insert an entry into the history model.
 "$adb" -s "$serial" shell -T run-as "$package" tee files/history.pending.999999.1 \
@@ -137,8 +160,7 @@ cmp "$output/before-pending-delete.bin" "$output/interrupted-snapshot-seed.bin"
 "$adb" -s "$serial" shell -T run-as "$package" /system/bin/chmod 600 files/history.pending.999999.1
 "$adb" -s "$serial" shell -T run-as "$package" /system/bin/ls -ld files/history.pending.999999.1 > "$output/interrupted-snapshot-mode.txt"
 for number in @(seq 1 4) { card_menu 0; tap 240 443; tap 240 215 }
-snapshot deleted
-"$oracle" count "$output/deleted.bin" 0
+await_state deleted count 0
 "$adb" -s "$serial" exec-out run-as "$package" cat files/history.previous > "$output/deleted-backup.bin"
 for name in textA textB textC long {
   "$oracle" forgotten "$output/deleted.bin" "$input/fixtures/$name.txt"
@@ -151,8 +173,7 @@ rg -q -F 'No such file or directory' "$output/deleted-pending.txt"
 printf 'visible_protect_and_confirmed_delete_controls\tPASS\nprotected_delete_refused\tPASS\nacknowledged_deletion_absent_from_current_and_recovery\tPASS\nacknowledged_deletion_retires_interrupted_snapshot\tPASS\n' >> "$output/result.tsv"
 
 for number in @(seq 0 17) { numbered "$number" "overflow-$number" }
-snapshot overflow
-"$oracle" count "$output/overflow.bin" 18
+await_state overflow count 18
 var visible = []
 for number in @(seq 17 -1 2) { call visible->append("$input/fixtures/overflow-$number.txt") }
 "$oracle" positions "$output/overflow.bin" 1 @visible
@@ -161,14 +182,12 @@ start_app protect-full-board
 for index in @(seq 0 15) {
   card_menu "$index"
   tap 240 291
-  snapshot "pin-$index"
   var number = 17 - int(index)
-  "$oracle" entry "$output/pin-$index.bin" "$input/fixtures/overflow-$number.txt" 1 1
+  await_state "pin-$index" entry "$input/fixtures/overflow-$number.txt" 1 1
 }
 numbered 18 protected-overflow-18
 numbered 19 protected-overflow-19
-snapshot protected-overflow
-"$oracle" count "$output/protected-overflow.bin" 20
+await_state protected-overflow count 20
 "$oracle" positions "$output/protected-overflow.bin" 1 @visible
 "$oracle" positions "$output/protected-overflow.bin" archive "$input/fixtures/overflow-19.txt" "$input/fixtures/overflow-18.txt" "$input/fixtures/overflow-1.txt" "$input/fixtures/overflow-0.txt"
 start_app archive-controls
@@ -178,28 +197,24 @@ tap 240 291
 tap 450 60
 menu 6
 tap 240 215
-snapshot archive-cleared
-"$oracle" count "$output/archive-cleared.bin" 17
+await_state archive-cleared count 17
 "$oracle" entry "$output/archive-cleared.bin" "$input/fixtures/overflow-19.txt" archive 1
 menu 3
 card_menu 0
 tap 240 367
-snapshot full-restore-refused
-"$oracle" entry "$output/full-restore-refused.bin" "$input/fixtures/overflow-19.txt" archive 1
+await_state full-restore-refused entry "$input/fixtures/overflow-19.txt" archive 1
 tap 450 60
 card_menu 15
 tap 240 291
 menu 3
 card_menu 0
 tap 240 367
-snapshot restored
-"$oracle" entry "$output/restored.bin" "$input/fixtures/overflow-19.txt" 1 1
+await_state restored entry "$input/fixtures/overflow-19.txt" 1 1
 "$oracle" entry "$output/restored.bin" "$input/fixtures/overflow-2.txt" archive 0
 tap 450 60
 menu 6
 tap 240 215
-snapshot final
-"$oracle" count "$output/final.bin" 16
+await_state final count 16
 "$oracle" absent "$output/final.bin" "$input/fixtures/overflow-2.txt"
 printf 'ordinary_overflow_archives_without_text_loss\tPASS\nall_protected_visible_positions_preserved\tPASS\nnew_capture_into_protected_board_archived\tPASS\narchive_clear_preserves_protected_text\tPASS\nrestore_into_protected_full_board_refused\tPASS\nrestore_evicts_only_unprotected_card\tPASS\nphysical_C67\tNOT_VERIFIED\nphysical_TAB_P10\tNOT_VERIFIED\n' >> "$output/result.tsv"
 diagnose final
