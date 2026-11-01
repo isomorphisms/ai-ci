@@ -1,6 +1,12 @@
 .class public final Lacceptance/shizuku/ProviderIntruder;
 .super Landroid/app/Instrumentation;
 
+.method public constructor <init>()V
+    .registers 1
+    invoke-direct {p0}, Landroid/app/Instrumentation;-><init>()V
+    return-void
+.end method
+
 .method public onCreate(Landroid/os/Bundle;)V
     .registers 2
     invoke-virtual {p0}, Landroid/app/Instrumentation;->start()V

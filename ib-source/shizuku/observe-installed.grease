@@ -89,11 +89,15 @@ proc observe(phase, label, code, marker) {
   if ! rg -x -F "INSTRUMENTATION_RESULT: stream=$marker" "$evidence/$label.txt" { diagnose "$label"; exit 1 }
 }
 install_candidate boundary positive-before-server
-timeout 90 "$adb" -s "$serial" shell am instrument -w -r \
-  org.isomorphisms.ib.acceptance/acceptance.shizuku.ProviderIntruder > "$evidence/external-caller.txt" 2>&1
+try {
+  timeout 90 "$adb" -s "$serial" shell am instrument -w -r \
+    org.isomorphisms.ib.acceptance/acceptance.shizuku.ProviderIntruder > "$evidence/external-caller.txt" 2>&1
+}
+var external_status = _error.code
 cat "$evidence/external-caller.txt"
-rg -x -F 'INSTRUMENTATION_CODE: -1' "$evidence/external-caller.txt"
-rg -x -F 'INSTRUMENTATION_RESULT: stream=PASS independent external provider caller refused by Android' "$evidence/external-caller.txt"
+if (external_status !== 0) { diagnose external-caller; exit 1 }
+if ! rg -x -F 'INSTRUMENTATION_CODE: -1' "$evidence/external-caller.txt" { diagnose external-caller; exit 1 }
+if ! rg -x -F 'INSTRUMENTATION_RESULT: stream=PASS independent external provider caller refused by Android' "$evidence/external-caller.txt" { diagnose external-caller; exit 1 }
 observe missing absent-and-unauthorized -1 'PASS installed IB unavailable capability and unprivileged delivery refusal'
 install_candidate uid-bypass caller-mutant
 observe missing caller-mutant 0 'java.lang.AssertionError: FAIL unprivileged Shizuku capability delivery'
