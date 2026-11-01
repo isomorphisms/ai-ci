@@ -1,4 +1,4 @@
-name: Independent installed replay of IB 0592dd8e
+name: Independent installed replay of IB a7349efc
 on:
   pull_request:
     paths:
@@ -78,7 +78,7 @@ jobs:
       - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd
         with:
           packages: 'build-tools;35.0.0 platforms;android-34'
-      - name: Independently observe the unchanged installed candidate and real navigation
+      - name: Independently observe the unchanged installed candidate navigation and original-byte decoding
         uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
         env:
           AICI_EXPECTED_ANDROID_API: '${{ matrix.api }}'
@@ -92,12 +92,13 @@ jobs:
           disable-animations: true
           script: |
             .tools/runtime/.build/grease/bin/grease ib-source/shizuku/observe-installed.grease "$GITHUB_WORKSPACE" "$RUNNER_TEMP/ib-installed-replay/input/native-client" "$RUNNER_TEMP/ib-installed-replay/input/oracles/smali.jar" "$ANDROID_HOME" "$RUNNER_TEMP/ib-installed-replay/input/platform-inputs/public-test-keystore" "$RUNNER_TEMP/ib-installed-replay/input/platform-inputs/shizuku-official.apk" "$ANDROID_HOME/platform-tools/adb" emulator-5554 "$RUNNER_TEMP/ib-installed-replay/observed" reader
-            .tools/runtime/.build/grease/bin/grease ib-source/shizuku/observe-navigation.grease "$GITHUB_WORKSPACE" "$RUNNER_TEMP/ib-installed-replay/input" "$ANDROID_HOME" "$AICI_FIXTURE_ICK" "$ANDROID_HOME/platform-tools/adb" emulator-5554 "$RUNNER_TEMP/ib-installed-replay/observed" "$RUNNER_TEMP/ib-installed-replay/navigation"
+            .tools/runtime/.build/grease/bin/grease ib-source/shizuku/observe-navigation.grease "$GITHUB_WORKSPACE" "$RUNNER_TEMP/ib-installed-replay/input" "$ANDROID_HOME" "$AICI_FIXTURE_ICK" "$ANDROID_HOME/platform-tools/adb" emulator-5554 "$RUNNER_TEMP/ib-installed-replay/observed" "$RUNNER_TEMP/ib-installed-replay/navigation" reader-v2
+            .tools/runtime/.build/grease/bin/grease ib-source/shizuku/observe-encoding.grease "$GITHUB_WORKSPACE" "$RUNNER_TEMP/ib-installed-replay/input" "$ANDROID_HOME" "$AICI_FIXTURE_ICK" "$ANDROID_HOME/platform-tools/adb" emulator-5554 "$RUNNER_TEMP/ib-installed-replay/observed" "$RUNNER_TEMP/ib-installed-replay/navigation" "$RUNNER_TEMP/ib-installed-replay/encoding"
       - name: Retain independent identity, status, source and installed observations
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: ib-0592-installed-api${{ matrix.api }}-replay-${{ github.event.pull_request.head.sha || github.sha }}
+          name: ib-a734-installed-api${{ matrix.api }}-replay-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
             ${{ runner.temp }}/ib-installed-replay/input-identity.tsv
             ${{ runner.temp }}/ib-installed-replay/observer-commit.txt
@@ -109,5 +110,6 @@ jobs:
             ${{ runner.temp }}/ib-installed-replay/observed/*.failure-source.tar.gz
             ${{ runner.temp }}/ib-installed-replay/observed/*.exit
             ${{ runner.temp }}/ib-installed-replay/navigation
+            ${{ runner.temp }}/ib-installed-replay/encoding
             ${{ runner.temp }}/ib-installed-replay/index-host
           if-no-files-found: warn

@@ -113,6 +113,16 @@
     invoke-static {v7, v8}, Landroid/os/SystemClock;->sleep(J)V
     add-int/lit8 v0, v0, -0x1
     if-gtz v0, :again
+    new-instance v0, Ljava/lang/StringBuilder;
+    invoke-direct {v0}, Ljava/lang/StringBuilder;-><init>()V
+    invoke-virtual {v0, p1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    const-string v1, " / "
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v0, p2}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v0}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+    move-result-object v0
+    const-string v1, "IBIndependentMissingControl"
+    invoke-static {v1, v0}, Landroid/util/Log;->e(Ljava/lang/String;Ljava/lang/String;)I
     const-string v0, "FAIL expected visible native control in declared package"
     invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
     const/4 v0, 0x0
@@ -1128,6 +1138,66 @@
     return-void
 .end method
 
+
+.method private encodedDocuments()V
+    .registers 3
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureTwo()V
+    const-string v0, "http://10.0.2.2:18491/windows-1252"
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->enterReaderURL(Ljava/lang/String;)V
+    const-string v0, "Reader Windows"
+    const-string v1, "café € “source”"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitNetworkDocument(Ljava/lang/String;Ljava/lang/String;)V
+    const-string v0, "Reader Windows\n\ncafé € “source”"
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->exactSourceClipboard(Ljava/lang/String;)V
+    const-string v0, "org.isomorphisms.ib.prepaint"
+    const-string v1, "org.isomorphisms.ib.prepaint:id/reflow_button"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->click(Ljava/lang/String;Ljava/lang/String;)V
+    const-string v0, "Reader Windows"
+    const-string v1, "café € “source”"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitNetworkDocument(Ljava/lang/String;Ljava/lang/String;)V
+    const-string v0, "REFLOW: SQUARED"
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->assertReflowLabel(Ljava/lang/String;)V
+    const-string v0, "Reader Windows\n\ncafé € “source”"
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->exactSourceClipboard(Ljava/lang/String;)V
+    const-string v0, "http://10.0.2.2:18491/latin-1"
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->enterReaderURL(Ljava/lang/String;)V
+    const-string v0, "Reader Latin One"
+    const-string v1, "café £"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitNetworkDocument(Ljava/lang/String;Ljava/lang/String;)V
+    const-string v0, "Reader Latin One\n\ncafé £"
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->exactSourceClipboard(Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private offlineEncodedDocuments()V
+    .registers 3
+    const/4 v0, 0x0
+    const-string v1, "FAIL encoded history requires absent Shizuku"
+    invoke-static {v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitState(ILjava/lang/String;)V
+    const-string v0, "Reader Latin One"
+    const-string v1, "café £"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitNetworkDocument(Ljava/lang/String;Ljava/lang/String;)V
+    const-string v0, "Reader Latin One\n\ncafé £"
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->exactSourceClipboard(Ljava/lang/String;)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyBack()V
+    const-string v0, "Reader Windows"
+    const-string v1, "café € “source”"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitNetworkDocument(Ljava/lang/String;Ljava/lang/String;)V
+    const-string v0, "Reader Windows\n\ncafé € “source”"
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->exactSourceClipboard(Ljava/lang/String;)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyBack()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureTwo()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyForward()V
+    const-string v0, "Reader Windows"
+    const-string v1, "café € “source”"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitNetworkDocument(Ljava/lang/String;Ljava/lang/String;)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyForward()V
+    const-string v0, "Reader Latin One"
+    const-string v1, "café £"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitNetworkDocument(Ljava/lang/String;Ljava/lang/String;)V
+    return-void
+.end method
+
 .method public onStart()V
     .registers 10
   :begin
@@ -1155,6 +1225,22 @@
   :launched
     iput-object v0, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
     iget-object v0, p0, Lacceptance/shizuku/CapabilityInstrumentation;->phase:Ljava/lang/String;
+    const-string v1, "encoded-documents"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :encoded_offline_phase
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->encodedDocuments()V
+    const-string v7, "PASS installed actual ICU windows-1252 ISO-8859-1 decoding exact clipboard and reflow"
+    goto :success
+  :encoded_offline_phase
+    const-string v1, "offline-encoded-documents"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :http_refusal_phase
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->offlineEncodedDocuments()V
+    const-string v7, "PASS installed original-byte retained non-UTF-8 documents reopen and navigate without Shizuku"
+    goto :success
+  :http_refusal_phase
     const-string v1, "http-refusal"
     invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
     move-result v1
