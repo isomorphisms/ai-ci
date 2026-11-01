@@ -49,6 +49,80 @@ proc observe(phase, label, marker) {
   rg -x -F 'INSTRUMENTATION_CODE: -1' "$evidence/$label.txt"
   rg -x -F "INSTRUMENTATION_RESULT: stream=$marker" "$evidence/$label.txt"
 }
+# Try only Google's actual visible first-party continuation when its native
+# body is the exact observed redirect placeholder. This remains diagnostic:
+# a continuation response never becomes a public-result PASS automatically.
+try {
+  timeout 240 "$adb" -s "$serial" shell am instrument -w -r -e phase google-continuation \
+    org.isomorphisms.ib.acceptance/acceptance.shizuku.CapabilityInstrumentation > "$evidence/continuation.txt" 2>&1
+}
+var continuation_status = _error.code
+cat "$evidence/continuation.txt"
+diagnose continuation
+if (continuation_status !== 0) { echo 'FAIL native Google continuation observer process' >&2; exit 1 }
+rg -q -x -F 'INSTRUMENTATION_CODE: -1' "$evidence/continuation.txt"
+if rg -q -x -F 'INSTRUMENTATION_RESULT: stream=OBSERVED first-party Google continuation; results remain unqualified' "$evidence/continuation.txt" {
+  "$adb" -s "$serial" logcat -d -v raw -s IBIndependentGoogleContinuationURL:I '*:S' > "$evidence/continuation-URL.log"
+  sed '/^[[:space:]]*$/d; /^---------/d' "$evidence/continuation-URL.log" > "$evidence/continuation-URL.txt"
+  var uri_count = $(wc -l < "$evidence/continuation-URL.txt")
+  if (int(uri_count) !== 1) { echo 'FAIL continuation did not identify one actual touched URI' >&2; exit 1 }
+  var uri = $(cat "$evidence/continuation-URL.txt")
+  "$grease" "$repository/ib-source/reader/verify-google-href.grease" \
+    "$evidence/handoff/Google-original/body" "$uri" "$evidence/original-continuation-link"
+  "$adb" -s "$serial" shell am force-stop org.isomorphisms.ib.prepaint
+  "$adb" -s "$serial" root > "$evidence/continuation-root.txt" 2>&1
+  timeout 30 "$adb" -s "$serial" wait-for-device
+  "$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 0
+  "$adb" -s "$serial" pull /data/user/0/org.isomorphisms.ib.prepaint/files/arena "$evidence/continuation-arena"
+  "$adb" -s "$serial" unroot > "$evidence/continuation-unroot.txt" 2>&1
+  timeout 30 "$adb" -s "$serial" wait-for-device
+  "$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 2000
+  chmod 700 "$evidence/continuation-arena"
+  mkdir -m 700 "$evidence/continuation-arena/staging"
+  var found = 0
+  var identity = ''
+  var generation = ''
+  var charset = ''
+  var observed_receipt = ''
+  for receipt in @(rg --files "$evidence/continuation-arena/receipts") {
+    if rg -q -x -F "requested_url	$uri" "$receipt" {
+      setglobal found = found + 1
+      setglobal identity = $(awk -F '\t' '$1=="request_id"{print $2}' "$receipt")
+      setglobal generation = $(awk -F '\t' '$1=="source_generation"{print $2}' "$receipt")
+      setglobal charset = $(awk -F '\t' '$1=="charset"{print $2}' "$receipt")
+      setglobal observed_receipt = receipt
+    }
+  }
+  if (found !== 1) { echo 'FAIL touched first-party continuation has no unique captured response' >&2; exit 1 }
+  awk -F '\t' 'BEGIN{OFS="\t"}
+    $1=="requested_url" || $1=="resolved_url" {sub(/\?.*/,"?[QUERY_OMITTED]",$2); print; next}
+    $1=="redirect_chain" {print "redirect_chain_recorded","YES"; next}
+    {print}' "$observed_receipt" > "$evidence/continuation-observations.tsv"
+  cat "$evidence/continuation-observations.tsv"
+  "$grease" "$repository/ib-source/reader/verify-decoder-original.grease" \
+    "$repository" "$evidence/continuation-arena" "$identity" "$generation" "$uri" "$charset" - \
+    "$evidence/continuation-original" observed-google-continuation-v1 "$uri" > "$evidence/continuation-original.txt" 2>&1
+  cat "$evidence/continuation-original.txt"
+  var offset = $(awk -F '\t' '$1=="arena_offset"{print $2}' "$observed_receipt")
+  var first = $(od -An -tu1 -N1 "$evidence/continuation-original/body" | tr -d '[:space:]')
+  var replacement = 'X'
+  if (first === '88') { setglobal replacement = 'Y' }
+  cp -R "$evidence/continuation-arena" "$evidence/continuation-changed-byte"
+  printf '%s' "$replacement" | dd "of=$evidence/continuation-changed-byte/responses.arena" bs=1 "seek=$offset" conv=notrunc status=none
+  try {
+    "$grease" "$repository/ib-source/reader/verify-decoder-original.grease" \
+      "$repository" "$evidence/continuation-changed-byte" "$identity" "$generation" "$uri" "$charset" - \
+      "$evidence/continuation-byte-rejected" observed-google-continuation-v1 "$uri" > "$evidence/continuation-byte-rejected.txt" 2>&1
+  }
+  var changed_status = _error.code
+  if (changed_status !== 1) { echo 'FAIL changed continuation bytes missed their designated refusal' >&2; exit 1 }
+  rg -x -F 'FAIL original source field sha256' "$evidence/continuation-byte-rejected.txt"
+  printf 'schema\tib-Google-native-continuation-observation-v1\nactual_first_party_touch\tOBSERVED\noriginal_href_membership\tPASS\ncommitted_original_range_digest\tPASS\nchanged_committed_byte\tREJECTED\npublic_Google_results\tNOT_RUN\nclicked_public_result\tNOT_RUN\nphysical_TAB_P10\tNOT_RUN\n' > "$evidence/continuation-receipt.tsv"
+  cat "$evidence/continuation-receipt.tsv"
+  echo 'FAIL first-party continuation observed; a public search result is still unqualified' >&2
+  exit 1
+}
+rg -q -x -F 'INSTRUMENTATION_RESULT: stream=NOT_NEEDED no Google redirect placeholder' "$evidence/continuation.txt"
 observe google-result result-touch 'PASS native Google body actual result touch acquisition and retained Back Forward'
 "$adb" -s "$serial" logcat -d -v raw -s IBIndependentClickedSearchURL:I '*:S' > "$evidence/clicked-URL.log"
 sed '/^[[:space:]]*$/d; /^---------/d' "$evidence/clicked-URL.log" > "$evidence/clicked-URL.txt"

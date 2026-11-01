@@ -1,7 +1,7 @@
 #!/usr/bin/env grease
 # Original-byte verification only; no raw receipt is promoted to reader admission.
 set -eu -o pipefail
-if (len(ARGV) !== 8 and len(ARGV) !== 10) { echo 'usage: grease verify-decoder-original.grease AICI ARENA ID GENERATION URL CHARSET EXPECTED_HEX NEW_EVIDENCE [observed-google-legacy-v1 EXPECTED_FINAL_URL]' >&2; exit 2 }
+if (len(ARGV) !== 8 and len(ARGV) !== 10) { echo 'usage: grease verify-decoder-original.grease AICI ARENA ID GENERATION URL CHARSET EXPECTED_HEX NEW_EVIDENCE [observed-google-legacy-v1|observed-google-continuation-v1 EXPECTED_FINAL_URL]' >&2; exit 2 }
 var repository = ARGV[0]
 var root = ARGV[1]
 var identity = ARGV[2]
@@ -11,15 +11,24 @@ var charset = ARGV[5]
 var expected_hex = ARGV[6]
 var evidence = ARGV[7]
 var captured = len(ARGV) === 10
+var continued = false
 var expected_final = requested
 if (captured) {
-  if (ARGV[8] !== 'observed-google-legacy-v1' or expected_hex !== '-') { exit 2 }
+  if (expected_hex !== '-') { exit 2 }
   setglobal expected_final = ARGV[9]
-  var wanted = 'https://google.com/search?q=IB+caf%C3%A9+%2B+%252F+%F0%9F%8C%8D+chords'
-  var resolved = 'https://www.google.com/search?q=IB+caf%C3%A9+%2B+%252F+%F0%9F%8C%8D+chords'
-  if (requested !== wanted or expected_final !== resolved or charset !== 'iso-8859-1') { exit 2 }
+  if (ARGV[8] === 'observed-google-legacy-v1') {
+    var wanted = 'https://google.com/search?q=IB+caf%C3%A9+%2B+%252F+%F0%9F%8C%8D+chords'
+    var resolved = 'https://www.google.com/search?q=IB+caf%C3%A9+%2B+%252F+%F0%9F%8C%8D+chords'
+    if (requested !== wanted or expected_final !== resolved or charset !== 'iso-8859-1') { exit 2 }
+  } elif (ARGV[8] === 'observed-google-continuation-v1') {
+    setglobal continued = true
+    if (not requested.startsWith('https://www.google.com/httpservice/retry/enablejs?') and
+        not requested.startsWith('https://google.com/httpservice/retry/enablejs?')) { exit 2 }
+    if (expected_final !== requested or len(requested) > 2048) { exit 2 }
+    printf '%s\n' "$requested" | rg -q -x '[!-~]+'
+  } else { exit 2 }
 }
-if (charset !== 'windows-1252' and charset !== 'iso-8859-1') { exit 2 }
+if (charset !== 'windows-1252' and charset !== 'iso-8859-1' and not (continued and charset === 'utf-8')) { exit 2 }
 var paths = [repository, root, evidence]
 if (not captured) { setglobal paths = paths ++ [expected_hex] }
 for path in @paths {
@@ -72,7 +81,7 @@ expect charset "$charset"
 expect content_encoding identity
 if (captured) {
   expect utf8 valid
-  expect redirect_count 1
+  if (continued) { expect redirect_count 0 } else { expect redirect_count 1 }
 } else {
   expect utf8 invalid
   expect redirect_count 0
@@ -81,8 +90,12 @@ expect transport icu-app-process-via-binder-shizuku
 expect arena_name responses.arena
 expect reopen_check MATCH
 expect acquisition_complete YES
-expect navigation_admitted NO
-if (captured) {
+if (continued and charset === 'utf-8') { expect navigation_admitted YES } else { expect navigation_admitted NO }
+var observed_transfer = $(field transfer_decoding)
+if (continued) {
+  if (observed_transfer !== 'identity' and observed_transfer !== 'chunked') { echo 'FAIL original source transfer observation' >&2; exit 1 }
+  expect redirect_chain "R1 $(printf %s "$requested" | wc -c) $requested"
+} elif (captured) {
   expect transfer_decoding chunked
   expect redirect_chain "R1 $(printf %s "$requested" | wc -c) ${requested}301 $(printf %s "$expected_final" | wc -c) $expected_final"
 } else {
@@ -103,13 +116,20 @@ if (int(length) < 1 or int(length) > 4194304 or int(offset) + int(length) !== in
 var allocation = $(stat -c %s "$root/responses.arena")
 if (int(pointer) > int(allocation)) { echo 'FAIL original source commit pointer' >&2; exit 1 }
 expect received_length "$length"
-if (captured) { expect declared_length -1 } else { expect declared_length "$length" }
+if (continued) {
+  var declared = $(field declared_length)
+  if (observed_transfer === 'chunked') { expect declared_length -1 }
+  elif (declared !== '-1' and declared !== length) { echo 'FAIL original source declared length' >&2; exit 1 }
+} elif (captured) { expect declared_length -1 } else { expect declared_length "$length" }
 dd "if=$root/responses.arena" "of=$evidence/body" bs=65536 iflag=skip_bytes,count_bytes \
   "skip=$offset" "count=$length" status=none
 var actual_length = $(wc -c < "$evidence/body")
 if (int(actual_length) !== int(length)) { echo 'FAIL original source short read' >&2; exit 1 }
 var digest = $(sha256sum "$evidence/body" | cut -d ' ' -f 1)
 expect sha256 "$digest"
+if (continued) {
+  iconv -f UTF-8 -t UTF-8 < "$evidence/body" > /dev/null
+}
 if (not captured) {
   od -An -v -tx1 "$evidence/body" | tr -d '[:space:]' > "$evidence/actual-hex"
   tr -d '[:space:]' < "$expected_hex" > "$evidence/expected-hex"
@@ -121,4 +141,5 @@ var after = $(cat "$root/responses.arena.used")
 if (after !== pointer) { echo 'FAIL original source changed during read' >&2; exit 1 }
 var proof = 'ib-decoder-source-original'
 if (captured) { setglobal proof = 'ib-captured-legacy-original-bytes' }
+if (continued) { setglobal proof = 'ib-captured-Google-continuation-original-bytes' }
 printf 'PASS\t%s\t%s\t%s\t%s\t%s\n' "$proof" "$identity" "$generation" "$charset" "$digest"

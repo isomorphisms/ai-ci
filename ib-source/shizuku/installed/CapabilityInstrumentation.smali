@@ -827,6 +827,110 @@
 .end method
 
 
+.method private tapGoogleContinuation()V
+    .registers 14
+    iget-object v10, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
+    new-instance v9, Lacceptance/shizuku/GoogleContinuationPoint;
+    invoke-direct {v9, v10}, Lacceptance/shizuku/GoogleContinuationPoint;-><init>(Landroid/app/Activity;)V
+    invoke-virtual {p0, v9}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
+    iget-object v10, v9, Lacceptance/shizuku/GoogleContinuationPoint;->problem:Ljava/lang/String;
+    if-eqz v10, :visible
+    invoke-static {v10}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+  :visible
+    const-string v11, "IBIndependentGoogleContinuationURL"
+    iget-object v12, v9, Lacceptance/shizuku/GoogleContinuationPoint;->target:Ljava/lang/String;
+    invoke-static {v11, v12}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->getUiAutomation()Landroid/app/UiAutomation;
+    move-result-object v10
+    invoke-static {}, Landroid/os/SystemClock;->uptimeMillis()J
+    move-result-wide v0
+    move-wide v2, v0
+    const/4 v4, 0x0
+    iget v5, v9, Lacceptance/shizuku/GoogleContinuationPoint;->x:F
+    iget v6, v9, Lacceptance/shizuku/GoogleContinuationPoint;->y:F
+    const/4 v7, 0x0
+    invoke-static/range {v0 .. v7}, Landroid/view/MotionEvent;->obtain(JJIFFI)Landroid/view/MotionEvent;
+    move-result-object v8
+    const/16 v11, 0x1002
+    invoke-virtual {v8, v11}, Landroid/view/MotionEvent;->setSource(I)V
+    const/4 v11, 0x1
+    invoke-virtual {v10, v8, v11}, Landroid/app/UiAutomation;->injectInputEvent(Landroid/view/InputEvent;Z)Z
+    move-result v11
+    invoke-virtual {v8}, Landroid/view/MotionEvent;->recycle()V
+    if-eqz v11, :failed
+    const-wide/16 v11, 0x32
+    invoke-static {v11, v12}, Landroid/os/SystemClock;->sleep(J)V
+    invoke-static {}, Landroid/os/SystemClock;->uptimeMillis()J
+    move-result-wide v2
+    const/4 v4, 0x1
+    invoke-static/range {v0 .. v7}, Landroid/view/MotionEvent;->obtain(JJIFFI)Landroid/view/MotionEvent;
+    move-result-object v8
+    const/16 v11, 0x1002
+    invoke-virtual {v8, v11}, Landroid/view/MotionEvent;->setSource(I)V
+    const/4 v11, 0x1
+    invoke-virtual {v10, v8, v11}, Landroid/app/UiAutomation;->injectInputEvent(Landroid/view/InputEvent;Z)Z
+    move-result v11
+    invoke-virtual {v8}, Landroid/view/MotionEvent;->recycle()V
+    if-eqz v11, :failed
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->waitForIdleSync()V
+    return-void
+  :failed
+    const-string v0, "FAIL actual down/up input at visible Google result"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    return-void
+.end method
+
+
+
+.method private googleContinuation()Z
+    .registers 8
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->requireGoogleDocument()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->readableBody()Ljava/lang/String;
+    move-result-object v0
+    const-string v1, "\\s+"
+    const-string v2, " "
+    invoke-virtual {v0, v1, v2}, Ljava/lang/String;->replaceAll(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+    move-result-object v0
+    invoke-virtual {v0}, Ljava/lang/String;->trim()Ljava/lang/String;
+    move-result-object v0
+    const-string v1, "Please click here if you are not redirected within a few seconds."
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v0
+    if-eqz v0, :not_needed
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->tapGoogleContinuation()V
+    const/16 v0, 600
+  :again
+    const-string v1, "org.isomorphisms.ib.prepaint"
+    const-string v2, "org.isomorphisms.ib.prepaint:id/reader_status"
+    invoke-direct {p0, v1, v2}, Lacceptance/shizuku/CapabilityInstrumentation;->node(Ljava/lang/String;Ljava/lang/String;)Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v3
+    invoke-virtual {v3}, Landroid/view/accessibility/AccessibilityNodeInfo;->getText()Ljava/lang/CharSequence;
+    move-result-object v3
+    if-eqz v3, :retry
+    invoke-interface {v3}, Ljava/lang/CharSequence;->toString()Ljava/lang/String;
+    move-result-object v3
+    const-string v4, "Loading through Shizuku and ICU…"
+    invoke-virtual {v4, v3}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v3
+    if-eqz v3, :observed
+  :retry
+    const-wide/16 v5, 100
+    invoke-static {v5, v6}, Landroid/os/SystemClock;->sleep(J)V
+    add-int/lit8 v0, v0, -1
+    if-gtz v0, :again
+    const-string v0, "FAIL first-party Google continuation timed out"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+  :observed
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->logReaderFailureStatus()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->logReaderFailureBody()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->recordDocumentScreenshot()V
+    const/4 v0, 1
+    return v0
+  :not_needed
+    const/4 v0, 0
+    return v0
+.end method
+
 .method private readableBody()Ljava/lang/String;
     .registers 5
     const-string v0, "org.isomorphisms.ib.prepaint"
@@ -1653,6 +1757,19 @@
   :launched
     iput-object v0, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
     iget-object v0, p0, Lacceptance/shizuku/CapabilityInstrumentation;->phase:Ljava/lang/String;
+    const-string v1, "google-continuation"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :fragment_phase
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->googleContinuation()Z
+    move-result v1
+    if-eqz v1, :no_google_continuation
+    const-string v7, "OBSERVED first-party Google continuation; results remain unqualified"
+    goto :success
+  :no_google_continuation
+    const-string v7, "NOT_NEEDED no Google redirect placeholder"
+    goto :success
+  :fragment_phase
     const-string v1, "fragment-navigation"
     invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
     move-result v1
