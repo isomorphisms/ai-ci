@@ -82,3 +82,19 @@ Both APIs still require all original positive/negative checks plus the
 network continuation. Fresh installed clipboard/reflow/link qualification is
 pending; original 54b4bdaf UI reopen/update/reboot observations remain scoped
 to their original run.
+
+
+Independent diagnostic run 41290147893 reads the actual f496c134 in-Activity
+SDK log from both APIs: REFLOW: GREEDY. The exact observer expectations now use
+the transformed uppercase visible Greedy/Squared labels. The checked reader
+continues to use the raw mixed-case TextView value; no product mode selection
+or choice is changed. This corrects an independently demonstrated observer
+expectation, with exact algorithm identity still required.
+
+Clipboard diagnostics now identify the failing SDK operation and record the
+controlled public fixture's actual clipboard before exact comparison. Stages
+are focus, text, service/sentinel, selection, copy, clipboard, source label and
+exact text (1 through 8). The source label, sentinel replacement, full expected
+source string and both mode choices remain required. These observations do
+not qualify clipboard or link behavior until the new unchanged-candidate
+replay succeeds.

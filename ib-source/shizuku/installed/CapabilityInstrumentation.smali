@@ -454,6 +454,7 @@
 
 .method private exactSourceClipboard(Ljava/lang/String;)V
     .registers 10
+    const/4 v7, 0x1
     const-string v0, "org.isomorphisms.ib.prepaint"
     const-string v1, "org.isomorphisms.ib.prepaint:id/reader_body"
     invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->node(Ljava/lang/String;Ljava/lang/String;)Landroid/view/accessibility/AccessibilityNodeInfo;
@@ -466,6 +467,7 @@
     move-result v1
     if-eqz v1, :failed
   :focused
+    const/4 v7, 0x2
     invoke-virtual {v0}, Landroid/view/accessibility/AccessibilityNodeInfo;->getText()Ljava/lang/CharSequence;
     move-result-object v1
     if-eqz v1, :failed
@@ -476,6 +478,7 @@
     invoke-virtual {v1}, Ljava/lang/String;->length()I
     move-result v3
     if-lez v3, :failed
+    const/4 v7, 0x3
     invoke-virtual {p0}, Landroid/app/Instrumentation;->getTargetContext()Landroid/content/Context;
     move-result-object v4
     const-string v5, "clipboard"
@@ -494,15 +497,18 @@
     invoke-virtual {v2, v5, v6}, Landroid/os/Bundle;->putInt(Ljava/lang/String;I)V
     const-string v5, "ACTION_ARGUMENT_SELECTION_END_INT"
     invoke-virtual {v2, v5, v3}, Landroid/os/Bundle;->putInt(Ljava/lang/String;I)V
+    const/4 v7, 0x4
     const v1, 0x20000
     invoke-virtual {v0, v1, v2}, Landroid/view/accessibility/AccessibilityNodeInfo;->performAction(ILandroid/os/Bundle;)Z
     move-result v1
     if-eqz v1, :failed
+    const/4 v7, 0x5
     const/16 v1, 0x4000
     invoke-virtual {v0, v1}, Landroid/view/accessibility/AccessibilityNodeInfo;->performAction(I)Z
     move-result v1
     if-eqz v1, :failed
     invoke-virtual {p0}, Landroid/app/Instrumentation;->waitForIdleSync()V
+    const/4 v7, 0x6
     invoke-virtual {v4}, Landroid/content/ClipboardManager;->getPrimaryClip()Landroid/content/ClipData;
     move-result-object v4
     if-eqz v4, :failed
@@ -510,6 +516,7 @@
     move-result v1
     const/4 v2, 0x1
     if-ne v1, v2, :failed
+    const/4 v7, 0x7
     invoke-virtual {v4}, Landroid/content/ClipData;->getDescription()Landroid/content/ClipDescription;
     move-result-object v1
     invoke-virtual {v1}, Landroid/content/ClipDescription;->getLabel()Ljava/lang/CharSequence;
@@ -529,15 +536,22 @@
     if-eqz v1, :failed
     invoke-interface {v1}, Ljava/lang/CharSequence;->toString()Ljava/lang/String;
     move-result-object v1
+    const/16 v7, 0x8
+    const-string v2, "IBIndependentClipboard"
+    invoke-static {v2, v1}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
     move-object v2, p1
     invoke-virtual {v2, v1}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
     move-result v2
     if-eqz v2, :failed
-    const-string v2, "IBIndependentClipboard"
-    invoke-static {v2, v1}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
     return-void
   :failed
-    const-string v0, "FAIL actual SDK selection and exact source clipboard"
+    new-instance v0, Ljava/lang/StringBuilder;
+    invoke-direct {v0}, Ljava/lang/StringBuilder;-><init>()V
+    const-string v1, "FAIL actual SDK selection and exact source clipboard stage="
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v0, v7}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    invoke-virtual {v0}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+    move-result-object v0
     invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
     return-void
 .end method
@@ -545,21 +559,21 @@
 .method private reflowAndCopyExample()V
     .registers 3
     invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->waitExampleDocument()V
-    const-string v0, "Reflow: Greedy"
+    const-string v0, "REFLOW: GREEDY"
     invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->assertReflowLabel(Ljava/lang/String;)V
     invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->exactExampleClipboard()V
     const-string v0, "org.isomorphisms.ib.prepaint"
     const-string v1, "org.isomorphisms.ib.prepaint:id/reflow_button"
     invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->click(Ljava/lang/String;Ljava/lang/String;)V
     invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->waitExampleDocument()V
-    const-string v0, "Reflow: Squared"
+    const-string v0, "REFLOW: SQUARED"
     invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->assertReflowLabel(Ljava/lang/String;)V
     invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->exactExampleClipboard()V
     const-string v0, "org.isomorphisms.ib.prepaint"
     const-string v1, "org.isomorphisms.ib.prepaint:id/reflow_button"
     invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->click(Ljava/lang/String;Ljava/lang/String;)V
     invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->waitExampleDocument()V
-    const-string v0, "Reflow: Greedy"
+    const-string v0, "REFLOW: GREEDY"
     invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->assertReflowLabel(Ljava/lang/String;)V
     invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->exactExampleClipboard()V
     return-void
@@ -808,7 +822,7 @@
     const-string v1, "org.isomorphisms.ib.prepaint:id/reflow_button"
     invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->click(Ljava/lang/String;Ljava/lang/String;)V
     invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureOne()V
-    const-string v0, "Reflow: Squared"
+    const-string v0, "REFLOW: SQUARED"
     invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->assertReflowLabel(Ljava/lang/String;)V
     const-string v0, "Reader One\n\nNext\n\nFirst retained fixture: café 🌍; co­operate across source-backed wraps.\n\nParagraph 01 preserves a separate source block for scrolling and reflow.\n\nParagraph 02 preserves a separate source block for scrolling and reflow.\n\nParagraph 03 preserves a separate source block for scrolling and reflow.\n\nParagraph 04 preserves a separate source block for scrolling and reflow.\n\nParagraph 05 preserves a separate source block for scrolling and reflow.\n\nParagraph 06 preserves a separate source block for scrolling and reflow.\n\nParagraph 07 preserves a separate source block for scrolling and reflow.\n\nParagraph 08 preserves a separate source block for scrolling and reflow.\n\nParagraph 09 preserves a separate source block for scrolling and reflow.\n\nParagraph 10 preserves a separate source block for scrolling and reflow.\n\nParagraph 11 preserves a separate source block for scrolling and reflow.\n\nParagraph 12 preserves a separate source block for scrolling and reflow.\n\nParagraph 13 preserves a separate source block for scrolling and reflow.\n\nParagraph 14 preserves a separate source block for scrolling and reflow.\n\nParagraph 15 preserves a separate source block for scrolling and reflow.\n\nParagraph 16 preserves a separate source block for scrolling and reflow.\n\nParagraph 17 preserves a separate source block for scrolling and reflow.\n\nParagraph 18 preserves a separate source block for scrolling and reflow.\n\nParagraph 19 preserves a separate source block for scrolling and reflow.\n\nParagraph 20 preserves a separate source block for scrolling and reflow."
     invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->exactSourceClipboard(Ljava/lang/String;)V
