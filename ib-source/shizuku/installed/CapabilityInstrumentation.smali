@@ -211,6 +211,120 @@
     return-void
 .end method
 
+.method private recordDocumentScreenshot()V
+    .registers 9
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->getTargetContext()Landroid/content/Context;
+    move-result-object v0
+    invoke-virtual {v0}, Landroid/content/Context;->getCacheDir()Ljava/io/File;
+    move-result-object v0
+    iget-object v1, p0, Lacceptance/shizuku/CapabilityInstrumentation;->phase:Ljava/lang/String;
+    const-string v2, ".png"
+    invoke-virtual {v1, v2}, Ljava/lang/String;->concat(Ljava/lang/String;)Ljava/lang/String;
+    move-result-object v1
+    const-string v2, "ib-acceptance-"
+    invoke-virtual {v2, v1}, Ljava/lang/String;->concat(Ljava/lang/String;)Ljava/lang/String;
+    move-result-object v1
+    new-instance v3, Ljava/io/File;
+    invoke-direct {v3, v0, v1}, Ljava/io/File;-><init>(Ljava/io/File;Ljava/lang/String;)V
+    new-instance v2, Ljava/io/FileOutputStream;
+    invoke-direct {v2, v3}, Ljava/io/FileOutputStream;-><init>(Ljava/io/File;)V
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->getUiAutomation()Landroid/app/UiAutomation;
+    move-result-object v3
+    invoke-virtual {v3}, Landroid/app/UiAutomation;->takeScreenshot()Landroid/graphics/Bitmap;
+    move-result-object v4
+    sget-object v5, Landroid/graphics/Bitmap$CompressFormat;->PNG:Landroid/graphics/Bitmap$CompressFormat;
+    const/16 v6, 0x64
+    invoke-virtual {v4, v5, v6, v2}, Landroid/graphics/Bitmap;->compress(Landroid/graphics/Bitmap$CompressFormat;ILjava/io/OutputStream;)Z
+    move-result v7
+    invoke-virtual {v2}, Ljava/io/FileOutputStream;->close()V
+    if-nez v7, :saved
+    const-string v0, "FAIL independent visible document screenshot"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+  :saved
+    return-void
+.end method
+
+.method private waitExampleDocument()V
+    .registers 8
+    const/16 v0, 0x258
+  :again
+    const-string v1, "org.isomorphisms.ib.prepaint"
+    const-string v2, "org.isomorphisms.ib.prepaint:id/reader_body"
+    invoke-direct {p0, v1, v2}, Lacceptance/shizuku/CapabilityInstrumentation;->node(Ljava/lang/String;Ljava/lang/String;)Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v1
+    invoke-virtual {v1}, Landroid/view/accessibility/AccessibilityNodeInfo;->getText()Ljava/lang/CharSequence;
+    move-result-object v1
+    if-eqz v1, :retry
+    invoke-interface {v1}, Ljava/lang/CharSequence;->toString()Ljava/lang/String;
+    move-result-object v1
+    const-string v2, "\\s+"
+    const-string v3, " "
+    invoke-virtual {v1, v2, v3}, Ljava/lang/String;->replaceAll(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+    move-result-object v1
+    const-string v2, "Example Domain"
+    invoke-virtual {v1, v2}, Ljava/lang/String;->contains(Ljava/lang/CharSequence;)Z
+    move-result v2
+    if-eqz v2, :retry
+    const-string v2, "documentation examples"
+    invoke-virtual {v1, v2}, Ljava/lang/String;->contains(Ljava/lang/CharSequence;)Z
+    move-result v2
+    if-eqz v2, :retry
+    const-string v1, "org.isomorphisms.ib.prepaint"
+    const-string v2, "org.isomorphisms.ib.prepaint:id/reader_status"
+    invoke-direct {p0, v1, v2}, Lacceptance/shizuku/CapabilityInstrumentation;->node(Ljava/lang/String;Ljava/lang/String;)Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v1
+    invoke-virtual {v1}, Landroid/view/accessibility/AccessibilityNodeInfo;->getText()Ljava/lang/CharSequence;
+    move-result-object v1
+    if-eqz v1, :retry
+    invoke-interface {v1}, Ljava/lang/CharSequence;->toString()Ljava/lang/String;
+    move-result-object v1
+    const-string v2, "Static HTML — scripts and forms are unavailable."
+    invoke-virtual {v2, v1}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :retry
+    const-string v1, "Static HTML — scripts and forms are unavailable."
+    invoke-direct {p0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->assertStatus(Ljava/lang/String;)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->recordDocumentScreenshot()V
+    return-void
+  :retry
+    const-wide/16 v5, 0x64
+    invoke-static {v5, v6}, Landroid/os/SystemClock;->sleep(J)V
+    add-int/lit8 v0, v0, -0x1
+    if-gtz v0, :again
+    const-string v0, "FAIL actual acquired Example Domain in native document view"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private readExampleDocument()V
+    .registers 7
+    const/4 v0, 0x3
+    const-string v1, "FAIL authorized acquisition capability before native navigation"
+    invoke-static {v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitState(ILjava/lang/String;)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->sources()V
+    const-string v0, "org.isomorphisms.ib.prepaint"
+    const-string v1, "org.isomorphisms.ib.prepaint:id/reader_input"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->node(Ljava/lang/String;Ljava/lang/String;)Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v1
+    new-instance v2, Landroid/os/Bundle;
+    invoke-direct {v2}, Landroid/os/Bundle;-><init>()V
+    const-string v3, "ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE"
+    const-string v4, "https://example.com/"
+    invoke-virtual {v2, v3, v4}, Landroid/os/Bundle;->putCharSequence(Ljava/lang/String;Ljava/lang/CharSequence;)V
+    const v3, 0x200000
+    invoke-virtual {v1, v3, v2}, Landroid/view/accessibility/AccessibilityNodeInfo;->performAction(ILandroid/os/Bundle;)Z
+    move-result v1
+    if-nez v1, :entered
+    const-string v1, "FAIL native URL input refused text entry"
+    invoke-static {v1}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+  :entered
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->waitForIdleSync()V
+    const-string v1, "org.isomorphisms.ib.prepaint:id/read_button"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->click(Ljava/lang/String;Ljava/lang/String;)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->waitExampleDocument()V
+    return-void
+.end method
+
 .method public onStart()V
     .registers 10
   :begin
@@ -253,6 +367,25 @@
     const-string v7, "PASS installed IB unavailable capability and unprivileged delivery refusal"
     goto :success
   :real
+    const-string v1, "read-example"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :retained
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->readExampleDocument()V
+    const-string v7, "PASS installed native URL entry actual Example Domain and acknowledged retained source"
+    goto :success
+  :retained
+    const-string v1, "retained-example"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :authorization
+    const/4 v1, 0x0
+    const-string v2, "FAIL retained-source control requires absent Shizuku"
+    invoke-static {v1, v2}, Lacceptance/shizuku/CapabilityInstrumentation;->waitState(ILjava/lang/String;)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->waitExampleDocument()V
+    const-string v7, "PASS installed native retained Example Domain reopened with Shizuku unavailable"
+    goto :success
+  :authorization
     const-string v1, "authorize"
     invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
     move-result v1

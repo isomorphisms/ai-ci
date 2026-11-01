@@ -1,7 +1,7 @@
 #!/usr/bin/env grease
 set -eu -o pipefail
-if (len(ARGV) !== 9) {
-  echo 'usage: grease observe-installed.grease AICI INPUT SMALI SDK KEYSTORE SHIZUKU_APK ADB SERIAL NEW_EVIDENCE' >&2; exit 2
+if (len(ARGV) !== 9 and len(ARGV) !== 10) {
+  echo 'usage: grease observe-installed.grease AICI INPUT SMALI SDK KEYSTORE SHIZUKU_APK ADB SERIAL NEW_EVIDENCE [reader]' >&2; exit 2
 }
 var repository = ARGV[0]
 var input = ARGV[1]
@@ -12,6 +12,16 @@ var shizuku = ARGV[5]
 var adb = ARGV[6]
 var serial = ARGV[7]
 var evidence = ARGV[8]
+var reader = false
+if (len(ARGV) === 10) {
+  if (ARGV[9] !== 'reader') { echo 'FAIL unknown installed observer mode' >&2; exit 2 }
+  setvar reader = true
+}
+if rg -x -F 'schema	ib-native-reader-worker-build-v1' "$input/receipt.tsv" {
+  if (not reader) { echo 'FAIL complete worker candidate requires the declared reader observer' >&2; exit 1 }
+} else {
+  if (reader) { echo 'FAIL reader observer requires the maintained complete worker producer' >&2; exit 1 }
+}
 for path in "$repository" "$input" "$smali" "$sdk" "$keystore" "$shizuku" "$adb" "$evidence" {
   if (len(path) === 0 or path[0] !== '/') { echo 'FAIL absolute installed-observer input required' >&2; exit 2 }
 }
@@ -143,6 +153,64 @@ observe death-only death-mutant 0 'java.lang.AssertionError: FAIL revoked Shizuk
 install_candidate boundary restored-after-mutants
 start_server restored-server
 observe death-only legitimate-reconnection -1 'PASS installed IB authorized reconnection and Binder death'
+if (reader) {
+  start_server reader-server
+  observe read-example actual-native-document -1 'PASS installed native URL entry actual Example Domain and acknowledged retained source'
+  diagnose after-native-document
+  "$adb" -s "$serial" shell am force-stop org.isomorphisms.ib.prepaint
+  "$adb" -s "$serial" shell killall shizuku_server
+  observe retained-example retained-without-worker -1 'PASS installed native retained Example Domain reopened with Shizuku unavailable'
+  install_candidate boundary retained-update
+  observe retained-example retained-after-update -1 'PASS installed native retained Example Domain reopened with Shizuku unavailable'
+  "$adb" -s "$serial" reboot
+  timeout 90 "$adb" -s "$serial" wait-for-device
+  var booted = false
+  for attempt in @(seq 1 120) {
+    var boot = $("$adb" -s "$serial" shell getprop sys.boot_completed | tr -d '\r')
+    if (boot === '1') { setvar booted = true; break }
+    sleep 1
+  }
+  if (not booted) { diagnose reboot; echo 'FAIL emulator reboot did not complete' >&2; exit 1 }
+  "$adb" -s "$serial" shell input keyevent 82
+  "$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 2000
+  observe retained-example retained-after-reboot -1 'PASS installed native retained Example Domain reopened with Shizuku unavailable'
+  # Root is used only by this independent observer, after the real shell-UID
+  # Shizuku transactions and UI observations. No candidate process gains it.
+  "$adb" -s "$serial" root > "$evidence/snapshot-root.txt" 2>&1
+  timeout 30 "$adb" -s "$serial" wait-for-device
+  "$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 0
+  "$adb" -s "$serial" pull /data/user/0/org.isomorphisms.ib.prepaint/files/arena "$evidence/actual-arena"
+  "$adb" -s "$serial" pull /data/user/0/org.isomorphisms.ib.prepaint/cache/ib-acceptance-retained-example.png "$evidence/retained-document.png"
+  "$adb" -s "$serial" unroot > "$evidence/snapshot-unroot.txt" 2>&1
+  timeout 30 "$adb" -s "$serial" wait-for-device
+  "$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 2000
+  chmod 700 "$evidence/actual-arena"
+  # This host-only directory belongs to the independent oracle's temporary
+  # reads. It neither modifies the tablet nor creates a publication receipt.
+  mkdir -m 700 "$evidence/actual-arena/staging"
+  var id = $(sed -n '2p' "$evidence/actual-arena/last-source")
+  var generation = $(sed -n '3p' "$evidence/actual-arena/last-source")
+  printf '%s\n' "$id" | rg -x '[0-9a-f]{48}'
+  printf '%s\n' "$generation" | rg -x '[1-9][0-9]{0,9}'
+  test "$(head -n 1 "$evidence/actual-arena/last-source")" = IBLAST1
+  test "$(head -n 3 "$evidence/actual-arena/last-source" | sha256sum | cut -d ' ' -f 1)" = "$(sed -n '4p' "$evidence/actual-arena/last-source")"
+  sh "$repository/ib-source/verify.sh" "$evidence/actual-arena" "$id" "$generation" https://example.com/ > "$evidence/independent-source-readback.txt" 2>&1
+  cat "$evidence/independent-source-readback.txt"
+  cp -R "$evidence/actual-arena" "$evidence/corrupted-arena"
+  var offset = $(awk -F '\t' '$1=="arena_offset"{print $2}' "$evidence/corrupted-arena/receipts/$id.tsv")
+  printf '%s\n' "$offset" | rg -x '[0-9]+'
+  printf '\000' | dd of="$evidence/corrupted-arena/responses.arena" bs=1 "seek=$offset" conv=notrunc status=none
+  try {
+    sh "$repository/ib-source/verify.sh" "$evidence/corrupted-arena" "$id" "$generation" https://example.com/ > "$evidence/corrupt-source.stdout" 2> "$evidence/corrupt-source.stderr"
+  }
+  if (_error.code === 0) { echo 'FAIL independently corrupted committed body was accepted' >&2; exit 1 }
+  test ! -s "$evidence/corrupt-source.stdout"
+  rg -x -F 'ai-ci ib-source: committed bytes differ from receipt SHA-256' "$evidence/corrupt-source.stderr"
+  printf 'schema\tib-installed-native-document-v1\nactual_URL_entry\tPASS\nvisible_Example_Domain\tPASS\nacknowledged_last_source\tPASS\nreopen_without_Shizuku\tPASS\nreplacement_install\tPASS\nemulator_reboot\tPASS\nindependent_committed_readback\tPASS\nchanged_committed_byte\tREJECTED\nphysical_TAB_P10\tNOT_RUN\nlinks_history_exact_copy_SEARCH\tNOT_RUN\n' > "$evidence/reader-receipt.tsv"
+  sha256sum "$evidence/retained-document.png" "$evidence/actual-arena/last-source" \
+    "$evidence/actual-arena/responses.arena" "$evidence/actual-arena/receipts/$id.tsv" > "$evidence/reader-artifacts.sha256"
+  cat "$evidence/reader-receipt.tsv"
+}
 git -C "$repository" rev-parse HEAD > "$evidence/observer-commit.txt"
 sha256sum "$evidence/observer.dex" "$evidence/observer.apk" "$shizuku" "$evidence/official-starter" \
   "$input/ib-native-boundary.apk" "$input/ib-native-uid-bypass.apk" "$input/ib-native-death-noop.apk" \
