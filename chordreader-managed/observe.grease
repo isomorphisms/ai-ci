@@ -1,0 +1,67 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 8) { echo 'requires ROOT ARTIFACTS SMALI BAKSMALI ADB SERIAL API NEW_EVIDENCE' >&2; exit 2 }
+var root = ARGV[0]
+var input = ARGV[1]
+var smali = ARGV[2]
+var baksmali = ARGV[3]
+var adb = ARGV[4]
+var serial = ARGV[5]
+var api = ARGV[6]
+var evidence = ARGV[7]
+for path in "$root" "$input" "$smali" "$baksmali" "$adb" "$evidence" {
+  if (len(path) === 0 or path[0] !== '/') { exit 2 }
+}
+if (api !== '29' and api !== '34') { exit 2 }
+test ! -e "$evidence"
+mkdir -p "$evidence/oracle-source"
+"$adb" -s "$serial" shell getprop ro.kernel.qemu | tr -d '\r' | rg -x 1
+"$adb" -s "$serial" shell getprop ro.product.cpu.abi | tr -d '\r' | rg -x x86_64
+test "$("$adb" -s "$serial" shell getprop ro.build.version.sdk | tr -d '\r')" = "$api"
+"$adb" -s "$serial" shell getprop ro.build.fingerprint > "$evidence/fingerprint.txt"
+# Exercise bytes extracted from the actual signed APK, not a sibling fixture.
+unzip -p "$input/android/chordreader-x86_64.apk" assets/chordreader-pitch.dex > "$evidence/candidate.dex"
+cmp "$evidence/candidate.dex" "$input/exec/chordreader-pitch.dex"
+test -s "$input/exec/chordreader-mutant.dex"
+cp "$root/chordreader-managed/oracle/ChordReaderObserver.smali" "$evidence/oracle-source/"
+java -jar "$smali" assemble "$evidence/oracle-source" -o "$evidence/oracle.dex"
+java -jar "$baksmali" disassemble "$evidence/candidate.dex" -o "$evidence/decoded"
+rg -F '.method public static application_request(Ljava/lang/String;)Ljava/lang/String;' "$evidence/decoded/Idric/Generated.smali"
+var digest = $(sha256sum "$evidence/candidate.dex" | cut -d ' ' -f 1)
+var remote = "/data/local/tmp/aici-chordreader-$digest"
+"$adb" -s "$serial" shell test ! -e "$remote"
+"$adb" -s "$serial" shell mkdir "$remote"
+"$adb" -s "$serial" push "$evidence/oracle.dex" "$remote/oracle.dex"
+"$adb" -s "$serial" push "$evidence/candidate.dex" "$remote/candidate.dex"
+"$adb" -s "$serial" push "$input/exec/chordreader-mutant.dex" "$remote/mutant.dex"
+"$adb" -s "$serial" shell chmod 444 "$remote/oracle.dex" "$remote/candidate.dex" "$remote/mutant.dex"
+for lane in candidate mutant {
+  "$adb" -s "$serial" pull "$remote/$lane.dex" "$evidence/$lane.received.dex"
+  if (lane === 'candidate') {
+    cmp "$evidence/candidate.dex" "$evidence/$lane.received.dex"
+  } else {
+    cmp "$input/exec/chordreader-mutant.dex" "$evidence/$lane.received.dex"
+  }
+  try {
+    timeout 60 "$adb" -s "$serial" shell -T \
+      "CLASSPATH=$remote/$lane.dex:$remote/oracle.dex app_process /system/bin acceptance.ChordReaderObserver" \
+      > "$evidence/$lane.txt" 2>&1
+  }
+  var status = _error.code
+  printf '%s\n' "$status" > "$evidence/$lane.exit"
+  cat "$evidence/$lane.txt"
+  var expected_status = 0
+  var expected_marker = 'PASS independent ChordReader managed ART: 19 assertions'
+  if (lane === 'mutant') {
+    setvar expected_status = 93
+    setvar expected_marker = 'FAIL independent ChordReader written minor second'
+  }
+  var marker_found = false
+  if rg -x -F "$expected_marker" "$evidence/$lane.txt" { setvar marker_found = true }
+  if (status !== expected_status or not marker_found) {
+    echo "FAIL independent ChordReader $lane exit $status expected $expected_status and exact diagnostic" >&2
+    exit 1
+  }
+}
+sha256sum "$input/android/chordreader-x86_64.apk" "$evidence/oracle.dex" "$evidence/candidate.received.dex" "$evidence/mutant.received.dex" > "$evidence/sha256.txt"
+printf 'schema\taici-chordreader-managed-art-v1\napi\t%s\nabi\tx86_64\nAPK_asset_identity\tPASS\nindependent_ART_assertions\t19 PASS\ncompiled_music_mutant\tREJECTED\nphysical_TAB_P10\tNOT_RUN\ninstalled_UI\tPRODUCER_OWNED_SEPARATE_GATE\n' "$api" > "$evidence/receipt.tsv"
