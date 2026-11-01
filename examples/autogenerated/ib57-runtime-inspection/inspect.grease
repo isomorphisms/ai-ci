@@ -27,7 +27,7 @@ if (kind === 'full29') {
   setvar artifact = '13100798874'
   setvar size = '3025202'
   setvar digest = 'b9ae3e1a1714f8aec8cd5e137ab5e9998d897aa7e3e3b1f4a258cd3d920a5b3d'
-} elif (kind === 'd02search29' or kind === 'd42full29') {
+} elif (kind === 'd02search29') {
   setvar artifact = '13103337606'
   setvar size = '11189861'
   setvar digest = '931dca07059ba8427b8fc902ffba3dc749c177fb99a298d7188bc0fac363a3f6'
@@ -50,7 +50,9 @@ if (kind === 'full29') {
 } else { exit 2 }
 if (len(evidence) === 0 or evidence[0] !== '/') { exit 2 }
 if test -e "$evidence" { echo 'FAIL reused failure inspection evidence' >&2; exit 2 }
+if (kind === 'd42full29' and artifact !== '13104564402') { echo 'FAIL frozen case selected the wrong artifact' >&2; exit 1 }
 mkdir -p "$evidence"
+printf 'case\t%s\nartifact_id\t%s\narchive_byte_count\t%s\narchive_sha256\t%s\n' "$kind" "$artifact" "$size" "$digest"
 var authorization = ENV.GITHUB_TOKEN
 var archive = "$evidence/original.zip"
 curl --fail --location --silent --show-error --max-time 180 --max-filesize 300000000 \
@@ -74,7 +76,7 @@ for file in @(awk '/\.(pid|exit|txt|log|tsv|xml)$/ && $0!~/[^A-Za-z0-9._\/-]/ {p
     cat "$captured" >> "$evidence/$records.observed.txt"
     cat "$evidence/$records.observed.txt"
   } elif (file.endsWith('.logcat.txt')) {
-    if (kind === 'd02search29') {
+    if (kind === 'd02search29' or kind === 'd42full29') {
       printf 'complete_retained_reader_body\t%s\n' "$file"
       awk '/IBIndependentReaderBody|IBIndependentReadiness/ {print}' "$captured"
     }
@@ -104,4 +106,5 @@ if (kind === 'd02full34') {
 }
 if (records < 1) { echo 'FAIL no retained text records' >&2; exit 1 }
 printf 'schema\tib-frozen-runtime-failure-inspection-v1\ncase\t%s\nsource\t%s\noriginal_observer\tRECORDED_IN_ARCHIVE_IDENTITY\narchive_integrity\tPASS\nnew_Android_execution\tNOT_RUN\nproduct_completion\tNOT_CLAIMED\nphysical_TAB_P10\tNOT_RUN\n' "$kind" "$source" > "$evidence/receipt.tsv"
+printf 'artifact_id\t%s\narchive_byte_count\t%s\narchive_sha256\t%s\n' "$artifact" "$size" "$digest" >> "$evidence/receipt.tsv"
 cat "$evidence/receipt.tsv"
