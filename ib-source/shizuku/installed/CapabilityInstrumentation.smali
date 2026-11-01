@@ -37,6 +37,10 @@
     invoke-static {v2, v3}, Landroid/os/SystemClock;->sleep(J)V
     add-int/lit8 v0, v0, -0x1
     if-gtz v0, :again
+    const-string v0, "IBIndependentState"
+    invoke-static {v1}, Ljava/lang/Integer;->toString(I)Ljava/lang/String;
+    move-result-object v1
+    invoke-static {v0, v1}, Landroid/util/Log;->e(Ljava/lang/String;Ljava/lang/String;)I
     invoke-static {p1}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
   :ready
     return-void
