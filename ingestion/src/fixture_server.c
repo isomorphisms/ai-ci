@@ -196,6 +196,8 @@ static void handle_request(int fd, const char *corpus_root) {
 
     if (strcmp(path, "/valid") == 0) {
         relative = "bodies/valid.html";
+    } else if (strcmp(path, "/anchor-fixture") == 0) {
+        relative = "bodies/anchor.html";
     } else if (strcmp(path, "/malformed") == 0) {
         relative = "bodies/malformed.html";
     } else if (strcmp(path, "/empty") == 0) {

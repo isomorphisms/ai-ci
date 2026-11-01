@@ -1533,6 +1533,99 @@
     return-void
 .end method
 
+.method private assertFragmentViewport(Z)V
+    .registers 7
+    const/16 v0, 20
+  :again
+    iget-object v1, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
+    new-instance v2, Lacceptance/shizuku/FragmentViewport;
+    invoke-direct {v2, v1, p1}, Lacceptance/shizuku/FragmentViewport;-><init>(Landroid/app/Activity;Z)V
+    invoke-virtual {p0, v2}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
+    iget-object v1, v2, Lacceptance/shizuku/FragmentViewport;->problem:Ljava/lang/String;
+    if-eqz v1, :done
+    const-wide/16 v2, 100
+    invoke-static {v2, v3}, Landroid/os/SystemClock;->sleep(J)V
+    add-int/lit8 v0, v0, -1
+    if-gtz v0, :again
+    invoke-static {v1}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+  :done
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->recordDocumentScreenshot()V
+    return-void
+.end method
+
+.method private requireFragmentAddress(Ljava/lang/String;)V
+    .registers 5
+    iget-object v0, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
+    new-instance v1, Lacceptance/shizuku/ReaderAddressSnapshot;
+    invoke-direct {v1, v0}, Lacceptance/shizuku/ReaderAddressSnapshot;-><init>(Landroid/app/Activity;)V
+    invoke-virtual {p0, v1}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
+    iget-object v0, v1, Lacceptance/shizuku/ReaderAddressSnapshot;->address:Ljava/lang/String;
+    invoke-virtual {p1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v0
+    if-nez v0, :done
+    const-string v0, "FAIL native fragment navigation address"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+  :done
+    return-void
+.end method
+
+.method private fragmentDocument(Z)V
+    .registers 5
+    const-string v0, "Anchor Fixture"
+    const-string v1, "Before fragment paragraph 01"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitNetworkDocument(Ljava/lang/String;Ljava/lang/String;)V
+    if-eqz p1, :top
+    const-string v0, "http://10.0.2.2:18491/anchor-fixture#caf%C3%A9"
+    goto :address
+  :top
+    const-string v0, "http://10.0.2.2:18491/anchor-fixture"
+  :address
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->requireFragmentAddress(Ljava/lang/String;)V
+    invoke-direct {p0, p1}, Lacceptance/shizuku/CapabilityInstrumentation;->assertFragmentViewport(Z)V
+    return-void
+.end method
+
+.method private fragmentNavigation()V
+    .registers 4
+    const-string v0, "http://10.0.2.2:18491/anchor-fixture"
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->enterReaderURL(Ljava/lang/String;)V
+    const/4 v0, 0
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->fragmentDocument(Z)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->tapNextLink()V
+    const/4 v0, 1
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->fragmentDocument(Z)V
+    invoke-static {}, Lorg/isomorphisms/ib/ReaderBridge;->history()Ljava/lang/String;
+    move-result-object v1
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyBack()V
+    const/4 v0, 0
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->fragmentDocument(Z)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyForward()V
+    const/4 v0, 1
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->fragmentDocument(Z)V
+    invoke-direct {p0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->requireHistory(Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private offlineFragments()V
+    .registers 4
+    const/4 v0, 0
+    const-string v1, "FAIL fragment replay requires absent Shizuku"
+    invoke-static {v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitState(ILjava/lang/String;)V
+    const/4 v0, 1
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->fragmentDocument(Z)V
+    invoke-static {}, Lorg/isomorphisms/ib/ReaderBridge;->history()Ljava/lang/String;
+    move-result-object v1
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyBack()V
+    const/4 v0, 0
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->fragmentDocument(Z)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyForward()V
+    const/4 v0, 1
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->fragmentDocument(Z)V
+    invoke-direct {p0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->requireHistory(Ljava/lang/String;)V
+    return-void
+.end method
+
+
 .method public onStart()V
     .registers 10
   :begin
@@ -1560,6 +1653,22 @@
   :launched
     iput-object v0, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
     iget-object v0, p0, Lacceptance/shizuku/CapabilityInstrumentation;->phase:Ljava/lang/String;
+    const-string v1, "fragment-navigation"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :offline_fragment_phase
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fragmentNavigation()V
+    const-string v7, "PASS native fragment touch reaches Unicode target and retained Back Forward"
+    goto :success
+  :offline_fragment_phase
+    const-string v1, "offline-fragments"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :untrusted_tls_phase
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->offlineFragments()V
+    const-string v7, "PASS retained fragment viewport and Back Forward without Shizuku"
+    goto :success
+  :untrusted_tls_phase
     const-string v1, "untrusted-tls"
     invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
     move-result v1

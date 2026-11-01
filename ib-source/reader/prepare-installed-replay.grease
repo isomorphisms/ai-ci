@@ -14,16 +14,17 @@ var authorization = ENV.GITHUB_TOKEN
 # drops that header when redirected to the signed blob host; do not print it.
 curl --fail --location --silent --show-error --max-time 300 \
   --header "Authorization: Bearer $authorization" \
-  https://api.github.com/repos/isomorphisms/ib/actions/artifacts/13088228711/zip \
+  https://api.github.com/repos/isomorphisms/ib/actions/artifacts/13092196333/zip \
   --output "$archive"
-test "$(wc -c < "$archive")" = 837240680
-printf '8de69e0bbf2e4a443cf5bc4a5f7296e25ea8f2a7a56bc298035947182f5f4de1  %s\n' "$archive" | sha256sum -c -
+test "$(wc -c < "$archive")" = 921674882
+printf '0b20640e265b5f76114f0d9f4db09bd15f67c8b2951059d14ef47b8dce7f3f53  %s\n' "$archive" | sha256sum -c -
 unzip -q "$archive" -d "$evidence/input"
-test "$(cat "$evidence/input/ib-commit.txt")" = 966a613a79b2a5800c209298800678bd984d4966
-test "$(cat "$evidence/input/native-client/ib-commit.txt")" = 966a613a79b2a5800c209298800678bd984d4966
-printf 'schema\tib-installed-replay-v1\nsource\t966a613a79b2a5800c209298800678bd984d4966\noriginal_run\t41315891303\noriginal_artifact\t13088228711\narchive_sha256\t8de69e0bbf2e4a443cf5bc4a5f7296e25ea8f2a7a56bc298035947182f5f4de1\n' > "$evidence/input-identity.tsv"
+test "$(cat "$evidence/input/ib-commit.txt")" = fb9b34a92328551aa043137a4bba8b58084f2955
+test "$(cat "$evidence/input/native-client/ib-commit.txt")" = fb9b34a92328551aa043137a4bba8b58084f2955
+printf 'schema\tib-installed-replay-v1\nsource\tfb9b34a92328551aa043137a4bba8b58084f2955\noriginal_run\t41324363104\noriginal_artifact\t13092196333\narchive_sha256\t0b20640e265b5f76114f0d9f4db09bd15f67c8b2951059d14ef47b8dce7f3f53\n' > "$evidence/input-identity.tsv"
 git -C "$repository" rev-parse HEAD > "$evidence/observer-commit.txt"
 sha256sum "$evidence/input/native-client/ib-native-boundary.apk" \
   "$evidence/input/native-client/ib-native-uid-bypass.apk" \
   "$evidence/input/native-client/ib-native-death-noop.apk" \
-  "$evidence/input/native-client/ib-native-strict-flags.apk" > "$evidence/candidate-sha256.txt"
+  "$evidence/input/native-client/ib-native-strict-flags.apk" \
+  "$evidence/input/native-client/ib-native-stale-authorization.apk" > "$evidence/candidate-sha256.txt"
