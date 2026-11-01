@@ -56,6 +56,9 @@ jobs:
         run: |
           .tools/runtime/.build/grease/bin/grease -c 'sudo apt-get update
           sudo apt-get install --no-install-recommends -y ripgrep'
+      - name: Parse the declared Grease inspector before reading an archive
+        shell: sh
+        run: .tools/runtime/.build/grease/bin/grease -n ib-source/reader/inspect-google.grease > "$RUNNER_TEMP/Google-inspector.syntax.txt"
       - name: Inspect exact runtime view and independently read the captured original response
         shell: sh
         env:
@@ -70,3 +73,20 @@ jobs:
             ${{ runner.temp }}/Google-observation/actual-Google-view.txt
             ${{ runner.temp }}/Google-observation/Google-source-readback.txt
           if-no-files-found: warn
+  apk_metadata:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      # Exact failed publisher output; no candidate or package edits.
+      # ZIP SHA-256 d56db8804c31c61a6a653da82864a70597c733e8ec9b37147723b527bd6982f4.
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          repository: isomorphisms/ib
+          github-token: ${{ github.token }}
+          run-id: 41299060008
+          artifact-ids: '13080839072'
+          merge-multiple: true
+          path: ${{ runner.temp }}/APK-observations
+      - name: Read actual signed APK package and SDK observations
+        shell: sh
+        run: cat "$RUNNER_TEMP/APK-observations/badging.txt"
