@@ -31,6 +31,22 @@ zip -q controls-unsigned.apk classes.dex
 "$tools/apksigner" verify --verbose --print-certs "$output/controls.apk" > "$output/controls-signer.txt"
 rg -x -F 'Signer #1 certificate SHA-256 digest: de9b1d47c5a65e6d46a204b79dd9ee566b9d3c9832ba81ebc4213d3392e92ff9' "$output/controls-signer.txt"
 var positive = "$consumer/build/pasteboard-apks/pasteboard-x86_64.apk"
+# This deliberately incompatible certificate is confined to a negative update
+# fixture. Candidate APKs always retain the persistent qualified signer above.
+var negative_signing = $(mktemp -d)
+keytool -genkeypair -keystore "$negative_signing/control.jks" -storetype JKS \
+  -alias incompatible-control -storepass negative-control -keypass negative-control \
+  -keyalg RSA -keysize 2048 -validity 3650 \
+  -dname 'CN=ai-ci incompatible update control' > "$output/incompatible-key-generation.txt" 2>&1
+"$tools/apksigner" sign --ks "$negative_signing/control.jks" --ks-key-alias incompatible-control \
+  --ks-pass pass:negative-control --key-pass pass:negative-control --v4-signing-enabled false \
+  --out "$output/incompatible-signer.apk" "$positive"
+"$tools/apksigner" verify --verbose --print-certs "$output/incompatible-signer.apk" > "$output/incompatible-signer.txt"
+rg -x 'Signer #1 certificate SHA-256 digest: [0-9a-f]{64}' "$output/incompatible-signer.txt"
+if rg -q -F 'de9b1d47c5a65e6d46a204b79dd9ee566b9d3c9832ba81ebc4213d3392e92ff9' "$output/incompatible-signer.txt" {
+  echo 'FAIL negative update fixture retained the candidate signer' >&2; exit 1
+}
+sha256sum "$positive" "$output/incompatible-signer.apk" > "$output/incompatible-signer.sha256.txt"
 var version = $("$tools/aapt2" dump badging "$positive" | awk -F "'" '/^package:/{print $4}')
 printf '%s\n' "$version" | rg -x '[1-9][0-9]*'
 setglobal ENV.ANDROID_HOME = sdk

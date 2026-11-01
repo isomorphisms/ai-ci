@@ -90,3 +90,12 @@ propagation is already exercised by the ART mutant control. Migration and the
 complete clipboard workflow run in separate fresh emulator jobs, so a migration
 failure cannot prevent independent observation of UI/clipboard behavior. Each
 still has its original assertions and exact-source receipts.
+The installation suite now builds a deliberately differently signed copy of
+the exact candidate as a negative update fixture. Its private test key stays
+outside uploaded evidence; its certificate and APK digest are recorded. A local
+preparation against clean consumer 96b7af1 passes signer separation, independent
+instrumentation packaging and both actual native source-mutant builds. Android
+must still demonstrate INSTALL_FAILED_UPDATE_INCOMPATIBLE, unchanged UID and
+byte-identical acknowledged history. This control never changes the candidate
+signer and never invokes uninstall or a data reset.
+

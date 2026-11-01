@@ -177,6 +177,19 @@ start_app replacement
 snapshot replacement
 cmp "$output/policies.bin" "$output/replacement.bin"
 printf 'ordinary_process_death_recovery\tPASS\nreplacement_preserves_UID_and_history\tPASS\n' >> "$output/result.tsv"
+# Android must refuse an incompatible signing identity without an uninstall or
+# data reset. Inspect the same installed UID and exact persisted history again.
+try { "$adb" -s "$serial" install -r "$input/guards/incompatible-signer.apk" > "$output/incompatible-update.txt" 2>&1 }
+var incompatible_result = _error.code
+if (incompatible_result === 0) { diagnose incompatible-update; echo 'FAIL incompatible update installed' >&2; exit 1 }
+rg -q -F INSTALL_FAILED_UPDATE_INCOMPATIBLE "$output/incompatible-update.txt"
+var preserved_uid = $("$adb" -s "$serial" shell pm list packages -U "$package" | tr -d '\r')
+if (preserved_uid !== original_uid) { echo 'FAIL refused update changed installed UID' >&2; exit 1 }
+start_app incompatible-update-refused
+snapshot incompatible-update-refused
+cmp "$output/policies.bin" "$output/incompatible-update-refused.bin"
+cp "$input/guards/incompatible-signer.txt" "$input/guards/incompatible-signer.sha256.txt" "$output/"
+printf 'incompatible_signer_update_refused_without_data_loss\tPASS\n' >> "$output/result.tsv"
 "$adb" -s "$serial" shell settings get secure default_input_method > "$output/keyboard-after.txt"
 cmp "$output/keyboard-before.txt" "$output/keyboard-after.txt"
 printf 'existing_default_keyboard_unchanged\tPASS\nGboard_physical_execution\tNOT_VERIFIED\napi\t%s\nphysical_C67\tNOT_VERIFIED\nphysical_TAB_P10\tNOT_VERIFIED\n' "$api" >> "$output/result.tsv"
