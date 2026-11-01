@@ -40,12 +40,19 @@ for lane in managed mutant {
   var status = _error.code
   printf '%s\n' "$status" > "$evidence/$lane.exit"
   cat "$evidence/$lane.txt"
-  if (lane === 'managed') {
-    if (status !== 0) { exit 1 }
-    rg -x -F 'PASS independent pure partial and IO export alias saturation on ART' "$evidence/$lane.txt"
-  } else {
-    if (status !== 137) { exit 1 }
-    rg -x -F 'FAIL checked IO alias applies supplied effect exactly once' "$evidence/$lane.txt"
+  var expected_status = 0
+  var expected_marker = 'PASS independent pure partial and IO export alias saturation on ART'
+  if (lane === 'mutant') {
+    setglobal expected_status = 137
+    setglobal expected_marker = 'FAIL checked IO alias applies supplied effect exactly once'
+  }
+  var marker_found = false
+  if rg -x -F "$expected_marker" "$evidence/$lane.txt" { setglobal marker_found = true }
+  if (status !== expected_status or not marker_found) {
+    try { "$adb" -s "$serial" logcat -d -v threadtime -s AndroidRuntime:E > "$evidence/$lane.runtime-errors.txt" 2>&1 }
+    cat "$evidence/$lane.runtime-errors.txt"
+    echo "FAIL export alias observer: $lane exit $status expected $expected_status and exact diagnostic" >&2
+    exit 1
   }
 }
 sha256sum "$evidence/observer.dex" "$evidence/managed.received.dex" "$evidence/mutant.received.dex" > "$evidence/sha256.txt"

@@ -19,8 +19,8 @@
     invoke-virtual {v3, v2}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
     move-result v4
     if-nez v4, :partial
-    const-string v0, "FAIL checked pure export alias Unicode and arguments"
-    invoke-static {v0}, Lacceptance/ExportAliasesObserver;->fail(Ljava/lang/String;)V
+    const-string v5, "FAIL checked pure export alias Unicode and arguments"
+    invoke-static {v5}, Lacceptance/ExportAliasesObserver;->fail(Ljava/lang/String;)V
   :partial
     invoke-static {v1}, LIdric/Generated;->partially_applied_pure(I)Ljava/lang/String;
     move-result-object v2
@@ -28,8 +28,8 @@
     invoke-virtual {v3, v2}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
     move-result v4
     if-nez v4, :io
-    const-string v0, "FAIL checked partial export saturation"
-    invoke-static {v0}, Lacceptance/ExportAliasesObserver;->fail(Ljava/lang/String;)V
+    const-string v5, "FAIL checked partial export saturation"
+    invoke-static {v5}, Lacceptance/ExportAliasesObserver;->fail(Ljava/lang/String;)V
   :io
     new-instance v0, Ljava/util/concurrent/atomic/AtomicInteger;
     const/4 v1, 7
@@ -40,8 +40,8 @@
     move-result v2
     const/16 v3, 42
     if-eq v2, v3, :second
-    const-string v0, "FAIL checked IO alias applies supplied effect exactly once"
-    invoke-static {v0}, Lacceptance/ExportAliasesObserver;->fail(Ljava/lang/String;)V
+    const-string v5, "FAIL checked IO alias applies supplied effect exactly once"
+    invoke-static {v5}, Lacceptance/ExportAliasesObserver;->fail(Ljava/lang/String;)V
   :second
     const/4 v1, -7
     invoke-static {v0, v1}, LIdric/Generated;->aliased_io(Ljava/util/concurrent/atomic/AtomicInteger;I)V
@@ -49,8 +49,8 @@
     move-result v2
     const/16 v3, 35
     if-eq v2, v3, :passed
-    const-string v0, "FAIL checked IO alias preserves live SDK state and World invocation"
-    invoke-static {v0}, Lacceptance/ExportAliasesObserver;->fail(Ljava/lang/String;)V
+    const-string v5, "FAIL checked IO alias preserves live SDK state and World invocation"
+    invoke-static {v5}, Lacceptance/ExportAliasesObserver;->fail(Ljava/lang/String;)V
   :passed
     sget-object v0, Ljava/lang/System;->out:Ljava/io/PrintStream;
     const-string v1, "PASS independent pure partial and IO export alias saturation on ART"
