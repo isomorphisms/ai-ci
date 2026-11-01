@@ -90,6 +90,10 @@ proc diagnose(label) {
   try { "$adb" -s "$serial" exec-out screencap -p > "$evidence/$label.screen.png" 2> "$evidence/$label.screen-error.txt" }
   try { "$adb" -s "$serial" shell uiautomator dump /data/local/tmp/ib-boundary-diagnostic.xml > "$evidence/$label.dump.txt" 2>&1 }
   try { "$adb" -s "$serial" pull /data/local/tmp/ib-boundary-diagnostic.xml "$evidence/$label.ui.xml" > "$evidence/$label.pull-ui.txt" 2>&1 }
+  # Only the controlled public fixture runs in this verified fresh emulator.
+  # Private worker stderr is bounded by its native owner; never collect this
+  # diagnostic surface from a physical device or an arbitrary user URL.
+  try { "$adb" -s "$serial" shell -T "find /data/local/tmp -maxdepth 2 -type f -path '/data/local/tmp/ib-reader-*/worker.grease.stderr' -exec cat {} ';'" > "$evidence/$label.worker-stderr.txt" 2>&1 }
 }
 proc observe(phase, label, code, marker) {
   try {
