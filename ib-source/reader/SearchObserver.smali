@@ -12,8 +12,7 @@
     const-string v2, "FAIL actual IB Intent query export"
     invoke-virtual {v1, v2}, Ljava/io/PrintStream;->println(Ljava/lang/String;)V
     invoke-virtual {v1, v0}, Ljava/io/PrintStream;->println(Ljava/lang/String;)V
-    const/16 v0, 0x49
-    invoke-static {v0}, Ljava/lang/System;->exit(I)V
+    invoke-static {}, Lacceptance/AssertionFailure;->terminate()V
   :passed
     return-void
 .end method

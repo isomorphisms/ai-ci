@@ -22,8 +22,7 @@
     move-result-object v2
     invoke-virtual {v0, v2}, Ljava/io/PrintStream;->println(Ljava/lang/String;)V
     invoke-virtual {v0, v1}, Ljava/io/PrintStream;->println(Ljava/lang/String;)V
-    const/16 v0, 73
-    invoke-static {v0}, Ljava/lang/System;->exit(I)V
+    invoke-static {}, Lacceptance/AssertionFailure;->terminate()V
   :passed
     return-void
 .end method

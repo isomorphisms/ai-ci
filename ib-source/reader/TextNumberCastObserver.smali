@@ -6,8 +6,7 @@
     sget-object v0, Ljava/lang/System;->err:Ljava/io/PrintStream;
     const-string v1, "FAIL checked Text numeric cast"
     invoke-virtual {v0, v1}, Ljava/io/PrintStream;->println(Ljava/lang/String;)V
-    const/16 v0, 0x49
-    invoke-static {v0}, Ljava/lang/System;->exit(I)V
+    invoke-static {}, Lacceptance/AssertionFailure;->terminate()V
     return-void
 .end method
 

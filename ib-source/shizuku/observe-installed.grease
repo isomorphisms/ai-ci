@@ -12,6 +12,7 @@ var shizuku = ARGV[5]
 var adb = ARGV[6]
 var serial = ARGV[7]
 var evidence = ARGV[8]
+var grease = ENV.IB_GREASE
 var reader = false
 if (len(ARGV) === 10) {
   if (ARGV[9] !== 'reader') { echo 'FAIL unknown installed observer mode' >&2; exit 2 }
@@ -201,8 +202,23 @@ if (reader) {
   var generation = $(sed -n '3p' "$evidence/actual-arena/last-source")
   printf '%s\n' "$id" | rg -x '[0-9a-f]{48}'
   printf '%s\n' "$generation" | rg -x '[1-9][0-9]{0,9}'
-  test "$(head -n 1 "$evidence/actual-arena/last-source")" = IBLAST1
-  test "$(head -n 3 "$evidence/actual-arena/last-source" | sha256sum | cut -d ' ' -f 1)" = "$(sed -n '4p' "$evidence/actual-arena/last-source")"
+  var index_oracle = "$repository/ib-source/reader/verify-example-index.grease"
+  "$grease" "$index_oracle" "$evidence/actual-arena/last-source" "$id" "$generation" "$evidence/index-positive" > "$evidence/index-positive.txt" 2>&1
+  cat "$evidence/index-positive.txt"
+  # Corrupt the selected cursor, then independently forge a correct checksum.
+  # The first mutation must fail digest verification; the second must fail the
+  # literal expected selected occurrence even though its digest is correct.
+  sed '5s/^0$/1/' "$evidence/actual-arena/last-source" > "$evidence/changed-index"
+  if cmp -s "$evidence/actual-arena/last-source" "$evidence/changed-index" { echo 'FAIL index mutation did not change bytes' >&2; exit 1 }
+  try { "$grease" "$index_oracle" "$evidence/changed-index" "$id" "$generation" "$evidence/index-corrupt" > "$evidence/index-corrupt.txt" 2>&1 }
+  if (_error.code !== 1) { echo 'FAIL corrupted index did not reach its intended refusal' >&2; exit 1 }
+  rg -x -F 'FAIL native example index digest mismatch' "$evidence/index-corrupt.txt"
+  head -n 6 "$evidence/changed-index" > "$evidence/forged-index-prefix"
+  var forged_digest = $(sha256sum "$evidence/forged-index-prefix" | cut -d ' ' -f 1)
+  printf '%s\n' "$forged_digest" >> "$evidence/forged-index-prefix"
+  try { "$grease" "$index_oracle" "$evidence/forged-index-prefix" "$id" "$generation" "$evidence/index-forged" > "$evidence/index-forged.txt" 2>&1 }
+  if (_error.code !== 1) { echo 'FAIL forged cursor did not reach its intended refusal' >&2; exit 1 }
+  rg -x -F 'FAIL native example index selected occurrence' "$evidence/index-forged.txt"
   sh "$repository/ib-source/verify.sh" "$evidence/actual-arena" "$id" "$generation" https://example.com/ > "$evidence/independent-source-readback.txt" 2>&1
   cat "$evidence/independent-source-readback.txt"
   cp -R "$evidence/actual-arena" "$evidence/corrupted-arena"
@@ -215,7 +231,7 @@ if (reader) {
   if (_error.code === 0) { echo 'FAIL independently corrupted committed body was accepted' >&2; exit 1 }
   test ! -s "$evidence/corrupt-source.stdout"
   rg -x -F 'ai-ci ib-source: committed bytes differ from receipt SHA-256' "$evidence/corrupt-source.stderr"
-  printf 'schema\tib-installed-native-document-v1\nactual_URL_entry\tPASS\nvisible_Example_Domain\tPASS\nacknowledged_last_source\tPASS\nreopen_without_Shizuku\tPASS\nreplacement_install\tPASS\nemulator_reboot\tPASS\nindependent_committed_readback\tPASS\nchanged_committed_byte\tREJECTED\nphysical_TAB_P10\tNOT_RUN\nlinks_history_exact_copy_SEARCH\tNOT_RUN\n' > "$evidence/reader-receipt.tsv"
+  printf 'schema\tib-installed-native-document-v1\nactual_URL_entry\tPASS\nvisible_Example_Domain\tPASS\nacknowledged_last_source\tPASS\ncomplete_index_digest\tPASS\nchanged_index_byte\tREJECTED\nforged_index_cursor\tREJECTED\nreopen_without_Shizuku\tPASS\nreplacement_install\tPASS\nemulator_reboot\tPASS\nindependent_committed_readback\tPASS\nchanged_committed_byte\tREJECTED\nphysical_TAB_P10\tNOT_RUN\nlinks_history_exact_copy_SEARCH\tNOT_RUN\n' > "$evidence/reader-receipt.tsv"
   sha256sum "$evidence/retained-document.png" "$evidence/actual-arena/last-source" \
     "$evidence/actual-arena/responses.arena" "$evidence/actual-arena/receipts/$id.tsv" > "$evidence/reader-artifacts.sha256"
   cat "$evidence/reader-receipt.tsv"
