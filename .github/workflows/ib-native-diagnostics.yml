@@ -35,6 +35,31 @@ jobs:
             ${{ runner.temp }}/failed-IB/native-client/receipt.tsv
             ${{ runner.temp }}/failed-IB/native-client/*-commit.txt
           if-no-files-found: error
+  oracles:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      # Read-only retrieval of independent tools from exact IB head 175fdbf.
+      # Original ZIP SHA-256: 373de2dfaab75015796e2e5b3cb654ed01671305c9abfe99cec25d1917762e33.
+      # This candidate failed the reader test. No application acceptance is
+      # inferred from extracting its already hash-pinned independent tools.
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          repository: isomorphisms/ib
+          github-token: ${{ github.token }}
+          run-id: 41268776178
+          artifact-ids: '13069265407'
+          merge-multiple: true
+          path: ${{ runner.temp }}/IB-tools
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ib-independent-tools-175fdbf
+          path: |
+            ${{ runner.temp }}/IB-tools/oracles/baksmali.jar
+            ${{ runner.temp }}/IB-tools/oracles/smali.jar
+            ${{ runner.temp }}/IB-tools/platform-inputs/public-test-keystore
+            ${{ runner.temp }}/IB-tools/platform-inputs/shizuku-official.apk
+          if-no-files-found: error
   recover:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
