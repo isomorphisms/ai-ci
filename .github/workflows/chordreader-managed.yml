@@ -48,6 +48,12 @@ jobs:
           ref: c13a6a223a24c211d090d2c88a395c134ed8d469
           path: .tools/dex
           persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphisms/android-NDK
+          ref: 6e1c9619a96f28494ad891a32a06edfb72f3e25b
+          path: .tools/android-NDK
+          persist-credentials: false
       - name: Qualify the compiler for the maintained Grease bootstrap
         id: ick
         uses: isomorphisms/ai-ci/ick-host@2383379394a7af5a8808abbe2d7b159a55328a83
@@ -70,6 +76,19 @@ jobs:
           CATFOOD_JOBS: '2'
           CC: ${{ steps.ick.outputs.compiler }} -fno-link-libatomic -std=gnu11
         run: sh .tools/catfood/build-tools.sh
+      - name: Recover the already qualified compiler cache identity
+        id: qualified_ick_cache
+        run: .tools/runtime/.build/grease/bin/grease .tools/android-NDK/dex/idric/qualified-compiler-cache.grease "$RUNNER_TEMP/ick-host-build/host-runtime-key-input.tsv" "$GITHUB_OUTPUT"
+      - name: Preserve the qualified compiler before consumer observation
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ runner.temp }}/ick-host-stage
+          key: ick-host-v1-${{ runner.os }}-${{ runner.arch }}-fbe86e23d55cfec2000c08e61deea2a407fd7175-${{ steps.qualified_ick_cache.outputs.runtime_key }}
+      - name: Install declared independent observer text tools
+        shell: sh
+        run: |
+          .tools/runtime/.build/grease/bin/grease -c 'sudo apt-get update
+          sudo apt-get install --no-install-recommends -y ripgrep jq'
       - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd
         with:
           packages: 'build-tools;36.0.0'
