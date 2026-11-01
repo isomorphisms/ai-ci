@@ -1,7 +1,7 @@
 #!/usr/bin/env grease
 # Required continuation after the complete installed-reader observer succeeds.
 set -eu -o pipefail
-if (len(ARGV) !== 8) { echo 'usage: grease observe-navigation.grease AICI INPUT SDK ICK ADB SERIAL INSTALLED_EVIDENCE NEW_EVIDENCE' >&2; exit 2 }
+if (len(ARGV) !== 8 and len(ARGV) !== 9) { echo 'usage: grease observe-navigation.grease AICI INPUT SDK ICK ADB SERIAL INSTALLED_EVIDENCE NEW_EVIDENCE [reader-v2]' >&2; exit 2 }
 var repository = ARGV[0]
 var input = ARGV[1]
 var sdk = ARGV[2]
@@ -11,6 +11,8 @@ var serial = ARGV[5]
 var installed = ARGV[6]
 var evidence = ARGV[7]
 var grease = ENV.IB_GREASE
+var reader_v2 = len(ARGV) === 9
+if (reader_v2 and ARGV[8] !== 'reader-v2') { echo 'FAIL unknown navigation profile' >&2; exit 2 }
 for path in "$repository" "$input" "$sdk" "$compiler" "$adb" "$installed" "$evidence" {
   if (len(path) === 0 or path[0] !== '/') { exit 2 }
 }
@@ -75,6 +77,12 @@ proc observe(phase, label, marker) {
 }
 observe network-navigation actual-link-history 'PASS installed actual link acquisition Back Forward Unicode source clipboard reflow and scrolling'
 diagnose after-link-history
+if (reader_v2) {
+  observe http-refusal actual-http-refusal 'PASS installed actual ICU HTTP 404 refusal preserves visible source clipboard and navigation'
+  diagnose after-http-refusal
+  observe search-callers actual-search-caller-refusals 'PASS installed no-caller spoofed-referrer wrong-caller and warm SEARCH refusals'
+  diagnose after-search-caller-refusals
+}
 "$adb" -s "$serial" shell am force-stop org.isomorphisms.ib.prepaint
 "$adb" -s "$serial" shell killall shizuku_server
 observe offline-network-history offline-history 'PASS installed retained three-document Back Forward without Shizuku'
@@ -113,3 +121,7 @@ sha256sum "$compiler" "$evidence/fixture-server" "$repository/ingestion/src/fixt
   "$evidence/actual-arena/last-source" "$evidence/actual-arena/responses.arena" > "$evidence/sha256.txt"
 printf 'schema\tib-installed-network-navigation-v1\napi\t%s\nabi\tx86_64\nhost_fixture_toolchain\tick\nactual_touch_link_acquisition\tPASS\nrelative_link\tPASS\nnative_Back_Forward\tPASS\nUnicode_soft_hyphen_source_clipboard\tPASS\nvisible_reflow_selector\tPASS\nSDK_scroll_action\tPASS\noffline_three_document_history\tPASS\nupdate_retains_source_identity\tPASS\nindependent_source_and_fixture_digests\tPASS\nforged_cursor\tREJECTED\nphysical_TAB_P10\tNOT_RUN\nSEARCH\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"
 cat "$evidence/receipt.tsv"
+
+if (reader_v2) {
+  printf 'installed_HTTP_404_refusal\tPASS\nHTTP_error_retains_view_clipboard_history\tPASS\nno_caller_spoofed_referrer_wrong_caller_warm_SEARCH\tREJECTED\n' >> "$evidence/receipt.tsv"
+}

@@ -849,6 +849,285 @@
     return-void
 .end method
 
+
+.method public callActivityOnCreate(Landroid/app/Activity;Landroid/os/Bundle;)V
+    .registers 3
+    invoke-super {p0, p1, p2}, Landroid/app/Instrumentation;->callActivityOnCreate(Landroid/app/Activity;Landroid/os/Bundle;)V
+    iput-object p1, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
+    return-void
+.end method
+
+.method private waitStatus(Ljava/lang/String;)V
+    .registers 8
+    const/16 v0, 0x258
+  :again
+    const-string v1, "org.isomorphisms.ib.prepaint"
+    const-string v2, "org.isomorphisms.ib.prepaint:id/reader_status"
+    invoke-direct {p0, v1, v2}, Lacceptance/shizuku/CapabilityInstrumentation;->node(Ljava/lang/String;Ljava/lang/String;)Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v1
+    invoke-virtual {v1}, Landroid/view/accessibility/AccessibilityNodeInfo;->getText()Ljava/lang/CharSequence;
+    move-result-object v1
+    if-eqz v1, :retry
+    invoke-interface {v1}, Ljava/lang/CharSequence;->toString()Ljava/lang/String;
+    move-result-object v1
+    invoke-virtual {p1, v1}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-nez v1, :done
+  :retry
+    const-wide/16 v3, 0x64
+    invoke-static {v3, v4}, Landroid/os/SystemClock;->sleep(J)V
+    add-int/lit8 v0, v0, -0x1
+    if-gtz v0, :again
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->logReaderFailureStatus()V
+    const-string v0, "FAIL expected explicit native search or acquisition result"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+  :done
+    return-void
+.end method
+
+.method private static searchIntent()Landroid/content/Intent;
+    .registers 3
+    new-instance v0, Landroid/content/Intent;
+    const-string v1, "android.intent.action.SEARCH"
+    invoke-direct {v0, v1}, Landroid/content/Intent;-><init>(Ljava/lang/String;)V
+    const-string v1, "org.isomorphisms.ib.prepaint"
+    const-string v2, "Idric.Generated"
+    invoke-virtual {v0, v1, v2}, Landroid/content/Intent;->setClassName(Ljava/lang/String;Ljava/lang/String;)Landroid/content/Intent;
+    const-string v1, "query"
+    const-string v2, "IB café + %2F 🌍 chords"
+    invoke-virtual {v0, v1, v2}, Landroid/content/Intent;->putExtra(Ljava/lang/String;Ljava/lang/String;)Landroid/content/Intent;
+    return-object v0
+.end method
+
+.method private searchCallerRefusals()V
+    .registers 7
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureTwo()V
+    invoke-static {}, Lacceptance/shizuku/CapabilityInstrumentation;->searchIntent()Landroid/content/Intent;
+    move-result-object v0
+    const-string v1, "android.intent.extra.REFERRER_NAME"
+    const-string v2, "android-app://org.isomorphisms.chordreader.dev"
+    invoke-virtual {v0, v1, v2}, Landroid/content/Intent;->putExtra(Ljava/lang/String;Ljava/lang/String;)Landroid/content/Intent;
+    const/high16 v1, 0x10000000
+    invoke-virtual {v0, v1}, Landroid/content/Intent;->addFlags(I)Landroid/content/Intent;
+    invoke-virtual {p0, v0}, Landroid/app/Instrumentation;->startActivitySync(Landroid/content/Intent;)Landroid/app/Activity;
+    move-result-object v0
+    if-eqz v0, :no_activity
+    iput-object v0, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
+    invoke-virtual {v0}, Landroid/app/Activity;->getCallingPackage()Ljava/lang/String;
+    move-result-object v1
+    if-eqz v1, :null_caller
+    const-string v0, "FAIL no-result search unexpectedly authenticated a caller"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    return-void
+  :no_activity
+    const-string v0, "FAIL negative search Activity launch"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    return-void
+  :null_caller
+    const-string v1, "Search refused: a fresh authenticated ChordReader handoff is required."
+    invoke-direct {p0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitStatus(Ljava/lang/String;)V
+    const-wide/16 v1, 0x7d0
+    invoke-static {v1, v2}, Landroid/os/SystemClock;->sleep(J)V
+    const-string v1, "Reader Two"
+    invoke-direct {p0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->assertDocumentTitle(Ljava/lang/String;)V
+    const-string v1, "Search refused: a fresh authenticated ChordReader handoff is required."
+    invoke-direct {p0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->assertStatus(Ljava/lang/String;)V
+    invoke-static {}, Lacceptance/shizuku/CapabilityInstrumentation;->searchIntent()Landroid/content/Intent;
+    move-result-object v1
+    new-instance v2, Lacceptance/shizuku/SearchDispatch;
+    const/4 v3, 0x0
+    invoke-direct {v2, v0, v1, v3}, Lacceptance/shizuku/SearchDispatch;-><init>(Landroid/app/Activity;Landroid/content/Intent;Z)V
+    invoke-virtual {p0, v2}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
+    const-string v1, "Search refused: the sender is not ChordReader."
+    invoke-direct {p0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitStatus(Ljava/lang/String;)V
+    const-wide/16 v1, 0x7d0
+    invoke-static {v1, v2}, Landroid/os/SystemClock;->sleep(J)V
+    const-string v1, "Reader Two"
+    invoke-direct {p0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->assertDocumentTitle(Ljava/lang/String;)V
+    iget-object v0, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
+    invoke-virtual {v0}, Landroid/app/Activity;->getCallingPackage()Ljava/lang/String;
+    move-result-object v1
+    const-string v2, "org.isomorphisms.ib.prepaint"
+    invoke-virtual {v2, v1}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-nez v1, :own_caller
+    const-string v1, "FAIL wrong for-result caller control did not originate in IB"
+    invoke-static {v1}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+  :own_caller
+    invoke-static {}, Lacceptance/shizuku/CapabilityInstrumentation;->searchIntent()Landroid/content/Intent;
+    move-result-object v1
+    new-instance v2, Lacceptance/shizuku/SearchDispatch;
+    const/4 v3, 0x1
+    invoke-direct {v2, v0, v1, v3}, Lacceptance/shizuku/SearchDispatch;-><init>(Landroid/app/Activity;Landroid/content/Intent;Z)V
+    invoke-virtual {p0, v2}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
+    const-string v1, "Search refused: start a fresh ChordReader handoff or enter a URL in Sources."
+    invoke-direct {p0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitStatus(Ljava/lang/String;)V
+    const-string v1, "Reader Two"
+    invoke-direct {p0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->assertDocumentTitle(Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private static findChordControl(Landroid/view/accessibility/AccessibilityNodeInfo;Ljava/lang/String;)Landroid/view/accessibility/AccessibilityNodeInfo;
+    .registers 7
+    invoke-virtual {p0}, Landroid/view/accessibility/AccessibilityNodeInfo;->getContentDescription()Ljava/lang/CharSequence;
+    move-result-object v0
+    if-eqz v0, :children
+    invoke-interface {v0}, Ljava/lang/CharSequence;->toString()Ljava/lang/String;
+    move-result-object v0
+    invoke-virtual {p1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v0
+    if-nez v0, :found
+  :children
+    invoke-virtual {p0}, Landroid/view/accessibility/AccessibilityNodeInfo;->getChildCount()I
+    move-result v0
+    const/4 v1, 0x0
+  :next
+    if-ge v1, v0, :absent
+    invoke-virtual {p0, v1}, Landroid/view/accessibility/AccessibilityNodeInfo;->getChild(I)Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v2
+    if-eqz v2, :advance
+    invoke-static {v2, p1}, Lacceptance/shizuku/CapabilityInstrumentation;->findChordControl(Landroid/view/accessibility/AccessibilityNodeInfo;Ljava/lang/String;)Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v3
+    if-nez v3, :child_found
+  :advance
+    add-int/lit8 v1, v1, 0x1
+    goto :next
+  :child_found
+    return-object v3
+  :found
+    return-object p0
+  :absent
+    const/4 v0, 0x0
+    return-object v0
+.end method
+
+.method private clickChordSearch()V
+    .registers 8
+    const/16 v0, 0xc8
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->getUiAutomation()Landroid/app/UiAutomation;
+    move-result-object v1
+  :again
+    invoke-virtual {v1}, Landroid/app/UiAutomation;->getRootInActiveWindow()Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v2
+    if-eqz v2, :retry
+    invoke-virtual {v2}, Landroid/view/accessibility/AccessibilityNodeInfo;->getPackageName()Ljava/lang/CharSequence;
+    move-result-object v3
+    if-eqz v3, :retry
+    invoke-interface {v3}, Ljava/lang/CharSequence;->toString()Ljava/lang/String;
+    move-result-object v3
+    const-string v4, "org.isomorphisms.chordreader.dev"
+    invoke-virtual {v4, v3}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v3
+    if-eqz v3, :retry
+    const-string v3, "search-web"
+    invoke-static {v2, v3}, Lacceptance/shizuku/CapabilityInstrumentation;->findChordControl(Landroid/view/accessibility/AccessibilityNodeInfo;Ljava/lang/String;)Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v2
+    if-eqz v2, :retry
+    const/16 v3, 0x10
+    invoke-virtual {v2, v3}, Landroid/view/accessibility/AccessibilityNodeInfo;->performAction(I)Z
+    move-result v3
+    if-eqz v3, :retry
+    return-void
+  :retry
+    const-wide/16 v5, 0x64
+    invoke-static {v5, v6}, Landroid/os/SystemClock;->sleep(J)V
+    add-int/lit8 v0, v0, -0x1
+    if-gtz v0, :again
+    const-string v0, "FAIL actual ChordReader search control"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private chordSearchHandoff()V
+    .registers 8
+    const/4 v0, 0x3
+    const-string v1, "FAIL authorized real worker before ChordReader search"
+    invoke-static {v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitState(ILjava/lang/String;)V
+    new-instance v0, Landroid/content/Intent;
+    const-string v1, "android.intent.action.SEND"
+    invoke-direct {v0, v1}, Landroid/content/Intent;-><init>(Ljava/lang/String;)V
+    const-string v1, "org.isomorphisms.chordreader.dev"
+    const-string v2, "org.isomorphisms.NativeViewActivity"
+    invoke-virtual {v0, v1, v2}, Landroid/content/Intent;->setClassName(Ljava/lang/String;Ljava/lang/String;)Landroid/content/Intent;
+    const-string v1, "text/plain"
+    invoke-virtual {v0, v1}, Landroid/content/Intent;->setType(Ljava/lang/String;)Landroid/content/Intent;
+    const-string v1, "android.intent.extra.TITLE"
+    const-string v2, "IB café + %2F 🌍"
+    invoke-virtual {v0, v1, v2}, Landroid/content/Intent;->putExtra(Ljava/lang/String;Ljava/lang/String;)Landroid/content/Intent;
+    const-string v1, "android.intent.extra.TEXT"
+    const-string v2, "[C] Public search handoff acceptance fixture"
+    invoke-virtual {v0, v1, v2}, Landroid/content/Intent;->putExtra(Ljava/lang/String;Ljava/lang/String;)Landroid/content/Intent;
+    const/high16 v1, 0x10000000
+    invoke-virtual {v0, v1}, Landroid/content/Intent;->addFlags(I)Landroid/content/Intent;
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->getTargetContext()Landroid/content/Context;
+    move-result-object v1
+    invoke-virtual {v1, v0}, Landroid/content/Context;->startActivity(Landroid/content/Intent;)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->clickChordSearch()V
+    const-string v0, "org.isomorphisms.ib.prepaint"
+    const-string v1, "org.isomorphisms.ib.prepaint:id/reader_status"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->node(Ljava/lang/String;Ljava/lang/String;)Landroid/view/accessibility/AccessibilityNodeInfo;
+    const/16 v0, 0xc8
+  :again
+    iget-object v1, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
+    invoke-virtual {v1}, Landroid/app/Activity;->getCallingPackage()Ljava/lang/String;
+    move-result-object v2
+    const-string v3, "org.isomorphisms.chordreader.dev"
+    invoke-virtual {v3, v2}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v2
+    if-eqz v2, :retry
+    new-instance v2, Lacceptance/shizuku/ReaderAddressSnapshot;
+    invoke-direct {v2, v1}, Lacceptance/shizuku/ReaderAddressSnapshot;-><init>(Landroid/app/Activity;)V
+    invoke-virtual {p0, v2}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
+    iget-object v2, v2, Lacceptance/shizuku/ReaderAddressSnapshot;->address:Ljava/lang/String;
+    const-string v3, "https://google.com/search?q=IB+caf%C3%A9+%2B+%252F+%F0%9F%8C%8D+chords"
+    invoke-virtual {v3, v2}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v3
+    if-nez v3, :encoded
+  :retry
+    const-wide/16 v4, 0x64
+    invoke-static {v4, v5}, Landroid/os/SystemClock;->sleep(J)V
+    add-int/lit8 v0, v0, -0x1
+    if-gtz v0, :again
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->logReaderFailureStatus()V
+    const-string v0, "FAIL real ChordReader caller and exact once-encoded Google URL"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    return-void
+  :encoded
+    const-string v0, "IBIndependentSearchAddress"
+    invoke-static {v0, v2}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
+    const-wide/16 v0, 0x7530
+    invoke-static {v0, v1}, Landroid/os/SystemClock;->sleep(J)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->logReaderFailureStatus()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->logReaderFailureBody()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->recordDocumentScreenshot()V
+    return-void
+.end method
+
+
+.method private httpStatusRefusal()V
+    .registers 5
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureTwo()V
+    invoke-static {}, Lorg/isomorphisms/ib/ReaderBridge;->history()Ljava/lang/String;
+    move-result-object v0
+    const-string v1, "http://10.0.2.2:18491/not-found"
+    invoke-direct {p0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->enterReaderURL(Ljava/lang/String;)V
+    const-string v1, "HTTP 404 did not admit a readable document."
+    invoke-direct {p0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitStatus(Ljava/lang/String;)V
+    const-string v1, "Reader Two"
+    invoke-direct {p0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->assertDocumentTitle(Ljava/lang/String;)V
+    invoke-static {}, Lorg/isomorphisms/ib/ReaderBridge;->history()Ljava/lang/String;
+    move-result-object v1
+    invoke-virtual {v0, v1}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-nez v1, :preserved
+    const-string v1, "FAIL HTTP error changed last-good navigation"
+    invoke-static {v1}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+  :preserved
+    const-string v1, "Reader Two\n\nSecond retained fixture acquired through ICU.\n\nFirst"
+    invoke-direct {p0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->exactSourceClipboard(Ljava/lang/String;)V
+    return-void
+.end method
+
 .method public onStart()V
     .registers 10
   :begin
@@ -876,6 +1155,30 @@
   :launched
     iput-object v0, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
     iget-object v0, p0, Lacceptance/shizuku/CapabilityInstrumentation;->phase:Ljava/lang/String;
+    const-string v1, "http-refusal"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :search_caller_controls
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->httpStatusRefusal()V
+    const-string v7, "PASS installed actual ICU HTTP 404 refusal preserves visible source clipboard and navigation"
+    goto :success
+  :search_caller_controls
+    const-string v1, "search-callers"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :chord_search
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->searchCallerRefusals()V
+    const-string v7, "PASS installed no-caller spoofed-referrer wrong-caller and warm SEARCH refusals"
+    goto :success
+  :chord_search
+    const-string v1, "chord-search"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :capability_phases
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->chordSearchHandoff()V
+    const-string v7, "PASS actual ChordReader SEARCH caller and exact Google request encoding; Google results remain unqualified"
+    goto :success
+  :capability_phases
     const-string v1, "missing"
     invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
     move-result v1
