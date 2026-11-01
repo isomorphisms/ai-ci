@@ -137,11 +137,36 @@ examples =
   ]
 
 covering
-must_write : Text → Text → IO ()
-must_write path contents = do
-  Right () ← writeFile path contents
-    | Left _ ⇒ do putStrLn "FAIL writing independent fixture"; exitFailure
+write_bytes : Text → List Int → IO ()
+write_bytes path bytes = do
+  Just buffer ← newBuffer (cast (length bytes))
+    | Nothing ⇒ do putStrLn "FAIL binary fixture allocation"; exitFailure
+  write_at buffer 0 bytes
+  Right () ← writeBufferToFile path buffer (cast (length bytes))
+    | Left _ ⇒ do putStrLn "FAIL binary fixture write"; exitFailure
   pure ()
+  where
+    write_at : Buffer → Int → List Int → IO ()
+    write_at buffer offset [] = pure ()
+    write_at buffer offset (byte :: rest) = do
+      setByte buffer offset byte
+      write_at buffer (offset + 1) rest
+
+utf8_bytes : Text → List Int
+utf8_bytes text = concatMap encode (unpack text)
+  where
+    encode : Char → List Int
+    encode character = let scalar = ord character in
+      if scalar < 128 then [scalar]
+      else if scalar < 2048 then [192 + scalar `div` 64, 128 + scalar `mod` 64]
+      else if scalar < 65536 then [224 + scalar `div` 4096,
+        128 + (scalar `div` 64) `mod` 64, 128 + scalar `mod` 64]
+      else [240 + scalar `div` 262144, 128 + (scalar `div` 4096) `mod` 64,
+        128 + (scalar `div` 64) `mod` 64, 128 + scalar `mod` 64]
+
+covering
+must_write : Text → Text → IO ()
+must_write path contents = write_bytes path (utf8_bytes contents)
 
 covering
 write_examples : Text → ℕ → Snapshot → List Example → IO ()
@@ -304,26 +329,28 @@ read_snapshot path = do
 covering
 read_text : Text → IO Text
 read_text path = do
-  Right text ← readFile path
+  Right buffer ← createBufferFromFile path
     | Left _ ⇒ do putStrLn "FAIL independent expected-text read"; exitFailure
-  pure text
+  size ← rawSize buffer
+  bytes ← read_bytes buffer 0 size
+  case fixture_utf8 bytes of
+    Just characters ⇒ pure (pack characters)
+    Nothing ⇒ do putStrLn "FAIL independent expected-text UTF-8"; exitFailure
+  where
+    fixture_utf8 : List Int → Maybe (List Char)
+    fixture_utf8 bytes = do
+      let (prefix, remaining) = span (/= 0) bytes
+      characters ← strict_utf8 prefix
+      case remaining of
+        [] ⇒ Just characters
+        _ :: rest ⇒ do
+          following ← fixture_utf8 rest
+          pure (characters ++ '\0' :: following)
 
 covering
 assertion : Text → Bool → IO ()
 assertion name True = putStrLn ("PASS " ++ name)
 assertion name False = do putStrLn ("FAIL " ++ name); exitFailure
-
-utf8_bytes : Text → List Int
-utf8_bytes text = concatMap encode (unpack text)
-  where
-    encode : Char → List Int
-    encode character = let scalar = ord character in
-      if scalar < 128 then [scalar]
-      else if scalar < 2048 then [192 + scalar `div` 64, 128 + scalar `mod` 64]
-      else if scalar < 65536 then [224 + scalar `div` 4096,
-        128 + (scalar `div` 64) `mod` 64, 128 + scalar `mod` 64]
-      else [240 + scalar `div` 262144, 128 + (scalar `div` 4096) `mod` 64,
-        128 + (scalar `div` 64) `mod` 64, 128 + scalar `mod` 64]
 
 little_bytes : ℕ → Bits64 → List Int
 little_bytes Z value = []
@@ -337,24 +364,10 @@ record_bytes payload =
     header ++ little_bytes 4 (cast (crc header)) ++ payload
 
 covering
-write_bytes : Text → List Int → IO ()
-write_bytes path bytes = do
-  Just buffer ← newBuffer (cast (length bytes))
-    | Nothing ⇒ do putStrLn "FAIL binary fixture allocation"; exitFailure
-  write_at buffer 0 bytes
-  Right () ← writeBufferToFile path buffer (cast (length bytes))
-    | Left _ ⇒ do putStrLn "FAIL binary fixture write"; exitFailure
-  pure ()
-  where
-    write_at : Buffer → Int → List Int → IO ()
-    write_at buffer offset [] = pure ()
-    write_at buffer offset (byte :: rest) = do
-      setByte buffer offset byte
-      write_at buffer (offset + 1) rest
-
-covering
 selftest : Text → IO ()
 selftest directory = do
+  nul ← read_text (directory ++ "/nul.txt")
+  assertion "embedded NUL fixture survives binary write and read" (nul ≟ "before\0after")
   assertion "CRC-32 standard check value" (crc (utf8_bytes "123456789") ≟ 0xCBF43926)
   let valid = record_bytes (utf8_bytes (encoded_snapshot initial))
   assertion "independent valid record" (case validate_record valid of Right _ ⇒ True; _ ⇒ False)

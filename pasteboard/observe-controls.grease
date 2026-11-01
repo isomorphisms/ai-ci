@@ -135,6 +135,36 @@ automatic reauthorized
 copy_three after-regrant
 printf 'actual_manager_revocation_stops_capture\tPASS\nactual_manager_regrant_restores_capture\tPASS\n' >> "$output/result.tsv"
 
+"$adb" -s "$serial" shell killall shizuku_server
+sleep 3
+snapshot disconnected-before
+"$adb" -s "$serial" shell am start -W -n "$fixture" > "$output/disconnected.fixture.txt"
+sleep 1
+tap 240 70
+tap 240 160
+tap 240 250
+sleep 2
+start_app disconnected
+snapshot disconnected-after
+cmp "$output/disconnected-before.bin" "$output/disconnected-after.bin"
+tap 450 60
+tap 240 291
+tap 240 747
+"$adb" -s "$serial" shell am start -W -n "$fixture" > "$output/foreground.fixture.txt"
+sleep 1
+tap 240 70
+start_app foreground-fallback
+snapshot foreground-fallback
+"$oracle" mode "$output/foreground-fallback.bin" 1 0
+"$oracle" board "$output/foreground-fallback.bin" 1 4 "$input/fixtures/textA.txt" "$input/fixtures/textC.txt" "$input/fixtures/textB.txt" "$input/fixtures/long.txt"
+var starter = "/data/local/tmp/pasteboard-shizuku-$api/start"
+var manager_path = $("$adb" -s "$serial" shell pm path moe.shizuku.privileged.api | tr -d '\r' | sed -n 's/^package://p')
+"$adb" -s "$serial" shell "$starter" "--apk=$manager_path" > "$output/server-restart.txt" 2>&1
+sleep 3
+automatic server-restored
+copy_three after-server-restored
+printf 'server_disconnect_does_not_fabricate_automatic_history\tPASS\nexplicit_foreground_mode_still_operates\tPASS\nserver_restart_restores_authorized_observer\tPASS\n' >> "$output/result.tsv"
+
 # Expiration belongs to Android 13+. Shorten the real framework timeout only in
 # this verified emulator, then restore its prior DeviceConfig value.
 if (int(api) >= 33) {

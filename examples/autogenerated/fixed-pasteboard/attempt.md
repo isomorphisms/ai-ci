@@ -42,3 +42,12 @@ framework expiration and reboot. These definitions have not yet passed Android
 execution. The private controlled capability is never printed or archived;
 neither identity control inserts clipboard history. General test-data and
 snapshot work remains checked Idriç, and procedures remain Grease.
+
+API 29/34 execution of the previous observer reached case 21 and failed. Actual
+fixture bytes showed that System.File's text write stopped at embedded NUL.
+Fixture writes now use Data.Buffer and explicit UTF-8; independent fixture reads
+also preserve NUL while history-record validation continues to refuse it. The
+new binary roundtrip control passes locally, including a zero byte at offset 6
+in nul.txt and in the framed ART request. No consumer assertion changed. Spatial
+UI, real legacy-APK upgrade and corrupt migration procedures are now defined;
+their Android execution is still pending.

@@ -33,10 +33,23 @@ reconnection, real manager revocation/regrant, framework expiration and reboot.
 The fixture now confirms the actual clipboard value after every test copy;
 it logs only fixture indices and metadata, never text or origin identities.
 
+`observe-ui.grease` exercises actual tap-to-copy, card and header swipes, all
+three boards, visible protection/deletion, current/recovery deletion, numbered
+overflow, all-protected boards and archive restore/clear controls.
+`observe-migration.grease` begins with an absent package on a verified fresh
+emulator, populates the actual retained version-2 APK through real copies,
+upgrades it without changing UID, and independently inspects the migrated data.
+Its corrupt-record control and subsequent resets use only that synthetic test
+namespace. These reset commands are never physical-device procedures.
+
+The original ART attempt failed case 21 because text-file output truncated the
+NUL fixture. Fixture generation and expected-text input now use explicit binary
+UTF-8, with a NUL write/read control. The candidate's refusal assertion remains
+unchanged; no backend workaround or expected-result weakening was introduced.
+
 Record separate results for host tests, DEX/ART, installed loader, privileged
 callback delivery, user workflow and physical deployment. These scripts are
-test definitions until exact-source Android receipts exist. V1 migration,
-destructive-action UI, backup deletion and complete spatial workflow remain
-acceptance obligations. A partial result table is not a complete qualification
+test definitions until exact-source Android receipts exist. A partial result
+table is not a complete qualification
 receipt. Gboard itself and physical C67/TAB_P10 must be reported separately from
 preserving an emulator's existing keyboard setting.
