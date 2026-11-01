@@ -1,0 +1,22 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 2) { exit 2 }
+var repository = ARGV[0]
+var evidence = ARGV[1]
+if test -e "$evidence" { exit 2 }
+mkdir -p "$evidence"
+var grease = ENV.IB_GREASE
+var oracle = "$repository/ib-source/reader/verify-google-href.grease"
+printf '%s\n' '<html><body><a href="/url?url=https%3A%2F%2Fen.wikipedia.org%2Fwiki%2FMusic&amp;source=web">Article</a><a href="https://example.com/">Other</a></body></html>' > "$evidence/original.html"
+"$grease" "$oracle" "$evidence/original.html" 'https://www.google.com/url?url=https%3A%2F%2Fen.wikipedia.org%2Fwiki%2FMusic&source=web' "$evidence/positive-rooted"
+"$grease" "$oracle" "$evidence/original.html" https://example.com/ "$evidence/positive-absolute"
+printf '%s\n' '<html><body><a href="/url?url=https%3A%2F%2Finvalid.example%2Fdifferent&amp;source=web">Article</a></body></html>' > "$evidence/changed.html"
+try { "$grease" "$oracle" "$evidence/changed.html" 'https://www.google.com/url?url=https%3A%2F%2Fen.wikipedia.org%2Fwiki%2FMusic&source=web' "$evidence/changed-href" > "$evidence/changed-href.txt" 2>&1 }
+var changed_status = _error.code
+if (changed_status !== 1) { echo 'FAIL changed original href was not refused' >&2; exit 1 }
+rg -x -F 'FAIL clicked URI does not occur in original Google hrefs' "$evidence/changed-href.txt"
+try { "$grease" "$oracle" "$evidence/original.html" https://invalid.example/absent-result-for-acceptance "$evidence/wrong-target" > "$evidence/wrong-target.txt" 2>&1 }
+var wrong_status = _error.code
+if (wrong_status !== 1) { echo 'FAIL wrong clicked target was not refused' >&2; exit 1 }
+rg -x -F 'FAIL clicked URI does not occur in original Google hrefs' "$evidence/wrong-target.txt"
+echo 'PASS independent original href positives and targeted changed-href and wrong-target controls'

@@ -63,6 +63,9 @@ jobs:
           CATFOOD_JOBS: '2'
           CC: ${{ steps.ick.outputs.compiler }} -fno-link-libatomic -std=gnu11
         run: sh .tools/catfood/build-tools.sh
+      - name: Install the independent original-HTML link parser
+        shell: sh
+        run: make -f ick-host/Makefile extra-packages ICK_BUILD="$RUNNER_TEMP/ick-host-build" PACKAGES=libxml2-utils
       - name: Verify the exact source-bound candidate archive
         shell: sh
         env:
@@ -125,7 +128,7 @@ jobs:
           script: |
             .tools/runtime/.build/grease/bin/grease ib-source/shizuku/observe-installed.grease "$GITHUB_WORKSPACE" "$RUNNER_TEMP/ib-installed-replay/input/native-client" "$RUNNER_TEMP/ib-installed-replay/input/oracles/smali.jar" "$ANDROID_HOME" "$RUNNER_TEMP/ib-installed-replay/input/platform-inputs/public-test-keystore" "$RUNNER_TEMP/ib-installed-replay/input/platform-inputs/shizuku-official.apk" "$ANDROID_HOME/platform-tools/adb" emulator-5554 "$RUNNER_TEMP/ib-installed-replay/observed" reader
             .tools/runtime/.build/grease/bin/grease ib-source/shizuku/observe-navigation.grease "$GITHUB_WORKSPACE" "$RUNNER_TEMP/ib-installed-replay/input" "$ANDROID_HOME" "$AICI_FIXTURE_ICK" "$ANDROID_HOME/platform-tools/adb" emulator-5554 "$RUNNER_TEMP/ib-installed-replay/observed" "$RUNNER_TEMP/ib-installed-replay/navigation" reader-v4
-            .tools/runtime/.build/grease/bin/grease ib-source/shizuku/observe-search.grease "$GITHUB_WORKSPACE" "$RUNNER_TEMP/ib-installed-replay/input" "$ANDROID_HOME" "$ANDROID_HOME/platform-tools/adb" emulator-5554 "$RUNNER_TEMP/ib-installed-replay/observed" "$RUNNER_TEMP/ib-installed-replay/navigation" "$RUNNER_TEMP/chord-search-input" "$RUNNER_TEMP/ib-installed-replay/search"
+            .tools/runtime/.build/grease/bin/grease ib-source/shizuku/observe-search-results.grease "$GITHUB_WORKSPACE" "$RUNNER_TEMP/ib-installed-replay/input" "$ANDROID_HOME" "$ANDROID_HOME/platform-tools/adb" emulator-5554 "$RUNNER_TEMP/ib-installed-replay/observed" "$RUNNER_TEMP/ib-installed-replay/navigation" "$RUNNER_TEMP/chord-search-input" "$RUNNER_TEMP/ib-installed-replay/search"
       - name: Retain independent identity, status, source and installed observations
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
