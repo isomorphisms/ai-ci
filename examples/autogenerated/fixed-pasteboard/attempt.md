@@ -172,6 +172,18 @@ Instrument.java blob `e0d949e04a921457ff8ae05286ce9a85144743ab` confirms this
 format. The invocation now requests -r raw output; exact message and result-code
 assertions are retained. This is a qualifier-only correction, not an app change.
 
+At b6f74ce473f8e74a4e5f33da78ce924355d4ab51 / run 41355463463,
+API 35 executes both real caller controls and rejects both actual compiled
+mutants with exact raw result codes. Pause/session rotation, companion crash/
+reconnection and real manager revocation/regrant pass. The later explicit
+foreground fallback retains C/B/A/long instead of promoting newly copied A.
+Its four records and mode are valid; zero new delivery explains the failure.
+The procedure now verifies the actual separate-app A copy, preserves metadata
+across control snapshots and diagnoses the original assertion before trying
+the visible manual-capture button. Even a successful manual diagnostic leaves
+the original focus assertion failed. No production repair is guessed from the
+earlier incomplete trace.
+
 Run 41347388884 at consumer 6b359f2ffd83b9a3fb67f343406c291e0c96f900
 proves real cross-application A/B/C capture before focus on API 29 and 34.
 API 29 also passes the exact long-text and exclusion policies, then its run-as
