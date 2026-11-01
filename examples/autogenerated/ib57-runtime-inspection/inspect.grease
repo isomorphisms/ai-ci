@@ -32,6 +32,16 @@ if (kind === 'full29') {
   setvar size = '11189861'
   setvar digest = '931dca07059ba8427b8fc902ffba3dc749c177fb99a298d7188bc0fac363a3f6'
   setvar source = 'd02fe516833d0941e8ff1ab2b84369c1661aee6c'
+} elif (kind === 'd02full34') {
+  setvar artifact = '13103920697'
+  setvar size = '121927646'
+  setvar digest = '2d8df9d91cb0bb38bce9053c09ab088a721050e5d7e92edc971b93ed9f70361c'
+  setvar source = 'd02fe516833d0941e8ff1ab2b84369c1661aee6c'
+} elif (kind === 'd02decoder29') {
+  setvar artifact = '13103438329'
+  setvar size = '12477334'
+  setvar digest = '1b3fdb4256fb33afda5821f5b9e3903a1d0c06162386f655620494497fe73b69'
+  setvar source = 'd02fe516833d0941e8ff1ab2b84369c1661aee6c'
 } else { exit 2 }
 if (len(evidence) === 0 or evidence[0] !== '/') { exit 2 }
 if test -e "$evidence" { echo 'FAIL reused failure inspection evidence' >&2; exit 2 }
@@ -53,7 +63,7 @@ for file in @(awk '/\.(pid|exit|txt|log|tsv|xml)$/ && $0!~/[^A-Za-z0-9._\/-]/ {p
   var bytes = $(wc -c < "$captured")
   if (file.endsWith('.pid') or file.endsWith('/held-instrumentation.txt') or
       file.endsWith('/held-instrumentation.exit') or file.endsWith('/held-ready.log') or
-      file.endsWith('/completed-control.unchanged-claim.txt') or file.endsWith('/input-identity.tsv')) {
+      file.endsWith('/completed-control.unchanged-claim.txt') or file.endsWith('/input-identity.tsv') or file.endsWith('/snapshot-unroot.txt')) {
     printf 'record\t%s\nrecord_bytes\t%s\n' "$file" "$bytes" > "$evidence/$records.observed.txt"
     if (int(bytes) > 4000) { echo 'FAIL unexpected bounded process record' >&2; exit 1 }
     cat "$captured" >> "$evidence/$records.observed.txt"
@@ -71,6 +81,16 @@ for file in @(awk '/\.(pid|exit|txt|log|tsv|xml)$/ && $0!~/[^A-Za-z0-9._\/-]/ {p
     head -c 2000 "$captured" >> "$evidence/$records.observed.txt"
     printf '\n' >> "$evidence/$records.observed.txt"
     cat "$evidence/$records.observed.txt"
+  }
+}
+if (kind === 'd02full34') {
+  for screen in @(awk '/\/full\/(lifecycle\/resume-noop|link-shapes\/actual-link-shapes)[.]png$/ {print}' "$evidence/entries.txt") {
+    unzip -p "$archive" "$screen" > "$evidence/post-test-system-window.png"
+    printf 'post_instrumentation_system_window_diagnostic_only\t%s\n' "$screen"
+    printf '%s\n' 'IB_SYSTEM_SCREENSHOT_BEGIN'
+    base64 --wrap=4096 "$evidence/post-test-system-window.png"
+    printf '%s\n' 'IB_SYSTEM_SCREENSHOT_END'
+    break
   }
 }
 if (records < 1) { echo 'FAIL no retained text records' >&2; exit 1 }
