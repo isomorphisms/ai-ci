@@ -30,7 +30,9 @@ for line in "$first" "$second" "$third" {
 var identity = $(printf '%s\n' "$third" | cut -f 1)
 var generation = $(printf '%s\n' "$third" | cut -f 2)
 printf 'IBLAST2\n%s\n%s\nIBH1\n2\n%s\n%s\n%s\n' "$identity" "$generation" "$first" "$second" "$third" > "$evidence/expected-prefix"
-if ! cmp -s "$evidence/expected-prefix" "$evidence/actual-prefix" {
+try { cmp -s "$evidence/expected-prefix" "$evidence/actual-prefix" }
+var selected_status = _error.code
+if (selected_status !== 0) {
   echo 'FAIL native three-document selected occurrence' >&2; exit 1
 }
 printf '%s\n%s\n%s\n' "$first" "$second" "$third" | cut -f 1 | sort -u > "$evidence/identities.txt"
