@@ -33,6 +33,15 @@ jobs:
       - name: Read original response receipt observations
         shell: sh
         run: tar -xOzf "$RUNNER_TEMP/failed-IB/observed-api29/installed/actual-native-document.failure-source.tar.gz" --wildcards './receipts/*.tsv'
+      - name: Extract the independently retained public source
+        shell: sh
+        run: tar -xzf "$RUNNER_TEMP/failed-IB/observed-api29/installed/actual-native-document.failure-source.tar.gz" -C "$RUNNER_TEMP/failed-IB"
+      - name: Read the observed 577-byte public source for extraction diagnosis
+        shell: sh
+        run: dd if="$RUNNER_TEMP/failed-IB/responses.arena" bs=1 count=577 status=none
+      - name: Read the acknowledged immutable source and history index
+        shell: sh
+        run: cat "$RUNNER_TEMP/failed-IB/last-source"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: ib-native-diagnostics-fabac08
