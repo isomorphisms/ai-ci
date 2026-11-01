@@ -25,3 +25,14 @@ diagnostics before instrumentation exits on failure. Those diagnostics neither
 replace the visible-document assertion nor convert a timeout into a pass.
 They are restricted to the verified fresh emulator's controlled public input.
 Physical TAB_P10 acceptance remains NOT_RUN until real access exists.
+
+The initial v4 run at IB fabac08af063a923e50448b696c900b4a0f89caf
+(run 41279724988) failed both positive decoder observations with exit 137
+and no marker. Independent retained logcat identifies an external-observer
+VerifyError at code offset 0x46: its digest-case expect call supplied four
+registers but named a three-String descriptor. That call now names the same
+four-String helper as its definition and all nine other calls. No candidate
+source, DEX, ABI or semantic expectation changes. The exact archived candidate
+and all compiled source controls are replayed on API 29 and 34. The failed run
+remains FAIL; neither an observer verifier failure nor an unexplained kill is
+accepted as a mutant rejection.

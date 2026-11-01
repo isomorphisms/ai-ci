@@ -69,6 +69,7 @@ proc execute(lane, observer, class, expected_status, expected_text) {
   cat "$evidence/$observation.txt"
   if (status !== int(expected_status)) {
     try { "$adb" -s "$serial" logcat -d -v threadtime > "$evidence/$observation.logcat.txt" 2>&1 }
+    try { rg -e " E AndroidRuntime:" "$evidence/$observation.logcat.txt" | tail -n 80 }
     try { "$adb" -s "$serial" shell cat /proc/meminfo > "$evidence/$observation.meminfo-after.txt" 2>&1 }
     echo "FAIL wrong ART exit for $lane: observed $status expected $expected_status" >&2
     exit 1

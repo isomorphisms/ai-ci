@@ -1,4 +1,4 @@
-name: Independent ART replay of IB 513d72cb checkpoint
+name: Independent ART replay of IB fabac08a committed source
 on:
   pull_request:
     paths:
@@ -7,10 +7,11 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
 concurrency:
-  group: ib-reader-replay-${{ github.event.pull_request.number || github.ref }}
-  # This replays one frozen IB checkpoint. Updating an unrelated observer must
-  # not repeatedly cancel its independent compiler/bootstrap qualification.
+  group: ib-reader-v4-replay-${{ github.event.pull_request.number || github.ref }}
+  # Replay the same source-bound candidate with independent changed observers.
+  # Each profile explicitly requires all of its compiled controls.
   cancel-in-progress: false
 jobs:
   replay:
@@ -32,11 +33,11 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: isomorphisms/ib
-          ref: 513d72cb43d3097a61f6fcb821b6e4215def960f
+          ref: fabac08af063a923e50448b696c900b4a0f89caf
           path: .tools/ib-source
           persist-credentials: false
       - id: ick
-        uses: isomorphisms/ai-ci/ick-host@32cb45b3a3a257aeb07881c75f3b846495cfb2c9
+        uses: isomorphisms/ai-ci/ick-host@2383379394a7af5a8808abbe2d7b159a55328a83
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: isomorphisms/catfood
@@ -57,9 +58,19 @@ jobs:
           CATFOOD_JOBS: '2'
           CC: ${{ steps.ick.outputs.compiler }} -fno-link-libatomic -std=gnu11
         run: sh .tools/catfood/build-tools.sh
-      - name: Verify source-bound checkpoint and reject changed archive bytes
+      - name: Install the declared independent text verifier
         shell: sh
-        run: .tools/runtime/.build/grease/bin/grease ib-source/reader/prepare-replay.grease "$GITHUB_WORKSPACE" "$RUNNER_TEMP/ib-checkpoint"
+        run: |
+          .tools/runtime/.build/grease/bin/grease -c 'sudo apt-get update
+          sudo apt-get install --no-install-recommends -y ripgrep'
+      - name: Verify exact candidate bytes for the current declared profile
+        shell: sh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: .tools/runtime/.build/grease/bin/grease ib-source/reader/prepare-current-replay.grease "$GITHUB_WORKSPACE" "$RUNNER_TEMP/ib-checkpoint"
+      - name: Prepare actual emulator KVM access
+        shell: sh
+        run: .tools/runtime/.build/grease/bin/grease -c 'sudo chmod 666 /dev/kvm'
       - name: Execute checked candidates and compiled controls on actual ART
         uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
         env:
@@ -68,16 +79,18 @@ jobs:
           api-level: ${{ matrix.api }}
           target: ${{ matrix.target }}
           arch: x86_64
+          disk-size: 2048M
           emulator-options: -no-window -no-audio -no-snapshot -no-boot-anim -memory 2048 -gpu swiftshader_indirect
           disable-animations: true
-          script: .tools/runtime/.build/grease/bin/grease ib-source/reader/observe-art.grease "$GITHUB_WORKSPACE" "$RUNNER_TEMP/ib-checkpoint/input" "$RUNNER_TEMP/ib-checkpoint/input/oracles/smali.jar" "$ANDROID_HOME/platform-tools/adb" emulator-5554 "$RUNNER_TEMP/ib-checkpoint/observed"
+          script: .tools/runtime/.build/grease/bin/grease ib-source/reader/observe-art.grease "$GITHUB_WORKSPACE" "$RUNNER_TEMP/ib-checkpoint/input" "$RUNNER_TEMP/ib-checkpoint/input/oracles/smali.jar" "$ANDROID_HOME/platform-tools/adb" emulator-5554 "$RUNNER_TEMP/ib-checkpoint/observed" reader-v4
       - name: Retain exact checkpoint and independent observation identity
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: ib-513d72cb-api${{ matrix.api }}-observer-${{ github.event.pull_request.head.sha || github.sha }}
+          name: ib-fabac08a-api${{ matrix.api }}-observer-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
             ${{ runner.temp }}/ib-checkpoint/observed
             ${{ runner.temp }}/ib-checkpoint/input-identity.tsv
-            ${{ runner.temp }}/ib-checkpoint/archive-control.txt
+            ${{ runner.temp }}/ib-checkpoint/observer-commit.txt
+            ${{ runner.temp }}/ib-checkpoint/candidate-sha256.txt
           if-no-files-found: warn

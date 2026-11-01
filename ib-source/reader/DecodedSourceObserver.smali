@@ -65,7 +65,7 @@
     move-result-object v6
     const-string v2, "refused:missing-or-mismatched-sha256"
     const-string v3, "decoded source original digest admission"
-    invoke-static {v6, v1, v2, v3}, Lacceptance/DecodedSourceObserver;->expect(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+    invoke-static {v6, v1, v2, v3}, Lacceptance/DecodedSourceObserver;->expect(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
 
     const-string v4, "\ttext/html\t"
     const-string v5, "\timage/png\t"
