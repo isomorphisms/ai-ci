@@ -26,3 +26,23 @@ jobs:
       - name: Read the actual canonical assertion output
         shell: sh
         run: cat "$RUNNER_TEMP/canonical-IB/native-canonical/frame.txt"
+  reader_index:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      # Original compact ZIP SHA-256 120446c88e227ca7097c857cfcbe848382a69b0d0fd640576ffc942740a69923.
+      # Exact visible-title IB candidate 54b4bdaf287fd83a411c158873eab228362c2f72.
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          repository: isomorphisms/ib
+          github-token: ${{ github.token }}
+          run-id: 41284137606
+          artifact-ids: '13075181656'
+          merge-multiple: true
+          path: ${{ runner.temp }}/reader-IB
+      - name: Read the exact API 29 independent index failure
+        shell: sh
+        run: cat "$RUNNER_TEMP/reader-IB/observed-api29/installed/index-positive.txt"
+      - name: Read the exact API 34 independent index failure
+        shell: sh
+        run: cat "$RUNNER_TEMP/reader-IB/observed-api34/installed/index-positive.txt"
