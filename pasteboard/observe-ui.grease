@@ -125,6 +125,12 @@ snapshot protected-delete
 "$oracle" entry "$output/protected-delete.bin" "$input/fixtures/textC.txt" 1 1
 card_menu 0
 tap 240 291
+snapshot before-pending-delete
+# Reproduce a crash-left pending file from history already captured through
+# actual SDK copies. This does not insert an entry into the history model.
+"$adb" -s "$serial" shell -T run-as "$package" tee files/history.pending.999999.1 \
+  < "$output/before-pending-delete.bin" > "$output/interrupted-snapshot-seed.bin"
+cmp "$output/before-pending-delete.bin" "$output/interrupted-snapshot-seed.bin"
 for number in @(seq 1 4) { card_menu 0; tap 240 443; tap 240 215 }
 snapshot deleted
 "$oracle" count "$output/deleted.bin" 0
@@ -133,7 +139,11 @@ for name in textA textB textC long {
   "$oracle" forgotten "$output/deleted.bin" "$input/fixtures/$name.txt"
   "$oracle" forgotten "$output/deleted-backup.bin" "$input/fixtures/$name.txt"
 }
-printf 'visible_protect_and_confirmed_delete_controls\tPASS\nprotected_delete_refused\tPASS\nacknowledged_deletion_absent_from_current_and_recovery\tPASS\n' >> "$output/result.tsv"
+try { "$adb" -s "$serial" shell -T run-as "$package" /system/bin/ls -ld files/history.pending.999999.1 > "$output/deleted-pending.txt" 2>&1 }
+var pending_result = _error.code
+if (pending_result === 0) { diagnose pending-delete; echo 'FAIL deletion retained an interrupted snapshot' >&2; exit 1 }
+rg -q -F 'No such file or directory' "$output/deleted-pending.txt"
+printf 'visible_protect_and_confirmed_delete_controls\tPASS\nprotected_delete_refused\tPASS\nacknowledged_deletion_absent_from_current_and_recovery\tPASS\nacknowledged_deletion_retires_interrupted_snapshot\tPASS\n' >> "$output/result.tsv"
 
 for number in @(seq 0 17) { numbered "$number" "overflow-$number" }
 snapshot overflow

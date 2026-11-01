@@ -108,3 +108,12 @@ one-way credential digests are compared; the credential itself is never logged
 or retained as evidence. These additional Android controls remain unverified
 until the exact pinned consumer executes them.
 
+Deletion now has an independent Android filesystem control for a crash-left
+pending snapshot. It copies only a record already populated by real SDK input
+into the documented pending-file namespace, then requires visible confirmed
+deletion to retire it as well as remove text from current/recovery history.
+This fixture is not counted as capture or injected into the history model.
+Failure diagnostics additionally retain shell clipboard AppOps and a bounded
+companion thread dump; UI hierarchy acquisition also has an explicit timeout.
+All such commands are confined to the positively verified synthetic emulator.
+

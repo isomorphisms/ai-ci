@@ -38,6 +38,12 @@ proc diagnose(label) {
   try { "$adb" -s "$serial" exec-out screencap -p > "$output/$label.png" }
   try { "$adb" -s "$serial" logcat -d -v threadtime > "$output/$label.logcat.txt" }
   try { "$adb" -s "$serial" shell ps -A -o USER,PID,NAME > "$output/$label.processes.txt" }
+  try { "$adb" -s "$serial" shell cmd appops get com.android.shell READ_CLIPBOARD > "$output/$label.clipboard-appop.txt" 2>&1 }
+  var worker = $(awk '$1 == "shell" && $3 ~ /:pasteboard_observer$/ {print $2}' "$output/$label.processes.txt")
+  try { printf '%s\n' "$worker" | rg -x '[1-9][0-9]*' > /dev/null }
+  if (_error.code === 0) {
+    try { timeout 20s "$adb" -s "$serial" shell debuggerd -j "$worker" > "$output/$label.worker-threads.txt" 2>&1 }
+  }
 }
 proc start_app(label) {
   "$adb" -s "$serial" shell am start -W -n "$component" > "$output/$label.launch.txt"
@@ -73,7 +79,7 @@ proc copy_three(label) {
 proc decision(button, label) {
   var found = false
   for attempt in @(seq 1 15) {
-    "$adb" -s "$serial" shell uiautomator dump /data/local/tmp/pasteboard-permission.xml > "$output/$label.dump.txt" 2>&1
+    timeout 30s "$adb" -s "$serial" shell uiautomator dump /data/local/tmp/pasteboard-permission.xml > "$output/$label.dump.txt" 2>&1
     "$adb" -s "$serial" pull /data/local/tmp/pasteboard-permission.xml "$output/$label.xml" > "$output/$label.pull.txt"
     try { "$oracle" ui-point "$output/$label.xml" resource-id "android:id/$button" > "$output/$label.point.txt" }
     if (_error.code === 0) { setvar found = true; break }
