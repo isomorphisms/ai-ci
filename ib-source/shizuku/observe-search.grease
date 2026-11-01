@@ -103,8 +103,66 @@ timeout 30 "$adb" -s "$serial" wait-for-device
 "$adb" -s "$serial" unroot > "$evidence/snapshot-unroot.txt" 2>&1
 timeout 30 "$adb" -s "$serial" wait-for-device
 "$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 2000
+# Original-byte proof is distinct from decoding and reader admission.
+var root = "$evidence/actual-arena"
+chmod 700 "$root"
+var wanted = 'https://google.com/search?q=IB+caf%C3%A9+%2B+%252F+%F0%9F%8C%8D+chords'
+var final_url = 'https://www.google.com/search?q=IB+caf%C3%A9+%2B+%252F+%F0%9F%8C%8D+chords'
+var google_id = ''
+var google_generation = ''
+var matches = 0
+for receipt in @(rg --files "$root/receipts") {
+  if rg -q -x -F "requested_url	$wanted" "$receipt" {
+    setglobal matches = matches + 1
+    setglobal google_id = $(awk -F '\t' '$1=="request_id"{print $2}' "$receipt")
+    setglobal google_generation = $(awk -F '\t' '$1=="source_generation"{print $2}' "$receipt")
+  }
+}
+if (matches !== 1) { echo 'FAIL actual Google acquisition did not leave one unique captured response' >&2; exit 1 }
+var original_oracle = "$repository/ib-source/reader/verify-decoder-original.grease"
+var grease = ENV.IB_GREASE
+proc verify_captured(directory, output) {
+  "$grease" "$original_oracle" "$repository" "$directory" "$google_id" "$google_generation" "$wanted" \
+    iso-8859-1 - "$output" observed-google-legacy-v1 "$final_url"
+}
+try { verify_captured "$root" "$evidence/Google-original" > "$evidence/Google-original.txt" 2>&1 }
+var original_status = _error.code
+cat "$evidence/Google-original.txt"
+if (original_status !== 0) { exit "$original_status" }
+proc reject_capture(directory, label, reason) {
+  try { verify_captured "$directory" "$evidence/$label" > "$evidence/$label.txt" 2>&1 }
+  var status = _error.code
+  cat "$evidence/$label.txt"
+  if (status !== 1) { echo 'FAIL original-source mutation missed its designated rejection' >&2; exit 1 }
+  rg -x -F "$reason" "$evidence/$label.txt"
+}
+var original_receipt = "$root/receipts/$google_id.tsv"
+var offset = $(awk -F '\t' '$1=="arena_offset"{print $2}' "$original_receipt")
+var first = $(od -An -tu1 -N1 "$evidence/Google-original/body" | tr -d '[:space:]')
+var replacement = 'X'
+if (first === '88') { setglobal replacement = 'Y' }
+cp -R "$root" "$evidence/Google-changed-byte"
+printf '%s' "$replacement" | dd "of=$evidence/Google-changed-byte/responses.arena" bs=1 "seek=$offset" conv=notrunc status=none
+reject_capture "$evidence/Google-changed-byte" changed-Google-byte 'FAIL original source field sha256'
+var changed_generation = '1'
+if (google_generation === '1') { setglobal changed_generation = '2' }
+cp -R "$root" "$evidence/Google-changed-generation"
+awk -F '\t' -v "generation=$changed_generation" 'BEGIN{OFS="\t"} $1=="source_generation"{$2=generation} {print}' \
+  "$original_receipt" > "$evidence/Google-changed-generation/receipts/$google_id.tsv"
+reject_capture "$evidence/Google-changed-generation" changed-Google-generation 'FAIL original source field source_generation'
+cp -R "$root" "$evidence/Google-changed-request"
+awk -F '\t' 'BEGIN{OFS="\t"} $1=="requested_url"{$2="https://invalid.example/"} {print}' \
+  "$original_receipt" > "$evidence/Google-changed-request/receipts/$google_id.tsv"
+reject_capture "$evidence/Google-changed-request" changed-Google-request 'FAIL original source field requested_url'
+cp -R "$root" "$evidence/Google-changed-identity"
+awk -F '\t' 'BEGIN{OFS="\t"} $1=="source_key"{$2="arena:wrong-source"} {print}' \
+  "$original_receipt" > "$evidence/Google-changed-identity/receipts/$google_id.tsv"
+reject_capture "$evidence/Google-changed-identity" changed-Google-identity 'FAIL original source field source_key'
+cat "$original_receipt"
 git -C "$repository" rev-parse HEAD > "$evidence/observer-commit.txt"
 sha256sum "$candidate" "$input/native-client/ib-native-boundary.apk" "$installed/observer.dex" \
   "$evidence/actual-arena/last-source" "$evidence/actual-arena/responses.arena" > "$evidence/sha256.txt"
 printf 'schema\tib-chordreader-handoff-v1\napi\t%s\nabi\tx86_64\nChordReader_source\t86dc5406fdceb593fa5062d4e67312e5a15b75fc\nno_caller_referrer_wrong_caller_warm_SEARCH\tREJECTED\ncaller_refusal_preserves_committed_index\tPASS\nactual_ChordReader_search_button\tPASS\nframework_for_result_caller\tPASS\nexact_once_encoded_Google_request\tPASS\nGoogle_results\tNOT_RUN\nclicked_Google_result\tNOT_RUN\nphysical_TAB_P10\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"
 cat "$evidence/receipt.tsv"
+
+printf 'independent_Google_original_range_digest\tPASS\nGoogle_original_byte_generation_request_identity_mutations\tREJECTED\nGoogle_raw_receipt_admission\tNO\n' >> "$evidence/receipt.tsv"

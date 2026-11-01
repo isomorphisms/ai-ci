@@ -48,10 +48,14 @@ if (len(old_server) !== 0) { echo 'FAIL reused Shizuku server before encoding co
 "$adb" -s "$serial" shell "$starter" "--apk=$manager" > "$evidence/start-server.txt" 2>&1
 proc diagnose(label) {
   try {
-    "$adb" -s "$serial" logcat -d -v threadtime 2>&1 |
+    timeout 30 "$adb" -s "$serial" logcat -d -v threadtime 2>&1 |
       sed -E 's/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}-[0-9]{10,}/[REDACTED_SERVICE_NONCE]/g' > "$evidence/$label.logcat.txt"
   }
   try { "$adb" -s "$serial" exec-out screencap -p > "$evidence/$label.png" 2> "$evidence/$label.screen-error.txt" }
+  if test -s "$evidence/$label.logcat.txt" {
+    awk '/IBReader|IBIndependent|ANR in|FATAL EXCEPTION|AndroidRuntime/ {line[++n]=$0}
+      END {for(i=(n>56?n-55:1);i<=n;i++)print line[i]}' "$evidence/$label.logcat.txt"
+  }
 }
 proc observe(phase, label, marker) {
   try {
@@ -61,7 +65,17 @@ proc observe(phase, label, marker) {
   var status = _error.code
   printf '%s\n' "$status" > "$evidence/$label.exit"
   cat "$evidence/$label.txt"
-  if (status !== 0) { diagnose "$label"; exit 1 }
+  if (status !== 0) {
+    try { timeout 10 "$adb" -s "$serial" shell pidof org.isomorphisms.ib.prepaint > "$evidence/$label.pid" 2>&1 }
+    var pid = $(tr -d '\r\n' < "$evidence/$label.pid")
+    printf '%s\n' "$pid" > "$evidence/$label.pid-normalized"
+    if rg -q -x '[1-9][0-9]{0,8}' "$evidence/$label.pid-normalized" {
+      try { timeout 10 "$adb" -s "$serial" shell kill -3 "$pid" > "$evidence/$label.thread-request.txt" 2>&1 }
+      sleep 1
+    }
+    diagnose "$label"
+    exit 1
+  }
   if ! rg -x -F 'INSTRUMENTATION_CODE: -1' "$evidence/$label.txt" { diagnose "$label"; exit 1 }
   if ! rg -x -F "INSTRUMENTATION_RESULT: stream=$marker" "$evidence/$label.txt" { diagnose "$label"; exit 1 }
 }
