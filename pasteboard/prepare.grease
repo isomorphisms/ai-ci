@@ -1,0 +1,73 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 7) {
+  echo 'usage: grease prepare.grease AICI FRONTEND ANDROID_NDK_REPOSITORY SDK ICK_X86_STAGE KEYSTORE NEW_OUTPUT' >&2; exit 2
+}
+var repository = ARGV[0]
+var frontend = ARGV[1]
+var backend = ARGV[2]
+var sdk = ARGV[3]
+var stage = ARGV[4]
+var keystore = ARGV[5]
+var output = ARGV[6]
+for path in "$repository" "$frontend" "$backend" "$sdk" "$stage" "$keystore" "$output" {
+  if (path[0] !== '/') { echo 'absolute path required' >&2; exit 2 }
+}
+if test -e "$output" { echo 'refusing reused independent preparation' >&2; exit 2 }
+mkdir -p "$output/fixtures" "$output/copy-assets"
+setglobal ENV.IDRIS2_PREFIX = "$frontend/_/bootstrap-build"
+setglobal ENV.IDRIS2_PACKAGE_PATH = "$frontend/_/bootstrap-build/idris2-0.8.0"
+setglobal ENV.CHEZ = "$frontend/_/.tools/bin/scheme"
+"$frontend/_/build/exec/idris2" --cg chez --source-dir "$repository/pasteboard" \
+  --build-dir "$output/oracle-build" --output-dir "$output/oracle" \
+  "$repository/pasteboard/PasteboardOracle.idric" -o pasteboard-oracle > "$output/oracle-compile.txt" 2>&1
+try { rg -n '(Error:|INTERNAL ERROR|compiling hole)' "$output/oracle-compile.txt" }
+if (_error.code !== 1) { echo 'FAIL independent oracle compiler diagnostics' >&2; exit 1 }
+var oracle = "$output/oracle/pasteboard-oracle"
+"$oracle" prepare "$output/fixtures" > "$output/fixture-preparation.txt"
+"$oracle" selftest "$output/fixtures" > "$output/integrity-controls.txt"
+"$oracle" validate "$output/fixtures/valid-record.bin" >> "$output/integrity-controls.txt"
+for kind in header payload {
+  try { "$oracle" validate "$output/fixtures/corrupt-$kind.bin" > "$output/reject-$kind.txt" 2>&1 }
+  if (_error.code !== 1) { echo 'FAIL integrity mutant was not rejected' >&2; exit 1 }
+  rg -x -F "FAIL independent $kind checksum" "$output/reject-$kind.txt"
+}
+var smali = "$backend/dex/idric/build/oracles/smali-3.0.10.jar"
+printf '%s  %s\n' 32fa0e88a6c397b3922201adf5f3e534fbaed5a663c71d0c558c3ddce0af844a "$smali" | sha256sum -c -
+java -jar "$smali" assemble "$repository/pasteboard/TransitionObserver.smali" -o "$output/transition-observer.dex"
+for name in textA textB textC long sensitive nul empty { cp "$output/fixtures/$name.txt" "$output/copy-assets/" }
+make -f "$repository/pasteboard/fixture/Makefile" fixture ABI=x86_64 \
+  NDK="$sdk/ndk/27.2.12479018" ICK_STAGE="$stage" \
+  BUILD="$output/fixture-native" OUT="$output/fixture-native/libcopyfixture.so" > "$output/fixture-compile.txt" 2>&1
+setglobal ENV.ANDROID_PACKAGE_ID = 'org.isomorphisms.aici.clipboardfixture'
+setglobal ENV.ANDROID_VERSION_CODE = '1'
+setglobal ENV.ANDROID_VERSION_NAME = '1.0-independent'
+setglobal ENV.ANDROID_MIN_SDK = '26'
+setglobal ENV.ANDROID_TARGET_SDK = '36'
+setglobal ENV.ANDROID_EXPECTED_LABEL = 'Clipboard copy fixture'
+setglobal ENV.ANDROID_HOME = sdk
+setglobal ENV.ANDROID_BUILD_TOOLS = "$sdk/build-tools/36.0.0"
+setglobal ENV.ANDROID_KEYSTORE = keystore
+setglobal ENV.ANDROID_KEYSTORE_TYPE = 'JKS'
+setglobal ENV.ANDROID_KEY_ALIAS = 'wegert-debug'
+setglobal ENV.ANDROID_STORE_PASSWORD = 'wegert-debug'
+setglobal ENV.ANDROID_KEY_PASSWORD = 'wegert-debug'
+setglobal ENV.ANDROID_EXPECTED_CERT_SHA256 = 'de9b1d47c5a65e6d46a204b79dd9ee566b9d3c9832ba81ebc4213d3392e92ff9'
+setglobal ENV.ANDROID_REQUIRE_NO_DEX = '1'
+setglobal ENV.ANDROID_ASSET_DIR = "$output/copy-assets"
+setglobal ENV.ANDROID_GREASE = ENV.GREASE
+bash "$backend/apk/build-nativeactivity-apk.sh" "$repository/pasteboard/fixture/AndroidManifest.xml" \
+  "$output/fixture-native/libcopyfixture.so" x86_64 "$output/copy-fixture.apk" > "$output/fixture-package.txt" 2>&1
+curl -fsSL --retry 3 --max-time 120 \
+  https://github.com/RikkaApps/Shizuku/releases/download/v13.6.0/shizuku-v13.6.0.r1086.2650830c-release.apk \
+  -o "$output/shizuku-official.apk"
+printf '%s  %s\n' 6e273ab0e991c4e79bc8b1bbb9b9dd739ccac1a8712a541a214078886b7b790f "$output/shizuku-official.apk" | sha256sum -c -
+"$sdk/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$output/shizuku-official.apk" > "$output/shizuku-signer.txt"
+rg -x -F 'Signer #1 certificate SHA-256 digest: 268b5590e868fb08bae7e0ac413564cd1ff88f5ccff74af9dbd0dc918e30db30' "$output/shizuku-signer.txt"
+git -C "$repository" rev-parse HEAD > "$output/observer-commit.txt"
+git -C "$repository" status --porcelain > "$output/observer-dirty.txt"
+sha256sum "$repository/pasteboard/PasteboardOracle.idric" "$repository/pasteboard/TransitionObserver.smali" \
+  "$repository/pasteboard/fixture/copy_fixture.c" "$output/copy-fixture.apk" "$output/transition-observer.dex" \
+  "$output/shizuku-official.apk" > "$output/sha256.txt"
+printf 'independent_oracle_host_controls\tPASS\nreal_clipboard_fixture_packaging\tPASS\nART_transitions\tNOT_VERIFIED\ninstalled_cross_application_capture\tNOT_VERIFIED\nphysical_devices\tNOT_VERIFIED\n' > "$output/preparation.tsv"
+cat "$output/preparation.tsv"
