@@ -170,6 +170,27 @@
     return-void
 .end method
 
+.method private assertReflowLabel(Ljava/lang/String;)V
+    .registers 5
+    const-string v0, "org.isomorphisms.ib.prepaint"
+    const-string v1, "org.isomorphisms.ib.prepaint:id/reflow_button"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->node(Ljava/lang/String;Ljava/lang/String;)Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v0
+    invoke-virtual {v0}, Landroid/view/accessibility/AccessibilityNodeInfo;->getText()Ljava/lang/CharSequence;
+    move-result-object v0
+    if-eqz v0, :failed
+    invoke-interface {v0}, Ljava/lang/CharSequence;->toString()Ljava/lang/String;
+    move-result-object v0
+    invoke-virtual {p1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-nez v1, :done
+  :failed
+    const-string v0, "FAIL visible selected reflow algorithm"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+  :done
+    return-void
+.end method
+
 .method private assertDocumentTitle(Ljava/lang/String;)V
     .registers 5
     const-string v0, "org.isomorphisms.ib.prepaint"
@@ -412,6 +433,119 @@
     return-void
 .end method
 
+.method private exactExampleClipboard()V
+    .registers 9
+    const-string v0, "org.isomorphisms.ib.prepaint"
+    const-string v1, "org.isomorphisms.ib.prepaint:id/reader_body"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->node(Ljava/lang/String;Ljava/lang/String;)Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v0
+    invoke-virtual {v0}, Landroid/view/accessibility/AccessibilityNodeInfo;->isFocused()Z
+    move-result v1
+    if-nez v1, :focused
+    const/4 v1, 0x1
+    invoke-virtual {v0, v1}, Landroid/view/accessibility/AccessibilityNodeInfo;->performAction(I)Z
+    move-result v1
+    if-eqz v1, :failed
+  :focused
+    invoke-virtual {v0}, Landroid/view/accessibility/AccessibilityNodeInfo;->getText()Ljava/lang/CharSequence;
+    move-result-object v1
+    if-eqz v1, :failed
+    invoke-interface {v1}, Ljava/lang/CharSequence;->toString()Ljava/lang/String;
+    move-result-object v1
+    const-string v2, "IBIndependentCopyDisplay"
+    invoke-static {v2, v1}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
+    invoke-virtual {v1}, Ljava/lang/String;->length()I
+    move-result v3
+    if-lez v3, :failed
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->getTargetContext()Landroid/content/Context;
+    move-result-object v4
+    const-string v5, "clipboard"
+    invoke-virtual {v4, v5}, Landroid/content/Context;->getSystemService(Ljava/lang/String;)Ljava/lang/Object;
+    move-result-object v4
+    check-cast v4, Landroid/content/ClipboardManager;
+    const-string v5, "Independent stale-clipboard control"
+    const-string v6, "This is not the source selection."
+    invoke-static {v5, v6}, Landroid/content/ClipData;->newPlainText(Ljava/lang/CharSequence;Ljava/lang/CharSequence;)Landroid/content/ClipData;
+    move-result-object v5
+    invoke-virtual {v4, v5}, Landroid/content/ClipboardManager;->setPrimaryClip(Landroid/content/ClipData;)V
+    new-instance v2, Landroid/os/Bundle;
+    invoke-direct {v2}, Landroid/os/Bundle;-><init>()V
+    const-string v5, "ACTION_ARGUMENT_SELECTION_START_INT"
+    const/4 v6, 0x0
+    invoke-virtual {v2, v5, v6}, Landroid/os/Bundle;->putInt(Ljava/lang/String;I)V
+    const-string v5, "ACTION_ARGUMENT_SELECTION_END_INT"
+    invoke-virtual {v2, v5, v3}, Landroid/os/Bundle;->putInt(Ljava/lang/String;I)V
+    const v1, 0x20000
+    invoke-virtual {v0, v1, v2}, Landroid/view/accessibility/AccessibilityNodeInfo;->performAction(ILandroid/os/Bundle;)Z
+    move-result v1
+    if-eqz v1, :failed
+    const/16 v1, 0x4000
+    invoke-virtual {v0, v1}, Landroid/view/accessibility/AccessibilityNodeInfo;->performAction(I)Z
+    move-result v1
+    if-eqz v1, :failed
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->waitForIdleSync()V
+    invoke-virtual {v4}, Landroid/content/ClipboardManager;->getPrimaryClip()Landroid/content/ClipData;
+    move-result-object v4
+    if-eqz v4, :failed
+    invoke-virtual {v4}, Landroid/content/ClipData;->getItemCount()I
+    move-result v1
+    const/4 v2, 0x1
+    if-ne v1, v2, :failed
+    invoke-virtual {v4}, Landroid/content/ClipData;->getDescription()Landroid/content/ClipDescription;
+    move-result-object v1
+    invoke-virtual {v1}, Landroid/content/ClipDescription;->getLabel()Ljava/lang/CharSequence;
+    move-result-object v1
+    if-eqz v1, :failed
+    invoke-interface {v1}, Ljava/lang/CharSequence;->toString()Ljava/lang/String;
+    move-result-object v1
+    const-string v2, "IB source selection"
+    invoke-virtual {v2, v1}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :failed
+    const/4 v1, 0x0
+    invoke-virtual {v4, v1}, Landroid/content/ClipData;->getItemAt(I)Landroid/content/ClipData$Item;
+    move-result-object v1
+    invoke-virtual {v1}, Landroid/content/ClipData$Item;->getText()Ljava/lang/CharSequence;
+    move-result-object v1
+    if-eqz v1, :failed
+    invoke-interface {v1}, Ljava/lang/CharSequence;->toString()Ljava/lang/String;
+    move-result-object v1
+    const-string v2, "This domain is for use in documentation examples without needing permission. This is not a service; avoid relying on it for testing and monitoring purposes."
+    invoke-virtual {v2, v1}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v2
+    if-eqz v2, :failed
+    const-string v2, "IBIndependentClipboard"
+    invoke-static {v2, v1}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
+    return-void
+  :failed
+    const-string v0, "FAIL actual SDK selection and exact source clipboard"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private reflowAndCopyExample()V
+    .registers 3
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->waitExampleDocument()V
+    const-string v0, "Reflow: Greedy"
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->assertReflowLabel(Ljava/lang/String;)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->exactExampleClipboard()V
+    const-string v0, "org.isomorphisms.ib.prepaint"
+    const-string v1, "org.isomorphisms.ib.prepaint:id/reflow_button"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->click(Ljava/lang/String;Ljava/lang/String;)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->waitExampleDocument()V
+    const-string v0, "Reflow: Squared"
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->assertReflowLabel(Ljava/lang/String;)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->exactExampleClipboard()V
+    const-string v0, "org.isomorphisms.ib.prepaint"
+    const-string v1, "org.isomorphisms.ib.prepaint:id/reflow_button"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->click(Ljava/lang/String;Ljava/lang/String;)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->waitExampleDocument()V
+    const-string v0, "Reflow: Greedy"
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->assertReflowLabel(Ljava/lang/String;)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->exactExampleClipboard()V
+    return-void
+.end method
+
 .method private readExampleDocument()V
     .registers 7
     const/4 v0, 0x3
@@ -486,9 +620,17 @@
     const-string v1, "read-example"
     invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
     move-result v1
-    if-eqz v1, :retained
+    if-eqz v1, :reflow_copy
     invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->readExampleDocument()V
     const-string v7, "PASS installed native URL entry actual Example Domain and acknowledged retained source"
+    goto :success
+  :reflow_copy
+    const-string v1, "reflow-copy-example"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :retained
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->reflowAndCopyExample()V
+    const-string v7, "PASS installed native reflow selector and exact source clipboard in both modes"
     goto :success
   :retained
     const-string v1, "retained-example"

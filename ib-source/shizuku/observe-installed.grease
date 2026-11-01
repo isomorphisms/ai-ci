@@ -187,6 +187,8 @@ if (reader) {
   start_server reader-server
   observe read-example actual-native-document -1 'PASS installed native URL entry actual Example Domain and acknowledged retained source'
   diagnose after-native-document
+  observe reflow-copy-example actual-reflow-and-clipboard -1 'PASS installed native reflow selector and exact source clipboard in both modes'
+  diagnose after-reflow-and-clipboard
   "$adb" -s "$serial" shell am force-stop org.isomorphisms.ib.prepaint
   "$adb" -s "$serial" shell killall shizuku_server
   observe retained-example retained-without-worker -1 'PASS installed native retained Example Domain reopened with Shizuku unavailable'
@@ -251,7 +253,7 @@ if (reader) {
   if (_error.code === 0) { echo 'FAIL independently corrupted committed body was accepted' >&2; exit 1 }
   test ! -s "$evidence/corrupt-source.stdout"
   rg -x -F 'ai-ci ib-source: committed bytes differ from receipt SHA-256' "$evidence/corrupt-source.stderr"
-  printf 'schema\tib-installed-native-document-v1\nactual_URL_entry\tPASS\nvisible_Example_Domain\tPASS\nacknowledged_last_source\tPASS\ncomplete_index_digest\tPASS\nchanged_index_byte\tREJECTED\nforged_index_cursor\tREJECTED\nreopen_without_Shizuku\tPASS\nreplacement_install\tPASS\nemulator_reboot\tPASS\nindependent_committed_readback\tPASS\nchanged_committed_byte\tREJECTED\nphysical_TAB_P10\tNOT_RUN\nlinks_history_exact_copy_SEARCH\tNOT_RUN\n' > "$evidence/reader-receipt.tsv"
+  printf 'schema\tib-installed-native-document-v1\nactual_URL_entry\tPASS\nvisible_Example_Domain\tPASS\nactual_reflow_selector\tPASS\nSDK_selection_exact_source_clipboard_both_modes\tPASS\nacknowledged_last_source\tPASS\ncomplete_index_digest\tPASS\nchanged_index_byte\tREJECTED\nforged_index_cursor\tREJECTED\nreopen_without_Shizuku\tPASS\nreplacement_install\tPASS\nemulator_reboot\tPASS\nindependent_committed_readback\tPASS\nchanged_committed_byte\tREJECTED\nphysical_TAB_P10\tNOT_RUN\nlinks_history_exact_copy_SEARCH\tNOT_RUN\n' > "$evidence/reader-receipt.tsv"
   sha256sum "$evidence/retained-document.png" "$evidence/actual-arena/last-source" \
     "$evidence/actual-arena/responses.arena" "$evidence/actual-arena/receipts/$id.tsv" > "$evidence/reader-artifacts.sha256"
   cat "$evidence/reader-receipt.tsv"

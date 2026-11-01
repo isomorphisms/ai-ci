@@ -45,3 +45,17 @@ must actually publish its extracted title to that visible SDK TextView. The
 older candidate lacking that view is a retained regression negative, not a
 successful document observation. No heading, link or JavaScript output is
 invented to satisfy the test.
+
+The reader profile additionally performs SDK accessibility focus, full-range
+selection and ACTION_COPY on the actual selectable native TextView. A public
+sentinel preloads the clipboard, so stale content cannot satisfy the result.
+The native source-selection label and exact original semantic paragraph are
+required; inserted display wrapping line feeds must not enter the clipboard.
+The observer switches the real Greedy/Squared selector and repeats source copy
+in both modes, retaining public fixture display/clipboard log observations.
+AOSP API 29 TextView routes focused ACTION_COPY through onTextContextMenuItem;
+the candidate's native override is exercised rather than directly calling its
+pure export. This does not establish drag-selection or physical touch behavior,
+nor does a label alone prove distinct line-break choices for every paragraph.
+The existing component source/copy/reflow mutations remain required. These new
+installed actions are unqualified until the exact current APK executes.
