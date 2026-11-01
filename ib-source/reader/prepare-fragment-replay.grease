@@ -14,14 +14,14 @@ var authorization = ENV.GITHUB_TOKEN
 # drops that header when redirected to the signed blob host; do not print it.
 curl --fail --location --silent --show-error --max-time 300 \
   --header "Authorization: Bearer $authorization" \
-  https://api.github.com/repos/isomorphisms/ib/actions/artifacts/13095166060/zip \
+  https://api.github.com/repos/isomorphisms/ib/actions/artifacts/13096995194/zip \
   --output "$archive"
-test "$(wc -c < "$archive")" = 1036286724
-printf 'a983669a9b14a55b0f730f5f2057c23f5c369a3cf1b20c8488169d8b2cae2cd7  %s\n' "$archive" | sha256sum -c -
+test "$(wc -c < "$archive")" = 771191435
+printf '5a1ce2cba962f8c75e17a0c68851081b75a75bd24dd78113a88416ee04e9ae60  %s\n' "$archive" | sha256sum -c -
 unzip -q "$archive" -d "$evidence/input"
-test "$(cat "$evidence/input/ib-commit.txt")" = 5047191fc8371cb60654c67a7a792612584df62b
-test "$(cat "$evidence/input/native-client/ib-commit.txt")" = 5047191fc8371cb60654c67a7a792612584df62b
-printf 'schema\tib-installed-replay-v1\nsource\t5047191fc8371cb60654c67a7a792612584df62b\noriginal_run\t41331182010\noriginal_artifact\t13095166060\narchive_sha256\ta983669a9b14a55b0f730f5f2057c23f5c369a3cf1b20c8488169d8b2cae2cd7\n' > "$evidence/input-identity.tsv"
+test "$(cat "$evidence/input/ib-commit.txt")" = e1a64d973c43adcd05bb84093f2e1535272a9740
+test "$(cat "$evidence/input/native-client/ib-commit.txt")" = e1a64d973c43adcd05bb84093f2e1535272a9740
+printf 'schema\tib-installed-replay-v1\nsource\te1a64d973c43adcd05bb84093f2e1535272a9740\noriginal_run\t41336964699\noriginal_artifact\t13096995194\narchive_sha256\t5a1ce2cba962f8c75e17a0c68851081b75a75bd24dd78113a88416ee04e9ae60\n' > "$evidence/input-identity.tsv"
 git -C "$repository" rev-parse HEAD > "$evidence/observer-commit.txt"
 sha256sum "$evidence/input/native-client/ib-native-boundary.apk" \
   "$evidence/input/native-client/ib-native-uid-bypass.apk" \

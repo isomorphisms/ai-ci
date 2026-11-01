@@ -1,4 +1,4 @@
-name: Independent IB 5047191f native fragment replay
+name: Independent IB e1a64d97 native fragment replay
 on:
   pull_request:
     paths:
@@ -103,7 +103,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: ib-504-fragment-api${{ matrix.api }}-replay-${{ github.event.pull_request.head.sha || github.sha }}
+          name: ib-e1-fragment-api${{ matrix.api }}-replay-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
             ${{ runner.temp }}/ib-orchestration
             ${{ runner.temp }}/ib-installed-replay/input-identity.tsv

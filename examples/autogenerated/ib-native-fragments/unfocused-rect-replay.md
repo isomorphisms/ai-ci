@@ -1,0 +1,5 @@
+# Freeze the parent-rectangle repair for independent replay
+
+IB e1a64d973c43adcd05bb84093f2e1535272a9740 builds checked source, the native adapters for x86_64/ARM32/ARM64, all compiled controls and the signed APK in producer41336964699. Both required Android steps fail before emulator boot because system-image installation reports No space left on device. They are NOT_RUN for reader behavior, not passing fragment observations.
+
+This independent replay freezes the exact 771191435-byte producer archive13096995194, SHA2565a1ce2cba962f8c75e17a0c68851081b75a75bd24dd78113a88416ee04e9ae60. It runs the unchanged native viewport expectations, compiled zero-point control, actual touch/acquisition, original source/range/digest and offline Back/Forward checks on fresh API29/API34 hosts. No candidate source is rebuilt or re-signed. Actual results remain pending until these jobs complete. Later IB lifecycle source is a separate integration head and cannot inherit a pass from this frozen source automatically. Physical TAB_P10 remains BLOCKED/NOT_RUN.
