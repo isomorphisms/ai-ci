@@ -1,0 +1,32 @@
+#!/usr/bin/env grease
+# Inspect only the frozen incomplete emulator archives; no candidate mutation.
+set -eu -o pipefail
+if (len(ARGV) !== 1) { exit 2 }
+var evidence = ARGV[0]
+if (len(evidence) === 0 or evidence[0] !== '/') { exit 2 }
+if test -e "$evidence" { exit 2 }
+mkdir -p "$evidence"
+var authorization = ENV.GH_TOKEN
+for lane in fragments search {
+  var identifier = '13113145705'
+  var amount = '85285271'
+  var checksum = '588f22e7b6a0096dd51cefc6d5e85c088ccfbf9c18b7606d441fca04ecdd3794'
+  if (lane === 'search') {
+    setvar identifier = '13112334800'
+    setvar amount = '13820391'
+    setvar checksum = 'be4f935764d120f812c78c58c4a4ae3c5ba520baefff27093e515087aad4d95a'
+  }
+  var archive = "$evidence/$lane.zip"
+  curl --fail --location --silent --show-error --max-time 180 --max-filesize 134217728 \
+    --header "Authorization: Bearer $authorization" \
+    "https://api.github.com/repos/isomorphisms/ai-ci/actions/artifacts/$identifier/zip" --output "$archive"
+  test "$(wc -c < "$archive")" = "$amount"
+  printf '%s  %s\n' "$checksum" "$archive" | sha256sum -c -
+  unzip -l "$archive" > "$evidence/$lane.entries.observed.txt"
+  rg 'after-reflow-and-clipboard|retained-without-worker|after-link-history|actual-http-refusal|reboot-transport' \
+    "$evidence/$lane.entries.observed.txt" > "$evidence/$lane.phase-files.observed.txt"
+  cat "$evidence/$lane.phase-files.observed.txt"
+  printf 'lane\t%s\nartifact\t%s\narchive_bytes\t%s\narchive_sha256\t%s\ninspection\tZIP_ENTRY_NAMES_AND_LENGTHS_ONLY\nproduct_acceptance\tNOT_GRANTED\n' \
+    "$lane" "$identifier" "$amount" "$checksum" >> "$evidence/receipt.tsv"
+}
+cat "$evidence/receipt.tsv"
