@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="org.isomorphisms.aici.pasteboardcontrols">
+    <uses-sdk android:minSdkVersion="29" android:targetSdkVersion="36" />
+    <queries>
+        <package android:name="com.isomorphisms.pasteboard" />
+        <provider android:authorities="com.isomorphisms.pasteboard.shizuku" />
+    </queries>
+    <application android:allowBackup="false" android:debuggable="true" android:hasCode="true"
+        android:label="Pasteboard independent controls" />
+    <instrumentation android:name="acceptance.pasteboard.GuardControls"
+        android:targetPackage="org.isomorphisms.aici.pasteboardcontrols" />
+</manifest>

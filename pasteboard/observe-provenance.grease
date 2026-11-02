@@ -1,0 +1,18 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 3) { echo 'requires INDEPENDENT_INPUTS ACTUAL_APK STAGE_EVIDENCE' >&2; exit 2 }
+var input = ARGV[0]
+var apk = ARGV[1]
+var output = ARGV[2]
+var provenance = "$output/provenance"
+if test -e "$provenance" { echo 'FAIL reused stage provenance' >&2; exit 1 }
+mkdir -p "$provenance"
+var expected = $(awk -F '\t' '$1 == "apk_sha256" {print $2}' "$input/guards/positive-apk.receipt.tsv")
+var actual = $(sha256sum "$apk" | cut -d ' ' -f 1)
+if (expected === '' or actual !== expected) { echo 'FAIL APK differs from exact candidate provenance' >&2; exit 1 }
+for name in consumer-commit.txt frontend-commit.txt backend-commit.txt ick-qualification.tsv ndk-source.properties positive-apk.receipt.tsv {
+  cp "$input/guards/$name" "$provenance/"
+}
+cp "$input/observer-commit.txt" "$provenance/"
+sha256sum "$apk" > "$provenance/actual-apk.sha256"
+printf 'exact_candidate_receipt_and_compiler_identity\tPASS\n' > "$provenance/result.tsv"
