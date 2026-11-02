@@ -247,3 +247,25 @@ locally through the qualified fbe86e23 ICK x86-64 stage with all warning errors
 enabled. Android refusal/mutant execution still requires a fresh run. Preparation
 now prints the exact compile log on failure instead of hiding it in the artifact.
 
+At consumer eb820bce2f371469ef40b0212fdf864c515c332a / run 41362536328,
+the API 34 real-shell wrong-credential control and compiled comparison-bypass
+mutant execute successfully. All three migration lanes pass. API 34 then passes
+the complete privilege/lifecycle controls through real expiration and reboot,
+but UI setup has only two additional acknowledgements after actual SDK A/B/C;
+saved order B/A/C/long leaves the latest C delivery missing. The source's
+same-session re-registration can invalidate an in-flight callback. The consumer
+repairs configuration idempotence and acknowledged connection state in version
+15; the three-acknowledgement requirement remains unchanged. UI evidence now
+preserves observer metadata before clearing each fixture log, and gives durable
+delivery the same bounded 30-second window as the other A/B/C controls.
+
+That run's API 29 smoke launch reports an Activity-service broken connection;
+API 35's actual screenshot shows a Pixel Launcher ANR, not a Pasteboard dialog.
+The consumer smoke retains bounded retries for that exact service failure.
+Independent initial mode selection now awaits the exact saved flag. Only if it
+fails and the actual UI dump identifies "Pixel Launcher isn't responding" may
+the qualifier close android:id/aerr_close and repeat the actual visible action
+once. The blocked empty snapshot, failed assertion, screenshot and XML remain
+evidence. Every other modal, including a Pasteboard ANR, still fails. No model
+injection, blanket error-dialog suppression or changed expected state is used.
+

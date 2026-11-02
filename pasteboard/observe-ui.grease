@@ -72,7 +72,7 @@ proc await_delivery(label, before, count) {
     snapshot "$label"
     try { "$oracle" added-deliveries "$before" "$output/$label.bin" "$count" > "$output/$label.deliveries.txt" }
     if (_error.code === 0) { setvar matched = true; break }
-    sleep 0.2
+    sleep 1
   }
   if (not matched) { diagnose "$label"; cat "$output/$label.deliveries.txt"; exit 1 }
 }
@@ -119,6 +119,7 @@ snapshot reset-order-before
 "$adb" -s "$serial" shell am start -W -n "$fixture" > "$output/reset-order.fixture.txt"
 sleep 1
 for row in @(seq 0 2) {
+  "$adb" -s "$serial" logcat -d -s PasteboardDiagnostic:I PasteboardObserver:I PasteboardHistory:I >> "$output/observer-boundary.logcat.txt"
   "$adb" -s "$serial" logcat -c
   var y = 70 + int(row) * 90
   tap 240 "$y"
