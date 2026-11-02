@@ -7,3 +7,8 @@ This calls the maintained android-NDK packager at9861b303a7e6d989125d80cee552a46
 Type sketch: FrozenPackageInputs contains source/git identities, a signed fixture, checked DEX, exact extracted payload/modes and declared public test signer. Two PackageOutputs are compared byte for byte after a real timestamp gap. Unequal bytes are FAIL with retained input/output hashes and ZIP records; valid signatures alone grant no reproduction pass.
 
 The source packager copies classes.dex into a fresh directory before zip; this test resolves whether that operation and archive metadata preserve reproducibility. Credentials are used only for the fixed artifact endpoint and are not printed. The existing public test key/certificate is checked. No installation, merge, permanent release, app-data operation or physical inference.
+
+
+## Verified defect and producer repair
+
+Run41365426201 on48065212 observed two different valid signed APK hashes from identical frozen D02 inputs under backend9861 (comparator exit1). Backend153e7fc8053ba4072954a5e77d4efa3609d829e4 now normalizes only owned staging timestamps and excludes host ZIP extras while preserving input Unix modes. This updated independent test runs both exact producers, requires the old nondeterminism counterexample and fixed byte equality, and compares all caller input bytes, modes and mtimes before and after. No source input is normalized in place. Results are pending; this does not execute the reader, rebuild candidate DEX/ELF or qualify physical hardware.

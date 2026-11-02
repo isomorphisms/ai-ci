@@ -1,16 +1,18 @@
 #!/usr/bin/env grease
 set -eu -o pipefail
-if (len(ARGV) !== 4) { echo 'requires SDK FROZEN_IB_SOURCE BACKEND_SOURCE NEW_EVIDENCE' >&2; exit 2 }
+if (len(ARGV) !== 5) { echo 'requires SDK FROZEN_IB_SOURCE FIXED_BACKEND BASELINE_BACKEND NEW_EVIDENCE' >&2; exit 2 }
 var sdk = ARGV[0]
 var source = ARGV[1]
 var backend = ARGV[2]
-var evidence = ARGV[3]
+var baseline = ARGV[3]
+var evidence = ARGV[4]
 var grease = ENV.IB_GREASE
-for path in "$sdk" "$source" "$backend" "$evidence" {
+for path in "$sdk" "$source" "$backend" "$baseline" "$evidence" {
   if (len(path) === 0 or path[0] !== '/') { exit 2 }
 }
 test "$(git -C "$source" rev-parse HEAD)" = d02fe516833d0941e8ff1ab2b84369c1661aee6c
-test "$(git -C "$backend" rev-parse HEAD)" = 9861b303a7e6d989125d80cee552a46cb2503555
+test "$(git -C "$backend" rev-parse HEAD)" = 153e7fc8053ba4072954a5e77d4efa3609d829e4
+test "$(git -C "$baseline" rev-parse HEAD)" = 9861b303a7e6d989125d80cee552a46cb2503555
 if test -e "$evidence" { echo 'FAIL reused APK reproduction evidence' >&2; exit 2 }
 mkdir -p "$evidence/input" "$evidence/payload"
 var archive = "$evidence/input.zip"
@@ -51,24 +53,41 @@ for entry in @(cat "$evidence/payload-entries.txt") {
   unzip -q "$apk" "$entry" -d "$evidence/payload"
 }
 var keystore = "$evidence/input/platform-inputs/public-test-keystore"
-for packaging_attempt in first second {
-  if (packaging_attempt === 'second') { sleep 3 }
-  "$grease" "$backend/apk/build-direct-dex-activity.grease" "$sdk" \
-    "$source/android-native/AndroidManifest.xml" "$source/android-native/res" \
-    "$evidence/input/native-client/activity.dex" "$keystore" org.isomorphisms.ib.prepaint \
-    "$certificate" "$evidence/$packaging_attempt" "$evidence/payload" > "$evidence/$packaging_attempt-packager.txt" 2>&1
-  cat "$evidence/$packaging_attempt-packager.txt"
-  sha256sum "$evidence/$packaging_attempt/ib-material-reader.apk" >> "$evidence/rebuilt-sha256.txt"
+# Reads may affect atime; the content, modes and mtime contract is exact.
+find "$source/android-native/res" "$evidence/payload" -type f -printf '%p\t%m\t%T@\n' | LC_ALL=C sort > "$evidence/before-metadata.txt"
+stat --printf='%n\t%a\t%y\n' "$source/android-native/AndroidManifest.xml" "$evidence/input/native-client/activity.dex" "$keystore" >> "$evidence/before-metadata.txt"
+find "$source/android-native/res" "$evidence/payload" -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum > "$evidence/before-inputs.sha256"
+sha256sum "$source/android-native/AndroidManifest.xml" "$evidence/input/native-client/activity.dex" "$keystore" >> "$evidence/before-inputs.sha256"
+for producer in baseline fixed {
+  var implementation = "$backend"
+  if (producer === 'baseline') { setvar implementation = "$baseline" }
+  for packaging_attempt in first second {
+    if (packaging_attempt === 'second') { sleep 3 }
+    var destination = "$evidence/$producer-$packaging_attempt"
+    "$grease" "$implementation/apk/build-direct-dex-activity.grease" "$sdk" \
+      "$source/android-native/AndroidManifest.xml" "$source/android-native/res" \
+      "$evidence/input/native-client/activity.dex" "$keystore" org.isomorphisms.ib.prepaint \
+      "$certificate" "$destination" "$evidence/payload" > "$evidence/$producer-$packaging_attempt-packager.txt" 2>&1
+    cat "$evidence/$producer-$packaging_attempt-packager.txt"
+    sha256sum "$destination/ib-material-reader.apk" >> "$evidence/rebuilt-sha256.txt"
+    zipinfo -T -l "$destination/ib-material-reader.apk" > "$evidence/$producer-$packaging_attempt-zip-entries.txt"
+  }
+  try { cmp -s "$evidence/$producer-first/ib-material-reader.apk" "$evidence/$producer-second/ib-material-reader.apk" }
+  var comparison = _error.code
+  printf '%s\n' "$comparison" > "$evidence/$producer-comparison.exit"
+  if (producer === 'baseline') {
+    if (comparison !== 1) { echo 'FAIL old packager did not expose the timestamp counterexample' >&2; exit 1 }
+  } elif (comparison !== 0) {
+    echo 'FAIL fixed producer changed signed bytes for identical inputs' >&2
+    exit 1
+  }
 }
-try { cmp -s "$evidence/first/ib-material-reader.apk" "$evidence/second/ib-material-reader.apk" }
-var comparison = _error.code
-printf '%s\n' "$comparison" > "$evidence/comparison.exit"
-var outcome = 'FAIL'
-if (comparison === 0) { setvar outcome = 'PASS' } elif (comparison !== 1) { exit "$comparison" }
-zipinfo -l "$evidence/first/ib-material-reader.apk" > "$evidence/first-zip-entries.txt"
-zipinfo -l "$evidence/second/ib-material-reader.apk" > "$evidence/second-zip-entries.txt"
-sha256sum "$source/android-native/AndroidManifest.xml" "$evidence/input/native-client/activity.dex" \
-  "$backend/apk/build-direct-dex-activity.grease" "$keystore" > "$evidence/inputs.sha256"
-printf 'schema\tib-signed-APK-packaging-reproduction-v1\nfixture_source\td02fe516833d0941e8ff1ab2b84369c1661aee6c\nbackend_source\t9861b303a7e6d989125d80cee552a46cb2503555\nsource_artifact\t13101964714\nsource_archive_sha256\t9c8c5ffd9f764f3f4c3a3b7c70c2724554cc140a95fe9fdd4cb6e9ceca49546f\nsame_frozen_payload_DEX_resources_key\tYES\nseparated_wall_clock_packaging\tYES\nsigned_APK_byte_reproduction\t%s\nnew_reader_0d2_runtime\tNOT_RUN\nphysical_TAB_P10\tNOT_RUN\n' "$outcome" > "$evidence/receipt.tsv"
+find "$source/android-native/res" "$evidence/payload" -type f -printf '%p\t%m\t%T@\n' | LC_ALL=C sort > "$evidence/after-metadata.txt"
+stat --printf='%n\t%a\t%y\n' "$source/android-native/AndroidManifest.xml" "$evidence/input/native-client/activity.dex" "$keystore" >> "$evidence/after-metadata.txt"
+find "$source/android-native/res" "$evidence/payload" -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum > "$evidence/after-inputs.sha256"
+sha256sum "$source/android-native/AndroidManifest.xml" "$evidence/input/native-client/activity.dex" "$keystore" >> "$evidence/after-inputs.sha256"
+cmp "$evidence/before-metadata.txt" "$evidence/after-metadata.txt"
+cmp "$evidence/before-inputs.sha256" "$evidence/after-inputs.sha256"
+sha256sum "$backend/apk/build-direct-dex-activity.grease" "$baseline/apk/build-direct-dex-activity.grease" > "$evidence/producers.sha256"
+printf 'schema\tib-signed-APK-packaging-reproduction-v2\nfixture_source\td02fe516833d0941e8ff1ab2b84369c1661aee6c\nbackend_source\t153e7fc8053ba4072954a5e77d4efa3609d829e4\nbaseline_source\t9861b303a7e6d989125d80cee552a46cb2503555\nsource_artifact\t13101964714\nsource_archive_sha256\t9c8c5ffd9f764f3f4c3a3b7c70c2724554cc140a95fe9fdd4cb6e9ceca49546f\nsame_frozen_payload_DEX_resources_key\tYES\nseparated_wall_clock_packaging\tYES\nold_producer_timestamp_control\tREJECTED\ncaller_bytes_modes_mtimes_unchanged\tPASS\nsigned_APK_byte_reproduction\tPASS\nnew_reader_0d2_runtime\tNOT_RUN\nphysical_TAB_P10\tNOT_RUN\n' > "$evidence/receipt.tsv"
 cat "$evidence/rebuilt-sha256.txt" "$evidence/receipt.tsv"
-if (comparison !== 0) { echo 'FAIL same frozen APK inputs produced different signed bytes' >&2; exit 1 }
