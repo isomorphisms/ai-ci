@@ -14,7 +14,7 @@ mkdir -p "$evidence"
 var adb = "$sdk/platform-tools/adb"
 if (profile === 'full') {
   var consumer = "$repository/.tools/ib-source"
-  test "$(git -C "$consumer" rev-parse HEAD)" = d02fe516833d0941e8ff1ab2b84369c1661aee6c
+  test "$(git -C "$consumer" rev-parse HEAD)" = f43af99856a8ad4161114863e681c118e38c2218
   mkdir -p "$consumer/.tools"
   if test -e "$consumer/.tools/reader-acceptance" { echo 'FAIL reused acceptance checkout' >&2; exit 2 }
   ln -s "$repository" "$consumer/.tools/reader-acceptance"
