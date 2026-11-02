@@ -92,7 +92,15 @@ proc observe(phase, label, code, marker) {
   diagnose "$label"
   if (status !== 0) { echo 'FAIL fragment observer process' >&2; exit 1 }
   rg -x -F "INSTRUMENTATION_CODE: $code" "$evidence/$label.txt"
-  rg -x -F "INSTRUMENTATION_RESULT: stream=$marker" "$evidence/$label.txt"
+  if (label === 'stale-scroll-mutant') {
+    # The removed settlement can lose the visible target or leave its old
+    # insertion point off-target. Only these two literal defect outcomes count.
+    rg -x -F -e "INSTRUMENTATION_RESULT: stream=$marker" \
+      -e 'INSTRUMENTATION_RESULT: stream=java.lang.AssertionError: FAIL fragment insertion point is outside the target line' \
+      "$evidence/$label.txt"
+  } else {
+    rg -x -F "INSTRUMENTATION_RESULT: stream=$marker" "$evidence/$label.txt"
+  }
 }
 "$compiler" -fno-link-libatomic -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror \
   "$repository/ingestion/src/fixture_server.c" -o "$evidence/fixture-server"
@@ -243,5 +251,5 @@ var early_length = $(awk -F '\t' '$1=="byte_count"{print $2}' "$early_receipt")
 dd "if=$early_root/responses.arena" "of=$evidence/early-link-original.html" bs=65536 \
   iflag=skip_bytes,count_bytes "skip=$early_offset" "count=$early_length" status=none
 cmp "$repository/ib-source/reader/network-fixtures/bodies/malformed.html" "$evidence/early-link-original.html"
-printf 'schema\tib-native-fragment-viewport-v3\napi\t%s\nactual_touch_fragment_link\tPASS\nstrict_UTF8_fragment_target\tPASS\nSDK_target_visibility_and_beginning_exclusion\tPASS\ncompiled_native_zero_point\tREJECTED\ncompiled_native_stale_cursor_animation\tREJECTED\noriginal_HTML_and_committed_ranges\tPASS\nchanged_committed_source\tREJECTED\nordered_history\tPASS\noffline_Back_Forward_positions\tPASS\nArena_bytes_unchanged_offline\tPASS\nframe_timed_real_DOWN_UP_after_reflow\tPASS\ncompiled_native_single_scroll\tREJECTED\nactual_early_link_new_ICU_source\tPASS\nindependent_early_link_original_bytes\tPASS\nphysical_TAB_P10\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"
+printf 'schema\tib-native-fragment-viewport-v4\napi\t%s\nactual_touch_fragment_link\tPASS\nstrict_UTF8_fragment_target\tPASS\nSDK_target_visibility_and_beginning_exclusion\tPASS\nSDK_collapsed_caret_on_visible_fragment_line\tPASS\ncompiled_native_zero_point\tREJECTED\ncompiled_native_stale_cursor_animation\tREJECTED\noriginal_HTML_and_committed_ranges\tPASS\nchanged_committed_source\tREJECTED\nordered_history\tPASS\noffline_Back_Forward_positions\tPASS\nArena_bytes_unchanged_offline\tPASS\nframe_timed_real_DOWN_UP_after_reflow\tPASS\ncompiled_native_single_scroll\tREJECTED\nactual_early_link_new_ICU_source\tPASS\nindependent_early_link_original_bytes\tPASS\nphysical_TAB_P10\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"
 cat "$evidence/receipt.tsv"

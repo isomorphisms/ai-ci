@@ -120,6 +120,53 @@
     const/4 v0, 0
     return v0
 .end method
+# A visible target alone can be a transient frame while TextView still owns an
+# insertion point at the old document beginning. Read public SDK state only:
+# the collapsed caret must belong to the independently located Target line.
+.method private static caretOnTargetLine(Landroid/widget/TextView;Ljava/lang/String;)Z
+    .registers 10
+    invoke-virtual {p0}, Landroid/widget/TextView;->getSelectionStart()I
+    move-result v0
+    invoke-virtual {p0}, Landroid/widget/TextView;->getSelectionEnd()I
+    move-result v1
+    if-ltz v0, :no
+    if-ne v0, v1, :no
+    const-string v2, "Target"
+    invoke-virtual {p1, v2}, Ljava/lang/String;->indexOf(Ljava/lang/String;)I
+    move-result v2
+    if-ltz v2, :no
+    invoke-virtual {p0}, Landroid/widget/TextView;->getLayout()Landroid/text/Layout;
+    move-result-object v3
+    if-eqz v3, :no
+    invoke-virtual {v3, v0}, Landroid/text/Layout;->getLineForOffset(I)I
+    move-result v4
+    invoke-virtual {v3, v2}, Landroid/text/Layout;->getLineForOffset(I)I
+    move-result v5
+    new-instance v6, Ljava/lang/StringBuilder;
+    invoke-direct {v6}, Ljava/lang/StringBuilder;-><init>()V
+    const-string v7, "SDK selection="
+    invoke-virtual {v6, v7}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v6, v0}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    const-string v7, ","
+    invoke-virtual {v6, v7}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v6, v1}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    const-string v7, " caret_line="
+    invoke-virtual {v6, v7}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v6, v4}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    const-string v7, " target_line="
+    invoke-virtual {v6, v7}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v6, v5}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    invoke-virtual {v6}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+    move-result-object v6
+    const-string v7, "IBIndependentFragmentCaret"
+    invoke-static {v7, v6}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
+    if-ne v4, v5, :no
+    const/4 v0, 1
+    return v0
+  :no
+    const/4 v0, 0
+    return v0
+.end method
 .method public run()V
     .registers 8
   :begin
@@ -142,7 +189,10 @@
     if-eqz v4, :top
     if-eqz v2, :target_failed
     if-nez v3, :target_failed
-    const-string v0, "target visible; beginning outside viewport"
+    invoke-static {v0, v1}, Lacceptance/shizuku/FragmentViewport;->caretOnTargetLine(Landroid/widget/TextView;Ljava/lang/String;)Z
+    move-result v2
+    if-eqz v2, :caret_failed
+    const-string v0, "target visible; beginning outside viewport; collapsed caret on target line"
     goto :pass
   :top
     if-nez v2, :top_failed
@@ -151,6 +201,10 @@
     goto :pass
   :target_failed
     const-string v0, "FAIL fragment target is outside the native viewport"
+    iput-object v0, p0, Lacceptance/shizuku/FragmentViewport;->problem:Ljava/lang/String;
+    return-void
+  :caret_failed
+    const-string v0, "FAIL fragment insertion point is outside the target line"
     iput-object v0, p0, Lacceptance/shizuku/FragmentViewport;->problem:Ljava/lang/String;
     return-void
   :top_failed

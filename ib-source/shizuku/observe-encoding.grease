@@ -119,9 +119,15 @@ cat "$evidence/snapshot-unroot.txt"
 # API 29 can acknowledge the daemon restart and exit 1 as its transport closes.
 # Accept only that exact observed acknowledgement, then require a new shell UID.
 if (unroot_status !== 0 and unroot_status !== 1) { exit "$unroot_status" }
-tr -d '\r' < "$evidence/snapshot-unroot.txt" | rg -x -F 'restarting adbd as non root'
+# API34 also returned status0 with zero acknowledgement bytes in the frozen
+# original run. Require the restart text only for the known transport-close
+# status1 case; both cases still require the observed non-root shell below.
+if (unroot_status === 1) {
+  tr -d '\r' < "$evidence/snapshot-unroot.txt" | rg -x -F 'restarting adbd as non root'
+}
 timeout 30 "$adb" -s "$serial" wait-for-device
-"$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 2000
+"$adb" -s "$serial" shell id -u | tr -d '\r' > "$evidence/snapshot-post-unroot-UID.txt"
+rg -x 2000 "$evidence/snapshot-post-unroot-UID.txt"
 chmod 700 "$evidence/actual-arena"
 mkdir -m 700 "$evidence/actual-arena/staging"
 try {
@@ -136,5 +142,5 @@ sha256sum "$compiler" "$evidence/fixture-server" "$repository/ingestion/src/fixt
   "$input/native-client/ib-native-boundary.apk" "$installed/observer.dex" \
   "$fixtures/bodies/windows-1252.hex" "$fixtures/bodies/latin-1.hex" \
   "$evidence/actual-arena/last-source" "$evidence/actual-arena/responses.arena" > "$evidence/sha256.txt"
-printf 'schema\tib-installed-source-decoding-v1\napi\t%s\nabi\tx86_64\nactual_ICU_windows1252_ISO88591\tPASS\nactual_SDK_original_octet_carrier\tPASS\nchecked_decode_admission\tPASS\nsource_faithful_decoded_clipboard\tPASS\nWindows_source_copy_after_reflow\tPASS\noffline_history_and_reboot\tPASS\nindependent_original_bytes_identity_generation_digest\tPASS\nraw_receipt_promoted_to_admission\tNO\nchanged_expected_charset\tREJECTED\nphysical_TAB_P10\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"
+printf 'schema\tib-installed-source-decoding-v1\napi\t%s\nabi\tx86_64\nactual_ICU_windows1252_ISO88591\tPASS\nactual_SDK_original_octet_carrier\tPASS\nchecked_decode_admission\tPASS\nsource_faithful_decoded_clipboard\tPASS\nWindows_source_copy_after_reflow\tPASS\noffline_history_and_reboot\tPASS\nactual_post_snapshot_shell_UID\t2000\nindependent_original_bytes_identity_generation_digest\tPASS\nraw_receipt_promoted_to_admission\tNO\nchanged_expected_charset\tREJECTED\nphysical_TAB_P10\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"
 cat "$evidence/receipt.tsv"
