@@ -14,10 +14,10 @@ var authorization = ENV.GITHUB_TOKEN
 # drops that header when redirected to the signed blob host; do not print it.
 curl --fail --location --silent --show-error --max-time 300 \
   --header "Authorization: Bearer $authorization" \
-  https://api.github.com/repos/isomorphisms/ib/actions/artifacts/13101964714/zip \
+  https://api.github.com/repos/isomorphisms/ib/actions/artifacts/13107505276/zip \
   --output "$archive"
-test "$(wc -c < "$archive")" = 957726728
-printf '9c8c5ffd9f764f3f4c3a3b7c70c2724554cc140a95fe9fdd4cb6e9ceca49546f  %s\n' "$archive" | sha256sum -c -
+test "$(wc -c < "$archive")" = 1019769202
+printf '6a2ec5422dddf60c10aa4a4db36bd5435b4b37ccaf582c4ce70dca56697a72ae  %s\n' "$archive" | sha256sum -c -
 # Keep the immutable producer archive remote and retain its verified identity.
 # Android observes the original APK/DEX/ELF bytes below; frontend bundles,
 # native object trees and host compiler workspaces are not runtime inputs.
@@ -30,12 +30,12 @@ unzip -q "$archive" -d "$evidence/input" \
   native-client/receipt.tsv native-client/sha256.txt \
   'oracles/*.jar' platform-inputs/public-test-keystore platform-inputs/shizuku-official.apk
 
-test "$(cat "$evidence/input/ib-commit.txt")" = d02fe516833d0941e8ff1ab2b84369c1661aee6c
-test "$(cat "$evidence/input/native-client/ib-commit.txt")" = d02fe516833d0941e8ff1ab2b84369c1661aee6c
+test "$(cat "$evidence/input/ib-commit.txt")" = 0d2da9cb8fbb5b63790eb19d4490b8477bbe6801
+test "$(cat "$evidence/input/native-client/ib-commit.txt")" = 0d2da9cb8fbb5b63790eb19d4490b8477bbe6801
 test "$(cat "$evidence/input/native-client/backend-commit.txt")" = 9861b303a7e6d989125d80cee552a46cb2503555
 test "$(cat "$evidence/input/native-client/frontend-commit.txt")" = 740bbf2b1d9e811fd00c719c3473eede17ceea3b
-test "$(cat "$evidence/input/native-client/observer-commit.txt")" = 8561acf3f3e88baa6af59cf06f149e71b4038a14
-printf 'schema\tib-installed-replay-v1\nsource\td02fe516833d0941e8ff1ab2b84369c1661aee6c\noriginal_run\t41351896218\noriginal_artifact\t13101964714\narchive_sha256\t9c8c5ffd9f764f3f4c3a3b7c70c2724554cc140a95fe9fdd4cb6e9ceca49546f\n' > "$evidence/input-identity.tsv"
+test "$(cat "$evidence/input/native-client/observer-commit.txt")" = 5de6e5f786b99aa074027941d19bc0e7705e37ce
+printf 'schema\tib-installed-replay-v1\nsource\t0d2da9cb8fbb5b63790eb19d4490b8477bbe6801\noriginal_run\t41362975147\noriginal_artifact\t13107505276\narchive_sha256\t6a2ec5422dddf60c10aa4a4db36bd5435b4b37ccaf582c4ce70dca56697a72ae\n' > "$evidence/input-identity.tsv"
 git -C "$repository" rev-parse HEAD > "$evidence/observer-commit.txt"
 for name in ib-native-boundary.apk ib-native-uid-bypass.apk ib-native-death-noop.apk \
   ib-native-strict-flags.apk ib-native-stale-authorization.apk ib-native-anchor-zero.apk \

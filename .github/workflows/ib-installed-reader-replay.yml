@@ -1,4 +1,4 @@
-name: Independent IB d02fe516 ChordReader SEARCH and decoding
+name: Independent IB 0d2da9cb ChordReader SEARCH and decoding
 on:
   pull_request:
     paths:
@@ -141,7 +141,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: ib-d02-installed-api${{ matrix.api }}-${{ matrix.profile }}-replay-${{ github.event.pull_request.head.sha || github.sha }}
+          name: ib-0d2-installed-api${{ matrix.api }}-${{ matrix.profile }}-replay-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
             ${{ runner.temp }}/ib-host-capacity
             ${{ runner.temp }}/ib-host.syntax.txt

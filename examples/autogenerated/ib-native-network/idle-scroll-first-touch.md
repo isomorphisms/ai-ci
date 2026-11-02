@@ -24,3 +24,9 @@ The existing zero-point and stale-cursor/animation controls remain required. Ful
 Type/ownership sketch: FrameObservation carries SDK pre-draw and frame-commit clocks; TouchObservation carries passive child events and their actual clock; AdmittedDocument remains the checked reader's own ICU/Arena result verified from committed bytes. Volatile fields plus CountDownLatch publish callback observations without borrowing candidate navigation logic. Observation callbacks never grant admission or override SDK event results.
 
 Physical SVITOO TAB_P10 and ARM execution remain BLOCKED/NOT_RUN without fresh access and device facts. Both current older-source decoder/lifecycle/link lanes pass and Google caller/query/original-byte handoff passes; public Google results still fail JavaScript-only continuation content. Those older observations do not qualify a changed APK. The new source must earn host/required ART and independently frozen replays before candidate publication.
+
+## Current source binding
+
+Source 0d2da9cb8fbb5b63790eb19d4490b8477bbe6801, producer41362975147, archive13107505276 is1019769202 bytes,SHA2566a2ec5422dddf60c10aa4a4db36bd5435b4b37ccaf582c4ce70dca56697a72ae. Source-to-DEX and signed packaging pass; required ART workers and independent runtime replays still need results. Producer observer is5de6e5f786b99aa074027941d19bc0e7705e37ce. All ten APK hashes and source/compiler/frontend/payload identities must match before Android.
+
+The independent early-link controller also captures the complete pre-positive source snapshot. The positive must add exactly two response receipts (URL entry and followed link); Reader Two's response identity must be absent from the earlier snapshot, and its committed original range must match the fixture. Reopening a previously retained source cannot satisfy this new-acquisition claim.

@@ -215,6 +215,7 @@ var early_stopped = _error.code
 if (early_stopped !== 0 and early_stopped !== 1) { exit 1 }
 "$adb" -s "$serial" shell "$starter" "--apk=$manager" > "$evidence/early-control.start-server.txt" 2>&1
 observe early-native-link early-single-scroll-mutant 0 'java.lang.AssertionError: FAIL early native link touch reached the document'
+snapshot early-before-positive
 install boundary
 try { "$adb" -s "$serial" shell killall shizuku_server > "$evidence/early-positive.stop-server.txt" 2>&1 }
 var early_positive_stopped = _error.code
@@ -228,6 +229,14 @@ var early_generation = $(sed -n '3p' "$early_root/last-source")
 sh "$repository/ib-source/verify.sh" "$early_root" "$early_identity" "$early_generation" \
   http://10.0.2.2:18491/malformed > "$evidence/early-link.readback.txt" 2>&1
 cat "$evidence/early-link.readback.txt"
+if test -e "$evidence/early-before-positive-arena/receipts/$early_identity.tsv" {
+  echo 'FAIL early link reused an old response identity instead of new ICU acquisition' >&2; exit 1
+}
+var early_before_count = $(rg --files "$evidence/early-before-positive-arena/receipts" | wc -l)
+var early_after_count = $(rg --files "$early_root/receipts" | wc -l)
+if (int(early_after_count) !== int(early_before_count) + 2) {
+  echo 'FAIL early URL entry and link did not record two new complete ICU responses' >&2; exit 1
+}
 var early_receipt = "$early_root/receipts/$early_identity.tsv"
 var early_offset = $(awk -F '\t' '$1=="arena_offset"{print $2}' "$early_receipt")
 var early_length = $(awk -F '\t' '$1=="byte_count"{print $2}' "$early_receipt")
