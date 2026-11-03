@@ -28,7 +28,7 @@ proc compile(lane) {
 compile positive
 "$evidence/positive/observer" > "$evidence/positive/actual.txt" 2>&1
 cat "$evidence/positive/actual.txt"
-for lane in generation requested parent snippet layout heading-count heading-scope unresolved {
+for lane in generation requested parent snippet layout heading-count heading-scope unresolved heading-recovery {
   mkdir -p "$evidence/$lane"
   cp -R "$evidence/positive/source" "$evidence/$lane/source"
   var original = "$evidence/positive/source/IB/WebSearch/Results.idric"
@@ -61,9 +61,12 @@ for lane in generation requested parent snippet layout heading-count heading-sco
   } elif (lane === 'heading-scope') {
     sed 's/if null value.heading_path then value/if False then value/' "$original" > "$changed"
     setvar assertion = 'FAIL independent heading title excludes anchor labels while retaining the public ICU target'
-  } else {
+  } elif (lane === 'unresolved') {
     sed 's/RenderedBrowserDom _ ⇒ Nothing/RenderedBrowserDom _ ⇒ candidate_result evidence (Just candidate)/' "$original" > "$changed"
     setvar assertion = 'FAIL independent unresolved browser direct links require corresponding original ICU acquisition'
+  } else {
+    sed 's/ImpliedEndTag "h3"/ImpliedEndTag "ignored-control-heading"/' "$original" > "$changed"
+    setvar assertion = 'FAIL independent synthetic recovery boundaries do not erase actual heading content'
   }
   if cmp -s "$original" "$changed" { echo 'FAIL unchanged independent semantic mutant' >&2; exit 1 }
   compile "$lane"

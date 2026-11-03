@@ -37,7 +37,11 @@ for lane in headings public-host generation {
   var changed = "$evidence/$lane/source/IB/WebSearch/Results.idric"
   var assertion = ''
   if (lane === 'headings') {
-    sed 's/if not candidate.heading_seen || title/if False || title/' "$original" > "$changed"
+    # Eligibility now has two independent barriers: one actual heading and
+    # collection limited to its scope. Remove both in this compiled semantic
+    # control so an arbitrary public anchor really reaches the assertion.
+    sed -e 's/candidate.heading_count \/= 1/False/' \
+      -e 's/if null value.heading_path then value/if False then value/' "$original" > "$changed"
     setvar assertion = 'FAIL independent arbitrary-anchor refusal'
   } elif (lane === 'public-host') {
     sed 's/if public_host origin \&\& safe_escapes/if True \&\& safe_escapes/' "$original" > "$changed"

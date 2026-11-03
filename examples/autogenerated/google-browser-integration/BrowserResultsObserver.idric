@@ -20,7 +20,7 @@ opaque_href : Text
 opaque_href = "/url?q=CAESDindependent_control"
 
 dom : Text
-dom = "<html><body><div class=\"MjjYud\"><a href=\"/url?q=CAESDindependent_control\"><span>example.orghttps://example.org/music</span><h3>Music <em>&amp; sound</em></h3><span>Unrelated badge</span></a><div data-sncf=\"1\">Public music snippet.</div></div></body></html>"
+dom = "<html><body><div class=\"MjjYud\"><a href=\"/url?q=CAESDindependent_control\"><span>example.orghttps://example.org/music</span><h3><div>Music <em>&amp; sound</em></div></h3><span>Unrelated badge</span></a><div data-sncf=\"1\">Public music snippet.</div></div></body></html>"
 
 dom_fields : BrowserDomEvidence
 dom_fields = BrowserDomSourceEvidence "arena-dom:observer" "12" digest digest
@@ -119,6 +119,9 @@ main = do
   check "ambiguous multiple result headings refusal"
     (google_snapshot_candidate_count requested resolved
       "<a href=\"/url?q=CAESDindependent_control\"><h3>First</h3><h3>Second</h3></a>" ≟ 0)
+  check "synthetic recovery boundaries do not erase actual heading content"
+    (google_snapshot_candidate_count requested resolved
+      "<a href=\"/url?q=CAESDindependent_control\"><h3><div>Music</div></h3></a>" ≟ 1)
   check "unresolved browser direct links require corresponding original ICU acquisition" resolved_direct_scope
   case convert_committed_browser_dom dom_fields dom of
     Left _ ⇒ check "admitted retained browser serialization" False

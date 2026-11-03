@@ -7,6 +7,7 @@
 .field public y:F
 .field public problem:Ljava/lang/String;
 .field public target:Ljava/lang/String;
+.field public excluded:Ljava/lang/String;
 .field private bestOffset:I
 .field private positioned:Z
 .field private originalDisplay:Ljava/lang/String;
@@ -173,6 +174,19 @@
     invoke-static {v6}, Lacceptance/shizuku/GoogleResultPoint;->destination(Ljava/lang/String;)Ljava/lang/String;
     move-result-object v7
     if-eqz v7, :advance
+    iget-object v8, p0, Lacceptance/shizuku/GoogleResultPoint;->excluded:Ljava/lang/String;
+    if-eqz v8, :eligible_target
+    new-instance v9, Ljava/lang/StringBuilder;
+    const-string v10, "\n"
+    invoke-direct {v9, v10}, Ljava/lang/StringBuilder;-><init>(Ljava/lang/String;)V
+    invoke-virtual {v9, v6}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v9, v10}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v9}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+    move-result-object v9
+    invoke-virtual {v8, v9}, Ljava/lang/String;->contains(Ljava/lang/CharSequence;)Z
+    move-result v8
+    if-nez v8, :advance
+  :eligible_target
     const/4 v5, 0
     aget-object v8, v4, v5
     invoke-static {v8}, Ljava/lang/Integer;->parseInt(Ljava/lang/String;)I

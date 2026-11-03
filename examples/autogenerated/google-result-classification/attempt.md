@@ -38,3 +38,13 @@ must compile and then fail the exact semantic assertion: accepting untitled
 anchors, accepting first-party retry links, or changing the result generation.
 These are host checked-Idriç controls, not ART or live-search claims. Their
 execution is PENDING until the producer consumes this immutable observer pin.
+
+After the producer introduces counted, scoped result headings, the old
+heading_seen mutation correctly fails closed as an unchanged control at
+IB1739bf91/source run41625651486. Its replacement disables both actual
+barriers needed to admit an arbitrary anchor: heading eligibility and
+heading-scoped character collection. It compiles and fails the unchanged
+independent arbitrary-anchor semantic assertion. The public-host and source
+generation controls remain unchanged. google-classifier-complete-heading-controls-1
+passes eleven positives and rejects all three compiled controls at their
+designated assertion. Host qualification is not live Google or ART.

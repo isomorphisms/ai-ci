@@ -219,3 +219,47 @@ google-heading-retained-replay-2. Its first replay used the wrong requested
 query and correctly refused the location; the second reads the retained
 requested-url.txt. Neither replay claims canonical admission or ART. The
 revised SDK observer assembles; actual revised selection/touch remains pending.
+
+The next actual pilot41625382507 confirms API29's real Google result touch
+and fresh destination acquisition. The selected public site returns a
+JavaScript-only shell; the native reader correctly refuses it with no
+selectable static text. That is not destination-document success. API34
+times out booting its emulator before application execution, so its Google
+acceptance is NOT_RUN. API29 private artifact13225734070 is800978 bytes,
+ZIP SHA256eaf89f18fc0b2ae34e012d93602f12e22d30c5b57b3ac2a5023aea7c3b75888c.
+
+The observer now tries at most three different real native result links.
+An explicit unsupported/HTTP/acquisition refusal must leave both the exact
+Google document and full history unchanged before another actual target can
+be touched. Each target still requires actual visible DOWN/UP input; no URI
+is invented. Only a selectable newly acquired static destination records the
+final clicked-URL witness and separate destination screenshot. Raw attempt
+URIs stay private. The phase has a900s overall bound for the three140s target
+outcomes, original browser acquisition, repeated retained DOM preparations
+and unchanged65s cancel watch; application request deadlines are unchanged.
+
+Source80933842's full API34 reader suite passes. API29 reaches link-shapes
+while its initial retained-source restoration is still running: the next
+read is submitted before that explicit precondition, then the old static
+document completes. The link-shapes observer now first requires that real
+readable static document to finish reopening. All six actual link acquisitions,
+exact source bytes, target URIs, history and corruption assertions are kept.
+
+Retained-source replay independently matches the actual DOM digests for both
+APIs and verifies both original parents and all six public original targets.
+The API29 capture is60469 bytes (60422 characters), API34 is94964 bytes
+(94940 characters). API29 contains actual h3/div descendants; the maintained
+general recovery log inserts a synthetic h3 end at that block boundary.
+The Google title fold now ignores that synthetic event and still requires
+the actual complete heading end. Replays give eight/seven acquisition
+candidates respectively; API34 has four bounded snippet groups, API29 zero.
+These source replays remain separate from native execution.
+
+google-heading-nine-controls-1 passes28 assertions and rejects all nine
+compiled semantic mutants, including restoring the premature synthetic end.
+The revised original-body control helper passes eleven positives and rejects
+all three compiled controls in google-classifier-complete-heading-controls-1.
+Source1739bf91 had correctly stopped because its old heading_seen mutation
+no longer changed the refactored producer. The control now removes both
+heading-count and heading-scope barriers, then must actually fail the same
+arbitrary-anchor assertion. No unchanged mutant is accepted or skipped.

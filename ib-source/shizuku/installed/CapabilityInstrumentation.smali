@@ -3,6 +3,8 @@
 
 .field private phase:Ljava/lang/String;
 .field private volatile observedActivity:Landroid/app/Activity;
+.field private attemptedGoogleTargets:Ljava/lang/String;
+.field private pendingGoogleTarget:Ljava/lang/String;
 
 .method public constructor <init>()V
     .registers 1
@@ -337,12 +339,19 @@
 .end method
 
 .method private recordDocumentScreenshot()V
-    .registers 9
+    .registers 2
+    iget-object v0, p0, Lacceptance/shizuku/CapabilityInstrumentation;->phase:Ljava/lang/String;
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->recordNamedScreenshot(Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private recordNamedScreenshot(Ljava/lang/String;)V
+    .registers 10
     invoke-virtual {p0}, Landroid/app/Instrumentation;->getTargetContext()Landroid/content/Context;
     move-result-object v0
     invoke-virtual {v0}, Landroid/content/Context;->getCacheDir()Ljava/io/File;
     move-result-object v0
-    iget-object v1, p0, Lacceptance/shizuku/CapabilityInstrumentation;->phase:Ljava/lang/String;
+    move-object v1, p1
     const-string v2, ".png"
     invoke-virtual {v1, v2}, Ljava/lang/String;->concat(Ljava/lang/String;)Ljava/lang/String;
     move-result-object v1
@@ -867,6 +876,8 @@
     iget-object v10, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
     new-instance v9, Lacceptance/shizuku/GoogleResultPoint;
     invoke-direct {v9, v10}, Lacceptance/shizuku/GoogleResultPoint;-><init>(Landroid/app/Activity;)V
+    iget-object v10, p0, Lacceptance/shizuku/CapabilityInstrumentation;->attemptedGoogleTargets:Ljava/lang/String;
+    iput-object v10, v9, Lacceptance/shizuku/GoogleResultPoint;->excluded:Ljava/lang/String;
     const/16 v12, 0x14
   :settle_google_viewport
     invoke-virtual {p0, v9}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
@@ -882,8 +893,9 @@
     iget-object v10, v9, Lacceptance/shizuku/GoogleResultPoint;->problem:Ljava/lang/String;
     invoke-static {v10}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
   :visible
-    const-string v11, "IBIndependentClickedSearchURL"
+    const-string v11, "IBIndependentSearchAttemptURL"
     iget-object v12, v9, Lacceptance/shizuku/GoogleResultPoint;->target:Ljava/lang/String;
+    iput-object v12, p0, Lacceptance/shizuku/CapabilityInstrumentation;->pendingGoogleTarget:Ljava/lang/String;
     invoke-static {v11, v12}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
     invoke-virtual {p0}, Landroid/app/Instrumentation;->getUiAutomation()Landroid/app/UiAutomation;
     move-result-object v10
@@ -1360,8 +1372,7 @@
     invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->requireGoogleDocument()V
     invoke-static {}, Lorg/isomorphisms/ib/ReaderBridge;->history()Ljava/lang/String;
     move-result-object v0
-    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->tapGoogleResult()V
-    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->requireClickedDocument()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->tapReadableGoogleResult()V
     invoke-static {}, Lorg/isomorphisms/ib/ReaderBridge;->history()Ljava/lang/String;
     move-result-object v1
     invoke-virtual {v0, v1}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
@@ -1378,6 +1389,91 @@
     invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyForward()V
     invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->requireClickedDocument()V
     invoke-direct {p0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->requireHistory(Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private tapReadableGoogleResult()V
+    .registers 10
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->readableBody()Ljava/lang/String;
+    move-result-object v0
+    invoke-static {}, Lorg/isomorphisms/ib/ReaderBridge;->history()Ljava/lang/String;
+    move-result-object v1
+    const/4 v2, 0x3
+  :try_actual_result
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->tapGoogleResult()V
+    const/16 v3, 0x578
+  :await_result_document
+    const-string v4, "org.isomorphisms.ib.prepaint"
+    const-string v5, "org.isomorphisms.ib.prepaint:id/reader_status"
+    invoke-direct {p0, v4, v5}, Lacceptance/shizuku/CapabilityInstrumentation;->node(Ljava/lang/String;Ljava/lang/String;)Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v6
+    invoke-virtual {v6}, Landroid/view/accessibility/AccessibilityNodeInfo;->getText()Ljava/lang/CharSequence;
+    move-result-object v6
+    if-eqz v6, :wait_result_document
+    invoke-interface {v6}, Ljava/lang/CharSequence;->toString()Ljava/lang/String;
+    move-result-object v6
+    const-string v5, "Static HTML — scripts and forms are unavailable."
+    invoke-virtual {v5, v6}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v5
+    if-nez v5, :readable_destination
+    const-string v5, "Document refused:"
+    invoke-virtual {v6, v5}, Ljava/lang/String;->startsWith(Ljava/lang/String;)Z
+    move-result v5
+    if-nez v5, :unsupported_destination
+    const-string v5, "HTTP "
+    invoke-virtual {v6, v5}, Ljava/lang/String;->startsWith(Ljava/lang/String;)Z
+    move-result v5
+    if-nez v5, :unsupported_destination
+    const-string v5, "retained."
+    invoke-virtual {v6, v5}, Ljava/lang/String;->endsWith(Ljava/lang/String;)Z
+    move-result v5
+    if-nez v5, :unsupported_destination
+  :wait_result_document
+    const-wide/16 v7, 0x64
+    invoke-static {v7, v8}, Landroid/os/SystemClock;->sleep(J)V
+    add-int/lit8 v3, v3, -0x1
+    if-gtz v3, :await_result_document
+    const-string v4, "FAIL actual result acquisition reached neither a readable document nor an explicit refusal"
+    invoke-static {v4}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    return-void
+  :unsupported_destination
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->readableBody()Ljava/lang/String;
+    move-result-object v6
+    invoke-virtual {v0, v6}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v6
+    if-eqz v6, :changed_google_source
+    invoke-direct {p0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->requireHistory(Ljava/lang/String;)V
+    iget-object v6, p0, Lacceptance/shizuku/CapabilityInstrumentation;->attemptedGoogleTargets:Ljava/lang/String;
+    if-nez v6, :have_exclusions
+    const-string v6, "\n"
+  :have_exclusions
+    new-instance v7, Ljava/lang/StringBuilder;
+    invoke-direct {v7, v6}, Ljava/lang/StringBuilder;-><init>(Ljava/lang/String;)V
+    iget-object v8, p0, Lacceptance/shizuku/CapabilityInstrumentation;->pendingGoogleTarget:Ljava/lang/String;
+    invoke-virtual {v7, v8}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    const-string v6, "\n"
+    invoke-virtual {v7, v6}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v7}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+    move-result-object v6
+    iput-object v6, p0, Lacceptance/shizuku/CapabilityInstrumentation;->attemptedGoogleTargets:Ljava/lang/String;
+    const-string v7, "IBIndependentUnsupportedSearchTarget"
+    invoke-static {v7, v8}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
+    add-int/lit8 v2, v2, -0x1
+    if-gtz v2, :try_actual_result
+    const-string v4, "FAIL no attempted real Google result supplied a selectable native destination document"
+    invoke-static {v4}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    return-void
+  :changed_google_source
+    const-string v4, "FAIL unsupported result changed the last-good Google document"
+    invoke-static {v4}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    return-void
+  :readable_destination
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->readableBody()Ljava/lang/String;
+    iget-object v6, p0, Lacceptance/shizuku/CapabilityInstrumentation;->pendingGoogleTarget:Ljava/lang/String;
+    const-string v5, "IBIndependentClickedSearchURL"
+    invoke-static {v5, v6}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
+    const-string v5, "browser-google-destination"
+    invoke-direct {p0, v5}, Lacceptance/shizuku/CapabilityInstrumentation;->recordNamedScreenshot(Ljava/lang/String;)V
     return-void
 .end method
 
@@ -2252,6 +2348,9 @@
 
 .method private linkShapes()V
     .locals 2
+    # A fresh Activity reopens its previous retained source asynchronously.
+    # Wait for that real static document before submitting the next URL.
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->requireClickedDocument()V
     const-string v0, "http://10.0.2.2:18491/link-start"
     invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->enterReaderURL(Ljava/lang/String;)V
     const/4 v0, 0
