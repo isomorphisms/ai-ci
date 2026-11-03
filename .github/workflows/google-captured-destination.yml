@@ -10,8 +10,19 @@ permissions:
   actions: read
 jobs:
   actual-command:
+    name: Actual ICU captured ${{ matrix.profile }}
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - profile: api29-url
+            artifact: '13205098103'
+            argument: ''
+          - profile: api34-goto
+            artifact: '13211382363'
+            argument: api34-goto
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -95,19 +106,21 @@ jobs:
         shell: sh
         env:
           GH_TOKEN: ${{ github.token }}
+          ORIGINAL_BROWSER_ARTIFACT: ${{ matrix.artifact }}
         run: |
           .tools/runtime/.build/grease/bin/grease -c 'var archive = ENV.RUNNER_TEMP ++ "/browser-Google-original.zip"
-          gh api repos/isomorphisms/ib/actions/artifacts/13205098103/zip > "$archive"'
+          var artifact = ENV.ORIGINAL_BROWSER_ARTIFACT
+          gh api "repos/isomorphisms/ib/actions/artifacts/$artifact/zip" > "$archive"'
       - name: Follow actual captured Google result redirects through ICU
         shell: sh
         env:
           LD_LIBRARY_PATH: ${{ github.workspace }}/.tools/icu
-        run: .tools/runtime/.build/grease/bin/grease ib-source/reader/resolve-captured-google-link.grease "$GITHUB_WORKSPACE/.tools/icu/build/exec/icu" "$RUNNER_TEMP/browser-Google-original.zip" "$RUNNER_TEMP/Google-result-resolution" "$GITHUB_WORKSPACE/.tools/runtime/.build/grease/bin/grease"
+        run: .tools/runtime/.build/grease/bin/grease ib-source/reader/resolve-captured-google-link.grease "$GITHUB_WORKSPACE/.tools/icu/build/exec/icu" "$RUNNER_TEMP/browser-Google-original.zip" "$RUNNER_TEMP/Google-result-resolution" "$GITHUB_WORKSPACE/.tools/runtime/.build/grease/bin/grease" ${{ matrix.argument }}
       - name: Retain original private captures and source-bound build evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: Actual-ICU-browser-Google-targets-${{ github.event.pull_request.head.sha || github.sha }}
+          name: Actual-ICU-browser-Google-targets-${{ matrix.profile }}-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
             ${{ runner.temp }}/Google-icu-build
             ${{ runner.temp }}/Google-result-resolution

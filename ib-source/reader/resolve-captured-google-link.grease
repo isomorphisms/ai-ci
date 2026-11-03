@@ -3,22 +3,31 @@
 # Opaque redirect parameters are never decoded, fabricated or called a public
 # destination. Only observed redirect provenance can resolve them.
 set -eu -o pipefail
-if (len(ARGV) !== 4) { echo 'usage: grease resolve-captured-google-link.grease ICU ORIGINAL_BROWSER_ZIP NEW_EVIDENCE GREASE' >&2; exit 2 }
+if (len(ARGV) !== 4 and len(ARGV) !== 5) { echo 'usage: grease resolve-captured-google-link.grease ICU ORIGINAL_BROWSER_ZIP NEW_EVIDENCE GREASE [api34-goto]' >&2; exit 2 }
 var icu = ARGV[0]
 var archive = ARGV[1]
 var evidence = ARGV[2]
 var grease = ARGV[3]
 if test -e "$evidence" { echo 'FAIL reused result resolution evidence' >&2; exit 2 }
-printf '%s  %s\n' 8d1622bb15c56d488aefb3997dc2d6b48a07f0f0ba37e8f6f8629ca1721c8473 "$archive" | sha256sum -c -
+var checksum = '8d1622bb15c56d488aefb3997dc2d6b48a07f0f0ba37e8f6f8629ca1721c8473'
+var snapshot = '29'
+var reference_path = '/url?'
+if (len(ARGV) === 5) {
+  if (ARGV[4] !== 'api34-goto') { exit 2 }
+  setvar checksum = 'dff12e3088eb0a849110309fa2a4d15ede66c3aa9958f8f33161152780fc10f8'
+  setvar snapshot = '28'
+  setvar reference_path = '/goto?'
+}
+printf '%s  %s\n' "$checksum" "$archive" | sha256sum -c -
 umask 077
 mkdir -m 700 -p "$evidence/input"
 unzip -Z1 "$archive" > "$evidence/entries.txt"
 if rg -q '(^/|(^|/)\.\.(/|$))' "$evidence/entries.txt" { echo 'FAIL unsafe original browser archive' >&2; exit 1 }
-unzip -q "$archive" -d "$evidence/input" browser-probe/snapshot-29.dom.html browser-probe/snapshot-29.url.txt browser-probe/provenance.tsv webview-provider.txt
-var dom = "$evidence/input/browser-probe/snapshot-29.dom.html"
-var resolved = $(cat "$evidence/input/browser-probe/snapshot-29.url.txt")
+unzip -q "$archive" -d "$evidence/input" "browser-probe/snapshot-$snapshot.dom.html" "browser-probe/snapshot-$snapshot.url.txt" browser-probe/provenance.tsv webview-provider.txt
+var dom = "$evidence/input/browser-probe/snapshot-$snapshot.dom.html"
+var resolved = $(cat "$evidence/input/browser-probe/snapshot-$snapshot.url.txt")
 if (not resolved.startsWith('https://www.google.com/search?') and not resolved.startsWith('https://google.com/search?')) { echo 'FAIL unexpected original browser origin' >&2; exit 1 }
-sha256sum "$dom" "$evidence/input/browser-probe/snapshot-29.url.txt" > "$evidence/original.sha256"
+sha256sum "$dom" "$evidence/input/browser-probe/snapshot-$snapshot.url.txt" > "$evidence/original.sha256"
 var headings = '//a[.//h3 or .//*[@role="heading"]][not(ancestor::nav or ancestor::header or ancestor::footer or ancestor::script or ancestor::template)]'
 var positives = 0
 var captured_responses = 0
@@ -39,7 +48,7 @@ for index in 1 2 3 {
   xmllint --html --recover --nonet --xpath "string(($headings)[$index]/@href)" "$dom" > "$destination/original-href.txt" 2> "$destination/parser.stderr"
   xmllint --html --recover --nonet --xpath "normalize-space(string(($headings)[$index]))" "$dom" > "$destination/original-title.txt" 2>> "$destination/parser.stderr"
   var href = $(cat "$destination/original-href.txt")
-  if (not href.startsWith('/url?') or len(href) > 1900) { echo 'FAIL selected heading lacks a bounded actual Google redirect' >&2; exit 1 }
+  if (not href.startsWith(reference_path) or len(href) > 1900) { echo 'FAIL selected heading lacks a bounded actual Google redirect' >&2; exit 1 }
   var requested = 'https://www.google.com' ++ href
   printf '%s\n' "$requested" > "$destination/requested-url.txt"
   printf '%s\n' --http1.1 get "$requested" > "$destination/arguments.txt"
@@ -75,3 +84,4 @@ for index in 1 2 3 {
 printf 'captured_browser_result_hrefs\t3\nobserved_non_Google_HTTPS_200_targets\t%s\nbrowser_rendered_origin\tEXPLICIT\nICU_only_search\tFAIL\nnative_result_UI\tNOT_RUN\n' "$positives" > "$evidence/receipt.tsv"
 cat "$evidence/summary.tsv" "$evidence/receipt.tsv"
 if (captured_responses === 0) { echo 'FAIL no actual ICU response was captured' >&2; exit 1 }
+if (positives === 0) { echo 'FAIL no captured titled Google reference resolved to an actual public document' >&2; exit 1 }

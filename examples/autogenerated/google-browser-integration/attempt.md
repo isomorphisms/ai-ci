@@ -70,3 +70,23 @@ parses actual MjjYud/data-sncf groups and requires available associated text in
 the native result body. It retains the full Google URL, permitting observed
 frontend continuation parameters only while requiring the exact original
 once-encoded q parameter exactly once on the same HTTPS origin/path.
+
+Retained-content replay is a separate diagnostic, not canonical admission:
+`requested Text + actual Text + bounded stdin Text → candidate count and
+source-associated snippet-group count`. ReplayContentDom first attempted
+System.File.readFile. The maintained total checker rejected its unbounded
+Data.Fuel.forever path and Chez reported the unresolved foreign identifier
+SystemC-45FileC-45Support-ok. That attempt is preserved under attempts/; the
+bounded stdin interface stays in Idriç and introduces no replacement language.
+The remaining language work is a total bounded file-read interface with
+qualified Chez support. A host timer executable was unavailable; the helper
+now uses observed date timestamps and explicitly leaves RSS unmeasured.
+
+Replay4 reconstructs the actual385173-byte API34 derivative (385130 decoded
+characters) and passes its location guard, but the producer counts zero
+eligible acquisition candidates. The independent HTML parser finds ten
+titled anchors using the actually observed `/goto?url=` opaque form, rather
+than the earlier API29 `/url?q=` form. The independent ICU resolver now has
+separate immutable API29/API34 capture profiles. No token is locally decoded
+into a public destination, and neither transport200 nor the host candidate
+count substitutes for a real public final response or native result acceptance.
