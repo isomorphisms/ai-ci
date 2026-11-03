@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: dilapidated-shed/icu
-          ref: 1068defb47e55fdcab29faa79b760011f8dcfbe1
+          ref: 4f36574be653eba6a603c4d0d79b02a7250d5154
           path: .tools/icu
           persist-credentials: false
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -61,11 +61,30 @@ jobs:
       - name: Install declared TLS and independent HTML dependencies
         shell: sh
         run: make -f ick-host/Makefile extra-packages ICK_BUILD="$RUNNER_TEMP/ick-host-build" PACKAGES='libssl-dev libxml2-utils ripgrep'
+      - name: Restore the exact maintained frontend
+        id: frontend
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          key: google-icu-idric-740bbf2b1d9e811fd00c719c3473eede17ceea3b-ick-fbe86e23-ubuntu24-v1
+          path: |
+            .tools/Idric/_/.tools
+            .tools/Idric/_/bootstrap-build
+            .tools/Idric/_/build
       - name: Bootstrap the exact maintained frontend
+        if: steps.frontend.outputs.cache-hit != 'true'
         shell: sh
         env:
           CC: ${{ steps.ick.outputs.compiler }} -fno-link-libatomic
         run: .tools/Idric/edric bootstrap
+      - name: Retain the exact maintained frontend
+        if: steps.frontend.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          key: ${{ steps.frontend.outputs.cache-primary-key }}
+          path: |
+            .tools/Idric/_/.tools
+            .tools/Idric/_/bootstrap-build
+            .tools/Idric/_/build
       - name: Build unchanged source and require the command checks
         shell: sh
         env:
