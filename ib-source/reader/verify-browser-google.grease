@@ -1,0 +1,131 @@
+#!/usr/bin/env grease
+# Independent source/range/heading/destination proof for the actual Android
+# transaction. Producer result extraction is not used by this observer.
+set -eu -o pipefail
+if (len(ARGV) !== 7) { echo 'usage: grease verify-browser-google.grease AICI ARENA DOM_ID GENERATION CLICKED_URI NATIVE_BODY NEW_EVIDENCE' >&2; exit 2 }
+var acceptance = ARGV[0]
+var root = ARGV[1]
+var identity = ARGV[2]
+var generation = ARGV[3]
+var clicked = ARGV[4]
+var visible = ARGV[5]
+var evidence = ARGV[6]
+var grease = ENV.IB_GREASE
+if test -e "$evidence" { exit 2 }
+umask 077
+mkdir -m 700 -p "$evidence"
+printf '%s\n' "$identity" | rg -q -x '[0-9a-f]{48}'
+printf '%s\n' "$generation" | rg -q -x '[1-9][0-9]{0,9}'
+if (int(generation) > 2147483647) { exit 1 }
+test "$(stat -c %a "$root")" = 700
+for file in "$root" "$root/receipts" "$root/responses.arena" "$root/responses.arena.used" "$root/responses.arena.lock" {
+  test ! -L "$file"
+}
+var receipt = "$root/receipts/$identity.dom.tsv"
+test -f "$receipt"
+test ! -L "$receipt"
+test "$(stat -c %s "$receipt")" -le 32768
+tr -cd '\011\012\040-\176' < "$receipt" > "$evidence/ascii-receipt"
+cmp "$receipt" "$evidence/ascii-receipt"
+awk -F '\t' 'BEGIN{
+  n=split("schema request_id source_generation requested_url resolved_url parent_id parent_generation parent_sha256 provider_package provider_version serialization arena_offset byte_count sha256 target_count complete",base," ");
+  for(i=1;i<=n;i++)allowed[base[i]]=1;
+  for(i=1;i<=3;i++){allowed["target"i"_occurrence"]=1;allowed["target"i"_href"]=1;allowed["target"i"_requested"]=1;allowed["target"i"_id"]=1}
+} NF!=2 || !allowed[$1] || $2=="" {bad=1} {seen[$1]++;value[$1]=$2}
+END{
+  targets=value["target_count"];
+  if(targets!~/^[1-3]$/)bad=1;
+  for(i=1;i<=n;i++)if(seen[base[i]]!=1)bad=1;
+  for(i=1;i<=3;i++){wanted=(i<=targets?1:0);if(seen["target"i"_occurrence"]!=wanted || seen["target"i"_href"]!=wanted || seen["target"i"_requested"]!=wanted || seen["target"i"_id"]!=wanted)bad=1}
+  for(key in seen)if(seen[key]!=1)bad=1;
+  if(NR!=n+4*targets || bad)exit 1
+}' "$receipt"
+proc field(key) { awk -F '\t' -v "key=$key" '$1==key{print $2}' "$receipt" }
+proc expect(key, value) {
+  if ! rg -q -x -F "$key	$value" "$receipt" { echo "FAIL rendered source field $key" >&2; exit 1 }
+}
+var query = 'https://google.com/search?q=open+source+guitar+chord+transposition+chords'
+var final_search = 'https://www.google.com/search?q=open+source+guitar+chord+transposition+chords'
+expect schema ib-browser-dom-arena-v1
+expect request_id "$identity"
+expect source_generation "$generation"
+expect parent_generation "$generation"
+expect requested_url "$query"
+expect resolved_url "$final_search"
+expect serialization webview-content-outerHTML-utf8-v1
+expect complete YES
+var provider = $(field provider_package)
+printf '%s\n' "$provider" | rg -q -x 'com\.android\.webview|com\.google\.android\.webview'
+var version = $(field provider_version)
+printf '%s\n' "$version" | rg -q -x '[0-9]+(\.[0-9]+){2,4}'
+var parent = $(field parent_id)
+printf '%s\n' "$parent" | rg -q -x '[0-9a-f]{48}'
+"$grease" "$acceptance/ib-source/reader/verify-decoder-original.grease" \
+  "$acceptance" "$root" "$parent" "$generation" "$query" iso-8859-1 - "$evidence/parent" \
+  observed-browser-parent-v1 "$final_search" > "$evidence/parent-verification.txt" 2>&1
+var parent_sha = $(sha256sum "$evidence/parent/body" | cut -d ' ' -f 1)
+expect parent_sha256 "$parent_sha"
+var offset = $(field arena_offset)
+var bytes = $(field byte_count)
+var pointer = $(cat "$root/responses.arena.used")
+for number in "$offset" "$bytes" "$pointer" {
+  printf '%s\n' "$number" | rg -q -x '0|[1-9][0-9]{0,14}'
+}
+if (int(bytes) < 1 or int(bytes) > 2097152 or int(offset) + int(bytes) > int(pointer) or
+    int(pointer) > int($(stat -c %s "$root/responses.arena"))) { echo 'FAIL rendered source committed range' >&2; exit 1 }
+dd "if=$root/responses.arena" "of=$evidence/original.dom.html" bs=65536 iflag=skip_bytes,count_bytes \
+  "skip=$offset" "count=$bytes" status=none
+test "$(stat -c %s "$evidence/original.dom.html")" = "$bytes"
+var digest = $(sha256sum "$evidence/original.dom.html" | cut -d ' ' -f 1)
+expect sha256 "$digest"
+iconv -f UTF-8 -t UTF-8 < "$evidence/original.dom.html" > /dev/null
+test "$(cat "$root/responses.arena.used")" = "$pointer"
+var headings = '//a[.//h3 or .//*[@role="heading"]][not(ancestor::nav or ancestor::header or ancestor::footer or ancestor::script or ancestor::template)]'
+timeout 20 xmllint --html --recover --nonet --xpath "count($headings)" "$evidence/original.dom.html" \
+  > "$evidence/heading-count.txt" 2> "$evidence/parser.stderr"
+var heading_count = $(cat "$evidence/heading-count.txt")
+printf '%s\n' "$heading_count" | rg -q -x '[0-9]{1,2}'
+if (int(heading_count) < 1 or int(heading_count) > 64) { exit 1 }
+awk '{gsub(/[[:space:]]+/," ");printf "%s ",$0}' "$visible" > "$evidence/visible-normalized.txt"
+tr -d '\011\012\015\040' < "$visible" > "$evidence/visible-addresses.txt"
+var count = $(field target_count)
+var clicked_matches = 0
+for index in @(seq 1 "$count") {
+  var target = "$evidence/target-$index"
+  mkdir -m 700 "$target"
+  var target_id = $(field "target${index}_id")
+  var requested = $(field "target${index}_requested")
+  var href = $(field "target${index}_href")
+  printf '%s\n' "$target_id" | rg -q -x '[0-9a-f]{48}'
+  printf '%s\n' "$href" > "$target/retained-href.txt"
+  printf '%s\n' "$requested" > "$target/retained-requested.txt"
+  var matches = 0
+  for heading in @(seq 1 "$heading_count") {
+    timeout 20 xmllint --html --recover --nonet --xpath "string(($headings)[$heading]/@href)" \
+      "$evidence/original.dom.html" > "$target/href-$heading.txt" 2>> "$evidence/parser.stderr"
+    var observed = $(cat "$target/href-$heading.txt")
+    if (observed === href) {
+      setvar matches += 1
+      timeout 20 xmllint --html --recover --nonet --xpath "normalize-space(string(($headings)[$heading]))" \
+        "$evidence/original.dom.html" > "$target/title.txt" 2>> "$evidence/parser.stderr"
+    }
+  }
+  if (matches < 1) { echo 'FAIL resolved target href is not a retained titled DOM anchor' >&2; exit 1 }
+  var title = $(cat "$target/title.txt")
+  if (len(title) < 1 or len(title) > 1024) { exit 1 }
+  var direct = requested
+  if (href.startsWith('/url?')) { setvar direct = 'https://www.google.com' ++ href }
+  if (direct !== requested) { echo 'FAIL retained DOM href and ICU request differ' >&2; exit 1 }
+  sh "$acceptance/ib-source/verify.sh" "$root" "$target_id" "$generation" "$requested" > "$target/ICU-source.txt" 2>&1
+  var final = $(awk -F '\t' '$1=="resolved_url"{print $2}' "$root/receipts/$target_id.tsv")
+  printf '%s\n' "$final" | rg -q -x 'https://[A-Za-z0-9][A-Za-z0-9.-]*(/[!-~]*)?'
+  var host = $(printf '%s\n' "$final" | awk -F / '{print tolower($3)}')
+  printf '%s\n' "$host" > "$target/host.txt"
+  if rg -q '(^|\.)(google\.[a-z.]+|gstatic\.com|googleusercontent\.com|googleadservices\.com|localhost|local|invalid|test)$|^[0-9.]+$' "$target/host.txt" { exit 1 }
+  if ! rg -q -F -- "$title" "$evidence/visible-normalized.txt" { echo 'FAIL original DOM title is missing from native result text' >&2; exit 1 }
+  if ! rg -q -F -- "$final" "$evidence/visible-addresses.txt" { echo 'FAIL verified public destination is missing from native result text' >&2; exit 1 }
+  if (final === clicked) { setvar clicked_matches += 1 }
+}
+if (clicked_matches !== 1) { echo 'FAIL actual touched public URL has no unique DOM-to-ICU result correspondence' >&2; exit 1 }
+printf 'schema\tindependent-browser-Google-source-v1\noriginal_ICU_parent\tPASS\nrendered_DOM_immutable_range_digest\tPASS\nrendered_provenance\tEXPLICIT\nindependent_titled_anchor_membership\tPASS\nICU_resolved_destinations\t%s\nsource_to_native_title_URL\tPASS\nactual_touch_URL_correspondence\tPASS\nICU_only_Google\tFAIL\n' "$count" > "$evidence/receipt.tsv"
+echo 'PASS independent original ICU parent, distinct DOM bytes, actual headings and verified native destinations'

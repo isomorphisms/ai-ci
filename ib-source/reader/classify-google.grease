@@ -85,7 +85,11 @@ for index in @(seq 1 "$count") {
 }
 if (accepted === 0) {
   var reason = 'NO_TITLED_PUBLIC_RESULTS'
-  if rg -qi 'enable javascript|enablejs|javascript.*disabled' "$evidence/body-text.txt" "$body" { setvar reason = 'JAVASCRIPT_REQUIRED' }
+  if (int(count) > 0) {
+    setvar reason = 'TITLED_TARGETS_NOT_VERIFIED_PUBLIC'
+  } elif rg -qi 'enable javascript|enablejs|javascript.*disabled' "$evidence/body-text.txt" "$body" {
+    setvar reason = 'JAVASCRIPT_REQUIRED'
+  }
   printf 'Google_results\t%s\n' "$reason" > "$evidence/receipt.tsv"
   echo 'FAIL no titled public Google destination in original response' >&2
   exit 1

@@ -20,6 +20,10 @@ if (captured) {
     var wanted = 'https://google.com/search?q=IB+caf%C3%A9+%2B+%252F+%F0%9F%8C%8D+chords'
     var resolved = 'https://www.google.com/search?q=IB+caf%C3%A9+%2B+%252F+%F0%9F%8C%8D+chords'
     if (requested !== wanted or expected_final !== resolved or charset !== 'iso-8859-1') { exit 2 }
+  } elif (ARGV[8] === 'observed-browser-parent-v1') {
+    var wanted = 'https://google.com/search?q=open+source+guitar+chord+transposition+chords'
+    var resolved = 'https://www.google.com/search?q=open+source+guitar+chord+transposition+chords'
+    if (requested !== wanted or expected_final !== resolved or charset !== 'iso-8859-1') { exit 2 }
   } elif (ARGV[8] === 'observed-google-continuation-v1') {
     setglobal continued = true
     if (not requested.startsWith('https://www.google.com/httpservice/retry/enablejs?') and

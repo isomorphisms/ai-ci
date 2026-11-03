@@ -1046,6 +1046,19 @@
 
 .method private requireGoogleDocument()V
     .registers 6
+    iget-object v0, p0, Lacceptance/shizuku/CapabilityInstrumentation;->phase:Ljava/lang/String;
+    const-string v1, "browser-google"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-nez v1, :rendered
+    const-string v1, "offline-browser-google"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :original
+  :rendered
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->requireRenderedGoogleDocument()V
+    return-void
+  :original
     const-string v0, "Google response — partial static HTML. Results requiring scripts cannot be shown."
     invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->waitStatus(Ljava/lang/String;)V
     invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->readableBody()Ljava/lang/String;
@@ -1089,6 +1102,71 @@
     return-void
 .end method
 
+.method private requireRenderedGoogleDocument()V
+    .registers 8
+    # The adapter has a 120s acquisition deadline. Observe its actual native
+    # result for at most140s; HTTP200, a WebView or a loading label cannot pass.
+    const/16 v0, 0x578
+  :again
+    const-string v1, "org.isomorphisms.ib.prepaint"
+    const-string v2, "org.isomorphisms.ib.prepaint:id/reader_status"
+    invoke-direct {p0, v1, v2}, Lacceptance/shizuku/CapabilityInstrumentation;->node(Ljava/lang/String;Ljava/lang/String;)Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v1
+    invoke-virtual {v1}, Landroid/view/accessibility/AccessibilityNodeInfo;->getText()Ljava/lang/CharSequence;
+    move-result-object v1
+    if-eqz v1, :retry
+    invoke-interface {v1}, Ljava/lang/CharSequence;->toString()Ljava/lang/String;
+    move-result-object v1
+    const-string v2, "Google results — browser rendered; links verified through ICU."
+    invoke-virtual {v2, v1}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v2
+    if-nez v2, :results
+    const-string v2, "retained."
+    invoke-virtual {v1, v2}, Ljava/lang/String;->endsWith(Ljava/lang/String;)Z
+    move-result v2
+    if-nez v2, :failed
+  :retry
+    const-wide/16 v3, 0x64
+    invoke-static {v3, v4}, Landroid/os/SystemClock;->sleep(J)V
+    add-int/lit8 v0, v0, -0x1
+    if-gtz v0, :again
+    goto :failed
+  :results
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->readableBody()Ljava/lang/String;
+    move-result-object v0
+    const-string v1, "https://"
+    invoke-virtual {v0, v1}, Ljava/lang/String;->contains(Ljava/lang/CharSequence;)Z
+    move-result v1
+    if-eqz v1, :failed
+    const-string v1, "IBIndependentGoogleResultBody"
+    invoke-static {v1, v0}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
+    iget-object v0, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
+    new-instance v1, Lacceptance/shizuku/ReaderAddressSnapshot;
+    invoke-direct {v1, v0}, Lacceptance/shizuku/ReaderAddressSnapshot;-><init>(Landroid/app/Activity;)V
+    invoke-virtual {p0, v1}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
+    iget-object v0, v1, Lacceptance/shizuku/ReaderAddressSnapshot;->address:Ljava/lang/String;
+    const-string v1, "open source guitar chord transposition chords"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v0
+    if-eqz v0, :failed
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->recordDocumentScreenshot()V
+    return-void
+  :failed
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->logReaderFailureStatus()V
+    const-string v0, "FAIL real browser-derived Google results and preserved query are unavailable"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private browserGoogleTransaction()V
+    .registers 3
+    const-string v0, "open source guitar chord transposition"
+    const-string v1, "https://google.com/search?q=open+source+guitar+chord+transposition+chords"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->chordSearchHandoffFor(Ljava/lang/String;Ljava/lang/String;)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->clickGoogleResult()V
+    return-void
+.end method
+
 .method private requireClickedDocument()V
     .registers 2
     const-string v0, "Static HTML — scripts and forms are unavailable."
@@ -1110,6 +1188,74 @@
     return-void
 .end method
 
+.method private static expectedGoogleBackJournal(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+    .registers 12
+    const-string v0, "\n"
+    const/4 v1, 3
+    invoke-virtual {p0, v0, v1}, Ljava/lang/String;->split(Ljava/lang/String;I)[Ljava/lang/String;
+    move-result-object v2
+    invoke-virtual {p1, v0, v1}, Ljava/lang/String;->split(Ljava/lang/String;I)[Ljava/lang/String;
+    move-result-object v3
+    array-length v4, v2
+    if-ne v4, v1, :failed
+    array-length v4, v3
+    if-ne v4, v1, :failed
+    const/4 v4, 0
+    aget-object v5, v2, v4
+    aget-object v6, v3, v4
+    const-string v7, "IBH1"
+    invoke-virtual {v7, v5}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v5
+    if-eqz v5, :failed
+    invoke-virtual {v7, v6}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v5
+    if-eqz v5, :failed
+    const/4 v4, 1
+    aget-object v5, v2, v4
+    aget-object v6, v3, v4
+    invoke-static {v5}, Ljava/lang/Integer;->parseInt(Ljava/lang/String;)I
+    move-result v5
+    invoke-static {v6}, Ljava/lang/Integer;->parseInt(Ljava/lang/String;)I
+    move-result v6
+    if-ltz v5, :failed
+    add-int/lit8 v7, v5, 1
+    if-ne v6, v7, :failed
+    const/4 v4, 2
+    aget-object v8, v2, v4
+    aget-object v9, v3, v4
+    const/4 v4, -1
+    invoke-virtual {v8, v0, v4}, Ljava/lang/String;->split(Ljava/lang/String;I)[Ljava/lang/String;
+    move-result-object v6
+    array-length v6, v6
+    add-int/lit8 v7, v5, 2
+    if-ne v6, v7, :failed
+    invoke-virtual {v9, v8}, Ljava/lang/String;->startsWith(Ljava/lang/String;)Z
+    move-result v6
+    if-eqz v6, :failed
+    invoke-virtual {v8}, Ljava/lang/String;->length()I
+    move-result v6
+    invoke-virtual {v9, v6}, Ljava/lang/String;->substring(I)Ljava/lang/String;
+    move-result-object v6
+    const-string v7, "[A-Za-z0-9._-]{1,64}\\t[1-9][0-9]{0,9}\\n"
+    invoke-virtual {v6, v7}, Ljava/lang/String;->matches(Ljava/lang/String;)Z
+    move-result v6
+    if-eqz v6, :failed
+    new-instance v6, Ljava/lang/StringBuilder;
+    const-string v7, "IBH1\n"
+    invoke-direct {v6, v7}, Ljava/lang/StringBuilder;-><init>(Ljava/lang/String;)V
+    invoke-virtual {v6, v5}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    invoke-virtual {v6, v0}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v6, v9}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v6}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+    move-result-object v0
+    return-object v0
+  :failed
+    const-string v0, "FAIL Google destination journal must extend the original visits by exactly one occurrence"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    const-string v0, ""
+    return-object v0
+.end method
+
 .method private clickGoogleResult()V
     .registers 4
     invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->requireGoogleDocument()V
@@ -1125,6 +1271,8 @@
     const-string v2, "FAIL clicked Google result did not commit a new document"
     invoke-static {v2}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
   :new_source
+    invoke-static {v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->expectedGoogleBackJournal(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+    move-result-object v0
     invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyBack()V
     invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->requireGoogleDocument()V
     invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->requireHistory(Ljava/lang/String;)V
@@ -1533,7 +1681,15 @@
 .end method
 
 .method private chordSearchHandoff()V
-    .registers 8
+    .registers 3
+    const-string v0, "IB café + %2F 🌍"
+    const-string v1, "https://google.com/search?q=IB+caf%C3%A9+%2B+%252F+%F0%9F%8C%8D+chords"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->chordSearchHandoffFor(Ljava/lang/String;Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private chordSearchHandoffFor(Ljava/lang/String;Ljava/lang/String;)V
+    .registers 10
     const/4 v0, 0x3
     const-string v1, "FAIL authorized real worker before ChordReader search"
     invoke-static {v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitState(ILjava/lang/String;)V
@@ -1546,7 +1702,7 @@
     const-string v1, "text/plain"
     invoke-virtual {v0, v1}, Landroid/content/Intent;->setType(Ljava/lang/String;)Landroid/content/Intent;
     const-string v1, "android.intent.extra.TITLE"
-    const-string v2, "IB café + %2F 🌍"
+    move-object v2, p1
     invoke-virtual {v0, v1, v2}, Landroid/content/Intent;->putExtra(Ljava/lang/String;Ljava/lang/String;)Landroid/content/Intent;
     const-string v1, "android.intent.extra.TEXT"
     const-string v2, "[C] Public search handoff acceptance fixture"
@@ -1573,7 +1729,7 @@
     invoke-direct {v2, v1}, Lacceptance/shizuku/ReaderAddressSnapshot;-><init>(Landroid/app/Activity;)V
     invoke-virtual {p0, v2}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
     iget-object v2, v2, Lacceptance/shizuku/ReaderAddressSnapshot;->address:Ljava/lang/String;
-    const-string v3, "https://google.com/search?q=IB+caf%C3%A9+%2B+%252F+%F0%9F%8C%8D+chords"
+    move-object v3, p2
     invoke-virtual {v3, v2}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
     move-result v3
     if-nez v3, :encoded
@@ -2393,6 +2549,22 @@
     const-string v7, "PASS installed actual ICU HTTP 404 refusal preserves visible source clipboard and navigation"
     goto :success
   :search_caller_controls
+    const-string v1, "browser-google"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :offline_browser_google
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->browserGoogleTransaction()V
+    const-string v7, "PASS genuine ChordReader browser-assisted Google native result touch destination and retained Back Forward"
+    goto :success
+  :offline_browser_google
+    const-string v1, "offline-browser-google"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :original_search_caller_controls
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->offlineGoogleResult()V
+    const-string v7, "PASS browser-derived Google and original ICU destination reopen and navigate without Shizuku"
+    goto :success
+  :original_search_caller_controls
     const-string v1, "search-callers"
     invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
     move-result v1

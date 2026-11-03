@@ -23,7 +23,31 @@ redirect tokens remain in bounded private artifacts. This proves a supported
 browser-assisted acquisition mechanism; it does not prove native presentation,
 touch, recovery or ICU-only Google search. Those require the integrated ART run.
 
-Independent owner/model integration tests are initially PENDING until run. The
+Independent canonical-owner tests passed at IBf563fb1f, hosted run41587539251:
+the positive and all three ICK-compiled parent/request/generation controls
+executed and failed their designated semantic assertion. The checked model's
+fourteen independent positives and three compiled generation/request/parent
+mutants also pass locally in google-browser-model-independent-1. These are
+host receipts; the changed application has not completed the real ART Google
+transaction.
+
+The independently owned instrumentation now requires a genuine ChordReader
+Search, the explicit browser-derived native result state, an actual down/up
+touch at a source-linked public result, destination acquisition, Back/Forward
+and process-death offline restoration. The old Google positive was previously
+unexercised and incorrectly compared Back against the journal from before the
+destination visit. The corrected observer requires the complete extended visit
+list and exact earlier cursor, preserving the Forward occurrence. No producer
+history assertion or behavior was changed for this observer repair.
+
+The browser derivative format is `webview-content-outerHTML-utf8-v1`. A cloned
+DOM removes script/style/template/svg/canvas; the live page and original ICU
+source are unchanged. The independent observer uses its own HTML parser and
+checks actual retained headings/hrefs against each ICU request/response and
+native title/URL text. It never treats an opaque target or a JavaScript marker
+in a rendered page as a verified public result. ICU-only Google remains FAIL.
+
+Android integration tests remain PENDING until run. The
 producer still has to preserve parent ICU bytes and separately seal a DOM
 receipt after one or more source-bound destinations qualify. No assertion is
 weakened to make a newly committed producer pass.
