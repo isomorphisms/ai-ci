@@ -152,3 +152,25 @@ actual Android lane binds IB257e3adcb551958337f41de2f4dbf7afb8bd65e1,
 producer41613301913, and the unchanged candidate archive. IB's producer pins
 observer19e533f832d5bef530529ba366830eef884483fb; this separate E2E binding
 commit changes no candidate or observer semantics.
+
+The first native-width failure also exposes a flawed prospective assertion:
+normalizing wrap newlines to spaces cannot find an original title whose long
+ASCII run wraps internally. The observer now captures the actual shown
+TextView and the checked selection source into bounded private UTF-8 cache
+files, rather than relying on truncatable Log.i messages. On the real SDK it
+selects all, invokes Copy, refuses a stale clipboard label/value, and requires
+exact equality with that selection source. The independent source observer
+requires the original DOM title/snippet in that copied source, the public URL
+in shown text, and global byte-for-byte visible character agreement after
+removing only ASCII layout whitespace. Unicode and all other characters must
+agree in order. A changed destination character fails the semantic assertion;
+soft wrap lines pass. The ordinary exact source-space spelling remains
+required in copied source, rather than being inferred from a stripped view.
+
+GoogleSourceSnapshot is independent Android instrumentation, following the
+existing compiled observer interfaces; it is not candidate application DEX.
+Its bounded boundary is `actual TextView + installed NativeTextProjection →
+private source/display snapshots`, with equality to the actual shown widget
+before writing. The maintained exactSourceClipboard observer independently
+exercises the real SDK copy action. google-source-snapshot-observer-1.dex
+assembles successfully; SDK and clipboard execution remain pending ART.

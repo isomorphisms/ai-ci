@@ -1140,6 +1140,7 @@
     if-eqz v1, :failed
     const-string v1, "IBIndependentGoogleResultBody"
     invoke-static {v1, v0}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->snapshotGoogleSelection()V
     iget-object v0, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
     new-instance v1, Lacceptance/shizuku/ReaderAddressSnapshot;
     invoke-direct {v1, v0}, Lacceptance/shizuku/ReaderAddressSnapshot;-><init>(Landroid/app/Activity;)V
@@ -1169,6 +1170,26 @@
     invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->nativeSearchCancellation()V
     invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyForward()V
     invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->requireClickedDocument()V
+    return-void
+.end method
+
+.method private snapshotGoogleSelection()V
+    .registers 4
+    iget-object v0, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
+    new-instance v1, Lacceptance/shizuku/GoogleSourceSnapshot;
+    invoke-direct {v1, v0}, Lacceptance/shizuku/GoogleSourceSnapshot;-><init>(Landroid/app/Activity;)V
+    invoke-virtual {p0, v1}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
+    iget-object v0, v1, Lacceptance/shizuku/GoogleSourceSnapshot;->problem:Ljava/lang/String;
+    if-eqz v0, :snapshot_ready
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+  :snapshot_ready
+    iget-object v0, v1, Lacceptance/shizuku/GoogleSourceSnapshot;->source:Ljava/lang/String;
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->exactSourceClipboard(Ljava/lang/String;)V
+    const-string v0, "org.isomorphisms.ib.prepaint"
+    const-string v1, "org.isomorphisms.ib.prepaint:id/reader_body"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->node(Ljava/lang/String;Ljava/lang/String;)Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v0
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->clearSourceSelection(Landroid/view/accessibility/AccessibilityNodeInfo;)V
     return-void
 .end method
 

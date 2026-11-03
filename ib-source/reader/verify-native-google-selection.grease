@@ -1,0 +1,30 @@
+#!/usr/bin/env grease
+# Check actual SDK copy and shown TextView bytes independently of IB's reflow.
+set -eu -o pipefail
+if (len(ARGV) !== 3) { echo 'usage: grease verify-native-google-selection.grease COPIED_SOURCE VISIBLE_TEXT NEW_EVIDENCE' >&2; exit 2 }
+var copied = ARGV[0]
+var visible = ARGV[1]
+var evidence = ARGV[2]
+if test -e "$evidence" { exit 2 }
+umask 077
+mkdir -m 700 -p "$evidence"
+for file in "$copied" "$visible" {
+  test -f "$file"
+  test ! -L "$file"
+  test "$(stat -c %s "$file")" -gt 0
+  test "$(stat -c %s "$file")" -le 262144
+  iconv -f UTF-8 -t UTF-8 < "$file" > /dev/null
+}
+# The admitted Google title/snippet model collapses source whitespace; native
+# wrapping may replace spaces with line endings or insert a line ending inside
+# an overlong ASCII run. Every remaining byte, including Unicode, must agree
+# globally and in order. Exact original title/snippet spelling is separately
+# required in the copied source against the independently parsed DOM.
+tr -d '\011\012\015\040' < "$copied" > "$evidence/copied-characters.txt"
+tr -d '\011\012\015\040' < "$visible" > "$evidence/visible-characters.txt"
+if ! cmp -s "$evidence/copied-characters.txt" "$evidence/visible-characters.txt" {
+  echo 'FAIL actual Google SDK copy and native visible character correspondence' >&2
+  exit 1
+}
+sha256sum "$copied" "$visible" > "$evidence/sha256.txt"
+printf 'actual_SDK_full_selection_copy\tPASS\ncomplete_native_visible_character_correspondence\tPASS\n' > "$evidence/receipt.tsv"

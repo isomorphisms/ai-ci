@@ -108,7 +108,6 @@ sed '/^[[:space:]]*$/d; /^---------/d' "$evidence/clicked-URL.log" > "$evidence/
 test "$(wc -l < "$evidence/clicked-URL.txt")" = 1
 var clicked = $(cat "$evidence/clicked-URL.txt")
 "$adb" -s "$serial" logcat -d -v raw -s IBIndependentGoogleResultBody:I '*:S' > "$evidence/native-results.log"
-sed '/^---------/d' "$evidence/native-results.log" > "$evidence/native-results.txt"
 "$adb" -s "$serial" shell am force-stop org.isomorphisms.ib.prepaint
 "$adb" -s "$serial" shell am force-stop org.isomorphisms.chordreader.dev
 "$adb" -s "$serial" shell killall shizuku_server
@@ -118,9 +117,17 @@ proc snapshot(label) {
   "$adb" -s "$serial" shell id -u | tr -d '\r' | rg -q -x 0
   "$adb" -s "$serial" pull /data/user/0/org.isomorphisms.ib.prepaint/files/arena "$evidence/$label" > "$evidence/$label.pull.txt" 2>&1
   if (label === 'actual-arena') {
+    "$adb" -s "$serial" pull /data/user/0/org.isomorphisms.ib.prepaint/cache/ib-acceptance-google-display.txt \
+      "$evidence/native-results.txt" > "$evidence/native-results.pull.txt" 2>&1
+    "$adb" -s "$serial" pull /data/user/0/org.isomorphisms.ib.prepaint/cache/ib-acceptance-google-source.txt \
+      "$evidence/native-source.txt" > "$evidence/native-source.pull.txt" 2>&1
     "$adb" -s "$serial" pull /data/user/0/org.isomorphisms.ib.prepaint/cache/ib-acceptance-browser-google.png \
       "$evidence/native-Google-results.png" > "$evidence/native-Google-results.pull.txt" 2>&1
   } elif (label === 'offline-arena') {
+    "$adb" -s "$serial" pull /data/user/0/org.isomorphisms.ib.prepaint/cache/ib-acceptance-google-display.txt \
+      "$evidence/offline-native-results.txt" > "$evidence/offline-native-results.pull.txt" 2>&1
+    "$adb" -s "$serial" pull /data/user/0/org.isomorphisms.ib.prepaint/cache/ib-acceptance-google-source.txt \
+      "$evidence/offline-native-source.txt" > "$evidence/offline-native-source.pull.txt" 2>&1
     "$adb" -s "$serial" pull /data/user/0/org.isomorphisms.ib.prepaint/cache/ib-acceptance-offline-browser-google.png \
       "$evidence/offline-native-Google-results.png" > "$evidence/offline-native-Google-results.pull.txt" 2>&1
   }
@@ -153,6 +160,8 @@ sh "$acceptance/ib-source/verify.sh" "$root" "$destination_id" "$destination_gen
 observe offline-browser-google offline 'PASS browser-derived Google and original ICU destination reopen and navigate without Shizuku'
 "$adb" -s "$serial" shell am force-stop org.isomorphisms.ib.prepaint
 snapshot offline-arena
+cmp "$evidence/native-source.txt" "$evidence/offline-native-source.txt"
+cmp "$evidence/native-results.txt" "$evidence/offline-native-results.txt"
 cmp "$root/responses.arena" "$evidence/offline-arena/responses.arena"
 cmp "$root/responses.arena.used" "$evidence/offline-arena/responses.arena.used"
 cmp "$root/last-source" "$evidence/offline-arena/last-source"
@@ -175,5 +184,5 @@ reject_dom "$evidence/changed-DOM-generation" changed-DOM-generation-refused 'FA
 git -C "$acceptance" rev-parse HEAD > "$evidence/observer.commit"
 sha256sum "$input/native-client/ib-native-boundary.apk" "$installed/observer.dex" "$root/responses.arena" \
   "$root/last-source" "$root/receipts/$dom_id.dom.tsv" > "$evidence/source-bound.sha256"
-printf 'schema\tIB-browser-assisted-Google-E2E-v1\napi\t%s\nABI\tx86_64\nreal_ChordReader_search_and_authenticated_caller\tPASS\nactual_native_result_touch\tPASS\nICU_destination_acquisition\tPASS\nsource_to_native_title_destination\tPASS\nnative_Search_and_browser_Cancel\tPASS\nlate_completion_preserves_document_and_Forward\tPASS\nretained_Back_Forward\tPASS\nprocess_death_offline_restore\tPASS\nchanged_DOM_byte_generation\tREJECTED\nGoogle_acquisition\tBROWSER_ASSISTED\nICU_only_Google\tFAIL\nphysical_ARM\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"
+printf 'schema\tIB-browser-assisted-Google-E2E-v1\napi\t%s\nABI\tx86_64\nreal_ChordReader_search_and_authenticated_caller\tPASS\nactual_native_result_touch\tPASS\nICU_destination_acquisition\tPASS\nsource_to_native_title_destination\tPASS\nactual_Google_SDK_source_copy\tPASS\nnative_Search_and_browser_Cancel\tPASS\nlate_completion_preserves_document_and_Forward\tPASS\nretained_Back_Forward\tPASS\nprocess_death_offline_restore\tPASS\nchanged_DOM_byte_generation\tREJECTED\nGoogle_acquisition\tBROWSER_ASSISTED\nICU_only_Google\tFAIL\nphysical_ARM\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"
 cat "$evidence/receipt.tsv"

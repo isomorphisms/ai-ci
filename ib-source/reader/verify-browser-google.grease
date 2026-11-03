@@ -96,7 +96,10 @@ timeout 20 xmllint --html --recover --nonet --xpath "count($headings)" "$evidenc
 var heading_count = $(cat "$evidence/heading-count.txt")
 printf '%s\n' "$heading_count" | rg -q -x '[0-9]{1,2}'
 if (int(heading_count) < 1 or int(heading_count) > 64) { exit 1 }
-awk '{gsub(/[[:space:]]+/," ");printf "%s ",$0}' "$visible" > "$evidence/visible-normalized.txt"
+var copied = "$(dirname "$visible")/native-source.txt"
+"$grease" "$acceptance/ib-source/reader/verify-native-google-selection.grease" \
+  "$copied" "$visible" "$evidence/native-selection"
+awk '{gsub(/[[:space:]]+/," ");printf "%s ",$0}' "$copied" > "$evidence/source-normalized.txt"
 tr -d '\011\012\015\040' < "$visible" > "$evidence/visible-addresses.txt"
 var count = $(field target_count)
 var clicked_matches = 0
@@ -163,7 +166,7 @@ for index in @(seq 1 "$count") {
   var host = $(printf '%s\n' "$final" | awk -F / '{print tolower($3)}')
   printf '%s\n' "$host" > "$target/host.txt"
   if rg -q '(^|\.)(google\.[a-z.]+|gstatic\.com|googleusercontent\.com|googleadservices\.com|localhost|local|invalid|test)$|^[0-9.]+$' "$target/host.txt" { exit 1 }
-  if ! rg -q -F -- "$title" "$evidence/visible-normalized.txt" { echo 'FAIL original DOM title is missing from native result text' >&2; exit 1 }
+  if ! rg -q -F -- "$title" "$evidence/source-normalized.txt" { echo 'FAIL original DOM title is missing from actual SDK copied native result source' >&2; exit 1 }
   if ! rg -q -F -- "$final" "$evidence/visible-addresses.txt" { echo 'FAIL verified public destination is missing from native result text' >&2; exit 1 }
   # Independently associate an available snippet only with the nearest actual
   # Google result group containing one heading and one data-sncf source node.
@@ -177,7 +180,7 @@ for index in @(seq 1 "$count") {
       "$evidence/original.dom.html" > "$target/snippet.txt" 2>> "$evidence/parser.stderr"
     var snippet = $(cat "$target/snippet.txt")
     if (len(snippet) > 0 and len(snippet) <= 1024) {
-      if ! rg -q -F -- "$snippet" "$evidence/visible-normalized.txt" { echo 'FAIL associated DOM snippet is missing from native result text' >&2; exit 1 }
+      if ! rg -q -F -- "$snippet" "$evidence/source-normalized.txt" { echo 'FAIL associated DOM snippet is missing from actual SDK copied native result source' >&2; exit 1 }
       setvar snippets += 1
     }
   }
