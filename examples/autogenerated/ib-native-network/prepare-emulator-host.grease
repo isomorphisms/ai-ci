@@ -6,12 +6,16 @@ var repository = ARGV[0]
 var compiler = ARGV[1]
 var evidence = ARGV[2]
 var scratch = ENV.RUNNER_TEMP
+var host_workspace = ENV.GITHUB_WORKSPACE
 if (ENV.GITHUB_ACTIONS !== 'true' or ENV.RUNNER_OS !== 'Linux' or ENV.RUNNER_ARCH !== 'X64') { exit 2 }
-if (len(scratch) < 2 or scratch[0] !== '/' or compiler !== "$scratch/ick-host-stage/bin/gcc") { exit 2 }
+if (len(scratch) < 2 or scratch[0] !== '/' or len(host_workspace) < 2 or host_workspace[0] !== '/' or
+    compiler !== "$scratch/ick-host-stage/bin/gcc") { exit 2 }
 if test -e "$evidence" { echo 'FAIL reused host capacity evidence' >&2; exit 2 }
 if test -L "$scratch/ick-host-build" { echo 'FAIL unexpected symlinked build workspace' >&2; exit 2 }
 test -x "$compiler"
-test "$(git -C "$repository/.ick-host-source" rev-parse HEAD)" = fbe86e23d55cfec2000c08e61deea2a407fd7175
+# The observer checkout may be nested in a producer's job. The composite ICK
+# action always owns its exact source at the actual workflow workspace root.
+test "$(git -C "$host_workspace/.ick-host-source" rev-parse HEAD)" = fbe86e23d55cfec2000c08e61deea2a407fd7175
 mkdir -p "$evidence"
 sha256sum "$compiler" > "$evidence/ICK.before.sha256"
 df -PB1 "$scratch" > "$evidence/before.capacity.txt"
