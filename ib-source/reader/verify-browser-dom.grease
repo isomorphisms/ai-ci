@@ -1,0 +1,44 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 5) { echo 'usage: grease verify-browser-dom.grease AICI IB APPENDFAT QUALIFIED_ICK NEW_EVIDENCE' >&2; exit 2 }
+var acceptance = ARGV[0]
+var producer = ARGV[1]
+var appendfat = ARGV[2]
+var compiler = ARGV[3]
+var evidence = ARGV[4]
+if test -e "$evidence" { exit 2 }
+mkdir -p "$evidence"
+proc compile(source, lane) {
+  "$compiler" -fno-link-libatomic -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror -pthread \
+    -I "$producer/native/android" -I "$appendfat/lib" \
+    "$appendfat/lib/appendfat_arena.c" "$producer/native/android/ib_reader_pfd.c" \
+    "$producer/native/android/ib_shizuku_arena_publish.c" "$producer/native/android/ib_arena_source_owner.c" \
+    "$source" "$acceptance/ib-source/reader/test-browser-dom.c" -o "$evidence/$lane" \
+    > "$evidence/$lane.compiler.txt" 2>&1
+}
+var original = "$producer/native/android/ib_browser_dom_source.c"
+compile "$original" positive
+"$evidence/positive" > "$evidence/positive.txt" 2>&1
+cat "$evidence/positive.txt"
+for lane in parent targets generation {
+  var assertion = ''
+  if (lane === 'parent') {
+    sed 's/!strcmp(ticket.sha256_hex, m->parent_sha256)/1/' "$original" > "$evidence/$lane.c"
+    setvar assertion = 'FAIL changed parent digest refusal'
+  } elif (lane === 'targets') {
+    sed 's/!strcmp(observations.requested_url, m->targets\[i\].requested_url)/1/' "$original" > "$evidence/$lane.c"
+    setvar assertion = 'FAIL changed destination request refusal'
+  } else {
+    sed -e 's/source != generation/generation == 0/' \
+      -e 's/m->source_generation = generation; m->parent_generation = generation;/m->source_generation = (uint32_t)source; m->parent_generation = (uint32_t)source;/' \
+      "$original" > "$evidence/$lane.c"
+    setvar assertion = 'FAIL wrong rendered source generation refusal'
+  }
+  if cmp -s "$original" "$evidence/$lane.c" { echo 'FAIL unchanged browser source mutant' >&2; exit 1 }
+  compile "$evidence/$lane.c" "$lane"
+  try { "$evidence/$lane" > "$evidence/$lane.txt" 2>&1 }
+  if (_error.code !== 1) { cat "$evidence/$lane.txt"; echo 'FAIL compiled browser control missed semantic assertion' >&2; exit 1 }
+  rg -x -F "$assertion" "$evidence/$lane.txt"
+}
+sha256sum "$original" "$acceptance/ib-source/reader/test-browser-dom.c" "$compiler" > "$evidence/inputs.sha256"
+printf 'independent_canonical_DOM_owner\tPASS\ncompiled_parent_target_generation_controls\tREJECTED\nGoogle_live_results\tNOT_RUN\nAndroid_ART\tNOT_RUN\n' > "$evidence/receipt.tsv"
