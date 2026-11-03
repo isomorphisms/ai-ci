@@ -255,6 +255,20 @@ the actual complete heading end. Replays give eight/seven acquisition
 candidates respectively; API34 has four bounded snippet groups, API29 zero.
 These source replays remain separate from native execution.
 
+Actual pilot41631540003 at39ba6eb1/IB257e3adc completes the API29 genuine
+ChordReader/native Google/copy/touch/readable ICU destination/Back/Forward and
+Search/Cancel instrumentation marker. Independent clicked original-byte
+verification passes. Host qualification then exposes an existing shape-check
+bug for a valid two-target DOM receipt: absent optional keys acquire zero
+entries during AWK lookup and a later uniqueness loop incorrectly refuses
+them. The new maintained shape helper detects duplicates when reading actual
+records and still requires every declared mandatory/target field exactly once.
+One/two/three target shape positives and ten malformed boundary controls pass.
+Corrected local verification of the unchanged actual archive passes parent,
+DOM digest/range, two headings/retained ICU targets, SDK text and actual-touch
+correspondence. This does not convert the failed workflow or its unrun offline
+phase to PASS. The next actual workflow binds IB9f468f9b/producer41631727130.
+
 google-heading-nine-controls-1 passes28 assertions and rejects all nine
 compiled semantic mutants, including restoring the premature synthetic end.
 The revised original-body control helper passes eleven positives and rejects

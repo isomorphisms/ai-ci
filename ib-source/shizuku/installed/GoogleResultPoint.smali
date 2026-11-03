@@ -10,6 +10,7 @@
 .field public excluded:Ljava/lang/String;
 .field private bestOffset:I
 .field private positioned:Z
+.field private settleUntil:J
 .field private originalDisplay:Ljava/lang/String;
 
 .method public constructor <init>(Landroid/app/Activity;)V
@@ -19,6 +20,27 @@
     const/4 v0, -0x1
     iput v0, p0, Lacceptance/shizuku/GoogleResultPoint;->bestOffset:I
     return-void
+.end method
+
+.method private static stopParentScroll(Landroid/widget/TextView;)Z
+    .registers 4
+    invoke-virtual {p0}, Landroid/view/View;->getParent()Landroid/view/ViewParent;
+    move-result-object v0
+    instance-of v1, v0, Landroid/widget/ScrollView;
+    if-eqz v1, :unsupported
+    check-cast v0, Landroid/widget/ScrollView;
+    invoke-virtual {v0}, Landroid/view/View;->getScrollX()I
+    move-result v1
+    invoke-virtual {v0}, Landroid/view/View;->getScrollY()I
+    move-result v2
+    # Two same-clock public calls abort a residual zero-distance scroller.
+    invoke-virtual {v0, v1, v2}, Landroid/widget/ScrollView;->smoothScrollTo(II)V
+    invoke-virtual {v0, v1, v2}, Landroid/widget/ScrollView;->smoothScrollTo(II)V
+    const/4 v0, 0x1
+    return v0
+  :unsupported
+    const/4 v0, 0x0
+    return v0
 .end method
 
 
@@ -262,7 +284,21 @@
     invoke-virtual {v0, v2}, Landroid/widget/TextView;->bringPointIntoView(I)Z
     const/4 v11, 0x1
     iput-boolean v11, p0, Lacceptance/shizuku/GoogleResultPoint;->positioned:Z
+    invoke-static {}, Landroid/os/SystemClock;->uptimeMillis()J
+    move-result-wide v6
+    const-wide/16 v8, 0x1f4
+    add-long/2addr v6, v8
+    iput-wide v6, p0, Lacceptance/shizuku/GoogleResultPoint;->settleUntil:J
+    goto :failed
   :positioned
+    invoke-static {}, Landroid/os/SystemClock;->uptimeMillis()J
+    move-result-wide v6
+    iget-wide v8, p0, Lacceptance/shizuku/GoogleResultPoint;->settleUntil:J
+    cmp-long v10, v6, v8
+    if-ltz v10, :failed
+    invoke-static {v0}, Lacceptance/shizuku/GoogleResultPoint;->stopParentScroll(Landroid/widget/TextView;)Z
+    move-result v7
+    if-eqz v7, :failed
     invoke-virtual {v0}, Landroid/widget/TextView;->getLayout()Landroid/text/Layout;
     move-result-object v1
     if-eqz v1, :failed
@@ -290,6 +326,10 @@
     sub-int/2addr v6, v7
     add-int/2addr v4, v6
     int-to-float v4, v4
+    # Independent SDK inverse hit-test must identify the chosen display point.
+    invoke-virtual {v0, v5, v4}, Landroid/widget/TextView;->getOffsetForPosition(FF)I
+    move-result v7
+    if-ne v7, v2, :failed
     const/4 v6, 0x2
     new-array v6, v6, [I
     invoke-virtual {v0, v6}, Landroid/view/View;->getLocationOnScreen([I)V
