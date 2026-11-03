@@ -31,8 +31,9 @@ try {
 }
 var callback_status = _error.code
 printf '%s\n' "$callback_status" > "$output/callback-wrong-consumer.exit"
-if (callback_status === 0) { echo 'FAIL incompatible callback consumer was accepted' >&2; exit 1 }
-rg 'NoSuchMethodException.*Action\.onClick.*int' "$output/callback-wrong-consumer.txt"
+cat "$output/callback-wrong-consumer.txt"
+if (callback_status !== 42) { echo 'FAIL callback consumer did not reach its exact signature refusal' >&2; exit 1 }
+rg 'NoSuchMethodException:.*onClick.*\bint\b' "$output/callback-wrong-consumer.txt"
 "$adb" -s "$serial" install -r "$candidate" > "$output/install.txt"
 "$adb" -s "$serial" install -r "$observer/observer.apk" > "$output/observer-install.txt"
 "$adb" -s "$serial" shell am start -W -n org.isomorphisms.fastchat.diskstreaming.arena/android.app.NativeActivity \

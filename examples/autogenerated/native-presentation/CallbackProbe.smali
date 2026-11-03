@@ -3,6 +3,7 @@
 
 .method public static main([Ljava/lang/String;)V
     .locals 6
+  :lookup_begin
     const-string v0, "org.isomorphisms.nativeui.Action"
     invoke-static {v0}, Ljava/lang/Class;->forName(Ljava/lang/String;)Ljava/lang/Class;
     move-result-object v0
@@ -30,9 +31,20 @@
     const-string v1, "PASS independent exact framework callback declaration on ART"
     invoke-virtual {v0, v1}, Ljava/io/PrintStream;->println(Ljava/lang/String;)V
     return-void
+  :lookup_end
+    .catch Ljava/lang/NoSuchMethodException; {:lookup_begin .. :lookup_end} :incompatible
   :fail
     new-instance v0, Ljava/lang/AssertionError;
     const-string v1, "FAIL framework View callback contract"
     invoke-direct {v0, v1}, Ljava/lang/AssertionError;-><init>(Ljava/lang/Object;)V
     throw v0
+  :incompatible
+    move-exception v0
+    invoke-virtual {v0}, Ljava/lang/Throwable;->toString()Ljava/lang/String;
+    move-result-object v1
+    sget-object v0, Ljava/lang/System;->out:Ljava/io/PrintStream;
+    invoke-virtual {v0, v1}, Ljava/io/PrintStream;->println(Ljava/lang/String;)V
+    const/16 v0, 0x2a
+    invoke-static {v0}, Ljava/lang/System;->exit(I)V
+    return-void
 .end method
