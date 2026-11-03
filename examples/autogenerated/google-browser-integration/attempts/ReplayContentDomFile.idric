@@ -1,0 +1,30 @@
+module ReplayContentDom
+
+import Data.Text
+import IB.RecoveredInformation
+import IB.WebSearch.Results
+import IB.WebSearch.Snippets
+import System
+import System.File
+
+-- Replay the retained derivative only. This does not construct canonical
+-- source evidence, claim a browser HTTP body, or resolve a public destination.
+main : IO ()
+main = do
+  arguments ← getArgs
+  case arguments of
+    [_, requested, location_path, dom_path] ⇒ do
+      Right location ← readFile location_path | Left _ ⇒ die "retained location unreadable"
+      Right dom ← readFile dom_path | Left _ ⇒ die "retained content DOM unreadable"
+      let actual = unwords (words location)
+      let count = google_snapshot_candidate_count requested actual dom
+      if count < 1 then die "retained derivative has no eligible titled acquisition candidate"
+        else do
+          let log = recover_document_log "retained-probe-content-DOM-only" dom
+          let snippets = google_dom_snippets log
+          putStrLn ("titled_acquisition_candidates\t" ++ cast count)
+          putStrLn ("bounded_source_snippet_groups\t" ++ cast (length snippets))
+          putStrLn "canonical_source_admission\tNOT_RUN"
+          putStrLn "public_destination_verification\tNOT_RUN"
+          putStrLn "Android_ART\tNOT_RUN"
+    _ ⇒ die "usage: replay-content-dom REQUESTED_URL RETAINED_LOCATION_FILE RETAINED_DOM_FILE"

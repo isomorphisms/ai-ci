@@ -1,0 +1,22 @@
+#!/usr/bin/env grease
+# Structural boundary only; original-byte, ownership and semantic assertions
+# remain in verify-browser-google.grease.
+set -eu -o pipefail
+if (len(ARGV) !== 1) { exit 2 }
+var receipt = ARGV[0]
+test -f "$receipt"
+test ! -L "$receipt"
+test "$(stat -c %s "$receipt")" -le 32768
+awk -F '\t' 'BEGIN{
+  n=split("schema request_id source_generation requested_url resolved_url parent_id parent_generation parent_sha256 provider_package provider_version serialization arena_offset byte_count sha256 target_count complete",base," ");
+  for(i=1;i<=n;i++)allowed[base[i]]=1;
+  for(i=1;i<=3;i++){allowed["target"i"_occurrence"]=1;allowed["target"i"_href"]=1;allowed["target"i"_requested"]=1;allowed["target"i"_id"]=1}
+} NF!=2 || !allowed[$1] || $2=="" {bad=1}
+{seen[$1]++;if(seen[$1]>1)bad=1;value[$1]=$2}
+END{
+  targets=value["target_count"];
+  if(targets!~/^[1-3]$/)bad=1;
+  for(i=1;i<=n;i++)if(seen[base[i]]!=1)bad=1;
+  for(i=1;i<=3;i++){wanted=(i<=targets?1:0);if(seen["target"i"_occurrence"]!=wanted || seen["target"i"_href"]!=wanted || seen["target"i"_requested"]!=wanted || seen["target"i"_id"]!=wanted)bad=1}
+  if(NR!=n+4*targets || bad)exit 1
+}' "$receipt"

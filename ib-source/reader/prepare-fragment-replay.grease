@@ -1,0 +1,7 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 2) { echo 'requires AICI NEW_EVIDENCE' >&2; exit 2 }
+var repository = ARGV[0]
+var evidence = ARGV[1]
+var grease = ENV.IB_GREASE
+"$grease" "$repository/ib-source/reader/prepare-installed-replay.grease" "$repository" "$evidence"

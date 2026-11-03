@@ -1,0 +1,41 @@
+module ReplayContentDom
+
+import Data.Text
+import IB.RecoveredInformation
+import IB.WebSearch.Results
+import IB.WebSearch.Snippets
+import System
+
+read_lines : Number → Bool → IO Text
+read_lines 0 terminated = pure ""
+read_lines (S remaining) terminated = do
+  line ← getLine
+  later ← read_lines remaining terminated
+  pure (line ++ (if remaining ≟ 0 && not terminated then "" else "\n") ++ later)
+
+-- Replay the retained derivative only. This does not construct canonical
+-- source evidence, claim a browser HTTP body, or resolve a public destination.
+main : IO ()
+main = do
+  arguments ← getArgs
+  case arguments of
+    [_, requested, actual, lines, terminated] ⇒ do
+      let count : Number = cast lines
+      if cast count /= lines || count < 1 || count > 10000 || not (elem terminated ["yes", "no"])
+        then die "invalid bounded retained input"
+        else do
+          dom ← read_lines count (terminated ≟ "yes")
+          let candidates = google_snapshot_candidate_count requested actual dom
+          putStrLn ("retained_location_allowed\t" ++ show (google_browser_location requested actual))
+          putStrLn ("replayed_characters\t" ++ cast (length (unpack dom)))
+          putStrLn ("candidate_counter\t" ++ cast candidates)
+          if candidates < 1 then die "retained derivative has no eligible titled acquisition candidate"
+            else do
+              let log = recover_document_log "retained-probe-content-DOM-only" dom
+              let snippets = google_dom_snippets log
+              putStrLn ("titled_acquisition_candidates\t" ++ cast candidates)
+              putStrLn ("bounded_source_snippet_groups\t" ++ cast (length snippets))
+              putStrLn "canonical_source_admission\tNOT_RUN"
+              putStrLn "public_destination_verification\tNOT_RUN"
+              putStrLn "Android_ART\tNOT_RUN"
+    _ ⇒ die "usage: replay-content-dom REQUESTED_URL ACTUAL_URL LINE_COUNT TERMINATED < RETAINED_DOM"

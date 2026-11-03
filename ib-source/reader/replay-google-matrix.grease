@@ -1,0 +1,36 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 4) { echo 'usage: grease replay-google-matrix.grease AICI GREASE ORIGINAL_ZIP NEW_EVIDENCE' >&2; exit 2 }
+var repository = ARGV[0]
+var grease = ARGV[1]
+var archive = ARGV[2]
+var evidence = ARGV[3]
+if test -e "$evidence" { echo 'FAIL reused original Google replay evidence' >&2; exit 2 }
+command -v rg > /dev/null
+command -v xmllint > /dev/null
+printf '%s  %s\n' a19a928d70e92e0975ff0198dc16445d6d416ef853927017192254c87cd62112 "$archive" | sha256sum -c -
+mkdir -p "$evidence/input"
+unzip -Z1 "$archive" > "$evidence/archive-entries.txt"
+if rg -n '(^/|(^|/)\.\.(/|$))' "$evidence/archive-entries.txt" { echo 'FAIL unsafe archive member' >&2; exit 1 }
+unzip -q "$archive" -d "$evidence/input"
+proc replay(label, body_digest, metadata_digest, wanted_bytes) {
+  var original = "$evidence/input/Google-acquisition/$label"
+  printf '%s  %s\n' "$body_digest" "$original/body" "$metadata_digest" "$original/metadata.tsv" | sha256sum -c -
+  var observed_bytes = $(stat -c %s "$original/body")
+  if (observed_bytes !== wanted_bytes) { echo 'FAIL retained body length' >&2; exit 1 }
+  rg -x -F "http_status	200" "$original/metadata.tsv"
+  rg -x -F "content_encoding	identity" "$original/metadata.tsv"
+  rg -x -F "received_length	$wanted_bytes" "$original/metadata.tsv"
+  try { "$grease" "$repository/ib-source/reader/classify-google.grease" "$original/body" "$evidence/$label" > "$evidence/$label.txt" 2>&1 }
+  if (_error.code !== 1) { echo 'FAIL retained real Google body must fail public-result semantics' >&2; exit 1 }
+  rg -x -F "Google_results	JAVASCRIPT_REQUIRED" "$evidence/$label/receipt.tsv"
+  printf '%s\t%s\t%s\tJAVASCRIPT_REQUIRED\n' "$label" "$wanted_bytes" "$body_digest" >> "$evidence/replay.tsv"
+}
+replay http10 911dc765dd7a8724a30a7a419c85179c4effc598c3b9eade6dd1c980e2de0956 8875e8055a17234e6b7f9b7cd7338b2708ba42505f11e45037f090e400c031cd 92815
+replay http11 6f45012079eece53b9eee22ae84494de9363db3933e5934ed8a76a545aa31a0e d74e715846b7f818b3598c078fc6d773f1a5f8777a5d669c798ce020514eb93e 92433
+replay www-http11 f8eee4a92e67a63ff0d086cde6f9acd870b39e4c6ea4451212228c659a71331d 0dc03f7c2a923c81b350ff6b17acf4fec49abd8d38103f309523424ae7c4f623 92841
+replay accept bb10422544f23c0f7e6452bf1fb1f793714f5bd667f71cf2abfdb490242ac96f f909a426bd65698724cedb345eb04fe687f837546399396d82e09cbd5520f6da 92466
+replay language a1d56d2b276a140f2c3d9780cf5460c50b6e1b3313de81976ae692b2c465b239 7f7ed433347461b10a03c9a9b4f727442270eda272789605be37fea1546d6e2b 92883
+replay agent 02b623184af7ae6456c06d5aabe99f6d11800e3c2f1abf7a9eb52d41af8cd8a8 02dd0d4265653aa5142ef9435552c8ac353e4a343c015f79a8c06bcc999001fa 92729
+printf 'retained_original_digest_checks\tPASS\nindependent_actual_body_refusals\tPASS\nGoogle_public_results\tFAIL\nAndroid\tNOT_RUN\n' > "$evidence/receipt.tsv"
+cat "$evidence/receipt.tsv"

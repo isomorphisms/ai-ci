@@ -8,6 +8,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <time.h>
 #include <unistd.h>
 
 #define REQUEST_MAX 16384
@@ -137,7 +138,29 @@ static int send_response(int fd, int status, const char *reason,
            (body_length == 0 || write_all(fd, body, body_length));
 }
 
-static void handle_request(int fd, const char *corpus_root) {
+/* Test-only response barrier. The independent host releases this ordinary
+ * file only after killing the real target process. No product IPC or network
+ * implementation participates in this synchronization. */
+static int hold_response(const char *release_path) {
+    if (release_path == NULL) return 0;
+    puts("HELD_REQUEST");
+    fflush(stdout);
+    const struct timespec interval = {0, 100000000};
+    for (unsigned int attempt = 0; attempt < 600u && running; ++attempt) {
+        struct stat state;
+        if (stat(release_path, &state) == 0 && S_ISREG(state.st_mode)) {
+            puts("HELD_RELEASED");
+            fflush(stdout);
+            return 1;
+        }
+        (void)nanosleep(&interval, NULL);
+    }
+    puts("HELD_TIMEOUT");
+    fflush(stdout);
+    return 0;
+}
+
+static void handle_request(int fd, const char *corpus_root, const char *release_path) {
     char request[REQUEST_MAX + 1];
     ssize_t amount = recv(fd, request, REQUEST_MAX, 0);
     if (amount <= 0) return;
@@ -160,6 +183,32 @@ static void handle_request(int fd, const char *corpus_root) {
         return;
     }
 
+    if (strcmp(path, "/malformed-chunk") == 0) {
+        static const char response[] =
+            "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\n"
+            "Content-Encoding: identity\r\nTransfer-Encoding: chunked\r\n"
+            "Connection: close\r\n\r\n4\r\n<htm\r\nZ\r\nbad\r\n0\r\n\r\n";
+        (void)write_all(fd, response, sizeof(response) - 1u);
+        return;
+    }
+    if (strcmp(path, "/excessive-chunk") == 0) {
+        static const char headers[] =
+            "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\n"
+            "Content-Encoding: identity\r\nTransfer-Encoding: chunked\r\n"
+            "Connection: close\r\n\r\n400001\r\n";
+        unsigned char block[8192];
+        memset(block, 'A', sizeof(block));
+        size_t remaining = 4194305u;
+        int sent = write_all(fd, headers, sizeof(headers) - 1u);
+        while (sent && remaining > 0) {
+            size_t amount = remaining < sizeof(block) ? remaining : sizeof(block);
+            sent = write_all(fd, block, amount);
+            remaining -= amount;
+        }
+        if (sent) (void)write_all(fd, "\r\n0\r\n\r\n", 7u);
+        return;
+    }
+
     const char *relative = "bodies/valid.html";
     const char *content_type = "text/html; charset=utf-8";
     const char *encoding = "identity";
@@ -168,8 +217,23 @@ static void handle_request(int fd, const char *corpus_root) {
     int hex = 0;
     int truncated = 0;
 
-    if (strcmp(path, "/valid") == 0) {
+    if (strcmp(path, "/held-uncommitted") == 0) {
+        if (!hold_response(release_path)) return;
+        relative = "bodies/malformed.html";
+    } else if (strcmp(path, "/valid") == 0) {
         relative = "bodies/valid.html";
+    } else if (strcmp(path, "/link-start") == 0) {
+        relative = "bodies/link-base.html";
+    } else if (strcmp(path, "/link-base/relative") == 0) {
+        relative = "bodies/link-relative.html";
+    } else if (strcmp(path, "/link-root") == 0) {
+        relative = "bodies/link-root.html";
+    } else if (strcmp(path, "/link-root?stage=query&unicode=IB+caf%C3%A9+%2B+%252F+%F0%9F%8C%8D+chords") == 0) {
+        relative = "bodies/link-query.html";
+    } else if (strcmp(path, "/link-absolute") == 0) {
+        relative = "bodies/link-absolute.html";
+    } else if (strcmp(path, "/anchor-fixture") == 0) {
+        relative = "bodies/anchor.html";
     } else if (strcmp(path, "/malformed") == 0) {
         relative = "bodies/malformed.html";
     } else if (strcmp(path, "/empty") == 0) {
@@ -177,6 +241,15 @@ static void handle_request(int fd, const char *corpus_root) {
     } else if (strcmp(path, "/truncated") == 0) {
         relative = "bodies/valid.html";
         truncated = 1;
+    } else if (strcmp(path, "/binary") == 0) {
+        relative = "bodies/binary.hex";
+        /* Isolate MIME refusal from an unobserved charset. */
+        content_type = "application/octet-stream; charset=utf-8";
+        hex = 1;
+    } else if (strcmp(path, "/binary-unlabelled") == 0) {
+        relative = "bodies/binary.hex";
+        content_type = "application/octet-stream";
+        hex = 1;
     } else if (strcmp(path, "/invalid-utf8") == 0) {
         relative = "bodies/invalid-utf8.hex";
         hex = 1;
@@ -229,14 +302,22 @@ static int parse_port(const char *text) {
 }
 
 int main(int argc, char **argv) {
-    if (argc != 3) {
-        fprintf(stderr, "usage: %s PORT CORPUS_ROOT\n", argv[0]);
+    if (argc != 3 && argc != 4) {
+        fprintf(stderr, "usage: %s PORT CORPUS_ROOT [NEW_RELEASE_FILE]\n", argv[0]);
         return 2;
     }
     int port = parse_port(argv[1]);
     if (port < 0) {
         fputs("invalid port\n", stderr);
         return 2;
+    }
+    const char *release_path = argc == 4 ? argv[3] : NULL;
+    if (release_path != NULL) {
+        struct stat state;
+        if (release_path[0] != '/' || lstat(release_path, &state) == 0 || errno != ENOENT) {
+            fputs("release file must be a new absolute path\n", stderr);
+            return 2;
+        }
     }
     signal(SIGTERM, stop_server);
     signal(SIGINT, stop_server);
@@ -271,7 +352,7 @@ int main(int argc, char **argv) {
             close(listener);
             return 1;
         }
-        handle_request(client, argv[2]);
+        handle_request(client, argv[2], release_path);
         close(client);
     }
     close(listener);

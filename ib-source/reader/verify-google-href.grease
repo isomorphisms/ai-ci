@@ -1,0 +1,34 @@
+#!/usr/bin/env grease
+# Independent link membership in original HTML; never an application parser.
+set -eu -o pipefail
+if (len(ARGV) !== 3) { echo 'usage: grease verify-google-href.grease ORIGINAL_HTML CLICKED_URL NEW_EVIDENCE' >&2; exit 2 }
+var html = ARGV[0]
+var wanted = ARGV[1]
+var evidence = ARGV[2]
+if test -e "$evidence" { echo 'FAIL reused original href evidence' >&2; exit 2 }
+mkdir -p "$evidence"
+printf '%s\n' "$wanted" | rg -x 'https?://[^[:space:]<>"]{1,2048}' > "$evidence/requested.txt"
+xmllint --version > "$evidence/parser-version.txt" 2>&1
+var parser = $(command -v xmllint)
+sha256sum "$parser" "$html" > "$evidence/inputs.sha256"
+try { timeout 30 xmllint --html --recover --nonet --xpath '//a/@href' "$html" > "$evidence/original-hrefs.txt" 2> "$evidence/parser.stderr" }
+var parser_status = _error.code
+printf '%s\n' "$parser_status" > "$evidence/parser.exit"
+if (parser_status !== 0) { echo 'FAIL independent original HTML href parser' >&2; exit 1 }
+proc escaped(value) {
+  printf '%s' "$value" | sed -e 's/&/\&amp;/g' -e 's/"/\&quot;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'
+}
+var encoded = $(escaped "$wanted")
+var needle = 'href="' ++ encoded ++ '"'
+var found = false
+if rg -q -F -- "$needle" "$evidence/original-hrefs.txt" { setglobal found = true }
+for origin in https://www.google.com https://google.com {
+  if (wanted.startsWith(origin ++ '/')) {
+    var relative = wanted[len(origin):]
+    var relative_encoded = $(escaped "$relative")
+    var relative_needle = 'href="' ++ relative_encoded ++ '"'
+    if rg -q -F -- "$relative_needle" "$evidence/original-hrefs.txt" { setglobal found = true }
+  }
+}
+if (not found) { echo 'FAIL clicked URI does not occur in original Google hrefs' >&2; exit 1 }
+echo 'PASS clicked URI belongs to independently parsed original HTML'

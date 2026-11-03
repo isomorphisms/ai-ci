@@ -1,0 +1,45 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 5) { echo 'requires ARTIFACT DIGEST SIZE API NEW_EVIDENCE' >&2; exit 2 }
+var artifact = ARGV[0]
+var digest = ARGV[1]
+var size = ARGV[2]
+var api = ARGV[3]
+var evidence = ARGV[4]
+if (api === '29') {
+  if (artifact !== '13097555322' or digest !== 'e15118ec05408c3f1d1bc10a45681215aa6fb7e3b437606ed6230b5b2fec798a' or size !== '21468063') { exit 2 }
+} elif (api === '34') {
+  if (artifact !== '13097530859' or digest !== '78e00f0d443e57e244b181df2456a2ddc8c52c81443ce2bc8f4ee6d3acd1d91b' or size !== '25016268') { exit 2 }
+} else { exit 2 }
+if test -e "$evidence" { echo 'FAIL reused fragment inspection' >&2; exit 2 }
+mkdir -p "$evidence/input"
+var authorization = ENV.GITHUB_TOKEN
+curl --fail --location --silent --show-error --max-time 120 \
+  --header "Authorization: Bearer $authorization" \
+  "https://api.github.com/repos/isomorphisms/ai-ci/actions/artifacts/$artifact/zip" --output "$evidence/original.zip"
+test "$(wc -c < "$evidence/original.zip")" = "$size"
+printf '%s  %s\n' "$digest" "$evidence/original.zip" | sha256sum -c -
+unzip -q "$evidence/original.zip" -d "$evidence/input"
+var found = 0
+for log in @(rg --files "$evidence/input" | rg '/fragments/[^/]+\.logcat\.txt$') {
+  setglobal found = found + 1
+  var name = $(basename "$log")
+  printf '%s\n' "$name"
+  awk '/IBReader.*fragment viewport|IBIndependentFragmentViewport|IBIndependentReaderStatus|IBReader.*checked renderer|IBReader.*source completion/ {print}' \
+    "$log" > "$evidence/$name.observed.txt"
+  cat "$evidence/$name.observed.txt"
+}
+if (found < 2) { echo 'FAIL missing raw fragment traces' >&2; exit 1 }
+for transcript in @(rg --files "$evidence/input" | rg '/fragments/(actual-fragment|zero-point-mutant)\.txt$') {
+  var name = $(basename "$transcript")
+  rg '^(INSTRUMENTATION_RESULT:|INSTRUMENTATION_CODE:)' "$transcript" > "$evidence/$name.observed.txt"
+  cat "$evidence/$name.observed.txt"
+}
+for screen in @(rg --files "$evidence/input" | rg '/fragments/actual-fragment\.png$') {
+  sha256sum "$screen"
+  printf '%s\n' 'IB_SCREENSHOT_BEGIN'
+  base64 --wrap=4096 "$screen"
+  printf '%s\n' 'IB_SCREENSHOT_END'
+}
+printf 'schema\tib-frozen-fragment-log-inspection-v1\napi\t%s\narchive_integrity\tPASS\nsource\te1a64d973c43adcd05bb84093f2e1535272a9740\nnew_Android_execution\tNOT_RUN\nphysical_TAB_P10\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"
+cat "$evidence/receipt.tsv"

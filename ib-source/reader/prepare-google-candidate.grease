@@ -1,0 +1,76 @@
+#!/usr/bin/env grease
+# Resolve only the declared source job's immutable archive; never select a
+# floating branch, a rebuilt candidate or another application's APK.
+set -eu -o pipefail
+if (len(ARGV) !== 4) { echo 'usage: grease prepare-google-candidate.grease IB_SOURCE IB_RUN AICI NEW_EVIDENCE' >&2; exit 2 }
+var source = ARGV[0]
+var run = ARGV[1]
+var acceptance = ARGV[2]
+var evidence = ARGV[3]
+if test -e "$evidence" { exit 2 }
+mkdir -p "$evidence/input"
+printf '%s\n' "$source" | rg -q -x '[0-9a-f]{40}'
+printf '%s\n' "$run" | rg -q -x '[1-9][0-9]{0,14}'
+gh api "repos/isomorphisms/ib/actions/runs/$run" > "$evidence/declared-run.json"
+test "$(jq -r .head_sha "$evidence/declared-run.json")" = "$source"
+test "$(jq -r .workflow_id "$evidence/declared-run.json")" = 402991299
+test "$(jq -r .event "$evidence/declared-run.json")" = pull_request
+test "$(jq -r .path "$evidence/declared-run.json")" = .github/workflows/ib-tabp10-reader.yml
+var started = $(date +%s)
+var deadline = int(started) + 2700
+var complete = false
+while (int($(date +%s)) < deadline) {
+  gh api "repos/isomorphisms/ib/actions/runs/$run/jobs?per_page=100" > "$evidence/producer-jobs.json"
+  var jobs = $(jq '[.jobs[]|select(.name=="source-to-dex")]|length' "$evidence/producer-jobs.json")
+  if (jobs !== '1') { echo 'FAIL source job identity is missing or ambiguous' >&2; exit 1 }
+  var status = $(jq -r '.jobs[]|select(.name=="source-to-dex")|.status' "$evidence/producer-jobs.json")
+  if (status === 'completed') {
+    var outcome = $(jq -r '.jobs[]|select(.name=="source-to-dex")|.conclusion' "$evidence/producer-jobs.json")
+    if (outcome !== 'success') { echo 'FAIL declared source job did not qualify its candidate' >&2; exit 1 }
+    setvar complete = true
+    break
+  }
+  echo 'Waiting for the declared producer source checks and signed candidate.'
+  sleep 30
+}
+if (not complete) { echo 'FAIL declared source job exceeded the independent input deadline' >&2; exit 1 }
+gh api "repos/isomorphisms/ib/actions/runs/$run/artifacts?per_page=100" > "$evidence/producer-artifacts.json"
+var name = 'ib-tabp10-reader-' ++ source
+jq --arg name "$name" '[.artifacts[]|select(.name==$name and .expired==false)]' \
+  "$evidence/producer-artifacts.json" > "$evidence/selected-artifacts.json"
+test "$(jq length "$evidence/selected-artifacts.json")" = 1
+var artifact = $(jq -r '.[0].id' "$evidence/selected-artifacts.json")
+var amount = $(jq -r '.[0].size_in_bytes' "$evidence/selected-artifacts.json")
+var digest = $(jq -r '.[0].digest|sub("^sha256:";"")' "$evidence/selected-artifacts.json")
+test "$(jq -r '.[0].workflow_run.head_sha' "$evidence/selected-artifacts.json")" = "$source"
+printf '%s\n' "$digest" | rg -q -x '[0-9a-f]{64}'
+gh api "repos/isomorphisms/ib/actions/artifacts/$artifact/zip" > "$evidence/candidate.zip"
+test "$(stat -c %s "$evidence/candidate.zip")" = "$amount"
+printf '%s  %s\n' "$digest" "$evidence/candidate.zip" | sha256sum -c -
+unzip -Z1 "$evidence/candidate.zip" > "$evidence/archive-entries.txt"
+if rg -q '(^/|(^|/)\.\.(/|$))' "$evidence/archive-entries.txt" { exit 1 }
+unzip -q "$evidence/candidate.zip" -d "$evidence/input" \
+  ib-commit.txt backend-commit.txt frontend-commit.txt '*.dex' '*.dex.plan' \
+  'parcelable/*/libib_reader.so' 'native-client/*.apk' 'native-client/*-commit.txt' \
+  native-client/receipt.tsv native-client/sha256.txt native-client/reproduction.tsv native-client/reproduction.sha256 \
+  'oracles/*.jar' platform-inputs/public-test-keystore platform-inputs/shizuku-official.apk
+test "$(cat "$evidence/input/ib-commit.txt")" = "$source"
+test "$(cat "$evidence/input/native-client/ib-commit.txt")" = "$source"
+test "$(cat "$evidence/input/backend-commit.txt")" = 153e7fc8053ba4072954a5e77d4efa3609d829e4
+test "$(cat "$evidence/input/frontend-commit.txt")" = 740bbf2b1d9e811fd00c719c3473eede17ceea3b
+for field in checked_Activity_platform_worker_DEX_repeat ICK_NDK_application_ELF_three_ABIs_repeat signed_APK_byte_reproduction {
+  rg -q -x -F "$field	PASS" "$evidence/input/native-client/reproduction.tsv"
+}
+for name in ib-native-boundary.apk ib-native-uid-bypass.apk ib-native-death-noop.apk \
+  ib-native-strict-flags.apk ib-native-stale-authorization.apk ib-native-anchor-zero.apk \
+  ib-native-resume-noop.apk ib-native-detach-any.apk ib-native-anchor-reset.apk ib-native-single-scroll.apk {
+  var hash = $(awk -v name="$name" '{n=split($2,p,"/");if(p[n]==name)print $1}' "$evidence/input/native-client/sha256.txt")
+  printf '%s\n' "$hash" | rg -q -x '[0-9a-f]{64}'
+  test "$(printf '%s\n' "$hash" | wc -l)" = 1
+  printf '%s  %s\n' "$hash" "$evidence/input/native-client/$name" | sha256sum -c -
+}
+printf 'schema\tIB-Google-candidate-input-v1\nsource\t%s\nrun\t%s\nartifact\t%s\narchive_bytes\t%s\narchive_sha256\t%s\n' \
+  "$source" "$run" "$artifact" "$amount" "$digest" > "$evidence/input-identity.tsv"
+git -C "$acceptance" rev-parse HEAD > "$evidence/observer.commit"
+# Only the operation's verified local download; the original remains in Actions.
+rm "$evidence/candidate.zip"

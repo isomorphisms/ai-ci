@@ -1,7 +1,7 @@
 #!/usr/bin/env grease
 # Required continuation after the complete installed-reader observer succeeds.
 set -eu -o pipefail
-if (len(ARGV) !== 8 and len(ARGV) !== 9) { echo 'usage: grease observe-navigation.grease AICI INPUT SDK ICK ADB SERIAL INSTALLED_EVIDENCE NEW_EVIDENCE [reader-v2]' >&2; exit 2 }
+if (len(ARGV) !== 8 and len(ARGV) !== 9) { echo 'usage: grease observe-navigation.grease AICI INPUT SDK ICK ADB SERIAL INSTALLED_EVIDENCE NEW_EVIDENCE [reader-v2|reader-v3|reader-v4]' >&2; exit 2 }
 var repository = ARGV[0]
 var input = ARGV[1]
 var sdk = ARGV[2]
@@ -12,7 +12,9 @@ var installed = ARGV[6]
 var evidence = ARGV[7]
 var grease = ENV.IB_GREASE
 var reader_v2 = len(ARGV) === 9
-if (reader_v2 and ARGV[8] !== 'reader-v2') { echo 'FAIL unknown navigation profile' >&2; exit 2 }
+var reader_v4 = reader_v2 and ARGV[8] === 'reader-v4'
+var reader_v3 = reader_v2 and (ARGV[8] === 'reader-v3' or reader_v4)
+if (reader_v2 and ARGV[8] !== 'reader-v2' and not reader_v3) { echo 'FAIL unknown navigation profile' >&2; exit 2 }
 for path in "$repository" "$input" "$sdk" "$compiler" "$adb" "$installed" "$evidence" {
   if (len(path) === 0 or path[0] !== '/') { exit 2 }
 }
@@ -37,8 +39,10 @@ printf '%s\n' "$uid" | rg -x 'package:org\.isomorphisms\.ib\.prepaint uid:[1-9][
   "$repository/ingestion/src/fixture_server.c" -o "$evidence/fixture-server"
 var fixtures = "$repository/ib-source/reader/network-fixtures"
 var network_fixture_pid = ''
+var untrusted_tls_pid = ''
 trap --add EXIT {
   if (len(network_fixture_pid) > 0) { try { kill -KILL "$network_fixture_pid" } }
+  if (len(untrusted_tls_pid) > 0) { try { kill -KILL "$untrusted_tls_pid" } }
 }
 fork { exec "$evidence/fixture-server" 18491 "$fixtures" > "$evidence/server.stdout" 2> "$evidence/server.stderr" }
 setglobal network_fixture_pid = $!
@@ -48,6 +52,48 @@ for attempt in @(seq 1 100) {
   sleep 0.1
 }
 if (not ready) { cat "$evidence/server.stderr" >&2; echo 'FAIL declared host fixture did not bind' >&2; exit 1 }
+# A real certificate-chain refusal is separate from the plaintext TLS probe.
+if (reader_v4) {
+  var tls_private = $(mktemp -d)
+  chmod 700 "$tls_private"
+  openssl version -a > "$evidence/openssl-version.txt"
+  var openssl_program = $(command -v openssl)
+  sha256sum "$openssl_program" > "$evidence/openssl-program.sha256"
+  openssl req -x509 -newkey rsa:2048 -sha256 -days 1 -noenc \
+    -subj /CN=ib-untrusted-fixture \
+    -addext subjectAltName=IP:127.0.0.1,IP:10.0.2.2 \
+    -keyout "$tls_private/key.pem" -out "$evidence/untrusted-certificate.pem" \
+    > "$tls_private/request.stdout" 2> "$tls_private/request.stderr"
+  fork {
+    exec openssl s_server -accept 18492 -cert "$evidence/untrusted-certificate.pem" \
+      -key "$tls_private/key.pem" -www -quiet \
+      > "$evidence/untrusted-server.stdout" 2> "$evidence/untrusted-server.stderr"
+  }
+  setglobal untrusted_tls_pid = $!
+  var tls_ready = false
+  for attempt in @(seq 1 15) {
+    try {
+      timeout 2 openssl s_client -connect 127.0.0.1:18492 \
+        -CAfile "$evidence/untrusted-certificate.pem" -verify_ip 127.0.0.1 \
+        -verify_return_error < /dev/null > "$evidence/fixture-trusted-handshake.txt" 2>&1
+    }
+    var trusted_status = _error.code
+    if (trusted_status === 0) { setvar tls_ready = true; break }
+    sleep 0.1
+  }
+  if (not tls_ready) { cat "$evidence/fixture-trusted-handshake.txt"; echo 'FAIL declared TLS fixture did not provide a verifiable certificate' >&2; exit 1 }
+  rg -F 'Verify return code: 0 (ok)' "$evidence/fixture-trusted-handshake.txt"
+  try {
+    timeout 15 openssl s_client -connect 127.0.0.1:18492 \
+      -verify_ip 127.0.0.1 -verify_return_error < /dev/null \
+      > "$evidence/fixture-untrusted-handshake.txt" 2>&1
+  }
+  var untrusted_status = _error.code
+  printf '%s\n' "$untrusted_status" > "$evidence/fixture-untrusted-handshake.exit"
+  if (untrusted_status !== 1) { cat "$evidence/fixture-untrusted-handshake.txt"; echo 'FAIL unknown certificate fixture was not refused by default trust' >&2; exit 1 }
+  rg -F 'verify error:num=18:self-signed certificate' "$evidence/fixture-untrusted-handshake.txt"
+  openssl x509 -in "$evidence/untrusted-certificate.pem" -noout -fingerprint -sha256 -dates > "$evidence/untrusted-certificate.txt"
+}
 var starter = "/data/local/tmp/ib-shizuku-$(sha256sum "$installed/observer.dex" | cut -d ' ' -f 1)/start"
 "$adb" -s "$serial" pull "$starter" "$evidence/observed-starter"
 cmp "$installed/official-starter" "$evidence/observed-starter"
@@ -62,10 +108,16 @@ proc diagnose(label) {
       sed -E 's/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}-[0-9]{10,}/[REDACTED_SERVICE_NONCE]/g' > "$evidence/$label.logcat.txt"
   }
   try { "$adb" -s "$serial" exec-out screencap -p > "$evidence/$label.png" 2> "$evidence/$label.screen-error.txt" }
+  if test -s "$evidence/$label.logcat.txt" {
+    awk '/IBIndependentReadiness|IBIndependentFragmentAddressExpected|IBIndependentFragmentAddressObserved/ {print}' "$evidence/$label.logcat.txt"
+    awk '/IBReader|IBIndependentReaderSurface|IBIndependentSurfaceDiagnosticUnavailable|IBIndependentReaderStatus|IBIndependentSearch|AndroidRuntime/ {line[++n]=$0}
+      END {for(i=(n>36?n-35:1);i<=n;i++)print line[i]}' "$evidence/$label.logcat.txt"
+  }
 }
 proc observe(phase, label, marker) {
+  "$grease" "$repository/ib-source/shizuku/prepare-test-screen.grease" "$adb" "$serial" "$evidence/$label.screen"
   try {
-    timeout 180 "$adb" -s "$serial" shell am instrument -w -r -e phase "$phase" \
+    timeout 480 "$adb" -s "$serial" shell am instrument -w -r -e phase "$phase" \
       org.isomorphisms.ib.acceptance/acceptance.shizuku.CapabilityInstrumentation > "$evidence/$label.txt" 2>&1
   }
   var result = _error.code
@@ -80,6 +132,14 @@ diagnose after-link-history
 if (reader_v2) {
   observe http-refusal actual-http-refusal 'PASS installed actual ICU HTTP 404 refusal preserves visible source clipboard and navigation'
   diagnose after-http-refusal
+  if (reader_v3) {
+    observe transport-refusals actual-transport-refusals 'PASS installed TLS protocol charset UTF8 binary truncation encoding chunking and size refusals preserve source'
+    diagnose after-transport-refusals
+    if (reader_v4) {
+      observe untrusted-tls actual-untrusted-certificate 'PASS installed ICU rejects a real untrusted TLS certificate and retains source copy and history'
+      diagnose after-untrusted-certificate
+    }
+  }
   observe search-callers actual-search-caller-refusals 'PASS installed no-caller spoofed-referrer wrong-caller and warm SEARCH refusals'
   diagnose after-search-caller-refusals
 }
@@ -91,6 +151,47 @@ rg -x -F Success "$evidence/update.txt"
 var updated_uid = $("$adb" -s "$serial" shell pm list packages -U org.isomorphisms.ib.prepaint | tr -d '\r')
 if (updated_uid !== uid) { echo 'FAIL retained navigation update changed UID' >&2; exit 1 }
 observe offline-network-history updated-history 'PASS installed retained three-document Back Forward without Shizuku'
+if (reader_v4) {
+  "$adb" -s "$serial" shell am force-stop org.isomorphisms.ib.prepaint
+  "$adb" -s "$serial" root > "$evidence/recovery-root.txt" 2>&1
+  timeout 30 "$adb" -s "$serial" wait-for-device
+  "$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 0
+  "$adb" -s "$serial" pull /data/user/0/org.isomorphisms.ib.prepaint/files/arena "$evidence/pre-recovery-arena"
+  chmod 700 "$evidence/pre-recovery-arena"
+  mkdir -m 700 "$evidence/pre-recovery-arena/staging"
+  "$grease" "$repository/ib-source/reader/verify-network-index.grease" "$repository" \
+    "$evidence/pre-recovery-arena" "$evidence/pre-recovery-arena/last-source" "$fixtures" "$evidence/pre-recovery-positive" \
+    > "$evidence/pre-recovery-positive.txt" 2>&1
+  cat "$evidence/pre-recovery-positive.txt"
+  var prior_one = $(sed -n '7p' "$evidence/pre-recovery-arena/last-source")
+  var prior_id = $(printf '%s\n' "$prior_one" | cut -f 1)
+  var prior_generation = $(printf '%s\n' "$prior_one" | cut -f 2)
+  printf 'IBLAST2\n%s\n%s\nIBH1\n1\n' "$prior_id" "$prior_generation" > "$evidence/expected-previous-prefix"
+  sed -n '6,8p' "$evidence/pre-recovery-arena/last-source" >> "$evidence/expected-previous-prefix"
+  var prior_digest = $(sha256sum "$evidence/expected-previous-prefix" | cut -d ' ' -f 1)
+  cp "$evidence/expected-previous-prefix" "$evidence/expected-previous"
+  printf '%s\n' "$prior_digest" >> "$evidence/expected-previous"
+  cmp "$evidence/expected-previous" "$evidence/pre-recovery-arena/last-source.previous"
+  head -n 8 "$evidence/pre-recovery-arena/last-source" | sed '5s/^2$/1/' > "$evidence/recovery-corrupted-prefix"
+  if cmp -s "$evidence/pre-recovery-positive/actual-prefix" "$evidence/recovery-corrupted-prefix" {
+    echo 'FAIL unchanged journal corruption' >&2; exit 1
+  }
+  var altered_digest = $(sha256sum "$evidence/recovery-corrupted-prefix" | cut -d ' ' -f 1)
+  cp "$evidence/recovery-corrupted-prefix" "$evidence/recovery-forged-index"
+  printf '%s\n' "$altered_digest" >> "$evidence/recovery-forged-index"
+  var device_uid = $("$adb" -s "$serial" shell pm list packages -U org.isomorphisms.ib.prepaint | tr -d '\r' | sed -n 's/^package:org.isomorphisms.ib.prepaint uid:\([0-9][0-9]*\)$/\1/p')
+  printf '%s\n' "$device_uid" | rg -x '[1-9][0-9]{4,}'
+  "$adb" -s "$serial" push "$evidence/recovery-forged-index" /data/user/0/org.isomorphisms.ib.prepaint/files/arena/last-source
+  "$adb" -s "$serial" shell chown "$device_uid:$device_uid" /data/user/0/org.isomorphisms.ib.prepaint/files/arena/last-source
+  "$adb" -s "$serial" shell chmod 600 /data/user/0/org.isomorphisms.ib.prepaint/files/arena/last-source
+  "$adb" -s "$serial" pull /data/user/0/org.isomorphisms.ib.prepaint/files/arena/last-source "$evidence/installed-forged-index"
+  cmp "$evidence/recovery-forged-index" "$evidence/installed-forged-index"
+  "$adb" -s "$serial" unroot > "$evidence/recovery-unroot.txt" 2>&1
+  timeout 30 "$adb" -s "$serial" wait-for-device
+  "$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 2000
+  observe corrupt-history-recovered recovered-journal 'PASS installed checksummed journal corruption recovers previous source and offline history'
+  diagnose after-journal-recovery
+}
 "$adb" -s "$serial" shell am force-stop org.isomorphisms.ib.prepaint
 "$adb" -s "$serial" root > "$evidence/snapshot-root.txt" 2>&1
 timeout 30 "$adb" -s "$serial" wait-for-device
@@ -124,4 +225,19 @@ cat "$evidence/receipt.tsv"
 
 if (reader_v2) {
   printf 'installed_HTTP_404_refusal\tPASS\nHTTP_error_retains_view_clipboard_history\tPASS\nno_caller_spoofed_referrer_wrong_caller_warm_SEARCH\tREJECTED\n' >> "$evidence/receipt.tsv"
+}
+
+if (reader_v3) {
+  printf 'TLS_plaintext_endpoint\tREJECTED\nunsupported_charset_and_invalid_UTF8\tREJECTED\nbinary_MIME\tREJECTED\ntruncated_and_gzip_encoded_payload\tREJECTED\nmalformed_and_excessive_chunk\tREJECTED\nall_refusals_keep_exact_source_copy_and_history\tPASS\n' >> "$evidence/receipt.tsv"
+}
+
+if (reader_v4) {
+  cmp "$evidence/pre-recovery-arena/responses.arena" "$evidence/actual-arena/responses.arena"
+  printf 'checksummed_semantic_journal_corruption\tREJECTED\nprevious_head_visible_recovery\tPASS\no_refetch_during_recovery\tPASS\noriginal_Arena_bytes_unchanged\tPASS\n' >> "$evidence/receipt.tsv"
+}
+
+if (reader_v3) {
+  if (reader_v4) {
+    printf 'certificate_trust_negative\tREJECTED\nfixture_explicit_trust_control\tPASS\nfixture_default_trust_control\tREJECTED\n' >> "$evidence/receipt.tsv"
+  } else { printf 'certificate_trust_negative\tNOT_RUN\n' >> "$evidence/receipt.tsv" }
 }

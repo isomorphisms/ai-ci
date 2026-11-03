@@ -1,0 +1,20 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 2) { echo 'usage: grease verify-selection-controls.grease AICI NEW_EVIDENCE' >&2; exit 2 }
+var repository = ARGV[0]
+var evidence = ARGV[1]
+var grease = ENV.IB_GREASE
+if test -e "$evidence" { exit 2 }
+mkdir -p "$evidence"
+printf 'Fixture title: WWWWWWWWWW\n\nhttps://example.org/path\n' > "$evidence/copied.txt"
+printf 'Fixture title:\nWWWWW\nWWWWW\n\nhttps://example.org/\npath\n' > "$evidence/displayed.txt"
+"$grease" "$repository/ib-source/reader/verify-native-google-selection.grease" \
+  "$evidence/copied.txt" "$evidence/displayed.txt" "$evidence/positive"
+sed 's/path/fake/' "$evidence/displayed.txt" > "$evidence/changed.txt"
+try {
+  "$grease" "$repository/ib-source/reader/verify-native-google-selection.grease" \
+    "$evidence/copied.txt" "$evidence/changed.txt" "$evidence/negative" > "$evidence/negative.txt" 2>&1
+}
+if (_error.code !== 1) { echo 'FAIL changed native characters did not fail their semantic assertion' >&2; exit 1 }
+rg -x -F 'FAIL actual Google SDK copy and native visible character correspondence' "$evidence/negative.txt"
+printf 'source_wraps_preserve_all_visible_characters\tPASS\nchanged_native_destination_characters\tREJECTED\nGoogle_live_results\tNOT_RUN\nAndroid_ART\tNOT_RUN\n' > "$evidence/receipt.tsv"

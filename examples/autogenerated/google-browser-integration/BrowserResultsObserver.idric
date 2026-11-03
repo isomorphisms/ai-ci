@@ -1,0 +1,180 @@
+module BrowserResultsObserver
+
+import Data.Text
+import IB.HtmlPrepaint
+import IB.WebSearch.Results
+import IB.RecoveredInformation
+import System
+import BrowserLayoutObserver
+
+digest : Text
+digest = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+
+requested : Text
+requested = "https://google.com/search?q=music"
+
+resolved : Text
+resolved = "https://www.google.com/search?q=music"
+
+opaque_href : Text
+opaque_href = "/url?q=CAESDindependent_control"
+
+dom : Text
+dom = "<html><body><div class=\"MjjYud\"><a href=\"/url?q=CAESDindependent_control\"><span>example.orghttps://example.org/music</span><h3><div>Music <em>&amp; sound</em></div></h3><span>Unrelated badge</span></a><div data-sncf=\"1\">Public music snippet.</div></div></body></html>"
+
+dom_fields : BrowserDomEvidence
+dom_fields = BrowserDomSourceEvidence "arena-dom:observer" "12" digest digest
+  (cast (length (unpack dom))) (cast (length (unpack dom))) requested resolved
+  "arena:parent" "12" digest "com.android.webview" "74.0.3729.185"
+  "webview-content-outerHTML-utf8-v1" True True
+
+body : Text
+body = "<html><title>Public music</title><body>Sound</body></html>"
+
+response : HtmlEvidence
+response = HtmlSourceEvidence "arena:response" "12" digest digest
+  (cast (length (unpack body))) (cast (length (unpack body)))
+  "https://www.google.com/url?q=CAESDindependent_control" "https://example.org/music"
+  "text/html" "utf-8" "200" True True
+
+check : Text → Bool → IO ()
+check name True = putStrLn ("PASS independent " ++ name)
+check name False = do
+  putStrLn ("FAIL independent " ++ name)
+  exitFailure
+
+refused_dom : BrowserDomEvidence → Bool
+refused_dom fields = case convert_committed_browser_dom fields dom of
+  Left _ ⇒ True
+  _ ⇒ False
+
+fixture_snippets : Text → List (Maybe Text)
+fixture_snippets html =
+  let evidence = HtmlSourceEvidence "independent-semantic-fixture" "12" digest digest
+        (cast (length (unpack html))) (cast (length (unpack html))) requested resolved
+        "text/html" "utf-8" "200" True True in
+  case convert_admitted_html evidence html of
+    Right source ⇒ case google_results_from_source source of
+      Right (Just search) ⇒ map (\result ⇒ result.snippet) search.results
+      _ ⇒ []
+    _ ⇒ []
+
+observed_goto_correspondence : Bool
+observed_goto_correspondence =
+  let href = "/goto?url=CAESDindependent_control"
+      html = "<a href=\"" ++ href ++ "\"><h3>Music</h3></a>"
+      fields = { claimed_bytes := cast (length (unpack html)),
+                 reopened_bytes := cast (length (unpack html)) } dom_fields
+      target_fields = { requested_url := "https://www.google.com" ++ href } response in
+  case convert_committed_browser_dom fields html of
+    Left _ ⇒ False
+    Right source ⇒ case google_acquisition_candidates source of
+      Right [candidate] ⇒ case verify_google_destination source candidate.anchor_occurrence href target_fields body of
+        Left _ ⇒ False
+        Right target ⇒ case google_results_with_destinations source [target] of
+          Right (Just results) ⇒ case results.results of
+            [result] ⇒ result.title ≟ "Music" && result.destination ≟ "https://example.org/music"
+            _ ⇒ False
+          _ ⇒ False
+      _ ⇒ False
+
+resolved_direct_scope : Bool
+resolved_direct_scope =
+  let html = "<a href=\"https://example.org/music\"><h3>Music</h3></a><a href=\"https://example.net/sound\"><h3>Unresolved</h3></a>"
+      fields = { claimed_bytes := cast (length (unpack html)),
+                 reopened_bytes := cast (length (unpack html)) } dom_fields
+      target_fields = { requested_url := "https://example.org/music" } response in
+  case convert_committed_browser_dom fields html of
+    Left _ ⇒ False
+    Right source ⇒ case google_results_from_source source of
+      Right _ ⇒ False
+      Left _ ⇒ case google_acquisition_candidates source of
+        Right [first, second] ⇒ case verify_google_destination source first.anchor_occurrence first.original_href target_fields body of
+          Left _ ⇒ False
+          Right target ⇒ case google_results_with_destinations source [target] of
+            Right (Just results) ⇒ map (\result ⇒ (result.title, result.destination)) results.results ≟
+              [("Music", "https://example.org/music")]
+            _ ⇒ False
+        _ ⇒ False
+
+main : IO ()
+main = do
+  check "DOM and ICU source kind separation" (refused_dom ({ source_key := "arena:observer" } dom_fields))
+  check "DOM parent generation correspondence" (refused_dom ({ parent_source_generation := "13" } dom_fields))
+  check "DOM original byte digest correspondence" (refused_dom ({ reopened_sha256 := "bad" } dom_fields))
+  check "DOM byte count correspondence" (refused_dom ({ claimed_bytes := 1 } dom_fields))
+  check "browser control and changed query refusal"
+    (not (google_browser_location requested "https://consent.google.com/") &&
+     not (google_browser_location requested "https://www.google.com/search?q=other"))
+  let first = "<a href=\"https://example.org/music\"><h3>Music</h3></a>"
+  let second = "<a href=\"https://example.net/sound\"><h3>Sound</h3></a>"
+  let snippet = "<div data-sncf=\"1\">Public music snippet.</div>"
+  check "ambiguous snippet group refusal"
+    (fixture_snippets ("<div class=\"MjjYud\">" ++ first ++ second ++ snippet ++ "</div>") ≟ [Nothing, Nothing])
+  check "unrelated snippet refusal" (fixture_snippets (first ++ snippet) ≟ [Nothing])
+  check "observed goto requires a corresponding retained ICU destination" observed_goto_correspondence
+  check "ambiguous goto parameters refusal"
+    (google_snapshot_candidate_count requested resolved
+      "<a href=\"/goto?url=CAESDindependent_control&amp;q=other\"><h3>Music</h3></a>" ≟ 0)
+  check "ambiguous multiple result headings refusal"
+    (google_snapshot_candidate_count requested resolved
+      "<a href=\"/url?q=CAESDindependent_control\"><h3>First</h3><h3>Second</h3></a>" ≟ 0)
+  check "synthetic recovery boundaries do not erase actual heading content"
+    (google_snapshot_candidate_count requested resolved
+      "<a href=\"/url?q=CAESDindependent_control\"><h3><div>Music</div></h3></a>" ≟ 1)
+  check "unresolved browser direct links require corresponding original ICU acquisition" resolved_direct_scope
+  case convert_committed_browser_dom dom_fields dom of
+    Left _ ⇒ check "admitted retained browser serialization" False
+    Right source ⇒ do
+      check "opaque Google href is not a public result"
+        (case google_results_from_source source of
+          Left _ ⇒ True
+          _ ⇒ False)
+      case google_acquisition_candidates source of
+        Right [candidate] ⇒ do
+          let verify = verify_google_destination source candidate.anchor_occurrence opaque_href
+          check "resolved result generation correspondence"
+            (case verify ({ source_generation := "13" } response) body of
+              Left _ ⇒ True
+              _ ⇒ False)
+          check "resolved result original request correspondence"
+            (case verify ({ requested_url := "https://www.google.com/url?q=other_control" } response) body of
+              Left _ ⇒ True
+              _ ⇒ False)
+          check "resolved result original digest correspondence"
+            (case verify ({ reopened_sha256 := "bad" } response) body of
+              Left _ ⇒ True
+              _ ⇒ False)
+          check "resolved result first-party control refusal"
+            (case verify ({ resolved_url := "https://www.google.com/httpservice/retry/enablejs" } response) body of
+              Left _ ⇒ True
+              _ ⇒ False)
+          check "resolved result wrong-anchor refusal"
+            (case verify_google_destination source (S candidate.anchor_occurrence) opaque_href response body of
+              Left _ ⇒ True
+              _ ⇒ False)
+          case verify response body of
+            Left _ ⇒ check "verified public ICU destination" False
+            Right target ⇒ do
+              check "heading title excludes anchor labels while retaining the public ICU target"
+                (case google_results_with_destinations source [target] of
+                  Right (Just results) ⇒ case results.results of
+                    [result] ⇒ result.title ≟ "Music & sound" && result.destination ≟ "https://example.org/music" &&
+                      result.source_key ≟ "arena-dom:observer" && result.source_generation ≟ "12" &&
+                      result.snippet ≟ Just "Public music snippet." &&
+                      (case result.source_provenance of
+                        RenderedBrowserDom _ ⇒ True
+                        _ ⇒ False)
+                    _ ⇒ False
+                  _ ⇒ False)
+              check "duplicate resolution refusal"
+                (case google_results_with_destinations source [target, target] of
+                  Left _ ⇒ True
+                  _ ⇒ False)
+              check "wrong recovered source identity refusal"
+                (case google_results_with_destinations
+                  ({ recovered := DocumentLog "wrong" (document_log_events source.recovered) } source) [target] of
+                    Left _ ⇒ True
+                    _ ⇒ False)
+        _ ⇒ check "one real retained acquisition candidate" False
+  layout_checks

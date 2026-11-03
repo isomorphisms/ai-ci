@@ -1,0 +1,46 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 2) { echo 'requires AICI NEW_EVIDENCE' >&2; exit 2 }
+var acceptance = ARGV[0]
+var evidence = ARGV[1]
+var grease = ENV.IB_GREASE
+var verifier = "$acceptance/ib-source/reader/verify-browser-dom-receipt-shape.grease"
+if test -e "$evidence" { exit 2 }
+mkdir -m 700 -p "$evidence"
+# Nonempty boundary-only values exercise shape, never Google or source success.
+for count in 1 2 3 {
+  awk -v count="$count" 'BEGIN{OFS="\t";
+    n=split("schema request_id source_generation requested_url resolved_url parent_id parent_generation parent_sha256 provider_package provider_version serialization arena_offset byte_count sha256 target_count complete",base," ");
+    for(i=1;i<=n;i++)print base[i],(base[i]=="target_count"?count:"BOUNDARY_ONLY");
+    for(i=1;i<=count;i++){print "target"i"_occurrence",i;print "target"i"_href","BOUNDARY_ONLY";print "target"i"_requested","BOUNDARY_ONLY";print "target"i"_id","BOUNDARY_ONLY"}
+  }' > "$evidence/valid-$count.tsv"
+  "$grease" "$verifier" "$evidence/valid-$count.tsv"
+}
+proc refuse(name) {
+  try { "$grease" "$verifier" "$evidence/$name.tsv" > "$evidence/$name.txt" 2>&1 }
+  if (_error.code !== 1) { echo "FAIL $name receipt shape was not refused" >&2; exit 1 }
+}
+awk -F '\t' '$1!="parent_sha256"' "$evidence/valid-2.tsv" > "$evidence/missing-parent.tsv"
+refuse missing-parent
+cat "$evidence/valid-2.tsv" > "$evidence/duplicate-parent.tsv"
+printf 'parent_sha256\tBOUNDARY_ONLY\n' >> "$evidence/duplicate-parent.tsv"
+refuse duplicate-parent
+cat "$evidence/valid-2.tsv" > "$evidence/duplicate-target.tsv"
+printf 'target1_href\tBOUNDARY_ONLY\n' >> "$evidence/duplicate-target.tsv"
+refuse duplicate-target
+awk -F '\t' '$1!="target2_requested"' "$evidence/valid-2.tsv" > "$evidence/missing-target.tsv"
+refuse missing-target
+cat "$evidence/valid-2.tsv" > "$evidence/unknown-field.tsv"
+printf 'fabricated\tBOUNDARY_ONLY\n' >> "$evidence/unknown-field.tsv"
+refuse unknown-field
+awk -F '\t' 'BEGIN{OFS="\t"}$1=="target_count"{$2=3}{print}' "$evidence/valid-2.tsv" > "$evidence/fabricated-target.tsv"
+refuse fabricated-target
+awk -F '\t' 'BEGIN{OFS="\t"}$1=="target_count"{$2=1}{print}' "$evidence/valid-2.tsv" > "$evidence/undeclared-target.tsv"
+refuse undeclared-target
+awk -F '\t' 'BEGIN{OFS="\t"}$1=="target_count"{$2=0}{print}' "$evidence/valid-2.tsv" > "$evidence/zero-targets.tsv"
+refuse zero-targets
+awk -F '\t' 'BEGIN{OFS="\t"}$1=="target_count"{$2=4}{print}' "$evidence/valid-2.tsv" > "$evidence/excess-targets.tsv"
+refuse excess-targets
+awk -F '\t' 'BEGIN{OFS="\t"}$1=="target1_href"{$2=""}{print}' "$evidence/valid-2.tsv" > "$evidence/empty-target.tsv"
+refuse empty-target
+printf 'one_two_three_target_shapes\tPASS\nmissing_duplicate_unknown_empty_count_controls\t10_REJECTED\nGoogle_semantics\tNOT_TESTED_BY_THIS_BOUNDARY\n' > "$evidence/receipt.tsv"

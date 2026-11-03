@@ -1,0 +1,34 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 3) { echo 'usage: grease prepare-recursive-replay.grease AICI NEW_EVIDENCE API' >&2; exit 2 }
+var repository = ARGV[0]
+var evidence = ARGV[1]
+var api = ARGV[2]
+if (api !== '29' and api !== '34') { exit 2 }
+for path in "$repository" "$evidence" {
+  if (len(path) === 0 or path[0] !== '/') { exit 2 }
+}
+if test -e "$evidence" { echo 'FAIL reused recursive source replay' >&2; exit 2 }
+mkdir -p "$evidence/input"
+var artifact = '13087407634'
+var count = '20581552'
+var digest = '2be42a39971478c26e29b7eddc502447249a374900cac59efeacb07291a64de2'
+if (api === '34') {
+  setglobal artifact = '13088210325'
+  setglobal count = '20582141'
+  setglobal digest = 'f6169d3b2c2b5b3276ca35eb86be1862d58dbd76b19854606085d3474163a430'
+}
+var authorization = ENV.GITHUB_TOKEN
+curl --fail --location --silent --show-error --max-time 120 \
+  --header "Authorization: Bearer $authorization" \
+  "https://api.github.com/repos/isomorphisms/android-NDK/actions/artifacts/$artifact/zip" --output "$evidence/original.zip"
+test "$(wc -c < "$evidence/original.zip")" = "$count"
+printf '%s  %s\n' "$digest" "$evidence/original.zip" | sha256sum -c -
+unzip -q "$evidence/original.zip" -d "$evidence/input"
+test "$(cat "$evidence/input/integration-commit.txt")" = 6e1c9619a96f28494ad891a32a06edfb72f3e25b
+test "$(cat "$evidence/input/recursive-consumer/compiler-source.txt")" = 6e1c9619a96f28494ad891a32a06edfb72f3e25b
+test "$(cat "$evidence/input/recursive-consumer/IB-source.txt")" = 966a613a79b2a5800c209298800678bd984d4966
+printf '70059f92012c46eae0dfe372e0c0f0e1219fd8d7fb95b6849270efaa9f487c52  %s\n' \
+  "$evidence/input/recursive-consumer/prepaint/reader.dex" | sha256sum -c -
+git -C "$repository" rev-parse HEAD > "$evidence/observer-commit.txt"
+printf 'schema\tidric-recursive-replay-input-v1\ncompiler_source\t6e1c9619a96f28494ad891a32a06edfb72f3e25b\nIB_source\t966a613a79b2a5800c209298800678bd984d4966\noriginal_run\t41315882527\nartifact\t%s\narchive_sha256\t%s\napi\t%s\n' "$artifact" "$digest" "$api" > "$evidence/input-identity.tsv"

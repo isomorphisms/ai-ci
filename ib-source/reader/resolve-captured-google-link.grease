@@ -1,0 +1,87 @@
+#!/usr/bin/env grease
+# Follow actual retained Google result hrefs with the maintained ICU command.
+# Opaque redirect parameters are never decoded, fabricated or called a public
+# destination. Only observed redirect provenance can resolve them.
+set -eu -o pipefail
+if (len(ARGV) !== 4 and len(ARGV) !== 5) { echo 'usage: grease resolve-captured-google-link.grease ICU ORIGINAL_BROWSER_ZIP NEW_EVIDENCE GREASE [api34-goto]' >&2; exit 2 }
+var icu = ARGV[0]
+var archive = ARGV[1]
+var evidence = ARGV[2]
+var grease = ARGV[3]
+if test -e "$evidence" { echo 'FAIL reused result resolution evidence' >&2; exit 2 }
+var checksum = '8d1622bb15c56d488aefb3997dc2d6b48a07f0f0ba37e8f6f8629ca1721c8473'
+var snapshot = '29'
+var reference_path = '/url?'
+if (len(ARGV) === 5) {
+  if (ARGV[4] !== 'api34-goto') { exit 2 }
+  setvar checksum = 'dff12e3088eb0a849110309fa2a4d15ede66c3aa9958f8f33161152780fc10f8'
+  setvar snapshot = '28'
+  setvar reference_path = '/goto?'
+}
+printf '%s  %s\n' "$checksum" "$archive" | sha256sum -c -
+umask 077
+mkdir -m 700 -p "$evidence/input"
+unzip -Z1 "$archive" > "$evidence/entries.txt"
+if rg -q '(^/|(^|/)\.\.(/|$))' "$evidence/entries.txt" { echo 'FAIL unsafe original browser archive' >&2; exit 1 }
+unzip -q "$archive" -d "$evidence/input" "browser-probe/snapshot-$snapshot.dom.html" "browser-probe/snapshot-$snapshot.url.txt" browser-probe/provenance.tsv webview-provider.txt
+var dom = "$evidence/input/browser-probe/snapshot-$snapshot.dom.html"
+var resolved = $(cat "$evidence/input/browser-probe/snapshot-$snapshot.url.txt")
+if (not resolved.startsWith('https://www.google.com/search?') and not resolved.startsWith('https://google.com/search?')) { echo 'FAIL unexpected original browser origin' >&2; exit 1 }
+sha256sum "$dom" "$evidence/input/browser-probe/snapshot-$snapshot.url.txt" > "$evidence/original.sha256"
+var headings = '//a[.//h3 or .//*[@role="heading"]][not(ancestor::nav or ancestor::header or ancestor::footer or ancestor::script or ancestor::template)]'
+var positives = 0
+var captured_responses = 0
+proc public_destination(address, output) {
+  printf '%s\n' "$address" > "$output"
+  if ! rg -q -x 'https://[A-Za-z0-9][A-Za-z0-9.-]*(:[0-9]{1,5})?([/?#][!-~]*)?' "$output" { return 1 }
+  if rg -q '[<>"\\]|%([01][0-9A-Fa-f]|7[Ff])' "$output" { return 1 }
+  var host = $(printf '%s\n' "$address" | awk -F / '{split($3,a,":");print tolower(a[1])}')
+  printf '%s\n' "$host" > "$output.host"
+  if ! rg -q '\.' "$output.host" { return 1 }
+  if rg -q '(^|\.)(google\.[a-z.]+|gstatic\.com|googleusercontent\.com|googleadservices\.com|localhost|local|invalid|test)$|^[0-9.]+$|^\.|\.$|\.\.' "$output.host" { return 1 }
+  return 0
+}
+printf 'anchor_occurrence\tICU_exit\tHTTP_status\tbody_bytes\tresolved_public_document\n' > "$evidence/summary.tsv"
+for index in 1 2 3 {
+  var destination = "$evidence/result-$index"
+  mkdir -m 700 "$destination"
+  xmllint --html --recover --nonet --xpath "string(($headings)[$index]/@href)" "$dom" > "$destination/original-href.txt" 2> "$destination/parser.stderr"
+  xmllint --html --recover --nonet --xpath "normalize-space(string(($headings)[$index]))" "$dom" > "$destination/original-title.txt" 2>> "$destination/parser.stderr"
+  var href = $(cat "$destination/original-href.txt")
+  if (not href.startsWith(reference_path) or len(href) > 1900) { echo 'FAIL selected heading lacks a bounded actual Google redirect' >&2; exit 1 }
+  var requested = 'https://www.google.com' ++ href
+  printf '%s\n' "$requested" > "$destination/requested-url.txt"
+  printf '%s\n' --http1.1 get "$requested" > "$destination/arguments.txt"
+  try {
+    env ICU_CAPTURE_BODY_PATH="$destination/body" ICU_CAPTURE_METADATA_PATH="$destination/metadata.tsv" \
+      timeout 60 "$icu" --http1.1 get "$requested" > "$destination/stdout.bin" 2> "$destination/stderr.txt"
+  }
+  var transport_status = _error.code
+  printf '%s\n' "$transport_status" > "$destination/transport.exit"
+  var status = 'UNOBSERVED'
+  var amount = '0'
+  var outcome = 'NO'
+  if test -s "$destination/metadata.tsv" {
+    setvar captured_responses += 1
+    setvar status = $(awk -F '\t' '$1=="http_status"{print $2}' "$destination/metadata.tsv")
+    var final = $(awk -F '\t' '$1=="resolved_url"{print $2}' "$destination/metadata.tsv")
+    setvar amount = $(stat -c %s "$destination/body")
+    sha256sum "$destination/body" "$destination/metadata.tsv" > "$destination/original-response.sha256"
+    printf '%s\n' "$final" > "$destination/final-url.txt"
+    try { public_destination "$final" "$destination/public-url.txt" }
+    var public_status = _error.code
+    var declared = $(awk -F '\t' '$1=="received_length"{print $2}' "$destination/metadata.tsv")
+    var mime = $(awk -F '\t' '$1=="content_type"{print $2}' "$destination/metadata.tsv")
+    if (transport_status === 0 and status === '200' and public_status === 0 and
+        amount === declared and int(amount) > 0 and int(amount) <= 4194304 and
+        (mime === 'text/html' or mime.startsWith('text/html;'))) {
+      setvar outcome = 'OBSERVED_PUBLIC_FINAL_RESPONSE'
+      setvar positives += 1
+    }
+  }
+  printf '%s\t%s\t%s\t%s\t%s\n' "$index" "$transport_status" "$status" "$amount" "$outcome" >> "$evidence/summary.tsv"
+}
+printf 'captured_browser_result_hrefs\t3\nobserved_non_Google_HTTPS_200_targets\t%s\nbrowser_rendered_origin\tEXPLICIT\nICU_only_search\tFAIL\nnative_result_UI\tNOT_RUN\n' "$positives" > "$evidence/receipt.tsv"
+cat "$evidence/summary.tsv" "$evidence/receipt.tsv"
+if (captured_responses === 0) { echo 'FAIL no actual ICU response was captured' >&2; exit 1 }
+if (positives === 0) { echo 'FAIL no captured titled Google reference resolved to an actual public document' >&2; exit 1 }

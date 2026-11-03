@@ -1,0 +1,208 @@
+#!/usr/bin/env grease
+# Stronger continuation of the genuine caller/query/original-byte observer.
+set -eu -o pipefail
+if (len(ARGV) !== 9) { echo 'usage: grease observe-search-results.grease AICI INPUT SDK ADB SERIAL INSTALLED NAVIGATION CHORD NEW_EVIDENCE' >&2; exit 2 }
+var repository = ARGV[0]
+var input = ARGV[1]
+var sdk = ARGV[2]
+var adb = ARGV[3]
+var serial = ARGV[4]
+var installed = ARGV[5]
+var navigation = ARGV[6]
+var chord = ARGV[7]
+var evidence = ARGV[8]
+var grease = ENV.IB_GREASE
+if test -e "$evidence" { echo 'FAIL reused result observer evidence' >&2; exit 2 }
+mkdir -p "$evidence"
+"$grease" "$repository/ib-source/reader/test-google-href.grease" "$repository" "$evidence/href-controls"
+"$grease" "$repository/ib-source/shizuku/observe-search.grease" \
+  "$repository" "$input" "$sdk" "$adb" "$serial" "$installed" "$navigation" "$chord" "$evidence/handoff"
+var starter = "/data/local/tmp/ib-shizuku-$(sha256sum "$installed/observer.dex" | cut -d ' ' -f 1)/start"
+"$adb" -s "$serial" pull "$starter" "$evidence/observed-starter"
+cmp "$installed/official-starter" "$evidence/observed-starter"
+var manager = $("$adb" -s "$serial" shell pm path moe.shizuku.privileged.api | tr -d '\r' | sed -n 's/^package://p')
+printf '%s\n' "$manager" | rg -x '/data/app/[A-Za-z0-9_./~+=-]+/base\.apk'
+var existing = $("$adb" -s "$serial" shell ps -A -o PID,NAME | tr -d '\r' | awk '$2=="shizuku_server"{print $1}')
+if (len(existing) !== 0) { echo 'FAIL reused authority before result touch' >&2; exit 1 }
+"$adb" -s "$serial" shell "$starter" "--apk=$manager" > "$evidence/start-server.txt" 2>&1
+proc diagnose(label) {
+  try {
+    "$adb" -s "$serial" logcat -d -v threadtime 2>&1 |
+      sed -E 's/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}-[0-9]{10,}/[REDACTED_SERVICE_NONCE]/g' > "$evidence/$label.logcat.txt"
+  }
+  if test -s "$evidence/$label.logcat.txt" {
+    awk '/IBIndependentReaderSurface|IBIndependentSurfaceDiagnosticUnavailable|IBIndependentReaderStatus|IBIndependentReaderBody|IBIndependentClickedSearchURL|IBIndependentReaderStack|IBReader.*checked renderer/ {line[++n]=$0}
+      END {for(i=(n>44?n-43:1);i<=n;i++)print line[i]}' "$evidence/$label.logcat.txt"
+  }
+  try { "$adb" -s "$serial" exec-out screencap -p > "$evidence/$label.png" 2> "$evidence/$label.screen-error.txt" }
+}
+proc observe(phase, label, marker) {
+  "$grease" "$repository/ib-source/shizuku/prepare-test-screen.grease" "$adb" "$serial" "$evidence/$label.screen"
+  try {
+    timeout 240 "$adb" -s "$serial" shell am instrument -w -r -e phase "$phase" \
+      org.isomorphisms.ib.acceptance/acceptance.shizuku.CapabilityInstrumentation > "$evidence/$label.txt" 2>&1
+  }
+  var result = _error.code
+  printf '%s\n' "$result" > "$evidence/$label.exit"
+  cat "$evidence/$label.txt"
+  diagnose "$label"
+  if (result !== 0) { echo 'FAIL actual Google result observer process' >&2; exit 1 }
+  rg -x -F 'INSTRUMENTATION_CODE: -1' "$evidence/$label.txt"
+  rg -x -F "INSTRUMENTATION_RESULT: stream=$marker" "$evidence/$label.txt"
+}
+# Try only Google's actual visible first-party continuation when its native
+# body is the exact observed redirect placeholder. This remains diagnostic:
+# a continuation response never becomes a public-result PASS automatically.
+"$grease" "$repository/ib-source/shizuku/prepare-test-screen.grease" "$adb" "$serial" "$evidence/continuation.screen"
+try {
+  timeout 240 "$adb" -s "$serial" shell am instrument -w -r -e phase google-continuation \
+    org.isomorphisms.ib.acceptance/acceptance.shizuku.CapabilityInstrumentation > "$evidence/continuation.txt" 2>&1
+}
+var continuation_status = _error.code
+cat "$evidence/continuation.txt"
+diagnose continuation
+if (continuation_status !== 0) { echo 'FAIL native Google continuation observer process' >&2; exit 1 }
+rg -q -x -F 'INSTRUMENTATION_CODE: -1' "$evidence/continuation.txt"
+if rg -q -x -F 'INSTRUMENTATION_RESULT: stream=OBSERVED first-party Google continuation; results remain unqualified' "$evidence/continuation.txt" {
+  "$adb" -s "$serial" logcat -d -v raw -s IBIndependentGoogleContinuationURL:I '*:S' > "$evidence/continuation-URL.log"
+  sed '/^[[:space:]]*$/d; /^---------/d' "$evidence/continuation-URL.log" > "$evidence/continuation-URL.txt"
+  var uri_count = $(wc -l < "$evidence/continuation-URL.txt")
+  if (int(uri_count) !== 1) { echo 'FAIL continuation did not identify one actual touched URI' >&2; exit 1 }
+  var uri = $(cat "$evidence/continuation-URL.txt")
+  "$grease" "$repository/ib-source/reader/verify-google-href.grease" \
+    "$evidence/handoff/Google-original/body" "$uri" "$evidence/original-continuation-link"
+  "$adb" -s "$serial" shell am force-stop org.isomorphisms.ib.prepaint
+  "$adb" -s "$serial" root > "$evidence/continuation-root.txt" 2>&1
+  timeout 30 "$adb" -s "$serial" wait-for-device
+  "$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 0
+  "$adb" -s "$serial" pull /data/user/0/org.isomorphisms.ib.prepaint/files/arena "$evidence/continuation-arena"
+  "$adb" -s "$serial" unroot > "$evidence/continuation-unroot.txt" 2>&1
+  timeout 30 "$adb" -s "$serial" wait-for-device
+  "$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 2000
+  chmod 700 "$evidence/continuation-arena"
+  mkdir -m 700 "$evidence/continuation-arena/staging"
+  var found = 0
+  var identity = ''
+  var generation = ''
+  var charset = ''
+  var observed_receipt = ''
+  for receipt in @(rg --files "$evidence/continuation-arena/receipts") {
+    if rg -q -x -F "requested_url	$uri" "$receipt" {
+      setglobal found = found + 1
+      setglobal identity = $(awk -F '\t' '$1=="request_id"{print $2}' "$receipt")
+      setglobal generation = $(awk -F '\t' '$1=="source_generation"{print $2}' "$receipt")
+      setglobal charset = $(awk -F '\t' '$1=="charset"{print $2}' "$receipt")
+      setglobal observed_receipt = receipt
+    }
+  }
+  if (found !== 1) { echo 'FAIL touched first-party continuation has no unique captured response' >&2; exit 1 }
+  awk -F '\t' 'BEGIN{OFS="\t"}
+    $1=="requested_url" || $1=="resolved_url" {sub(/\?.*/,"?[QUERY_OMITTED]",$2); print; next}
+    $1=="redirect_chain" {print "redirect_chain_recorded","YES"; next}
+    {print}' "$observed_receipt" > "$evidence/continuation-observations.tsv"
+  cat "$evidence/continuation-observations.tsv"
+  "$grease" "$repository/ib-source/reader/verify-decoder-original.grease" \
+    "$repository" "$evidence/continuation-arena" "$identity" "$generation" "$uri" "$charset" - \
+    "$evidence/continuation-original" observed-google-continuation-v1 "$uri" > "$evidence/continuation-original.txt" 2>&1
+  cat "$evidence/continuation-original.txt"
+  var offset = $(awk -F '\t' '$1=="arena_offset"{print $2}' "$observed_receipt")
+  var first = $(od -An -tu1 -N1 "$evidence/continuation-original/body" | tr -d '[:space:]')
+  var replacement = 'X'
+  if (first === '88') { setglobal replacement = 'Y' }
+  cp -R "$evidence/continuation-arena" "$evidence/continuation-changed-byte"
+  printf '%s' "$replacement" | dd "of=$evidence/continuation-changed-byte/responses.arena" bs=1 "seek=$offset" conv=notrunc status=none
+  try {
+    "$grease" "$repository/ib-source/reader/verify-decoder-original.grease" \
+      "$repository" "$evidence/continuation-changed-byte" "$identity" "$generation" "$uri" "$charset" - \
+      "$evidence/continuation-byte-rejected" observed-google-continuation-v1 "$uri" > "$evidence/continuation-byte-rejected.txt" 2>&1
+  }
+  var changed_status = _error.code
+  if (changed_status !== 1) { echo 'FAIL changed continuation bytes missed their designated refusal' >&2; exit 1 }
+  rg -x -F 'FAIL original source field sha256' "$evidence/continuation-byte-rejected.txt"
+  printf 'schema\tib-Google-native-continuation-observation-v1\nactual_first_party_touch\tOBSERVED\noriginal_href_membership\tPASS\ncommitted_original_range_digest\tPASS\nchanged_committed_byte\tREJECTED\npublic_Google_results\tNOT_RUN\nclicked_public_result\tNOT_RUN\nphysical_TAB_P10\tNOT_RUN\n' > "$evidence/continuation-receipt.tsv"
+  cat "$evidence/continuation-receipt.tsv"
+  echo 'FAIL first-party continuation observed; a public search result is still unqualified' >&2
+  exit 1
+}
+rg -q -x -F 'INSTRUMENTATION_RESULT: stream=NOT_NEEDED no Google redirect placeholder' "$evidence/continuation.txt"
+observe google-result result-touch 'PASS native Google body actual result touch acquisition and retained Back Forward'
+"$adb" -s "$serial" logcat -d -v raw -s IBIndependentClickedSearchURL:I '*:S' > "$evidence/clicked-URL.log"
+sed '/^[[:space:]]*$/d; /^---------/d' "$evidence/clicked-URL.log" > "$evidence/clicked-URL.txt"
+var count = $(wc -l < "$evidence/clicked-URL.txt")
+if (int(count) !== 1) { echo 'FAIL result observer did not capture exactly one touched URI' >&2; exit 1 }
+var clicked = $(cat "$evidence/clicked-URL.txt")
+"$grease" "$repository/ib-source/reader/verify-google-href.grease" \
+  "$evidence/handoff/Google-original/body" "$clicked" "$evidence/original-result-link"
+"$adb" -s "$serial" shell am force-stop org.isomorphisms.ib.prepaint
+"$adb" -s "$serial" shell killall shizuku_server
+"$adb" -s "$serial" root > "$evidence/click-root.txt" 2>&1
+timeout 30 "$adb" -s "$serial" wait-for-device
+"$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 0
+"$adb" -s "$serial" pull /data/user/0/org.isomorphisms.ib.prepaint/files/arena "$evidence/clicked-arena"
+"$adb" -s "$serial" unroot > "$evidence/click-unroot.txt" 2>&1
+timeout 30 "$adb" -s "$serial" wait-for-device
+"$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 2000
+chmod 700 "$evidence/clicked-arena"
+mkdir -m 700 "$evidence/clicked-arena/staging"
+var clicked_id = ''
+var clicked_generation = ''
+var matches = 0
+for receipt in @(rg --files "$evidence/clicked-arena/receipts") {
+  if rg -q -x -F "requested_url	$clicked" "$receipt" {
+    setglobal matches = matches + 1
+    setglobal clicked_id = $(awk -F '\t' '$1=="request_id"{print $2}' "$receipt")
+    setglobal clicked_generation = $(awk -F '\t' '$1=="source_generation"{print $2}' "$receipt")
+  }
+}
+if (matches !== 1) { echo 'FAIL clicked URI did not leave one unique independently captured response' >&2; exit 1 }
+sh "$repository/ib-source/verify.sh" "$evidence/clicked-arena" "$clicked_id" "$clicked_generation" "$clicked" > "$evidence/clicked-source.txt" 2>&1
+cat "$evidence/clicked-source.txt"
+var final_url = $(awk -F '\t' '$1=="resolved_url"{print $2}' "$evidence/clicked-arena/receipts/$clicked_id.tsv")
+printf '%s\n' "$final_url" | rg -x 'https?://[A-Za-z0-9.-]+(:[0-9]+)?(/.*)?' > "$evidence/clicked-final-URL.txt"
+var final_host = $(printf '%s\n' "$final_url" | awk -F / '{split($3,host,":"); print tolower(host[1])}')
+printf '%s\n' "$final_host" > "$evidence/final-host.txt"
+if rg -q '(^|\.)(google\.com|gstatic\.com|googleusercontent\.com|googleadservices\.com)$' "$evidence/final-host.txt" {
+  echo 'FAIL clicked search response resolved to a Google service or challenge' >&2; exit 1
+}
+# The complete ordered index is a literal extension of the independently
+# verified three fixture visits and the preceding committed Google result.
+var before_index = "$evidence/handoff/actual-arena/last-source"
+test "$(wc -l < "$before_index")" = 10
+test "$(wc -l < "$evidence/clicked-arena/last-source")" = 11
+var google_id = $(sed -n '2p' "$before_index")
+var google_generation = $(sed -n '3p' "$before_index")
+printf '%s\n' "$google_id" | rg -x '[0-9a-f]{48}'
+printf '%s\n' "$google_generation" | awk '$0!~/^[1-9][0-9]*$/ || length($0)>10 || $0+0>2147483647 {exit 1}'
+printf '%s\t%s\n' "$google_id" "$google_generation" > "$evidence/expected-Google-occurrence"
+sed -n '9p' "$before_index" > "$evidence/actual-Google-occurrence"
+cmp "$evidence/expected-Google-occurrence" "$evidence/actual-Google-occurrence"
+rg -x -F 'requested_url	https://google.com/search?q=IB+caf%C3%A9+%2B+%252F+%F0%9F%8C%8D+chords' "$evidence/handoff/actual-arena/receipts/$google_id.tsv"
+head -n 9 "$before_index" > "$evidence/Google-prefix"
+var google_digest = $(sha256sum "$evidence/Google-prefix" | cut -d ' ' -f 1)
+test "$(tail -n 1 "$before_index")" = "$google_digest"
+head -n 5 "$before_index" | tail -n 2 > "$evidence/Google-journal-header"
+printf 'IBH1\n3\n' > "$evidence/expected-Google-journal-header"
+cmp "$evidence/expected-Google-journal-header" "$evidence/Google-journal-header"
+sed -n '6,8p' "$before_index" > "$evidence/old-fixture-visits"
+sed -n '6,8p' "$navigation/actual-arena/last-source" > "$evidence/expected-fixture-visits"
+cmp "$evidence/expected-fixture-visits" "$evidence/old-fixture-visits"
+printf 'IBLAST2\n%s\n%s\nIBH1\n4\n' "$clicked_id" "$clicked_generation" > "$evidence/expected-clicked-prefix"
+sed -n '6,9p' "$before_index" >> "$evidence/expected-clicked-prefix"
+printf '%s\t%s\n' "$clicked_id" "$clicked_generation" >> "$evidence/expected-clicked-prefix"
+var expected_digest = $(sha256sum "$evidence/expected-clicked-prefix" | cut -d ' ' -f 1)
+cp "$evidence/expected-clicked-prefix" "$evidence/expected-clicked-index"
+printf '%s\n' "$expected_digest" >> "$evidence/expected-clicked-index"
+cmp "$evidence/expected-clicked-index" "$evidence/clicked-arena/last-source"
+observe offline-google-result offline-results 'PASS retained Google results and clicked document navigate without Shizuku'
+"$adb" -s "$serial" shell am force-stop org.isomorphisms.ib.prepaint
+"$adb" -s "$serial" root > "$evidence/offline-root.txt" 2>&1
+timeout 30 "$adb" -s "$serial" wait-for-device
+"$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 0
+"$adb" -s "$serial" pull /data/user/0/org.isomorphisms.ib.prepaint/files/arena "$evidence/offline-arena"
+"$adb" -s "$serial" unroot > "$evidence/offline-unroot.txt" 2>&1
+timeout 30 "$adb" -s "$serial" wait-for-device
+cmp "$evidence/clicked-arena/last-source" "$evidence/offline-arena/last-source"
+cmp "$evidence/clicked-arena/responses.arena" "$evidence/offline-arena/responses.arena"
+git -C "$repository" rev-parse HEAD > "$evidence/observer-commit.txt"
+printf 'schema\tib-native-Google-results-v1\nnative_Google_body\tPASS\nactual_result_touch\tPASS\nindependent_original_href_membership\tPASS\nnew_result_ICU_and_committed_source\tPASS\nordered_retained_search_and_result\tPASS\noffline_Back_Forward\tPASS\nno_refetch_or_source_byte_changes\tPASS\nphysical_TAB_P10\tNOT_RUN\nrelease_decision\tINSUFFICIENT\n' > "$evidence/receipt.tsv"
+cat "$evidence/receipt.tsv"

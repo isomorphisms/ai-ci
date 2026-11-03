@@ -2,7 +2,9 @@
 .super Landroid/app/Instrumentation;
 
 .field private phase:Ljava/lang/String;
-.field private observedActivity:Landroid/app/Activity;
+.field private volatile observedActivity:Landroid/app/Activity;
+.field private attemptedGoogleTargets:Ljava/lang/String;
+.field private pendingGoogleTarget:Ljava/lang/String;
 
 .method public constructor <init>()V
     .registers 1
@@ -107,6 +109,10 @@
     invoke-interface {v5, v4}, Ljava/util/List;->get(I)Ljava/lang/Object;
     move-result-object v5
     check-cast v5, Landroid/view/accessibility/AccessibilityNodeInfo;
+    # Refresh the SDK snapshot, keeping package/id/cardinality checks unchanged.
+    invoke-virtual {v5}, Landroid/view/accessibility/AccessibilityNodeInfo;->refresh()Z
+    move-result v4
+    if-eqz v4, :retry
     return-object v5
   :retry
     const-wide/16 v7, 0x64
@@ -123,6 +129,7 @@
     move-result-object v0
     const-string v1, "IBIndependentMissingControl"
     invoke-static {v1, v0}, Landroid/util/Log;->e(Ljava/lang/String;Ljava/lang/String;)I
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->logSurfaceDiagnostic()V
     const-string v0, "FAIL expected visible native control in declared package"
     invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
     const/4 v0, 0x0
@@ -289,16 +296,39 @@
     return-void
 .end method
 
-.method private stopServerAndObserve()V
-    .registers 4
-    # This instrumentation is admitted only on a separately verified emulator.
-    # The command is fixed; no document, URL or argument is interpolated.
+
+.method private killServerAndReadCompletion()V
+    .registers 6
     invoke-virtual {p0}, Landroid/app/Instrumentation;->getUiAutomation()Landroid/app/UiAutomation;
     move-result-object v0
     const-string v1, "killall shizuku_server"
     invoke-virtual {v0, v1}, Landroid/app/UiAutomation;->executeShellCommand(Ljava/lang/String;)Landroid/os/ParcelFileDescriptor;
     move-result-object v0
-    invoke-virtual {v0}, Landroid/os/ParcelFileDescriptor;->close()V
+    new-instance v1, Landroid/os/ParcelFileDescriptor$AutoCloseInputStream;
+    invoke-direct {v1, v0}, Landroid/os/ParcelFileDescriptor$AutoCloseInputStream;-><init>(Landroid/os/ParcelFileDescriptor;)V
+    const/4 v2, 0
+  :read
+    invoke-virtual {v1}, Ljava/io/InputStream;->read()I
+    move-result v3
+    if-ltz v3, :closed
+    add-int/lit8 v2, v2, 1
+    const/16 v4, 1024
+    if-ge v2, v4, :closed
+    goto :read
+  :closed
+    invoke-virtual {v1}, Ljava/io/InputStream;->close()V
+    if-eqz v2, :finished
+    const-string v0, "FAIL fixed server-stop command returned an error"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+  :finished
+    return-void
+.end method
+
+.method private stopServerAndObserve()V
+    .registers 4
+    # This instrumentation is admitted only on a separately verified emulator.
+    # The command is fixed; no document, URL or argument is interpolated.
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->killServerAndReadCompletion()V
     const/4 v0, 0x0
     const-string v1, "FAIL revoked Shizuku capability after Binder death"
     invoke-static {v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitState(ILjava/lang/String;)V
@@ -309,12 +339,19 @@
 .end method
 
 .method private recordDocumentScreenshot()V
-    .registers 9
+    .registers 2
+    iget-object v0, p0, Lacceptance/shizuku/CapabilityInstrumentation;->phase:Ljava/lang/String;
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->recordNamedScreenshot(Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private recordNamedScreenshot(Ljava/lang/String;)V
+    .registers 10
     invoke-virtual {p0}, Landroid/app/Instrumentation;->getTargetContext()Landroid/content/Context;
     move-result-object v0
     invoke-virtual {v0}, Landroid/content/Context;->getCacheDir()Ljava/io/File;
     move-result-object v0
-    iget-object v1, p0, Lacceptance/shizuku/CapabilityInstrumentation;->phase:Ljava/lang/String;
+    move-object v1, p1
     const-string v2, ".png"
     invoke-virtual {v1, v2}, Ljava/lang/String;->concat(Ljava/lang/String;)Ljava/lang/String;
     move-result-object v1
@@ -462,6 +499,129 @@
     return-void
 .end method
 
+# Android returns false when ACTION_SET_SELECTION requests the existing
+# range. Request SDK removal and independently observe an empty range first; the
+# following full-range action must still return true and update the SDK range.
+
+# Best-effort diagnostics must never replace the original failed assertion.
+.method private logSurfaceDiagnostic()V
+    .registers 6
+  :begin
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->getTargetContext()Landroid/content/Context;
+    move-result-object v0
+    const-string v1, "power"
+    invoke-virtual {v0, v1}, Landroid/content/Context;->getSystemService(Ljava/lang/String;)Ljava/lang/Object;
+    move-result-object v0
+    check-cast v0, Landroid/os/PowerManager;
+    invoke-virtual {v0}, Landroid/os/PowerManager;->isInteractive()Z
+    move-result v0
+    new-instance v1, Ljava/lang/StringBuilder;
+    invoke-direct {v1}, Ljava/lang/StringBuilder;-><init>()V
+    const-string v2, "interactive="
+    invoke-virtual {v1, v2}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v1, v0}, Ljava/lang/StringBuilder;->append(Z)Ljava/lang/StringBuilder;
+    const-string v2, " activeWindowPackage="
+    invoke-virtual {v1, v2}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->getUiAutomation()Landroid/app/UiAutomation;
+    move-result-object v0
+    invoke-virtual {v0}, Landroid/app/UiAutomation;->getRootInActiveWindow()Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v0
+    if-eqz v0, :missing_root
+    invoke-virtual {v0}, Landroid/view/accessibility/AccessibilityNodeInfo;->getPackageName()Ljava/lang/CharSequence;
+    move-result-object v0
+    invoke-virtual {v1, v0}, Ljava/lang/StringBuilder;->append(Ljava/lang/CharSequence;)Ljava/lang/StringBuilder;
+    goto :root_record
+  :missing_root
+    const-string v0, "NULL"
+    invoke-virtual {v1, v0}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+  :root_record
+    invoke-virtual {v1}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+    move-result-object v0
+    const-string v1, "IBIndependentReaderSurface"
+    invoke-static {v1, v0}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
+    iget-object v0, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
+    if-eqz v0, :capture
+    new-instance v1, Lacceptance/shizuku/ReaderAddressSnapshot;
+    invoke-direct {v1, v0}, Lacceptance/shizuku/ReaderAddressSnapshot;-><init>(Landroid/app/Activity;)V
+    invoke-virtual {p0, v1}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
+  :capture
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->recordDocumentScreenshot()V
+    return-void
+  :end
+    .catch Ljava/lang/Throwable; {:begin .. :end} :caught
+  :caught
+    move-exception v0
+    invoke-virtual {v0}, Ljava/lang/Throwable;->toString()Ljava/lang/String;
+    move-result-object v0
+    const-string v1, "IBIndependentSurfaceDiagnosticUnavailable"
+    invoke-static {v1, v0}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
+    return-void
+.end method
+
+.method private clearSourceSelection(Landroid/view/accessibility/AccessibilityNodeInfo;)V
+    .registers 6
+    new-instance v0, Landroid/os/Bundle;
+    invoke-direct {v0}, Landroid/os/Bundle;-><init>()V
+    const-string v1, "ACTION_ARGUMENT_SELECTION_START_INT"
+    const/4 v2, 0x0
+    invoke-virtual {v0, v1, v2}, Landroid/os/Bundle;->putInt(Ljava/lang/String;I)V
+    const-string v1, "ACTION_ARGUMENT_SELECTION_END_INT"
+    invoke-virtual {v0, v1, v2}, Landroid/os/Bundle;->putInt(Ljava/lang/String;I)V
+    const v1, 0x20000
+    invoke-virtual {p1, v1, v0}, Landroid/view/accessibility/AccessibilityNodeInfo;->performAction(ILandroid/os/Bundle;)Z
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->waitForIdleSync()V
+    invoke-virtual {p1}, Landroid/view/accessibility/AccessibilityNodeInfo;->refresh()Z
+    move-result v0
+    if-eqz v0, :failed
+    invoke-virtual {p1}, Landroid/view/accessibility/AccessibilityNodeInfo;->getTextSelectionStart()I
+    move-result v0
+    invoke-virtual {p1}, Landroid/view/accessibility/AccessibilityNodeInfo;->getTextSelectionEnd()I
+    move-result v1
+    if-ne v0, v1, :failed
+    if-nez v0, :failed
+    return-void
+  :failed
+    invoke-virtual {p1}, Landroid/view/accessibility/AccessibilityNodeInfo;->getTextSelectionStart()I
+    move-result v0
+    invoke-virtual {p1}, Landroid/view/accessibility/AccessibilityNodeInfo;->getTextSelectionEnd()I
+    move-result v1
+    new-instance v2, Ljava/lang/StringBuilder;
+    invoke-direct {v2}, Ljava/lang/StringBuilder;-><init>()V
+    const-string v3, "A11y selection at failed clear="
+    invoke-virtual {v2, v3}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v2, v0}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    const-string v3, ","
+    invoke-virtual {v2, v3}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v2, v1}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    invoke-virtual {v2}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+    move-result-object v2
+    const-string v3, "IBIndependentReaderSurface"
+    invoke-static {v3, v2}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->logSurfaceDiagnostic()V
+    const-string v0, "FAIL actual SDK empty selection precondition"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private assertSourceSelection(Landroid/view/accessibility/AccessibilityNodeInfo;I)V
+    .registers 6
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->waitForIdleSync()V
+    invoke-virtual {p1}, Landroid/view/accessibility/AccessibilityNodeInfo;->refresh()Z
+    move-result v0
+    if-eqz v0, :failed
+    invoke-virtual {p1}, Landroid/view/accessibility/AccessibilityNodeInfo;->getTextSelectionStart()I
+    move-result v0
+    if-nez v0, :failed
+    invoke-virtual {p1}, Landroid/view/accessibility/AccessibilityNodeInfo;->getTextSelectionEnd()I
+    move-result v0
+    if-ne v0, p2, :failed
+    return-void
+  :failed
+    const-string v0, "FAIL actual SDK full source selection bounds"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    return-void
+.end method
+
 .method private exactSourceClipboard(Ljava/lang/String;)V
     .registers 10
     const/4 v7, 0x1
@@ -507,11 +667,13 @@
     invoke-virtual {v2, v5, v6}, Landroid/os/Bundle;->putInt(Ljava/lang/String;I)V
     const-string v5, "ACTION_ARGUMENT_SELECTION_END_INT"
     invoke-virtual {v2, v5, v3}, Landroid/os/Bundle;->putInt(Ljava/lang/String;I)V
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->clearSourceSelection(Landroid/view/accessibility/AccessibilityNodeInfo;)V
     const/4 v7, 0x4
     const v1, 0x20000
     invoke-virtual {v0, v1, v2}, Landroid/view/accessibility/AccessibilityNodeInfo;->performAction(ILandroid/os/Bundle;)Z
     move-result v1
     if-eqz v1, :failed
+    invoke-direct {p0, v0, v3}, Lacceptance/shizuku/CapabilityInstrumentation;->assertSourceSelection(Landroid/view/accessibility/AccessibilityNodeInfo;I)V
     const/4 v7, 0x5
     const/16 v1, 0x4000
     invoke-virtual {v0, v1}, Landroid/view/accessibility/AccessibilityNodeInfo;->performAction(I)Z
@@ -635,6 +797,13 @@
     const-string v3, " "
     invoke-virtual {v1, v2, v3}, Ljava/lang/String;->replaceAll(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
     move-result-object v1
+    const/4 v4, 0x1
+    if-ne v0, v4, :body_predicate
+    const-string v4, "IBIndependentReadinessBody"
+    invoke-static {v4, v1}, Landroid/util/Log;->e(Ljava/lang/String;Ljava/lang/String;)I
+    const-string v4, "IBIndependentReadinessExpectedBody"
+    invoke-static {v4, p2}, Landroid/util/Log;->e(Ljava/lang/String;Ljava/lang/String;)I
+  :body_predicate
     move-object v2, p2
     invoke-virtual {v1, v2}, Ljava/lang/String;->contains(Ljava/lang/CharSequence;)Z
     move-result v2
@@ -648,6 +817,11 @@
     if-eqz v1, :retry
     invoke-interface {v1}, Ljava/lang/CharSequence;->toString()Ljava/lang/String;
     move-result-object v1
+    const/4 v4, 0x1
+    if-ne v0, v4, :status_predicate
+    const-string v4, "IBIndependentReadinessStatus"
+    invoke-static {v4, v1}, Landroid/util/Log;->e(Ljava/lang/String;Ljava/lang/String;)I
+  :status_predicate
     const-string v2, "Static HTML — scripts and forms are unavailable."
     invoke-virtual {v2, v1}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
     move-result v1
@@ -694,6 +868,628 @@
     invoke-virtual {p0}, Landroid/app/Instrumentation;->waitForIdleSync()V
     const-string v1, "org.isomorphisms.ib.prepaint:id/read_button"
     invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->click(Ljava/lang/String;Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private tapGoogleResult()V
+    .registers 14
+    iget-object v10, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
+    new-instance v9, Lacceptance/shizuku/GoogleResultPoint;
+    invoke-direct {v9, v10}, Lacceptance/shizuku/GoogleResultPoint;-><init>(Landroid/app/Activity;)V
+    iget-object v10, p0, Lacceptance/shizuku/CapabilityInstrumentation;->attemptedGoogleTargets:Ljava/lang/String;
+    iput-object v10, v9, Lacceptance/shizuku/GoogleResultPoint;->excluded:Ljava/lang/String;
+    const/16 v12, 0x14
+  :settle_google_viewport
+    invoke-virtual {p0, v9}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
+    iget-object v10, v9, Lacceptance/shizuku/GoogleResultPoint;->problem:Ljava/lang/String;
+    if-eqz v10, :visible
+    add-int/lit8 v12, v12, -0x1
+    if-lez v12, :no_visible_point
+    const-wide/16 v10, 0x64
+    invoke-static {v10, v11}, Landroid/os/SystemClock;->sleep(J)V
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->waitForIdleSync()V
+    goto :settle_google_viewport
+  :no_visible_point
+    iget-object v10, v9, Lacceptance/shizuku/GoogleResultPoint;->problem:Ljava/lang/String;
+    invoke-static {v10}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+  :visible
+    const-string v11, "IBIndependentSearchAttemptURL"
+    iget-object v12, v9, Lacceptance/shizuku/GoogleResultPoint;->target:Ljava/lang/String;
+    iput-object v12, p0, Lacceptance/shizuku/CapabilityInstrumentation;->pendingGoogleTarget:Ljava/lang/String;
+    invoke-static {v11, v12}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->getUiAutomation()Landroid/app/UiAutomation;
+    move-result-object v10
+    invoke-static {}, Landroid/os/SystemClock;->uptimeMillis()J
+    move-result-wide v0
+    move-wide v2, v0
+    const/4 v4, 0x0
+    iget v5, v9, Lacceptance/shizuku/GoogleResultPoint;->x:F
+    iget v6, v9, Lacceptance/shizuku/GoogleResultPoint;->y:F
+    const/4 v7, 0x0
+    invoke-static/range {v0 .. v7}, Landroid/view/MotionEvent;->obtain(JJIFFI)Landroid/view/MotionEvent;
+    move-result-object v8
+    const/16 v11, 0x1002
+    invoke-virtual {v8, v11}, Landroid/view/MotionEvent;->setSource(I)V
+    const/4 v11, 0x1
+    invoke-virtual {v10, v8, v11}, Landroid/app/UiAutomation;->injectInputEvent(Landroid/view/InputEvent;Z)Z
+    move-result v11
+    invoke-virtual {v8}, Landroid/view/MotionEvent;->recycle()V
+    if-eqz v11, :failed
+    const-wide/16 v11, 0x32
+    invoke-static {v11, v12}, Landroid/os/SystemClock;->sleep(J)V
+    invoke-static {}, Landroid/os/SystemClock;->uptimeMillis()J
+    move-result-wide v2
+    const/4 v4, 0x1
+    invoke-static/range {v0 .. v7}, Landroid/view/MotionEvent;->obtain(JJIFFI)Landroid/view/MotionEvent;
+    move-result-object v8
+    const/16 v11, 0x1002
+    invoke-virtual {v8, v11}, Landroid/view/MotionEvent;->setSource(I)V
+    const/4 v11, 0x1
+    invoke-virtual {v10, v8, v11}, Landroid/app/UiAutomation;->injectInputEvent(Landroid/view/InputEvent;Z)Z
+    move-result v11
+    invoke-virtual {v8}, Landroid/view/MotionEvent;->recycle()V
+    if-eqz v11, :failed
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->waitForIdleSync()V
+    return-void
+  :failed
+    const-string v0, "FAIL actual down/up input at visible Google result"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    return-void
+.end method
+
+
+.method private tapGoogleContinuation()V
+    .registers 14
+    iget-object v10, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
+    new-instance v9, Lacceptance/shizuku/GoogleContinuationPoint;
+    invoke-direct {v9, v10}, Lacceptance/shizuku/GoogleContinuationPoint;-><init>(Landroid/app/Activity;)V
+    invoke-virtual {p0, v9}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
+    iget-object v10, v9, Lacceptance/shizuku/GoogleContinuationPoint;->problem:Ljava/lang/String;
+    if-eqz v10, :visible
+    invoke-static {v10}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+  :visible
+    const-string v11, "IBIndependentGoogleContinuationURL"
+    iget-object v12, v9, Lacceptance/shizuku/GoogleContinuationPoint;->target:Ljava/lang/String;
+    invoke-static {v11, v12}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->getUiAutomation()Landroid/app/UiAutomation;
+    move-result-object v10
+    invoke-static {}, Landroid/os/SystemClock;->uptimeMillis()J
+    move-result-wide v0
+    move-wide v2, v0
+    const/4 v4, 0x0
+    iget v5, v9, Lacceptance/shizuku/GoogleContinuationPoint;->x:F
+    iget v6, v9, Lacceptance/shizuku/GoogleContinuationPoint;->y:F
+    const/4 v7, 0x0
+    invoke-static/range {v0 .. v7}, Landroid/view/MotionEvent;->obtain(JJIFFI)Landroid/view/MotionEvent;
+    move-result-object v8
+    const/16 v11, 0x1002
+    invoke-virtual {v8, v11}, Landroid/view/MotionEvent;->setSource(I)V
+    const/4 v11, 0x1
+    invoke-virtual {v10, v8, v11}, Landroid/app/UiAutomation;->injectInputEvent(Landroid/view/InputEvent;Z)Z
+    move-result v11
+    invoke-virtual {v8}, Landroid/view/MotionEvent;->recycle()V
+    if-eqz v11, :failed
+    const-wide/16 v11, 0x32
+    invoke-static {v11, v12}, Landroid/os/SystemClock;->sleep(J)V
+    invoke-static {}, Landroid/os/SystemClock;->uptimeMillis()J
+    move-result-wide v2
+    const/4 v4, 0x1
+    invoke-static/range {v0 .. v7}, Landroid/view/MotionEvent;->obtain(JJIFFI)Landroid/view/MotionEvent;
+    move-result-object v8
+    const/16 v11, 0x1002
+    invoke-virtual {v8, v11}, Landroid/view/MotionEvent;->setSource(I)V
+    const/4 v11, 0x1
+    invoke-virtual {v10, v8, v11}, Landroid/app/UiAutomation;->injectInputEvent(Landroid/view/InputEvent;Z)Z
+    move-result v11
+    invoke-virtual {v8}, Landroid/view/MotionEvent;->recycle()V
+    if-eqz v11, :failed
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->waitForIdleSync()V
+    return-void
+  :failed
+    const-string v0, "FAIL actual down/up input at visible Google result"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    return-void
+.end method
+
+
+
+.method private googleContinuation()Z
+    .registers 8
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->requireGoogleDocument()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->readableBody()Ljava/lang/String;
+    move-result-object v0
+    const-string v1, "\\s+"
+    const-string v2, " "
+    invoke-virtual {v0, v1, v2}, Ljava/lang/String;->replaceAll(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+    move-result-object v0
+    invoke-virtual {v0}, Ljava/lang/String;->trim()Ljava/lang/String;
+    move-result-object v0
+    const-string v1, "Please click here if you are not redirected within a few seconds."
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v0
+    if-eqz v0, :not_needed
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->tapGoogleContinuation()V
+    const/16 v0, 600
+  :again
+    const-string v1, "org.isomorphisms.ib.prepaint"
+    const-string v2, "org.isomorphisms.ib.prepaint:id/reader_status"
+    invoke-direct {p0, v1, v2}, Lacceptance/shizuku/CapabilityInstrumentation;->node(Ljava/lang/String;Ljava/lang/String;)Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v3
+    invoke-virtual {v3}, Landroid/view/accessibility/AccessibilityNodeInfo;->getText()Ljava/lang/CharSequence;
+    move-result-object v3
+    if-eqz v3, :retry
+    invoke-interface {v3}, Ljava/lang/CharSequence;->toString()Ljava/lang/String;
+    move-result-object v3
+    const-string v4, "Loading through Shizuku and ICU…"
+    invoke-virtual {v4, v3}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v3
+    if-eqz v3, :observed
+  :retry
+    const-wide/16 v5, 100
+    invoke-static {v5, v6}, Landroid/os/SystemClock;->sleep(J)V
+    add-int/lit8 v0, v0, -1
+    if-gtz v0, :again
+    const-string v0, "FAIL first-party Google continuation timed out"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+  :observed
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->logReaderFailureStatus()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->logReaderFailureBody()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->recordDocumentScreenshot()V
+    const/4 v0, 1
+    return v0
+  :not_needed
+    const/4 v0, 0
+    return v0
+.end method
+
+.method private readableBody()Ljava/lang/String;
+    .registers 5
+    const-string v0, "org.isomorphisms.ib.prepaint"
+    const-string v1, "org.isomorphisms.ib.prepaint:id/reader_body"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->node(Ljava/lang/String;Ljava/lang/String;)Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v0
+    invoke-virtual {v0}, Landroid/view/accessibility/AccessibilityNodeInfo;->getText()Ljava/lang/CharSequence;
+    move-result-object v0
+    if-eqz v0, :failed
+    invoke-interface {v0}, Ljava/lang/CharSequence;->toString()Ljava/lang/String;
+    move-result-object v0
+    invoke-virtual {v0}, Ljava/lang/String;->length()I
+    move-result v1
+    const/16 v2, 32
+    if-ge v1, v2, :readable
+  :failed
+    const-string v0, "FAIL native acquired document has no readable body"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    const-string v0, ""
+  :readable
+    return-object v0
+.end method
+
+.method private requireGoogleDocument()V
+    .registers 6
+    iget-object v0, p0, Lacceptance/shizuku/CapabilityInstrumentation;->phase:Ljava/lang/String;
+    const-string v1, "browser-google"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-nez v1, :rendered
+    const-string v1, "offline-browser-google"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :original
+  :rendered
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->requireRenderedGoogleDocument()V
+    return-void
+  :original
+    const-string v0, "Google response — partial static HTML. Results requiring scripts cannot be shown."
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->waitStatus(Ljava/lang/String;)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->readableBody()Ljava/lang/String;
+    move-result-object v0
+    sget-object v1, Ljava/util/Locale;->ROOT:Ljava/util/Locale;
+    invoke-virtual {v0, v1}, Ljava/lang/String;->toLowerCase(Ljava/util/Locale;)Ljava/lang/String;
+    move-result-object v0
+    const-string v1, "unusual traffic"
+    invoke-virtual {v0, v1}, Ljava/lang/String;->contains(Ljava/lang/CharSequence;)Z
+    move-result v1
+    if-nez v1, :unavailable
+    const-string v1, "not a robot"
+    invoke-virtual {v0, v1}, Ljava/lang/String;->contains(Ljava/lang/CharSequence;)Z
+    move-result v1
+    if-nez v1, :unavailable
+    const-string v1, "before you continue"
+    invoke-virtual {v0, v1}, Ljava/lang/String;->contains(Ljava/lang/CharSequence;)Z
+    move-result v1
+    if-nez v1, :unavailable
+    const-string v1, "did not match any documents"
+    invoke-virtual {v0, v1}, Ljava/lang/String;->contains(Ljava/lang/CharSequence;)Z
+    move-result v1
+    if-nez v1, :unavailable
+    const-string v1, "no results found for"
+    invoke-virtual {v0, v1}, Ljava/lang/String;->contains(Ljava/lang/CharSequence;)Z
+    move-result v1
+    if-nez v1, :unavailable
+    iget-object v0, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
+    new-instance v1, Lacceptance/shizuku/ReaderAddressSnapshot;
+    invoke-direct {v1, v0}, Lacceptance/shizuku/ReaderAddressSnapshot;-><init>(Landroid/app/Activity;)V
+    invoke-virtual {p0, v1}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
+    iget-object v0, v1, Lacceptance/shizuku/ReaderAddressSnapshot;->address:Ljava/lang/String;
+    const-string v1, "https://google.com/search?q=IB+caf%C3%A9+%2B+%252F+%F0%9F%8C%8D+chords"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v0
+    if-eqz v0, :unavailable
+    return-void
+  :unavailable
+    const-string v0, "FAIL Google consent challenge empty-results or wrong retained search is not successful search"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private requireRenderedGoogleDocument()V
+    .registers 8
+    # The adapter has a 120s acquisition deadline. Observe its actual native
+    # result for at most140s; HTTP200, a WebView or a loading label cannot pass.
+    const/16 v0, 0x578
+  :again
+    const-string v1, "org.isomorphisms.ib.prepaint"
+    const-string v2, "org.isomorphisms.ib.prepaint:id/reader_status"
+    invoke-direct {p0, v1, v2}, Lacceptance/shizuku/CapabilityInstrumentation;->node(Ljava/lang/String;Ljava/lang/String;)Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v1
+    invoke-virtual {v1}, Landroid/view/accessibility/AccessibilityNodeInfo;->getText()Ljava/lang/CharSequence;
+    move-result-object v1
+    if-eqz v1, :retry
+    invoke-interface {v1}, Ljava/lang/CharSequence;->toString()Ljava/lang/String;
+    move-result-object v1
+    const-string v2, "Google results — browser rendered; links verified through ICU."
+    invoke-virtual {v2, v1}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v2
+    if-nez v2, :results
+    const-string v2, "retained."
+    invoke-virtual {v1, v2}, Ljava/lang/String;->endsWith(Ljava/lang/String;)Z
+    move-result v2
+    if-nez v2, :failed
+  :retry
+    const-wide/16 v3, 0x64
+    invoke-static {v3, v4}, Landroid/os/SystemClock;->sleep(J)V
+    add-int/lit8 v0, v0, -0x1
+    if-gtz v0, :again
+    goto :failed
+  :results
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->readableBody()Ljava/lang/String;
+    move-result-object v0
+    const-string v1, "https://"
+    invoke-virtual {v0, v1}, Ljava/lang/String;->contains(Ljava/lang/CharSequence;)Z
+    move-result v1
+    if-eqz v1, :failed
+    const-string v1, "IBIndependentGoogleResultBody"
+    invoke-static {v1, v0}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->snapshotGoogleSelection()V
+    iget-object v0, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
+    new-instance v1, Lacceptance/shizuku/ReaderAddressSnapshot;
+    invoke-direct {v1, v0}, Lacceptance/shizuku/ReaderAddressSnapshot;-><init>(Landroid/app/Activity;)V
+    invoke-virtual {p0, v1}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
+    iget-object v0, v1, Lacceptance/shizuku/ReaderAddressSnapshot;->address:Ljava/lang/String;
+    const-string v1, "open source guitar chord transposition chords"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v0
+    if-eqz v0, :failed
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->recordDocumentScreenshot()V
+    return-void
+  :failed
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->logReaderFailureStatus()V
+    const-string v0, "FAIL real browser-derived Google results and preserved query are unavailable"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private browserGoogleTransaction()V
+    .registers 3
+    const-string v0, "open source guitar chord transposition"
+    const-string v1, "https://google.com/search?q=open+source+guitar+chord+transposition+chords"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->chordSearchHandoffFor(Ljava/lang/String;Ljava/lang/String;)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->clickGoogleResult()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyBack()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->requireRenderedGoogleDocument()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->nativeSearchCancellation()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyForward()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->requireClickedDocument()V
+    return-void
+.end method
+
+.method private snapshotGoogleSelection()V
+    .registers 4
+    iget-object v0, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
+    new-instance v1, Lacceptance/shizuku/GoogleSourceSnapshot;
+    invoke-direct {v1, v0}, Lacceptance/shizuku/GoogleSourceSnapshot;-><init>(Landroid/app/Activity;)V
+    invoke-virtual {p0, v1}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
+    iget-object v0, v1, Lacceptance/shizuku/GoogleSourceSnapshot;->problem:Ljava/lang/String;
+    if-eqz v0, :snapshot_ready
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+  :snapshot_ready
+    iget-object v0, v1, Lacceptance/shizuku/GoogleSourceSnapshot;->source:Ljava/lang/String;
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->exactSourceClipboard(Ljava/lang/String;)V
+    const-string v0, "org.isomorphisms.ib.prepaint"
+    const-string v1, "org.isomorphisms.ib.prepaint:id/reader_body"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->node(Ljava/lang/String;Ljava/lang/String;)Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v0
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->clearSourceSelection(Landroid/view/accessibility/AccessibilityNodeInfo;)V
+    return-void
+.end method
+
+.method private nativeSearchCancellation()V
+    .registers 9
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->readableBody()Ljava/lang/String;
+    move-result-object v0
+    invoke-static {}, Lorg/isomorphisms/ib/ReaderBridge;->history()Ljava/lang/String;
+    move-result-object v1
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->sources()V
+    const-string v2, "org.isomorphisms.ib.prepaint"
+    const-string v3, "org.isomorphisms.ib.prepaint:id/search_button"
+    invoke-direct {p0, v2, v3}, Lacceptance/shizuku/CapabilityInstrumentation;->click(Ljava/lang/String;Ljava/lang/String;)V
+    # Observe a real browser acquisition before cancelling. The previous
+    # result label, an HTTP200, and a completed second search cannot pass.
+    const/16 v4, 0x578
+  :await_browser
+    const-string v3, "org.isomorphisms.ib.prepaint:id/reader_status"
+    invoke-direct {p0, v2, v3}, Lacceptance/shizuku/CapabilityInstrumentation;->node(Ljava/lang/String;Ljava/lang/String;)Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v3
+    invoke-virtual {v3}, Landroid/view/accessibility/AccessibilityNodeInfo;->getText()Ljava/lang/CharSequence;
+    move-result-object v3
+    if-eqz v3, :wait_browser
+    invoke-interface {v3}, Ljava/lang/CharSequence;->toString()Ljava/lang/String;
+    move-result-object v3
+    const-string v5, "Google needs browser rendering. Loading results…"
+    invoke-virtual {v5, v3}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v5
+    if-nez v5, :cancel_browser
+    const-string v5, "Verifying Google result links through ICU…"
+    invoke-virtual {v5, v3}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v5
+    if-nez v5, :cancel_browser
+  :wait_browser
+    const-wide/16 v5, 0x64
+    invoke-static {v5, v6}, Landroid/os/SystemClock;->sleep(J)V
+    add-int/lit8 v4, v4, -0x1
+    if-gtz v4, :await_browser
+    const-string v2, "FAIL native Search did not start an observable browser acquisition"
+    invoke-static {v2}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+  :cancel_browser
+    const-string v3, "org.isomorphisms.ib.prepaint:id/cancel_button"
+    invoke-direct {p0, v2, v3}, Lacceptance/shizuku/CapabilityInstrumentation;->click(Ljava/lang/String;Ljava/lang/String;)V
+    const-string v3, "Search cancelled; the previous document is retained."
+    invoke-direct {p0, v3}, Lacceptance/shizuku/CapabilityInstrumentation;->waitStatus(Ljava/lang/String;)V
+    # Keep observing beyond the ICU per-request60s deadline. A late source
+    # completion must neither replace the text nor erase the Forward visit.
+    const/16 v4, 0x82
+  :retained_after_cancel
+    const-wide/16 v5, 0x1f4
+    invoke-static {v5, v6}, Landroid/os/SystemClock;->sleep(J)V
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->waitForIdleSync()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->readableBody()Ljava/lang/String;
+    move-result-object v5
+    invoke-virtual {v0, v5}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v5
+    if-eqz v5, :changed
+    invoke-direct {p0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->requireHistory(Ljava/lang/String;)V
+    add-int/lit8 v4, v4, -0x1
+    if-gtz v4, :retained_after_cancel
+    return-void
+  :changed
+    const-string v0, "FAIL cancelled browser callback changed the retained native document"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private requireClickedDocument()V
+    .registers 2
+    const-string v0, "Static HTML — scripts and forms are unavailable."
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->waitStatus(Ljava/lang/String;)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->readableBody()Ljava/lang/String;
+    return-void
+.end method
+
+.method private requireHistory(Ljava/lang/String;)V
+    .registers 4
+    invoke-static {}, Lorg/isomorphisms/ib/ReaderBridge;->history()Ljava/lang/String;
+    move-result-object v0
+    invoke-virtual {p1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v0
+    if-nez v0, :matched
+    const-string v0, "FAIL search Back Forward changed retained source identity or history"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+  :matched
+    return-void
+.end method
+
+.method private static expectedGoogleBackJournal(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+    .registers 12
+    const-string v0, "\n"
+    const/4 v1, 3
+    invoke-virtual {p0, v0, v1}, Ljava/lang/String;->split(Ljava/lang/String;I)[Ljava/lang/String;
+    move-result-object v2
+    invoke-virtual {p1, v0, v1}, Ljava/lang/String;->split(Ljava/lang/String;I)[Ljava/lang/String;
+    move-result-object v3
+    array-length v4, v2
+    if-ne v4, v1, :failed
+    array-length v4, v3
+    if-ne v4, v1, :failed
+    const/4 v4, 0
+    aget-object v5, v2, v4
+    aget-object v6, v3, v4
+    const-string v7, "IBH1"
+    invoke-virtual {v7, v5}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v5
+    if-eqz v5, :failed
+    invoke-virtual {v7, v6}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v5
+    if-eqz v5, :failed
+    const/4 v4, 1
+    aget-object v5, v2, v4
+    aget-object v6, v3, v4
+    invoke-static {v5}, Ljava/lang/Integer;->parseInt(Ljava/lang/String;)I
+    move-result v5
+    invoke-static {v6}, Ljava/lang/Integer;->parseInt(Ljava/lang/String;)I
+    move-result v6
+    if-ltz v5, :failed
+    add-int/lit8 v7, v5, 1
+    if-ne v6, v7, :failed
+    const/4 v4, 2
+    aget-object v8, v2, v4
+    aget-object v9, v3, v4
+    const/4 v4, -1
+    invoke-virtual {v8, v0, v4}, Ljava/lang/String;->split(Ljava/lang/String;I)[Ljava/lang/String;
+    move-result-object v6
+    array-length v6, v6
+    add-int/lit8 v7, v5, 2
+    if-ne v6, v7, :failed
+    invoke-virtual {v9, v8}, Ljava/lang/String;->startsWith(Ljava/lang/String;)Z
+    move-result v6
+    if-eqz v6, :failed
+    invoke-virtual {v8}, Ljava/lang/String;->length()I
+    move-result v6
+    invoke-virtual {v9, v6}, Ljava/lang/String;->substring(I)Ljava/lang/String;
+    move-result-object v6
+    const-string v7, "[A-Za-z0-9._-]{1,64}\\t[1-9][0-9]{0,9}\\n"
+    invoke-virtual {v6, v7}, Ljava/lang/String;->matches(Ljava/lang/String;)Z
+    move-result v6
+    if-eqz v6, :failed
+    new-instance v6, Ljava/lang/StringBuilder;
+    const-string v7, "IBH1\n"
+    invoke-direct {v6, v7}, Ljava/lang/StringBuilder;-><init>(Ljava/lang/String;)V
+    invoke-virtual {v6, v5}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    invoke-virtual {v6, v0}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v6, v9}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v6}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+    move-result-object v0
+    return-object v0
+  :failed
+    const-string v0, "FAIL Google destination journal must extend the original visits by exactly one occurrence"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    const-string v0, ""
+    return-object v0
+.end method
+
+.method private clickGoogleResult()V
+    .registers 4
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->requireGoogleDocument()V
+    invoke-static {}, Lorg/isomorphisms/ib/ReaderBridge;->history()Ljava/lang/String;
+    move-result-object v0
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->tapReadableGoogleResult()V
+    invoke-static {}, Lorg/isomorphisms/ib/ReaderBridge;->history()Ljava/lang/String;
+    move-result-object v1
+    invoke-virtual {v0, v1}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v2
+    if-eqz v2, :new_source
+    const-string v2, "FAIL clicked Google result did not commit a new document"
+    invoke-static {v2}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+  :new_source
+    invoke-static {v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->expectedGoogleBackJournal(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+    move-result-object v0
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyBack()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->requireGoogleDocument()V
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->requireHistory(Ljava/lang/String;)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyForward()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->requireClickedDocument()V
+    invoke-direct {p0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->requireHistory(Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private tapReadableGoogleResult()V
+    .registers 10
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->readableBody()Ljava/lang/String;
+    move-result-object v0
+    invoke-static {}, Lorg/isomorphisms/ib/ReaderBridge;->history()Ljava/lang/String;
+    move-result-object v1
+    const/4 v2, 0x3
+  :try_actual_result
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->tapGoogleResult()V
+    const/16 v3, 0x578
+  :await_result_document
+    const-string v4, "org.isomorphisms.ib.prepaint"
+    const-string v5, "org.isomorphisms.ib.prepaint:id/reader_status"
+    invoke-direct {p0, v4, v5}, Lacceptance/shizuku/CapabilityInstrumentation;->node(Ljava/lang/String;Ljava/lang/String;)Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v6
+    invoke-virtual {v6}, Landroid/view/accessibility/AccessibilityNodeInfo;->getText()Ljava/lang/CharSequence;
+    move-result-object v6
+    if-eqz v6, :wait_result_document
+    invoke-interface {v6}, Ljava/lang/CharSequence;->toString()Ljava/lang/String;
+    move-result-object v6
+    const-string v5, "Static HTML — scripts and forms are unavailable."
+    invoke-virtual {v5, v6}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v5
+    if-nez v5, :readable_destination
+    const-string v5, "Document refused:"
+    invoke-virtual {v6, v5}, Ljava/lang/String;->startsWith(Ljava/lang/String;)Z
+    move-result v5
+    if-nez v5, :unsupported_destination
+    const-string v5, "HTTP "
+    invoke-virtual {v6, v5}, Ljava/lang/String;->startsWith(Ljava/lang/String;)Z
+    move-result v5
+    if-nez v5, :unsupported_destination
+    const-string v5, "retained."
+    invoke-virtual {v6, v5}, Ljava/lang/String;->endsWith(Ljava/lang/String;)Z
+    move-result v5
+    if-nez v5, :unsupported_destination
+  :wait_result_document
+    const-wide/16 v7, 0x64
+    invoke-static {v7, v8}, Landroid/os/SystemClock;->sleep(J)V
+    add-int/lit8 v3, v3, -0x1
+    if-gtz v3, :await_result_document
+    const-string v4, "FAIL actual result acquisition reached neither a readable document nor an explicit refusal"
+    invoke-static {v4}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    return-void
+  :unsupported_destination
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->readableBody()Ljava/lang/String;
+    move-result-object v6
+    invoke-virtual {v0, v6}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v6
+    if-eqz v6, :changed_google_source
+    invoke-direct {p0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->requireHistory(Ljava/lang/String;)V
+    iget-object v6, p0, Lacceptance/shizuku/CapabilityInstrumentation;->attemptedGoogleTargets:Ljava/lang/String;
+    if-nez v6, :have_exclusions
+    const-string v6, "\n"
+  :have_exclusions
+    new-instance v7, Ljava/lang/StringBuilder;
+    invoke-direct {v7, v6}, Ljava/lang/StringBuilder;-><init>(Ljava/lang/String;)V
+    iget-object v8, p0, Lacceptance/shizuku/CapabilityInstrumentation;->pendingGoogleTarget:Ljava/lang/String;
+    invoke-virtual {v7, v8}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    const-string v6, "\n"
+    invoke-virtual {v7, v6}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v7}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+    move-result-object v6
+    iput-object v6, p0, Lacceptance/shizuku/CapabilityInstrumentation;->attemptedGoogleTargets:Ljava/lang/String;
+    const-string v7, "IBIndependentUnsupportedSearchTarget"
+    invoke-static {v7, v8}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
+    add-int/lit8 v2, v2, -0x1
+    if-gtz v2, :try_actual_result
+    const-string v4, "FAIL no attempted real Google result supplied a selectable native destination document"
+    invoke-static {v4}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    return-void
+  :changed_google_source
+    const-string v4, "FAIL unsupported result changed the last-good Google document"
+    invoke-static {v4}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    return-void
+  :readable_destination
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->readableBody()Ljava/lang/String;
+    iget-object v6, p0, Lacceptance/shizuku/CapabilityInstrumentation;->pendingGoogleTarget:Ljava/lang/String;
+    const-string v5, "IBIndependentClickedSearchURL"
+    invoke-static {v5, v6}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
+    const-string v5, "browser-google-destination"
+    invoke-direct {p0, v5}, Lacceptance/shizuku/CapabilityInstrumentation;->recordNamedScreenshot(Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private offlineGoogleResult()V
+    .registers 4
+    const/4 v0, 0
+    const-string v1, "FAIL search cache replay requires absent Shizuku"
+    invoke-static {v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitState(ILjava/lang/String;)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->requireClickedDocument()V
+    invoke-static {}, Lorg/isomorphisms/ib/ReaderBridge;->history()Ljava/lang/String;
+    move-result-object v0
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyBack()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->requireGoogleDocument()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyForward()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->requireClickedDocument()V
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->requireHistory(Ljava/lang/String;)V
     return-void
 .end method
 
@@ -860,9 +1656,40 @@
 .end method
 
 
+
+.method private untrustedCertificateRefusal()V
+    .registers 3
+    const-string v0, "https://10.0.2.2:18492/"
+    const-string v1, "Acquisition or verified source readback failed. The previous document is retained."
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->refusedNavigation(Ljava/lang/String;Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private recoveredJournalHistory()V
+    .registers 3
+    const/4 v0, 0
+    const-string v1, "FAIL journal recovery requires absent Shizuku"
+    invoke-static {v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitState(ILjava/lang/String;)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureOne()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyForward()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureTwo()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyBack()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureOne()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyForward()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureTwo()V
+    return-void
+.end method
+
 .method public callActivityOnCreate(Landroid/app/Activity;Landroid/os/Bundle;)V
     .registers 3
     invoke-super {p0, p1, p2}, Landroid/app/Instrumentation;->callActivityOnCreate(Landroid/app/Activity;Landroid/os/Bundle;)V
+    iput-object p1, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
+    return-void
+.end method
+
+.method public callActivityOnResume(Landroid/app/Activity;)V
+    .registers 2
+    invoke-super {p0, p1}, Landroid/app/Instrumentation;->callActivityOnResume(Landroid/app/Activity;)V
     iput-object p1, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
     return-void
 .end method
@@ -1049,7 +1876,15 @@
 .end method
 
 .method private chordSearchHandoff()V
-    .registers 8
+    .registers 3
+    const-string v0, "IB café + %2F 🌍"
+    const-string v1, "https://google.com/search?q=IB+caf%C3%A9+%2B+%252F+%F0%9F%8C%8D+chords"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->chordSearchHandoffFor(Ljava/lang/String;Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private chordSearchHandoffFor(Ljava/lang/String;Ljava/lang/String;)V
+    .registers 10
     const/4 v0, 0x3
     const-string v1, "FAIL authorized real worker before ChordReader search"
     invoke-static {v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitState(ILjava/lang/String;)V
@@ -1062,7 +1897,7 @@
     const-string v1, "text/plain"
     invoke-virtual {v0, v1}, Landroid/content/Intent;->setType(Ljava/lang/String;)Landroid/content/Intent;
     const-string v1, "android.intent.extra.TITLE"
-    const-string v2, "IB café + %2F 🌍"
+    move-object v2, p1
     invoke-virtual {v0, v1, v2}, Landroid/content/Intent;->putExtra(Ljava/lang/String;Ljava/lang/String;)Landroid/content/Intent;
     const-string v1, "android.intent.extra.TEXT"
     const-string v2, "[C] Public search handoff acceptance fixture"
@@ -1089,7 +1924,7 @@
     invoke-direct {v2, v1}, Lacceptance/shizuku/ReaderAddressSnapshot;-><init>(Landroid/app/Activity;)V
     invoke-virtual {p0, v2}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
     iget-object v2, v2, Lacceptance/shizuku/ReaderAddressSnapshot;->address:Ljava/lang/String;
-    const-string v3, "https://google.com/search?q=IB+caf%C3%A9+%2B+%252F+%F0%9F%8C%8D+chords"
+    move-object v3, p2
     invoke-virtual {v3, v2}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
     move-result v3
     if-nez v3, :encoded
@@ -1198,6 +2033,558 @@
     return-void
 .end method
 
+
+.method private refusedNavigation(Ljava/lang/String;Ljava/lang/String;)V
+    .registers 7
+    invoke-static {}, Lorg/isomorphisms/ib/ReaderBridge;->history()Ljava/lang/String;
+    move-result-object v0
+    invoke-direct {p0, p1}, Lacceptance/shizuku/CapabilityInstrumentation;->enterReaderURL(Ljava/lang/String;)V
+    invoke-direct {p0, p2}, Lacceptance/shizuku/CapabilityInstrumentation;->waitStatus(Ljava/lang/String;)V
+    const-string v1, "Reader Two"
+    invoke-direct {p0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->assertDocumentTitle(Ljava/lang/String;)V
+    invoke-static {}, Lorg/isomorphisms/ib/ReaderBridge;->history()Ljava/lang/String;
+    move-result-object v1
+    invoke-virtual {v0, v1}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-nez v1, :preserved
+    const-string v1, "FAIL refused transport or document changed last-good navigation"
+    invoke-static {v1}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+  :preserved
+    const-string v1, "Reader Two\n\nSecond retained fixture acquired through ICU.\n\nFirst"
+    invoke-direct {p0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->exactSourceClipboard(Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private transportRefusals()V
+    .registers 3
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureTwo()V
+    const-string v0, "https://10.0.2.2:18491/valid"
+    const-string v1, "Acquisition or verified source readback failed. The previous document is retained."
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->refusedNavigation(Ljava/lang/String;Ljava/lang/String;)V
+    const-string v0, "http://10.0.2.2:18491/unknown-charset"
+    const-string v1, "Document refused: unsupported-charset"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->refusedNavigation(Ljava/lang/String;Ljava/lang/String;)V
+    const-string v0, "http://10.0.2.2:18491/invalid-utf8"
+    const-string v1, "Document refused: invalid-utf8"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->refusedNavigation(Ljava/lang/String;Ljava/lang/String;)V
+    const-string v0, "http://10.0.2.2:18491/binary"
+    const-string v1, "Document refused: unsupported-mime"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->refusedNavigation(Ljava/lang/String;Ljava/lang/String;)V
+    const-string v0, "http://10.0.2.2:18491/binary-unlabelled"
+    const-string v1, "Document refused: unsupported-charset"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->refusedNavigation(Ljava/lang/String;Ljava/lang/String;)V
+    const-string v0, "http://10.0.2.2:18491/truncated"
+    const-string v1, "Acquisition or verified source readback failed. The previous document is retained."
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->refusedNavigation(Ljava/lang/String;Ljava/lang/String;)V
+    const-string v0, "http://10.0.2.2:18491/gzip-truncated"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->refusedNavigation(Ljava/lang/String;Ljava/lang/String;)V
+    const-string v0, "http://10.0.2.2:18491/malformed-chunk"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->refusedNavigation(Ljava/lang/String;Ljava/lang/String;)V
+    const-string v0, "http://10.0.2.2:18491/excessive-chunk"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->refusedNavigation(Ljava/lang/String;Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private lifecycleDocument(Ljava/lang/String;Ljava/lang/String;)V
+    .locals 6
+    const/16 v0, 300
+  :again
+    const-string v1, "org.isomorphisms.ib.prepaint"
+    const-string v2, "org.isomorphisms.ib.prepaint:id/reader_title"
+    invoke-direct {p0, v1, v2}, Lacceptance/shizuku/CapabilityInstrumentation;->node(Ljava/lang/String;Ljava/lang/String;)Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v1
+    invoke-virtual {v1}, Landroid/view/accessibility/AccessibilityNodeInfo;->getText()Ljava/lang/CharSequence;
+    move-result-object v1
+    if-eqz v1, :retry
+    invoke-interface {v1}, Ljava/lang/CharSequence;->toString()Ljava/lang/String;
+    move-result-object v1
+    invoke-virtual {p1, v1}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :retry
+    const-string v1, "org.isomorphisms.ib.prepaint"
+    const-string v2, "org.isomorphisms.ib.prepaint:id/reader_status"
+    invoke-direct {p0, v1, v2}, Lacceptance/shizuku/CapabilityInstrumentation;->node(Ljava/lang/String;Ljava/lang/String;)Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v1
+    invoke-virtual {v1}, Landroid/view/accessibility/AccessibilityNodeInfo;->getText()Ljava/lang/CharSequence;
+    move-result-object v1
+    if-eqz v1, :retry
+    invoke-interface {v1}, Ljava/lang/CharSequence;->toString()Ljava/lang/String;
+    move-result-object v1
+    const-string v2, "Static HTML — scripts and forms are unavailable."
+    invoke-virtual {v2, v1}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-nez v1, :ready
+  :retry
+    const-wide/16 v4, 100
+    invoke-static {v4, v5}, Landroid/os/SystemClock;->sleep(J)V
+    add-int/lit8 v0, v0, -1
+    if-gtz v0, :again
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->logReaderFailureStatus()V
+    invoke-static {p2}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    return-void
+  :ready
+    const-string v0, "Reader Two"
+    invoke-virtual {v0, p1}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v0
+    if-eqz v0, :one
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureTwo()V
+    return-void
+  :one
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureOne()V
+    return-void
+.end method
+
+.method private returnReaderActivity(Landroid/app/Activity;Landroid/app/Activity;)V
+    .locals 6
+    new-instance v0, Lacceptance/shizuku/ReaderLifecycleAction;
+    const/4 v1, 0
+    invoke-direct {v0, p2, v1}, Lacceptance/shizuku/ReaderLifecycleAction;-><init>(Landroid/app/Activity;I)V
+    invoke-virtual {p0, v0}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
+    const/16 v0, 100
+  :again
+    iget-object v1, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
+    if-ne v1, p1, :retry
+    invoke-virtual {p2}, Landroid/app/Activity;->isDestroyed()Z
+    move-result v1
+    if-nez v1, :returned
+  :retry
+    const-wide/16 v4, 100
+    invoke-static {v4, v5}, Landroid/os/SystemClock;->sleep(J)V
+    add-int/lit8 v0, v0, -1
+    if-gtz v0, :again
+    const-string v0, "FAIL Android did not destroy the newer reader and resume the original"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    return-void
+  :returned
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->waitForIdleSync()V
+    return-void
+.end method
+
+.method private secondReaderActivity()Landroid/app/Activity;
+    .locals 6
+    iget-object v2, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
+    new-instance v0, Lacceptance/shizuku/ReaderLifecycleAction;
+    const/4 v1, 1
+    invoke-direct {v0, v2, v1}, Lacceptance/shizuku/ReaderLifecycleAction;-><init>(Landroid/app/Activity;I)V
+    invoke-virtual {p0, v0}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
+    const/16 v0, 100
+  :again
+    iget-object v1, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
+    if-eqz v1, :retry
+    if-ne v1, v2, :created
+  :retry
+    const-wide/16 v4, 100
+    invoke-static {v4, v5}, Landroid/os/SystemClock;->sleep(J)V
+    add-int/lit8 v0, v0, -1
+    if-gtz v0, :again
+    const-string v0, "FAIL second native reader Activity instance"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    const/4 v1, 0
+    return-object v1
+  :created
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->waitForIdleSync()V
+    return-object v1
+.end method
+
+.method private staleReaderDestroy(Landroid/app/Activity;)V
+    .locals 2
+    new-instance v0, Lacceptance/shizuku/ReaderLifecycleAction;
+    const/4 v1, 2
+    invoke-direct {v0, p1, v1}, Lacceptance/shizuku/ReaderLifecycleAction;-><init>(Landroid/app/Activity;I)V
+    invoke-virtual {p0, v0}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
+    return-void
+.end method
+
+.method private heldSource(Z)V
+    .locals 3
+    if-eqz p1, :last_good
+    const-string v0, "http://10.0.2.2:18491/valid"
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->enterReaderURL(Ljava/lang/String;)V
+  :last_good
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureOne()V
+    const-string v0, "http://10.0.2.2:18491/held-uncommitted"
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->enterReaderURL(Ljava/lang/String;)V
+    const-string v0, "IBIndependentHeldSource"
+    const-string v1, "READY controlled pending acquisition"
+    if-eqz p1, :report_held
+    const-string v1, "CONTROL completed acquisition permitted"
+  :report_held
+    invoke-static {v0, v1}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->recordDocumentScreenshot()V
+    if-eqz p1, :pending
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureTwo()V
+    return-void
+  :pending
+    const-wide/32 v0, 180000
+    invoke-static {v0, v1}, Landroid/os/SystemClock;->sleep(J)V
+    const-string v0, "FAIL host did not kill the Activity process during the held ICU response"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private readerLifecycle()V
+    .locals 5
+    const-string v0, "http://10.0.2.2:18491/valid"
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->enterReaderURL(Ljava/lang/String;)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureOne()V
+    iget-object v3, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->secondReaderActivity()Landroid/app/Activity;
+    move-result-object v4
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureOne()V
+    const-string v0, "http://10.0.2.2:18491/malformed"
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->enterReaderURL(Ljava/lang/String;)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureTwo()V
+    invoke-direct {p0, v3, v4}, Lacceptance/shizuku/CapabilityInstrumentation;->returnReaderActivity(Landroid/app/Activity;Landroid/app/Activity;)V
+    const-string v0, "Reader Two"
+    const-string v1, "FAIL resumed Activity did not reopen last committed document"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->lifecycleDocument(Ljava/lang/String;Ljava/lang/String;)V
+    invoke-direct {p0, v4}, Lacceptance/shizuku/CapabilityInstrumentation;->staleReaderDestroy(Landroid/app/Activity;)V
+    const-string v0, "http://10.0.2.2:18491/valid"
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->enterReaderURL(Ljava/lang/String;)V
+    const-string v0, "Reader One"
+    const-string v1, "FAIL resumed Activity navigation after stale destroy"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->lifecycleDocument(Ljava/lang/String;Ljava/lang/String;)V
+    invoke-static {}, Lorg/isomorphisms/ib/ReaderBridge;->history()Ljava/lang/String;
+    move-result-object v2
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyBack()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureTwo()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyForward()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureOne()V
+    invoke-direct {p0, v2}, Lacceptance/shizuku/CapabilityInstrumentation;->requireHistory(Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private offlineReaderLifecycle()V
+    .locals 4
+    const/4 v0, 0
+    const-string v1, "FAIL offline Activity lifecycle requires absent Shizuku"
+    invoke-static {v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitState(ILjava/lang/String;)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureOne()V
+    invoke-static {}, Lorg/isomorphisms/ib/ReaderBridge;->history()Ljava/lang/String;
+    move-result-object v2
+    iget-object v3, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->secondReaderActivity()Landroid/app/Activity;
+    move-result-object v1
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureOne()V
+    invoke-direct {p0, v3, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->returnReaderActivity(Landroid/app/Activity;Landroid/app/Activity;)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureOne()V
+    invoke-direct {p0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->staleReaderDestroy(Landroid/app/Activity;)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyBack()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureTwo()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyForward()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureOne()V
+    invoke-direct {p0, v2}, Lacceptance/shizuku/CapabilityInstrumentation;->requireHistory(Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private linkShapeDocument(I)V
+    .locals 3
+    if-eqz p1, :base
+    const/4 v0, 1
+    if-eq p1, v0, :relative
+    const/4 v0, 2
+    if-eq p1, v0, :root
+    const/4 v0, 3
+    if-eq p1, v0, :query
+    const/4 v0, 4
+    if-eq p1, v0, :absolute
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->waitExampleDocument()V
+    const-string v0, "https://example.com/"
+    goto :address
+  :base
+    const-string v0, "Link Base"
+    const-string v1, "The supported base selects the relative destination."
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitNetworkDocument(Ljava/lang/String;Ljava/lang/String;)V
+    const-string v0, "http://10.0.2.2:18491/link-start"
+    goto :address
+  :relative
+    const-string v0, "Link Relative"
+    const-string v1, "The relative destination was acquired through ICU."
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitNetworkDocument(Ljava/lang/String;Ljava/lang/String;)V
+    const-string v0, "http://10.0.2.2:18491/link-base/relative"
+    goto :address
+  :root
+    const-string v0, "Link Root"
+    const-string v1, "The root relative destination was acquired through ICU."
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitNetworkDocument(Ljava/lang/String;Ljava/lang/String;)V
+    const-string v0, "http://10.0.2.2:18491/link-root"
+    goto :address
+  :query
+    const-string v0, "Link Query"
+    const-string v1, "The query only destination was acquired through ICU."
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitNetworkDocument(Ljava/lang/String;Ljava/lang/String;)V
+    const-string v0, "http://10.0.2.2:18491/link-root?stage=query&unicode=IB+caf%C3%A9+%2B+%252F+%F0%9F%8C%8D+chords"
+    goto :address
+  :absolute
+    const-string v0, "Link Absolute"
+    const-string v1, "The absolute destination precedes the cross origin HTTPS link."
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitNetworkDocument(Ljava/lang/String;Ljava/lang/String;)V
+    const-string v0, "http://10.0.2.2:18491/link-absolute"
+  :address
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->requireFragmentAddress(Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private linkShapeHistory()V
+    .locals 3
+    invoke-static {}, Lorg/isomorphisms/ib/ReaderBridge;->history()Ljava/lang/String;
+    move-result-object v2
+    const/4 v0, 4
+  :back
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyBack()V
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->linkShapeDocument(I)V
+    add-int/lit8 v0, v0, -1
+    if-gez v0, :back
+    const/4 v0, 1
+  :forward
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyForward()V
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->linkShapeDocument(I)V
+    add-int/lit8 v0, v0, 1
+    const/4 v1, 5
+    if-le v0, v1, :forward
+    invoke-direct {p0, v2}, Lacceptance/shizuku/CapabilityInstrumentation;->requireHistory(Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private linkShapes()V
+    .locals 2
+    # A fresh Activity reopens its previous retained source asynchronously.
+    # Wait for that real static document before submitting the next URL.
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->requireClickedDocument()V
+    const-string v0, "http://10.0.2.2:18491/link-start"
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->enterReaderURL(Ljava/lang/String;)V
+    const/4 v0, 0
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->linkShapeDocument(I)V
+    const/4 v0, 1
+  :next
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->tapNextLink()V
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->linkShapeDocument(I)V
+    add-int/lit8 v0, v0, 1
+    const/4 v1, 5
+    if-le v0, v1, :next
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->linkShapeHistory()V
+    return-void
+.end method
+
+.method private offlineLinkShapes()V
+    .locals 2
+    const/4 v0, 0
+    const-string v1, "FAIL retained link shapes require absent Shizuku"
+    invoke-static {v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitState(ILjava/lang/String;)V
+    const/4 v0, 5
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->linkShapeDocument(I)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->linkShapeHistory()V
+    return-void
+.end method
+
+.method private assertFragmentViewport(Z)V
+    .registers 7
+    const/16 v0, 20
+  :again
+    iget-object v1, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
+    new-instance v2, Lacceptance/shizuku/FragmentViewport;
+    invoke-direct {v2, v1, p1}, Lacceptance/shizuku/FragmentViewport;-><init>(Landroid/app/Activity;Z)V
+    invoke-virtual {p0, v2}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
+    iget-object v1, v2, Lacceptance/shizuku/FragmentViewport;->problem:Ljava/lang/String;
+    if-eqz v1, :done
+    const-wide/16 v2, 100
+    invoke-static {v2, v3}, Landroid/os/SystemClock;->sleep(J)V
+    add-int/lit8 v0, v0, -1
+    if-gtz v0, :again
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->recordDocumentScreenshot()V
+    invoke-static {v1}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+  :done
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->recordDocumentScreenshot()V
+    return-void
+.end method
+
+.method private requireFragmentAddress(Ljava/lang/String;)V
+    .registers 8
+    # A fragment reuses the same text/title/status. Wait for the actual native
+    # address after injected input instead of accepting the old document's text
+    # as proof that InputDispatcher has completed the touch.
+    const/16 v0, 0x64
+  :again
+    iget-object v1, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
+    new-instance v2, Lacceptance/shizuku/ReaderAddressSnapshot;
+    invoke-direct {v2, v1}, Lacceptance/shizuku/ReaderAddressSnapshot;-><init>(Landroid/app/Activity;)V
+    invoke-virtual {p0, v2}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
+    iget-object v3, v2, Lacceptance/shizuku/ReaderAddressSnapshot;->address:Ljava/lang/String;
+    invoke-virtual {p1, v3}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v4
+    if-nez v4, :done
+    const-wide/16 v4, 0x64
+    invoke-static {v4, v5}, Landroid/os/SystemClock;->sleep(J)V
+    add-int/lit8 v0, v0, -0x1
+    if-gtz v0, :again
+    const-string v4, "IBIndependentFragmentAddressExpected"
+    invoke-static {v4, p1}, Landroid/util/Log;->e(Ljava/lang/String;Ljava/lang/String;)I
+    invoke-static {v3}, Ljava/lang/String;->valueOf(Ljava/lang/Object;)Ljava/lang/String;
+    move-result-object v3
+    const-string v4, "IBIndependentFragmentAddressObserved"
+    invoke-static {v4, v3}, Landroid/util/Log;->e(Ljava/lang/String;Ljava/lang/String;)I
+    const-string v0, "FAIL native fragment navigation address"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+  :done
+    return-void
+.end method
+
+.method private fragmentDocument(Z)V
+    .registers 5
+    const-string v0, "Anchor Fixture"
+    const-string v1, "Before fragment paragraph 01"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitNetworkDocument(Ljava/lang/String;Ljava/lang/String;)V
+    if-eqz p1, :top
+    const-string v0, "http://10.0.2.2:18491/anchor-fixture#caf%C3%A9"
+    goto :address
+  :top
+    const-string v0, "http://10.0.2.2:18491/anchor-fixture"
+  :address
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->requireFragmentAddress(Ljava/lang/String;)V
+    invoke-direct {p0, p1}, Lacceptance/shizuku/CapabilityInstrumentation;->assertFragmentViewport(Z)V
+    return-void
+.end method
+
+.method private earlyNativeLinkTouch()V
+    .locals 10
+    const-string v0, "http://10.0.2.2:18491/valid"
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->enterReaderURL(Ljava/lang/String;)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureOne()V
+    # Pause before reflow to exercise the SDK's idle smooth-scroll branch.
+    # Never delay the subsequent touch past its measured frame window.
+    const-wide/16 v0, 0x2ee
+    invoke-static {v0, v1}, Landroid/os/SystemClock;->sleep(J)V
+    iget-object v0, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
+    new-instance v5, Lacceptance/shizuku/EarlyLinkTouchProbe;
+    invoke-direct {v5, v0}, Lacceptance/shizuku/EarlyLinkTouchProbe;-><init>(Landroid/app/Activity;)V
+    invoke-virtual {p0, v5}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
+    iget-object v0, v5, Lacceptance/shizuku/EarlyLinkTouchProbe;->problem:Ljava/lang/String;
+    if-nez v0, :problem
+    const-string v0, "org.isomorphisms.ib.prepaint"
+    const-string v1, "org.isomorphisms.ib.prepaint:id/reflow_button"
+    invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->click(Ljava/lang/String;Ljava/lang/String;)V
+    iget-object v0, v5, Lacceptance/shizuku/EarlyLinkTouchProbe;->ready:Ljava/util/concurrent/CountDownLatch;
+    const-wide/16 v1, 5
+    sget-object v3, Ljava/util/concurrent/TimeUnit;->SECONDS:Ljava/util/concurrent/TimeUnit;
+    invoke-virtual {v0, v1, v2, v3}, Ljava/util/concurrent/CountDownLatch;->await(JLjava/util/concurrent/TimeUnit;)Z
+    move-result v0
+    if-eqz v0, :timing
+    iget-object v0, v5, Lacceptance/shizuku/EarlyLinkTouchProbe;->problem:Ljava/lang/String;
+    if-nez v0, :problem
+    iget-wide v6, v5, Lacceptance/shizuku/EarlyLinkTouchProbe;->frameAt:J
+    const-wide/16 v0, 0
+    cmp-long v4, v6, v0
+    if-lez v4, :timing
+    iget-wide v0, v5, Lacceptance/shizuku/EarlyLinkTouchProbe;->frameCommittedAt:J
+    sub-long/2addr v0, v6
+    const-wide/16 v2, 0
+    cmp-long v4, v0, v2
+    if-ltz v4, :timing
+    const-wide/16 v2, 0x64
+    cmp-long v4, v0, v2
+    if-gtz v4, :timing
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->tapNextLink()V
+    iget-wide v0, v5, Lacceptance/shizuku/EarlyLinkTouchProbe;->upAt:J
+    const-wide/16 v2, 0
+    cmp-long v4, v0, v2
+    if-lez v4, :finished_input_clock
+    const-string v9, "child_UP"
+    goto :touch_clock
+  :finished_input_clock
+    # injectInputEvent(sync=true) has completed even when the parent consumed it.
+    invoke-static {}, Landroid/os/SystemClock;->uptimeMillis()J
+    move-result-wide v0
+    const-string v9, "synchronous_input_completion"
+  :touch_clock
+    sub-long/2addr v0, v6
+    iget v2, v5, Lacceptance/shizuku/EarlyLinkTouchProbe;->downs:I
+    iget v3, v5, Lacceptance/shizuku/EarlyLinkTouchProbe;->ups:I
+    new-instance v8, Ljava/lang/StringBuilder;
+    invoke-direct {v8}, Ljava/lang/StringBuilder;-><init>()V
+    const-string v4, "frame_to_touch_ms="
+    invoke-virtual {v8, v4}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v8, v0, v1}, Ljava/lang/StringBuilder;->append(J)Ljava/lang/StringBuilder;
+    const-string v4, " time_source="
+    invoke-virtual {v8, v4}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v8, v9}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    const-string v4, " child_downs="
+    invoke-virtual {v8, v4}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v8, v2}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    const-string v4, " child_ups="
+    invoke-virtual {v8, v4}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v8, v3}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    invoke-virtual {v8}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+    move-result-object v8
+    const-string v9, "IBIndependentEarlyLinkTouch"
+    invoke-static {v9, v8}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
+    const-wide/16 v6, 0
+    cmp-long v4, v0, v6
+    if-ltz v4, :timing
+    const-wide/16 v6, 0xc8
+    cmp-long v4, v0, v6
+    if-gez v4, :timing
+    const/4 v4, 1
+    if-ne v2, v4, :missed
+    if-ne v3, v4, :missed
+    const/4 v0, 3
+    iput v0, v5, Lacceptance/shizuku/EarlyLinkTouchProbe;->mode:I
+    invoke-virtual {p0, v5}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fixtureTwo()V
+    return-void
+  :problem
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    return-void
+  :timing
+    const-string v0, "FAIL early native link timing window was not exercised"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    return-void
+  :missed
+    const-string v0, "FAIL early native link touch reached the document"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private fragmentNavigation()V
+    .registers 4
+    const-string v0, "http://10.0.2.2:18491/anchor-fixture"
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->enterReaderURL(Ljava/lang/String;)V
+    const/4 v0, 0
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->fragmentDocument(Z)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->tapNextLink()V
+    const/4 v0, 1
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->fragmentDocument(Z)V
+    invoke-static {}, Lorg/isomorphisms/ib/ReaderBridge;->history()Ljava/lang/String;
+    move-result-object v1
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyBack()V
+    const/4 v0, 0
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->fragmentDocument(Z)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyForward()V
+    const/4 v0, 1
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->fragmentDocument(Z)V
+    invoke-direct {p0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->requireHistory(Ljava/lang/String;)V
+    return-void
+.end method
+
+.method private offlineFragments()V
+    .registers 4
+    const/4 v0, 0
+    const-string v1, "FAIL fragment replay requires absent Shizuku"
+    invoke-static {v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->waitState(ILjava/lang/String;)V
+    const/4 v0, 1
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->fragmentDocument(Z)V
+    invoke-static {}, Lorg/isomorphisms/ib/ReaderBridge;->history()Ljava/lang/String;
+    move-result-object v1
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyBack()V
+    const/4 v0, 0
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->fragmentDocument(Z)V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyForward()V
+    const/4 v0, 1
+    invoke-direct {p0, v0}, Lacceptance/shizuku/CapabilityInstrumentation;->fragmentDocument(Z)V
+    invoke-direct {p0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->requireHistory(Ljava/lang/String;)V
+    return-void
+.end method
+
+
 .method public onStart()V
     .registers 10
   :begin
@@ -1225,6 +2612,117 @@
   :launched
     iput-object v0, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
     iget-object v0, p0, Lacceptance/shizuku/CapabilityInstrumentation;->phase:Ljava/lang/String;
+    const-string v1, "early-native-link"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :google_continuation_phase
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->earlyNativeLinkTouch()V
+    const-string v7, "PASS frame-timed native Next touch reaches the document and acquires Reader Two through ICU"
+    goto :success
+  :google_continuation_phase
+    const-string v1, "google-continuation"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :fragment_phase
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->googleContinuation()Z
+    move-result v1
+    if-eqz v1, :no_google_continuation
+    const-string v7, "OBSERVED first-party Google continuation; results remain unqualified"
+    goto :success
+  :no_google_continuation
+    const-string v7, "NOT_NEEDED no Google redirect placeholder"
+    goto :success
+  :fragment_phase
+    const-string v1, "link-shapes"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :offline_link_shapes_phase
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->linkShapes()V
+    const-string v7, "PASS actual native base relative root query absolute and cross origin HTTPS link acquisition"
+    goto :success
+  :offline_link_shapes_phase
+    const-string v1, "offline-link-shapes"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :reader_lifecycle_phase
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->offlineLinkShapes()V
+    const-string v7, "PASS all acquired link shapes retain offline Back Forward source identity"
+    goto :success
+  :reader_lifecycle_phase
+    const-string v1, "reader-lifecycle"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :offline_reader_lifecycle_phase
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->readerLifecycle()V
+    const-string v7, "PASS native reader Activity return retained source new navigation and stale destroy refusal"
+    goto :success
+  :offline_reader_lifecycle_phase
+    const-string v1, "offline-reader-lifecycle"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :held_source_phase
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->offlineReaderLifecycle()V
+    const-string v7, "PASS native reader Activity return and retained Back Forward without Shizuku"
+    goto :success
+  :held_source_phase
+    const-string v1, "begin-held-source"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :complete_held_source_phase
+    const/4 v1, 0
+    invoke-direct {p0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->heldSource(Z)V
+    const-string v7, "FAIL held-source observer returned before the controlled process kill"
+    goto :success
+  :complete_held_source_phase
+    const-string v1, "complete-held-source"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :fragment_navigation_phase
+    const/4 v1, 1
+    invoke-direct {p0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->heldSource(Z)V
+    const-string v7, "PASS controlled completed held acquisition is admitted"
+    goto :success
+  :fragment_navigation_phase
+    const-string v1, "fragment-navigation"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :offline_fragment_phase
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->fragmentNavigation()V
+    const-string v7, "PASS native fragment touch reaches Unicode target and retained Back Forward"
+    goto :success
+  :offline_fragment_phase
+    const-string v1, "offline-fragments"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :untrusted_tls_phase
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->offlineFragments()V
+    const-string v7, "PASS retained fragment viewport and Back Forward without Shizuku"
+    goto :success
+  :untrusted_tls_phase
+    const-string v1, "untrusted-tls"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :journal_corruption_phase
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->untrustedCertificateRefusal()V
+    const-string v7, "PASS installed ICU rejects a real untrusted TLS certificate and retains source copy and history"
+    goto :success
+  :journal_corruption_phase
+    const-string v1, "corrupt-history-recovered"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :transport_refusal_phase
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->recoveredJournalHistory()V
+    const-string v7, "PASS installed checksummed journal corruption recovers previous source and offline history"
+    goto :success
+  :transport_refusal_phase
+    const-string v1, "transport-refusals"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :encoded_document_phase
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->transportRefusals()V
+    const-string v7, "PASS installed TLS protocol charset UTF8 binary truncation encoding chunking and size refusals preserve source"
+    goto :success
+  :encoded_document_phase
     const-string v1, "encoded-documents"
     invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
     move-result v1
@@ -1249,6 +2747,22 @@
     const-string v7, "PASS installed actual ICU HTTP 404 refusal preserves visible source clipboard and navigation"
     goto :success
   :search_caller_controls
+    const-string v1, "browser-google"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :offline_browser_google
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->browserGoogleTransaction()V
+    const-string v7, "PASS genuine ChordReader browser-assisted Google native result touch destination and retained Back Forward"
+    goto :success
+  :offline_browser_google
+    const-string v1, "offline-browser-google"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :original_search_caller_controls
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->offlineGoogleResult()V
+    const-string v7, "PASS browser-derived Google and original ICU destination reopen and navigate without Shizuku"
+    goto :success
+  :original_search_caller_controls
     const-string v1, "search-callers"
     invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
     move-result v1
@@ -1257,6 +2771,22 @@
     const-string v7, "PASS installed no-caller spoofed-referrer wrong-caller and warm SEARCH refusals"
     goto :success
   :chord_search
+    const-string v1, "google-result"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :offline_google_result
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->clickGoogleResult()V
+    const-string v7, "PASS native Google body actual result touch acquisition and retained Back Forward"
+    goto :success
+  :offline_google_result
+    const-string v1, "offline-google-result"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :original_chord_search
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->offlineGoogleResult()V
+    const-string v7, "PASS retained Google results and clicked document navigate without Shizuku"
+    goto :success
+  :original_chord_search
     const-string v1, "chord-search"
     invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
     move-result v1

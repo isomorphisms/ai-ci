@@ -48,12 +48,18 @@ if (len(old_server) !== 0) { echo 'FAIL reused Shizuku server before encoding co
 "$adb" -s "$serial" shell "$starter" "--apk=$manager" > "$evidence/start-server.txt" 2>&1
 proc diagnose(label) {
   try {
-    "$adb" -s "$serial" logcat -d -v threadtime 2>&1 |
+    timeout 30 "$adb" -s "$serial" logcat -d -v threadtime 2>&1 |
       sed -E 's/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}-[0-9]{10,}/[REDACTED_SERVICE_NONCE]/g' > "$evidence/$label.logcat.txt"
   }
   try { "$adb" -s "$serial" exec-out screencap -p > "$evidence/$label.png" 2> "$evidence/$label.screen-error.txt" }
+  if test -s "$evidence/$label.logcat.txt" {
+    awk '/IBIndependentReadiness|IBIndependentFragmentAddressExpected|IBIndependentFragmentAddressObserved/ {print}' "$evidence/$label.logcat.txt"
+    awk '/IBReader|IBIndependent|ANR in|FATAL EXCEPTION|AndroidRuntime/ {line[++n]=$0}
+      END {for(i=(n>56?n-55:1);i<=n;i++)print line[i]}' "$evidence/$label.logcat.txt"
+  }
 }
 proc observe(phase, label, marker) {
+  "$grease" "$repository/ib-source/shizuku/prepare-test-screen.grease" "$adb" "$serial" "$evidence/$label.screen"
   try {
     timeout 240 "$adb" -s "$serial" shell am instrument -w -r -e phase "$phase" \
       org.isomorphisms.ib.acceptance/acceptance.shizuku.CapabilityInstrumentation > "$evidence/$label.txt" 2>&1
@@ -61,7 +67,17 @@ proc observe(phase, label, marker) {
   var status = _error.code
   printf '%s\n' "$status" > "$evidence/$label.exit"
   cat "$evidence/$label.txt"
-  if (status !== 0) { diagnose "$label"; exit 1 }
+  if (status !== 0) {
+    try { timeout 10 "$adb" -s "$serial" shell pidof org.isomorphisms.ib.prepaint > "$evidence/$label.pid" 2>&1 }
+    var pid = $(tr -d '\r\n' < "$evidence/$label.pid")
+    printf '%s\n' "$pid" > "$evidence/$label.pid-normalized"
+    if rg -q -x '[1-9][0-9]{0,8}' "$evidence/$label.pid-normalized" {
+      try { timeout 10 "$adb" -s "$serial" shell kill -3 "$pid" > "$evidence/$label.thread-request.txt" 2>&1 }
+      sleep 1
+    }
+    diagnose "$label"
+    exit 1
+  }
   if ! rg -x -F 'INSTRUMENTATION_CODE: -1' "$evidence/$label.txt" { diagnose "$label"; exit 1 }
   if ! rg -x -F "INSTRUMENTATION_RESULT: stream=$marker" "$evidence/$label.txt" { diagnose "$label"; exit 1 }
 }
@@ -72,7 +88,16 @@ diagnose after-codecs
 observe offline-encoded-documents offline-codecs 'PASS installed original-byte retained non-UTF-8 documents reopen and navigate without Shizuku'
 "$adb" -s "$serial" shell am force-stop org.isomorphisms.ib.prepaint
 "$adb" -s "$serial" reboot
-timeout 90 "$adb" -s "$serial" wait-for-device
+try { timeout 90 "$adb" -s "$serial" wait-for-device }
+var reboot_transport = _error.code
+printf '%s\n' "$reboot_transport" > "$evidence/reboot-transport.exit"
+if (reboot_transport !== 0) {
+  try { timeout 5 "$adb" devices -l > "$evidence/reboot-transport.devices.txt" 2>&1 }
+  df -PB1 "$evidence" > "$evidence/reboot-transport.capacity.txt"
+  ps -eo pid,comm > "$evidence/reboot-transport.host-processes.txt"
+  echo 'FAIL emulator reboot transport did not return within the declared bound' >&2
+  exit 1
+}
 var booted = false
 for attempt in @(seq 1 120) {
   var boot = $("$adb" -s "$serial" shell getprop sys.boot_completed | tr -d '\r')
@@ -87,9 +112,22 @@ observe offline-encoded-documents rebooted-codecs 'PASS installed original-byte 
 timeout 30 "$adb" -s "$serial" wait-for-device
 "$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 0
 "$adb" -s "$serial" pull /data/user/0/org.isomorphisms.ib.prepaint/files/arena "$evidence/actual-arena"
-"$adb" -s "$serial" unroot > "$evidence/snapshot-unroot.txt" 2>&1
+try { "$adb" -s "$serial" unroot > "$evidence/snapshot-unroot.txt" 2>&1 }
+var unroot_status = _error.code
+printf '%s\n' "$unroot_status" > "$evidence/snapshot-unroot.exit"
+cat "$evidence/snapshot-unroot.txt"
+# API 29 can acknowledge the daemon restart and exit 1 as its transport closes.
+# Accept only that exact observed acknowledgement, then require a new shell UID.
+if (unroot_status !== 0 and unroot_status !== 1) { exit "$unroot_status" }
+# API34 also returned status0 with zero acknowledgement bytes in the frozen
+# original run. Require the restart text only for the known transport-close
+# status1 case; both cases still require the observed non-root shell below.
+if (unroot_status === 1) {
+  tr -d '\r' < "$evidence/snapshot-unroot.txt" | rg -x -F 'restarting adbd as non root'
+}
 timeout 30 "$adb" -s "$serial" wait-for-device
-"$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 2000
+"$adb" -s "$serial" shell id -u | tr -d '\r' > "$evidence/snapshot-post-unroot-UID.txt"
+rg -x 2000 "$evidence/snapshot-post-unroot-UID.txt"
 chmod 700 "$evidence/actual-arena"
 mkdir -m 700 "$evidence/actual-arena/staging"
 try {
@@ -104,5 +142,5 @@ sha256sum "$compiler" "$evidence/fixture-server" "$repository/ingestion/src/fixt
   "$input/native-client/ib-native-boundary.apk" "$installed/observer.dex" \
   "$fixtures/bodies/windows-1252.hex" "$fixtures/bodies/latin-1.hex" \
   "$evidence/actual-arena/last-source" "$evidence/actual-arena/responses.arena" > "$evidence/sha256.txt"
-printf 'schema\tib-installed-source-decoding-v1\napi\t%s\nabi\tx86_64\nactual_ICU_windows1252_ISO88591\tPASS\nactual_SDK_original_octet_carrier\tPASS\nchecked_decode_admission\tPASS\nsource_faithful_decoded_clipboard\tPASS\nWindows_source_copy_after_reflow\tPASS\noffline_history_and_reboot\tPASS\nindependent_original_bytes_identity_generation_digest\tPASS\nraw_receipt_promoted_to_admission\tNO\nchanged_expected_charset\tREJECTED\nphysical_TAB_P10\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"
+printf 'schema\tib-installed-source-decoding-v1\napi\t%s\nabi\tx86_64\nactual_ICU_windows1252_ISO88591\tPASS\nactual_SDK_original_octet_carrier\tPASS\nchecked_decode_admission\tPASS\nsource_faithful_decoded_clipboard\tPASS\nWindows_source_copy_after_reflow\tPASS\noffline_history_and_reboot\tPASS\nactual_post_snapshot_shell_UID\t2000\nindependent_original_bytes_identity_generation_digest\tPASS\nraw_receipt_promoted_to_admission\tNO\nchanged_expected_charset\tREJECTED\nphysical_TAB_P10\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"
 cat "$evidence/receipt.tsv"

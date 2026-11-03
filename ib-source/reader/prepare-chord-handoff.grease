@@ -1,0 +1,21 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 1) { echo 'usage: grease prepare-chord-handoff.grease NEW_EVIDENCE' >&2; exit 2 }
+var evidence = ARGV[0]
+if (len(evidence) === 0 or evidence[0] !== '/') { exit 2 }
+if test -e "$evidence" { echo 'FAIL reused ChordReader input evidence' >&2; exit 2 }
+mkdir -p "$evidence/input"
+var authorization = ENV.GITHUB_TOKEN
+var archive = "$evidence/chord.zip"
+# Fixed immutable public-source artifact; never print an authorization header
+# or its temporary redirected URL.
+curl --fail --location --silent --show-error --max-time 120 \
+  --header "Authorization: Bearer $authorization" \
+  https://api.github.com/repos/dilapidated-shed/tablature/actions/artifacts/13100269370/zip \
+  --output "$archive"
+test "$(wc -c < "$archive")" = 4285589
+printf '8bb0f7798d9ba8cdfc7a27d5cbda26d2d3f1b0e9fc35816ac2ae3430c4daee02  %s\n' "$archive" | sha256sum -c -
+unzip -q "$archive" -d "$evidence/input"
+var apk = "$evidence/input/android/chordreader-x86_64.apk"
+printf '808786b3783a769c1692783efdac14e0d97bb4c3bb71970fee3677c5e247853b  %s\n' "$apk" | sha256sum -c -
+printf 'schema\tchordreader-search-input-v1\nsource\te6c84d645ad7086a11ae2735258188a49e444d13\noriginal_run\t41347983217\noriginal_artifact\t13100269370\narchive_sha256\t8bb0f7798d9ba8cdfc7a27d5cbda26d2d3f1b0e9fc35816ac2ae3430c4daee02\nx86_64_apk_sha256\t808786b3783a769c1692783efdac14e0d97bb4c3bb71970fee3677c5e247853b\n' > "$evidence/input-identity.tsv"

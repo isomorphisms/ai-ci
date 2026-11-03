@@ -1,0 +1,170 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 9) { echo 'usage: grease observe-search.grease AICI IB_INPUT SDK ADB SERIAL INSTALLED_EVIDENCE NAVIGATION_EVIDENCE CHORD_INPUT NEW_EVIDENCE' >&2; exit 2 }
+var repository = ARGV[0]
+var input = ARGV[1]
+var sdk = ARGV[2]
+var adb = ARGV[3]
+var serial = ARGV[4]
+var installed = ARGV[5]
+var navigation = ARGV[6]
+var chord = ARGV[7]
+var evidence = ARGV[8]
+var grease = ENV.IB_GREASE
+for path in "$repository" "$input" "$sdk" "$adb" "$installed" "$navigation" "$chord" "$evidence" {
+  if (len(path) === 0 or path[0] !== '/') { exit 2 }
+}
+if test -e "$evidence" { echo 'FAIL reused ChordReader handoff evidence' >&2; exit 2 }
+mkdir -p "$evidence"
+"$adb" -s "$serial" shell getprop ro.kernel.qemu | tr -d '\r' | rg -x 1
+"$adb" -s "$serial" shell getprop ro.product.cpu.abi | tr -d '\r' | rg -x x86_64
+"$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 2000
+var api = $("$adb" -s "$serial" shell getprop ro.build.version.sdk | tr -d '\r')
+if (api !== ENV.AICI_EXPECTED_ANDROID_API or (api !== '29' and api !== '34')) { exit 1 }
+rg -x -F 'actual_touch_link_acquisition	PASS' "$navigation/receipt.tsv"
+rg -x -F 'independent_source_and_fixture_digests	PASS' "$navigation/receipt.tsv"
+"$grease" "$repository/ib-source/shizuku/prepare-test-screen.grease" "$adb" "$serial" "$evidence/caller-controls.screen"
+try {
+  timeout 180 "$adb" -s "$serial" shell am instrument -w -r -e phase search-callers \
+    org.isomorphisms.ib.acceptance/acceptance.shizuku.CapabilityInstrumentation > "$evidence/caller-controls.txt" 2>&1
+}
+var caller_status = _error.code
+cat "$evidence/caller-controls.txt"
+if (caller_status !== 0) { exit "$caller_status" }
+rg -x -F 'INSTRUMENTATION_CODE: -1' "$evidence/caller-controls.txt"
+rg -x -F 'INSTRUMENTATION_RESULT: stream=PASS installed no-caller spoofed-referrer wrong-caller and warm SEARCH refusals' "$evidence/caller-controls.txt"
+"$adb" -s "$serial" shell am force-stop org.isomorphisms.ib.prepaint
+"$adb" -s "$serial" root > "$evidence/caller-snapshot-root.txt" 2>&1
+timeout 30 "$adb" -s "$serial" wait-for-device
+"$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 0
+"$adb" -s "$serial" pull /data/user/0/org.isomorphisms.ib.prepaint/files/arena/last-source "$evidence/after-caller-controls.index"
+"$adb" -s "$serial" unroot > "$evidence/caller-snapshot-unroot.txt" 2>&1
+timeout 30 "$adb" -s "$serial" wait-for-device
+"$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 2000
+cmp "$navigation/actual-arena/last-source" "$evidence/after-caller-controls.index"
+rg -x -F 'source	e6c84d645ad7086a11ae2735258188a49e444d13' "$chord/input-identity.tsv"
+var candidate = "$chord/input/android/chordreader-x86_64.apk"
+var tools = "$sdk/build-tools/35.0.0"
+"$tools/apksigner" verify --verbose --print-certs "$candidate" > "$evidence/chord-signer.txt" 2>&1
+rg -x -F 'Signer #1 certificate SHA-256 digest: de9b1d47c5a65e6d46a204b79dd9ee566b9d3c9832ba81ebc4213d3392e92ff9' "$evidence/chord-signer.txt"
+"$tools/aapt2" dump badging "$candidate" > "$evidence/chord-badging.txt"
+rg -F "package: name='org.isomorphisms.chordreader.dev' versionCode='1002'" "$evidence/chord-badging.txt"
+rg -x -F "native-code: 'x86_64'" "$evidence/chord-badging.txt"
+var old_chord = $("$adb" -s "$serial" shell pm list packages org.isomorphisms.chordreader.dev | tr -d '\r')
+if (len(old_chord) !== 0) { echo 'FAIL handoff observer requires its fresh emulator ChordReader namespace' >&2; exit 1 }
+"$adb" -s "$serial" install -r "$candidate" > "$evidence/chord-install.txt" 2>&1
+rg -x -F Success "$evidence/chord-install.txt"
+var starter = "/data/local/tmp/ib-shizuku-$(sha256sum "$installed/observer.dex" | cut -d ' ' -f 1)/start"
+"$adb" -s "$serial" pull "$starter" "$evidence/observed-starter"
+cmp "$installed/official-starter" "$evidence/observed-starter"
+var manager = $("$adb" -s "$serial" shell pm path moe.shizuku.privileged.api | tr -d '\r' | sed -n 's/^package://p')
+printf '%s\n' "$manager" | rg -x '/data/app/[A-Za-z0-9_./~+=-]+/base\.apk'
+var existing = $("$adb" -s "$serial" shell ps -A -o PID,NAME | tr -d '\r' | awk '$2=="shizuku_server"{print $1}')
+if (len(existing) !== 0) { echo 'FAIL reused Shizuku server before SEARCH' >&2; exit 1 }
+"$adb" -s "$serial" shell "$starter" "--apk=$manager" > "$evidence/start-server.txt" 2>&1
+"$grease" "$repository/ib-source/shizuku/prepare-test-screen.grease" "$adb" "$serial" "$evidence/real-handoff.screen"
+try {
+  timeout 240 "$adb" -s "$serial" shell am instrument -w -r -e phase chord-search \
+    org.isomorphisms.ib.acceptance/acceptance.shizuku.CapabilityInstrumentation > "$evidence/handoff.txt" 2>&1
+}
+var result = _error.code
+printf '%s\n' "$result" > "$evidence/handoff.exit"
+cat "$evidence/handoff.txt"
+try {
+  "$adb" -s "$serial" logcat -d -v threadtime 2>&1 |
+    sed -E 's/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}-[0-9]{10,}/[REDACTED_SERVICE_NONCE]/g' > "$evidence/handoff.logcat.txt"
+}
+if test -s "$evidence/handoff.logcat.txt" {
+  awk '/IBReader.*checked renderer|IBIndependentReaderStatus|IBIndependentSearchAddress/ {line[++n]=$0}
+    END {for(i=(n>36?n-35:1);i<=n;i++)print line[i]}' "$evidence/handoff.logcat.txt" > "$evidence/checked-renderer-outcome.txt"
+  cat "$evidence/checked-renderer-outcome.txt"
+  awk '
+    FNR==NR {
+      if($0 ~ /checked renderer frame=/) {
+        value=$NF
+        sub(/^Idric[.]Generated[.]/,"",value)
+        wanted[value]=1
+      }
+      next
+    }
+    $1=="method" {selected=($2 in wanted); title=$0; next}
+    selected && /^source:/ {print title; print; selected=0}
+  ' "$evidence/checked-renderer-outcome.txt" "$input/native-client/activity.dex.plan" > "$evidence/checked-renderer-methods.txt"
+  cat "$evidence/checked-renderer-methods.txt"
+}
+try { "$adb" -s "$serial" exec-out screencap -p > "$evidence/handoff.png" 2> "$evidence/screen-error.txt" }
+if (result !== 0) { exit "$result" }
+rg -x -F 'INSTRUMENTATION_CODE: -1' "$evidence/handoff.txt"
+rg -x -F 'INSTRUMENTATION_RESULT: stream=PASS actual ChordReader SEARCH caller and exact Google request encoding; Google results remain unqualified' "$evidence/handoff.txt"
+"$adb" -s "$serial" shell am force-stop org.isomorphisms.ib.prepaint
+"$adb" -s "$serial" shell am force-stop org.isomorphisms.chordreader.dev
+"$adb" -s "$serial" shell killall shizuku_server
+"$adb" -s "$serial" root > "$evidence/snapshot-root.txt" 2>&1
+timeout 30 "$adb" -s "$serial" wait-for-device
+"$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 0
+"$adb" -s "$serial" pull /data/user/0/org.isomorphisms.ib.prepaint/files/arena "$evidence/actual-arena"
+"$adb" -s "$serial" unroot > "$evidence/snapshot-unroot.txt" 2>&1
+timeout 30 "$adb" -s "$serial" wait-for-device
+"$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 2000
+# Original-byte proof is distinct from decoding and reader admission.
+var root = "$evidence/actual-arena"
+chmod 700 "$root"
+var wanted = 'https://google.com/search?q=IB+caf%C3%A9+%2B+%252F+%F0%9F%8C%8D+chords'
+var final_url = 'https://www.google.com/search?q=IB+caf%C3%A9+%2B+%252F+%F0%9F%8C%8D+chords'
+var google_id = ''
+var google_generation = ''
+var matches = 0
+for receipt in @(rg --files "$root/receipts") {
+  if rg -q -x -F "requested_url	$wanted" "$receipt" {
+    setglobal matches = matches + 1
+    setglobal google_id = $(awk -F '\t' '$1=="request_id"{print $2}' "$receipt")
+    setglobal google_generation = $(awk -F '\t' '$1=="source_generation"{print $2}' "$receipt")
+  }
+}
+if (matches !== 1) { echo 'FAIL actual Google acquisition did not leave one unique captured response' >&2; exit 1 }
+var original_oracle = "$repository/ib-source/reader/verify-decoder-original.grease"
+proc verify_captured(directory, output) {
+  "$grease" "$original_oracle" "$repository" "$directory" "$google_id" "$google_generation" "$wanted" \
+    iso-8859-1 - "$output" observed-google-legacy-v1 "$final_url"
+}
+try { verify_captured "$root" "$evidence/Google-original" > "$evidence/Google-original.txt" 2>&1 }
+var original_status = _error.code
+cat "$evidence/Google-original.txt"
+if (original_status !== 0) { exit "$original_status" }
+proc reject_capture(directory, label, reason) {
+  try { verify_captured "$directory" "$evidence/$label" > "$evidence/$label.txt" 2>&1 }
+  var status = _error.code
+  cat "$evidence/$label.txt"
+  if (status !== 1) { echo 'FAIL original-source mutation missed its designated rejection' >&2; exit 1 }
+  rg -x -F "$reason" "$evidence/$label.txt"
+}
+var original_receipt = "$root/receipts/$google_id.tsv"
+var offset = $(awk -F '\t' '$1=="arena_offset"{print $2}' "$original_receipt")
+var first = $(od -An -tu1 -N1 "$evidence/Google-original/body" | tr -d '[:space:]')
+var replacement = 'X'
+if (first === '88') { setglobal replacement = 'Y' }
+cp -R "$root" "$evidence/Google-changed-byte"
+printf '%s' "$replacement" | dd "of=$evidence/Google-changed-byte/responses.arena" bs=1 "seek=$offset" conv=notrunc status=none
+reject_capture "$evidence/Google-changed-byte" changed-Google-byte 'FAIL original source field sha256'
+var changed_generation = '1'
+if (google_generation === '1') { setglobal changed_generation = '2' }
+cp -R "$root" "$evidence/Google-changed-generation"
+awk -F '\t' -v "generation=$changed_generation" 'BEGIN{OFS="\t"} $1=="source_generation"{$2=generation} {print}' \
+  "$original_receipt" > "$evidence/Google-changed-generation/receipts/$google_id.tsv"
+reject_capture "$evidence/Google-changed-generation" changed-Google-generation 'FAIL original source field source_generation'
+cp -R "$root" "$evidence/Google-changed-request"
+awk -F '\t' 'BEGIN{OFS="\t"} $1=="requested_url"{$2="https://invalid.example/"} {print}' \
+  "$original_receipt" > "$evidence/Google-changed-request/receipts/$google_id.tsv"
+reject_capture "$evidence/Google-changed-request" changed-Google-request 'FAIL original source field requested_url'
+cp -R "$root" "$evidence/Google-changed-identity"
+awk -F '\t' 'BEGIN{OFS="\t"} $1=="source_key"{$2="arena:wrong-source"} {print}' \
+  "$original_receipt" > "$evidence/Google-changed-identity/receipts/$google_id.tsv"
+reject_capture "$evidence/Google-changed-identity" changed-Google-identity 'FAIL original source field source_key'
+cat "$original_receipt"
+git -C "$repository" rev-parse HEAD > "$evidence/observer-commit.txt"
+sha256sum "$candidate" "$input/native-client/ib-native-boundary.apk" "$installed/observer.dex" \
+  "$evidence/actual-arena/last-source" "$evidence/actual-arena/responses.arena" > "$evidence/sha256.txt"
+printf 'schema\tib-chordreader-handoff-v1\napi\t%s\nabi\tx86_64\nChordReader_source\te6c84d645ad7086a11ae2735258188a49e444d13\nno_caller_referrer_wrong_caller_warm_SEARCH\tREJECTED\ncaller_refusal_preserves_committed_index\tPASS\nactual_ChordReader_search_button\tPASS\nframework_for_result_caller\tPASS\nexact_once_encoded_Google_request\tPASS\nGoogle_results\tNOT_RUN\nclicked_Google_result\tNOT_RUN\nphysical_TAB_P10\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"
+cat "$evidence/receipt.tsv"
+
+printf 'independent_Google_original_range_digest\tPASS\nGoogle_original_byte_generation_request_identity_mutations\tREJECTED\nGoogle_raw_receipt_admission\tNO\n' >> "$evidence/receipt.tsv"

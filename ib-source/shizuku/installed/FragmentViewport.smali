@@ -1,0 +1,226 @@
+.class public final Lacceptance/shizuku/FragmentViewport;
+.super Ljava/lang/Object;
+.implements Ljava/lang/Runnable;
+.field private activity:Landroid/app/Activity;
+.field private expectedTarget:Z
+.field public problem:Ljava/lang/String;
+.method public constructor <init>(Landroid/app/Activity;Z)V
+    .registers 3
+    invoke-direct {p0}, Ljava/lang/Object;-><init>()V
+    iput-object p1, p0, Lacceptance/shizuku/FragmentViewport;->activity:Landroid/app/Activity;
+    iput-boolean p2, p0, Lacceptance/shizuku/FragmentViewport;->expectedTarget:Z
+    return-void
+.end method
+.method private static visible(Landroid/widget/TextView;Ljava/lang/String;Ljava/lang/String;)Z
+    .registers 15
+    invoke-virtual {p1, p2}, Ljava/lang/String;->indexOf(Ljava/lang/String;)I
+    move-result v0
+    if-ltz v0, :no
+    add-int/lit8 v0, v0, 1
+    invoke-virtual {p0}, Landroid/widget/TextView;->getLayout()Landroid/text/Layout;
+    move-result-object v1
+    if-eqz v1, :no
+    invoke-virtual {v1, v0}, Landroid/text/Layout;->getLineForOffset(I)I
+    move-result v2
+    invoke-virtual {v1, v2}, Landroid/text/Layout;->getLineTop(I)I
+    move-result v3
+    invoke-virtual {v1, v2}, Landroid/text/Layout;->getLineBottom(I)I
+    move-result v4
+    add-int/2addr v3, v4
+    div-int/lit8 v3, v3, 2
+    invoke-virtual {v1, v0}, Landroid/text/Layout;->getPrimaryHorizontal(I)F
+    move-result v4
+    invoke-virtual {p0}, Landroid/widget/TextView;->getTotalPaddingLeft()I
+    move-result v5
+    invoke-virtual {p0}, Landroid/view/View;->getScrollX()I
+    move-result v6
+    sub-int/2addr v5, v6
+    int-to-float v5, v5
+    add-float/2addr v4, v5
+    invoke-virtual {p0}, Landroid/widget/TextView;->getTotalPaddingTop()I
+    move-result v5
+    invoke-virtual {p0}, Landroid/view/View;->getScrollY()I
+    move-result v6
+    sub-int/2addr v5, v6
+    add-int/2addr v3, v5
+    const/4 v5, 2
+    new-array v5, v5, [I
+    invoke-virtual {p0, v5}, Landroid/view/View;->getLocationOnScreen([I)V
+    const/4 v6, 0
+    aget v6, v5, v6
+    int-to-float v6, v6
+    add-float/2addr v4, v6
+    const/4 v6, 1
+    aget v6, v5, v6
+    add-int/2addr v3, v6
+    float-to-int v4, v4
+    new-instance v5, Landroid/graphics/Rect;
+    invoke-direct {v5}, Landroid/graphics/Rect;-><init>()V
+    invoke-virtual {p0, v5}, Landroid/view/View;->getGlobalVisibleRect(Landroid/graphics/Rect;)Z
+    move-result v6
+    new-instance v7, Ljava/lang/StringBuilder;
+    invoke-direct {v7}, Ljava/lang/StringBuilder;-><init>()V
+    invoke-virtual {v7, p2}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    const-string v8, " point="
+    invoke-virtual {v7, v8}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v7, v4}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    const-string v8, ","
+    invoke-virtual {v7, v8}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v7, v3}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    const-string v8, " globalRect="
+    invoke-virtual {v7, v8}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v5}, Landroid/graphics/Rect;->toShortString()Ljava/lang/String;
+    move-result-object v8
+    invoke-virtual {v7, v8}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    const-string v8, " globalVisible="
+    invoke-virtual {v7, v8}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v7, v6}, Ljava/lang/StringBuilder;->append(Z)Ljava/lang/StringBuilder;
+    const-string v8, " shown="
+    invoke-virtual {v7, v8}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {p0}, Landroid/view/View;->isShown()Z
+    move-result v11
+    invoke-virtual {v7, v11}, Ljava/lang/StringBuilder;->append(Z)Ljava/lang/StringBuilder;
+    const-string v8, " scrollY="
+    invoke-virtual {v7, v8}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {p0}, Landroid/view/View;->getScrollY()I
+    move-result v11
+    invoke-virtual {v7, v11}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    const-string v8, " height="
+    invoke-virtual {v7, v8}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {p0}, Landroid/view/View;->getHeight()I
+    move-result v11
+    invoke-virtual {v7, v11}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    const/4 v11, 2
+    new-array v9, v11, [I
+    invoke-virtual {p0}, Landroid/view/View;->getRootView()Landroid/view/View;
+    move-result-object v10
+    invoke-virtual {v10, v9}, Landroid/view/View;->getLocationOnScreen([I)V
+    const-string v8, " rootScreen="
+    invoke-virtual {v7, v8}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    const/4 v11, 0
+    aget v11, v9, v11
+    invoke-virtual {v7, v11}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    const-string v8, ","
+    invoke-virtual {v7, v8}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    const/4 v11, 1
+    aget v11, v9, v11
+    invoke-virtual {v7, v11}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    invoke-virtual {v7}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+    move-result-object v8
+    const-string v7, "IBIndependentFragmentCoordinates"
+    invoke-static {v7, v8}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
+    if-eqz v6, :no
+    invoke-virtual {p0}, Landroid/view/View;->isShown()Z
+    move-result v6
+    if-eqz v6, :no
+    invoke-virtual {v5, v4, v3}, Landroid/graphics/Rect;->contains(II)Z
+    move-result v0
+    return v0
+  :no
+    const/4 v0, 0
+    return v0
+.end method
+# A visible target alone can be a transient frame while TextView still owns an
+# insertion point at the old document beginning. Read public SDK state only:
+# the collapsed caret must belong to the independently located Target line.
+.method private static caretOnTargetLine(Landroid/widget/TextView;Ljava/lang/String;)Z
+    .registers 10
+    invoke-virtual {p0}, Landroid/widget/TextView;->getSelectionStart()I
+    move-result v0
+    invoke-virtual {p0}, Landroid/widget/TextView;->getSelectionEnd()I
+    move-result v1
+    if-ltz v0, :no
+    if-ne v0, v1, :no
+    const-string v2, "Target"
+    invoke-virtual {p1, v2}, Ljava/lang/String;->indexOf(Ljava/lang/String;)I
+    move-result v2
+    if-ltz v2, :no
+    invoke-virtual {p0}, Landroid/widget/TextView;->getLayout()Landroid/text/Layout;
+    move-result-object v3
+    if-eqz v3, :no
+    invoke-virtual {v3, v0}, Landroid/text/Layout;->getLineForOffset(I)I
+    move-result v4
+    invoke-virtual {v3, v2}, Landroid/text/Layout;->getLineForOffset(I)I
+    move-result v5
+    new-instance v6, Ljava/lang/StringBuilder;
+    invoke-direct {v6}, Ljava/lang/StringBuilder;-><init>()V
+    const-string v7, "SDK selection="
+    invoke-virtual {v6, v7}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v6, v0}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    const-string v7, ","
+    invoke-virtual {v6, v7}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v6, v1}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    const-string v7, " caret_line="
+    invoke-virtual {v6, v7}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v6, v4}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    const-string v7, " target_line="
+    invoke-virtual {v6, v7}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v6, v5}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    invoke-virtual {v6}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+    move-result-object v6
+    const-string v7, "IBIndependentFragmentCaret"
+    invoke-static {v7, v6}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
+    if-ne v4, v5, :no
+    const/4 v0, 1
+    return v0
+  :no
+    const/4 v0, 0
+    return v0
+.end method
+.method public run()V
+    .registers 8
+  :begin
+    iget-object v0, p0, Lacceptance/shizuku/FragmentViewport;->activity:Landroid/app/Activity;
+    const v1, 0x7f030000
+    invoke-virtual {v0, v1}, Landroid/app/Activity;->findViewById(I)Landroid/view/View;
+    move-result-object v0
+    check-cast v0, Landroid/widget/TextView;
+    invoke-virtual {v0}, Landroid/widget/TextView;->getText()Ljava/lang/CharSequence;
+    move-result-object v1
+    invoke-interface {v1}, Ljava/lang/CharSequence;->toString()Ljava/lang/String;
+    move-result-object v1
+    const-string v2, "Target"
+    invoke-static {v0, v1, v2}, Lacceptance/shizuku/FragmentViewport;->visible(Landroid/widget/TextView;Ljava/lang/String;Ljava/lang/String;)Z
+    move-result v2
+    const-string v3, "Next"
+    invoke-static {v0, v1, v3}, Lacceptance/shizuku/FragmentViewport;->visible(Landroid/widget/TextView;Ljava/lang/String;Ljava/lang/String;)Z
+    move-result v3
+    iget-boolean v4, p0, Lacceptance/shizuku/FragmentViewport;->expectedTarget:Z
+    if-eqz v4, :top
+    if-eqz v2, :target_failed
+    if-nez v3, :target_failed
+    invoke-static {v0, v1}, Lacceptance/shizuku/FragmentViewport;->caretOnTargetLine(Landroid/widget/TextView;Ljava/lang/String;)Z
+    move-result v2
+    if-eqz v2, :caret_failed
+    const-string v0, "target visible; beginning outside viewport; collapsed caret on target line"
+    goto :pass
+  :top
+    if-nez v2, :top_failed
+    if-eqz v3, :top_failed
+    const-string v0, "beginning visible; target outside viewport"
+    goto :pass
+  :target_failed
+    const-string v0, "FAIL fragment target is outside the native viewport"
+    iput-object v0, p0, Lacceptance/shizuku/FragmentViewport;->problem:Ljava/lang/String;
+    return-void
+  :caret_failed
+    const-string v0, "FAIL fragment insertion point is outside the target line"
+    iput-object v0, p0, Lacceptance/shizuku/FragmentViewport;->problem:Ljava/lang/String;
+    return-void
+  :top_failed
+    const-string v0, "FAIL document beginning is outside the native viewport"
+    iput-object v0, p0, Lacceptance/shizuku/FragmentViewport;->problem:Ljava/lang/String;
+    return-void
+  :pass
+    const-string v1, "IBIndependentFragmentViewport"
+    invoke-static {v1, v0}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
+    return-void
+  :end
+    .catch Ljava/lang/Throwable; {:begin .. :end} :caught
+  :caught
+    move-exception v0
+    invoke-virtual {v0}, Ljava/lang/Throwable;->toString()Ljava/lang/String;
+    move-result-object v0
+    iput-object v0, p0, Lacceptance/shizuku/FragmentViewport;->problem:Ljava/lang/String;
+    return-void
+.end method

@@ -14,16 +14,43 @@ var authorization = ENV.GITHUB_TOKEN
 # drops that header when redirected to the signed blob host; do not print it.
 curl --fail --location --silent --show-error --max-time 300 \
   --header "Authorization: Bearer $authorization" \
-  https://api.github.com/repos/isomorphisms/ib/actions/artifacts/13079411952/zip \
+  https://api.github.com/repos/isomorphisms/ib/actions/artifacts/13109668025/zip \
   --output "$archive"
-test "$(wc -c < "$archive")" = 823903202
-printf '35422ddc46f92292d28917cf57386f86a17f7fbc2e72a844eede5da7f0dac6d2  %s\n' "$archive" | sha256sum -c -
-unzip -q "$archive" -d "$evidence/input"
-test "$(cat "$evidence/input/ib-commit.txt")" = a7349efc8041b4c41ff158afca7f13079c8df1c2
-test "$(cat "$evidence/input/native-client/ib-commit.txt")" = a7349efc8041b4c41ff158afca7f13079c8df1c2
-printf 'schema\tib-installed-replay-v1\nsource\ta7349efc8041b4c41ff158afca7f13079c8df1c2\noriginal_run\t41294413498\noriginal_artifact\t13079411952\narchive_sha256\t35422ddc46f92292d28917cf57386f86a17f7fbc2e72a844eede5da7f0dac6d2\n' > "$evidence/input-identity.tsv"
+test "$(wc -c < "$archive")" = 1186825357
+printf '1bf0722b006843061b42f746cea4c8f1a665dd624fdd2ff8b52053955ec2856c  %s\n' "$archive" | sha256sum -c -
+# Keep the immutable producer archive remote and retain its verified identity.
+# Android observes the original APK/DEX/ELF bytes below; frontend bundles,
+# native object trees and host compiler workspaces are not runtime inputs.
+unzip -Z1 "$archive" > "$evidence/archive-entries.txt"
+awk 'substr($0,1,1)=="/" || $0~/(^|\/)\.\.(\/|$)/ {exit 1}' "$evidence/archive-entries.txt"
+unzip -q "$archive" -d "$evidence/input" \
+  ib-commit.txt backend-commit.txt frontend-commit.txt \
+  '*.dex' '*.dex.plan' 'parcelable/*/libib_reader.so' \
+  'native-client/*.apk' 'native-client/*-commit.txt' \
+  native-client/receipt.tsv native-client/sha256.txt \
+  native-client/reproduction.tsv native-client/reproduction.sha256 \
+  'oracles/*.jar' platform-inputs/public-test-keystore platform-inputs/shizuku-official.apk
+
+test "$(cat "$evidence/input/ib-commit.txt")" = f43af99856a8ad4161114863e681c118e38c2218
+test "$(cat "$evidence/input/native-client/ib-commit.txt")" = f43af99856a8ad4161114863e681c118e38c2218
+test "$(cat "$evidence/input/native-client/backend-commit.txt")" = 153e7fc8053ba4072954a5e77d4efa3609d829e4
+test "$(cat "$evidence/input/native-client/frontend-commit.txt")" = 740bbf2b1d9e811fd00c719c3473eede17ceea3b
+test "$(cat "$evidence/input/native-client/observer-commit.txt")" = cef5ae8eb891c97dba81cd7bfc6f36edebb44c53
+for field in checked_Activity_platform_worker_DEX_repeat ICK_NDK_application_ELF_three_ABIs_repeat signed_APK_byte_reproduction {
+  rg -q -x -F "$field	PASS" "$evidence/input/native-client/reproduction.tsv"
+}
+rg -q -x -F 'native_ICU_Grease_dependencies	REUSED_UNCHANGED_HASHED_INPUTS' "$evidence/input/native-client/reproduction.tsv"
+printf 'schema\tib-installed-replay-v1\nsource\tf43af99856a8ad4161114863e681c118e38c2218\noriginal_run\t41370466399\noriginal_artifact\t13109668025\narchive_sha256\t1bf0722b006843061b42f746cea4c8f1a665dd624fdd2ff8b52053955ec2856c\n' > "$evidence/input-identity.tsv"
 git -C "$repository" rev-parse HEAD > "$evidence/observer-commit.txt"
-sha256sum "$evidence/input/native-client/ib-native-boundary.apk" \
-  "$evidence/input/native-client/ib-native-uid-bypass.apk" \
-  "$evidence/input/native-client/ib-native-death-noop.apk" \
-  "$evidence/input/native-client/ib-native-strict-flags.apk" > "$evidence/candidate-sha256.txt"
+for name in ib-native-boundary.apk ib-native-uid-bypass.apk ib-native-death-noop.apk \
+  ib-native-strict-flags.apk ib-native-stale-authorization.apk ib-native-anchor-zero.apk \
+  ib-native-resume-noop.apk ib-native-detach-any.apk ib-native-anchor-reset.apk ib-native-single-scroll.apk {
+  var expected = $(awk -v name="$name" '{n=split($2,p,"/"); if(p[n]==name)print $1}' "$evidence/input/native-client/sha256.txt")
+  printf '%s\n' "$expected" | awk 'length($0)!=64 || $0~/[^0-9a-f]/ {exit 1} END {if(NR!=1)exit 1}'
+  printf '%s  %s\n' "$expected" "$evidence/input/native-client/$name" | sha256sum -c -
+  sha256sum "$evidence/input/native-client/$name" >> "$evidence/candidate-sha256.txt"
+}
+# Delete only this verified downloaded copy; its original artifact, exact
+# digest, entry list and unchanged runtime files remain independently retained.
+rm "$archive"
+df -PB1 "$evidence" > "$evidence/after-input-capacity.txt"

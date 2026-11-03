@@ -1,0 +1,86 @@
+#!/usr/bin/env grease
+# Read the exact captured public Google attempt; this is not search acceptance.
+set -eu -o pipefail
+if (len(ARGV) !== 6) { echo 'usage: grease inspect-google.grease AICI ARTIFACT DIGEST SIZE NEW_EVIDENCE API' >&2; exit 2 }
+var repository = ARGV[0]
+var artifact = ARGV[1]
+var digest = ARGV[2]
+var size = ARGV[3]
+var evidence = ARGV[4]
+var api = ARGV[5]
+if (api !== '29' and api !== '34') { exit 2 }
+if (api === '29') {
+  if (artifact !== '13080282817') { exit 2 }
+} else {
+  if (artifact !== '13080253654') { exit 2 }
+}
+if (api === '29' and (digest !== '57e4e8642b0b186b82fa693e4a560fe222107993e84512e42531ab00674aafbd' or size !== '11187382')) { exit 2 }
+if (api === '34' and (digest !== 'a86ec068ea8a138f2c453bd0035b7469f18dc92b8507a1b71551b81f8acec742' or size !== '14698646')) { exit 2 }
+for path in "$repository" "$evidence" { if (len(path) === 0 or path[0] !== '/') { exit 2 } }
+if test -e "$evidence" { echo 'FAIL reused Google inspection evidence' >&2; exit 2 }
+mkdir -p "$evidence/input"
+var authorization = ENV.GITHUB_TOKEN
+curl --fail --location --silent --show-error --max-time 120 \
+  --header "Authorization: Bearer $authorization" \
+  "https://api.github.com/repos/isomorphisms/ai-ci/actions/artifacts/$artifact/zip" --output "$evidence/original.zip"
+test "$(wc -c < "$evidence/original.zip")" = "$size"
+printf '%s  %s\n' "$digest" "$evidence/original.zip" | sha256sum -c -
+unzip -q "$evidence/original.zip" -d "$evidence/input"
+var log = "$evidence/input/ib-installed-replay/search/handoff.logcat.txt"
+awk '
+  /IBIndependentSearchAddress/ {seen=1}
+  seen && /IBIndependentSearchAddress|IBIndependentReaderStatus|IBIndependentReaderBody|IBReader|AndroidRuntime|System.err|StackOverflow|OutOfMemory|ExceptionDescribe/ {
+    if(++shown<=80) print
+  }
+' "$log" > "$evidence/actual-Google-view.txt"
+cat "$evidence/actual-Google-view.txt"
+var root = "$evidence/input/ib-installed-replay/search/actual-arena"
+echo 'Recorded last-source header and navigation occurrences:'
+head -n 12 "$root/last-source"
+chmod 700 "$root"
+mkdir -p -m 700 "$root/staging"
+var wanted = 'https://google.com/search?q=IB+caf%C3%A9+%2B+%252F+%F0%9F%8C%8D+chords'
+var found = false
+for receipt in @(rg --files "$root/receipts") {
+  if rg -q -x -F "requested_url	$wanted" "$receipt" {
+    setvar found = true
+    echo 'Actual committed Google response observations:'
+    cat "$receipt"
+    var identity = $(awk -F '\t' '$1=="request_id"{print $2}' "$receipt")
+    var generation = $(awk -F '\t' '$1=="source_generation"{print $2}' "$receipt")
+    try {
+      sh "$repository/ib-source/verify.sh" "$root" "$identity" "$generation" "$wanted" > "$evidence/Google-source-readback.txt" 2>&1
+    }
+    var result = _error.code
+    cat "$evidence/Google-source-readback.txt"
+    printf 'independent_ordinary_HTML_source_oracle_exit\t%s\n' "$result"
+  }
+}
+if (not found) { echo 'NO_COMMITTED_GOOGLE_RESPONSE_IN_CAPTURE' }
+echo 'Google search results and clicked-result navigation are not qualified by this diagnostic.'
+
+# Diagnose the separately captured installed transport refusal failure. These
+# fixed archives contain only the declared public/loopback test fixtures.
+var transport_artifact = '13081992802'
+var transport_digest = 'cfeb0ec501471b554bdccbef5ce79ed95bbb9e9577f90ea5437689b039e252ac'
+var transport_size = '11410257'
+if (api === '34') {
+  setvar transport_artifact = '13081263570'
+  setvar transport_digest = 'a17886df2a655b1a8ee9bc6e8a99cadbf29029fc7d8c9ef56e3c9f95972a2849'
+  setvar transport_size = '15509918'
+}
+curl --fail --location --silent --show-error --max-time 120 \
+  --header "Authorization: Bearer $authorization" \
+  "https://api.github.com/repos/isomorphisms/ai-ci/actions/artifacts/$transport_artifact/zip" --output "$evidence/transport-original.zip"
+test "$(wc -c < "$evidence/transport-original.zip")" = "$transport_size"
+printf '%s  %s\n' "$transport_digest" "$evidence/transport-original.zip" | sha256sum -c -
+mkdir -p "$evidence/transport-input"
+unzip -q "$evidence/transport-original.zip" -d "$evidence/transport-input"
+var transport_log = "$evidence/transport-input/ib-installed-replay/navigation/actual-transport-refusals.logcat.txt"
+echo 'Captured actual transport refusal failure, bounded process and UI outcomes:'
+awk '
+  /IBReader|IBIndependentReaderStatus|IBIndependentReaderBody|IBIndependentSearch|AndroidRuntime|System.err/ {line[++n]=$0}
+  END {for(i=(n>100?n-99:1);i<=n;i++)print line[i]}
+' "$transport_log" > "$evidence/actual-transport-failure.txt"
+cat "$evidence/actual-transport-failure.txt"
+head -n 24 "$evidence/transport-input/ib-installed-replay/navigation/actual-transport-refusals.txt"
