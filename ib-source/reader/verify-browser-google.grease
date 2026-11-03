@@ -95,10 +95,18 @@ for index in @(seq 1 "$count") {
   mkdir -m 700 "$target"
   var target_id = $(field "target${index}_id")
   var requested = $(field "target${index}_requested")
-  var href = $(field "target${index}_href")
+  var original_href = $(field "target${index}_href")
   printf '%s\n' "$target_id" | rg -q -x '[0-9a-f]{48}'
-  printf '%s\n' "$href" > "$target/retained-href.txt"
+  printf '%s\n' "$original_href" > "$target/retained-href.txt"
   printf '%s\n' "$requested" > "$target/retained-requested.txt"
+  # The producer retains the original attribute spelling; the independent DOM
+  # parser returns the once entity-decoded value. Decode that exact bounded
+  # spelling with the independent parser before comparing anchor membership.
+  if rg -q '[<>"\\]' "$target/retained-href.txt" { echo 'FAIL unsafe retained href spelling' >&2; exit 1 }
+  printf '<a href="%s"></a>\n' "$original_href" > "$target/attribute-decoder.html"
+  timeout 20 xmllint --html --recover --nonet --xpath 'string(//a/@href)' "$target/attribute-decoder.html" \
+    > "$target/decoded-href.txt" 2>> "$evidence/parser.stderr"
+  var href = $(cat "$target/decoded-href.txt")
   var matches = 0
   for heading in @(seq 1 "$heading_count") {
     timeout 20 xmllint --html --recover --nonet --xpath "string(($headings)[$heading]/@href)" \
@@ -113,8 +121,28 @@ for index in @(seq 1 "$count") {
   if (matches < 1) { echo 'FAIL resolved target href is not a retained titled DOM anchor' >&2; exit 1 }
   var title = $(cat "$target/title.txt")
   if (len(title) < 1 or len(title) > 1024) { exit 1 }
-  var direct = requested
-  if (href.startsWith('/url?')) { setvar direct = 'https://www.google.com' ++ href }
+  var direct = ''
+  if (href.startsWith('https://') or href.startsWith('http://')) {
+    setvar direct = href
+  } elif (href.startsWith('//')) {
+    setvar direct = 'https:' ++ href
+  } elif (href.startsWith('/')) {
+    setvar direct = 'https://www.google.com' ++ href
+  } else { echo 'FAIL unsupported independent result reference' >&2; exit 1 }
+  if (direct.startsWith('https://www.google.com/url?') or direct.startsWith('https://google.com/url?')) {
+    printf '%s\n' "$direct" | sed 's/^[^?]*?//' | tr '&' '\n' > "$target/parameters.txt"
+    test "$(awk '/^(q|url)=/{n++}END{print n+0}' "$target/parameters.txt")" = 1
+    var encoded = $(sed -n -E 's/^(q|url)=//p' "$target/parameters.txt")
+    printf '%s\n' "$encoded" > "$target/encoded-target.txt"
+    if rg -q '\\|%([01][0-9A-Fa-f]|7[Ff])' "$target/encoded-target.txt" { exit 1 }
+    sed -E 's/%[0-9A-Fa-f]{2}//g' "$target/encoded-target.txt" > "$target/unpaired-target.txt"
+    if rg -q '%' "$target/unpaired-target.txt" { exit 1 }
+    var escaped = $(printf '%s' "$encoded" | sed -e 's/+/ /g' -e 's/%/\\x/g')
+    var decoded = $(printf '%b' "$escaped")
+    # Only a clear HTTP(S) target is decoded into a public URL. An opaque
+    # Google token preserves the exact observed Google request for ICU.
+    if (decoded.startsWith('https://') or decoded.startsWith('http://')) { setvar direct = decoded }
+  }
   if (direct !== requested) { echo 'FAIL retained DOM href and ICU request differ' >&2; exit 1 }
   sh "$acceptance/ib-source/verify.sh" "$root" "$target_id" "$generation" "$requested" > "$target/ICU-source.txt" 2>&1
   var final = $(awk -F '\t' '$1=="resolved_url"{print $2}' "$root/receipts/$target_id.tsv")

@@ -1,0 +1,13 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 1) { echo 'usage: grease acquire-observer-oracle.grease NEW_DIRECTORY' >&2; exit 2 }
+var evidence = ARGV[0]
+if test -e "$evidence" { exit 2 }
+mkdir -p "$evidence"
+wget --timeout=30 --tries=1 -q \
+  https://github.com/baksmali/smali/releases/download/3.0.10/smali-3.0.10-fat-release.jar \
+  -O "$evidence/download.tmp"
+printf '%s  %s\n' 32fa0e88a6c397b3922201adf5f3e534fbaed5a663c71d0c558c3ddce0af844a "$evidence/download.tmp" | sha256sum -c -
+cp "$evidence/download.tmp" "$evidence/smali.jar"
+chmod 444 "$evidence/smali.jar"
+sha256sum "$evidence/smali.jar" > "$evidence/sha256.txt"
