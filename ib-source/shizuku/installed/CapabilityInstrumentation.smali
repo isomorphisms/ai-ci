@@ -554,7 +554,7 @@
     new-instance v0, Landroid/os/Bundle;
     invoke-direct {v0}, Landroid/os/Bundle;-><init>()V
     const-string v1, "ACTION_ARGUMENT_SELECTION_START_INT"
-    const/4 v2, -0x1
+    const/4 v2, 0x0
     invoke-virtual {v0, v1, v2}, Landroid/os/Bundle;->putInt(Ljava/lang/String;I)V
     const-string v1, "ACTION_ARGUMENT_SELECTION_END_INT"
     invoke-virtual {v0, v1, v2}, Landroid/os/Bundle;->putInt(Ljava/lang/String;I)V
@@ -569,8 +569,7 @@
     invoke-virtual {p1}, Landroid/view/accessibility/AccessibilityNodeInfo;->getTextSelectionEnd()I
     move-result v1
     if-ne v0, v1, :failed
-    const/4 v2, -0x1
-    if-lt v0, v2, :failed
+    if-nez v0, :failed
     return-void
   :failed
     invoke-virtual {p1}, Landroid/view/accessibility/AccessibilityNodeInfo;->getTextSelectionStart()I
@@ -868,9 +867,19 @@
     iget-object v10, p0, Lacceptance/shizuku/CapabilityInstrumentation;->observedActivity:Landroid/app/Activity;
     new-instance v9, Lacceptance/shizuku/GoogleResultPoint;
     invoke-direct {v9, v10}, Lacceptance/shizuku/GoogleResultPoint;-><init>(Landroid/app/Activity;)V
+    const/16 v12, 0x14
+  :settle_google_viewport
     invoke-virtual {p0, v9}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
     iget-object v10, v9, Lacceptance/shizuku/GoogleResultPoint;->problem:Ljava/lang/String;
     if-eqz v10, :visible
+    add-int/lit8 v12, v12, -0x1
+    if-lez v12, :no_visible_point
+    const-wide/16 v10, 0x64
+    invoke-static {v10, v11}, Landroid/os/SystemClock;->sleep(J)V
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->waitForIdleSync()V
+    goto :settle_google_viewport
+  :no_visible_point
+    iget-object v10, v9, Lacceptance/shizuku/GoogleResultPoint;->problem:Ljava/lang/String;
     invoke-static {v10}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
   :visible
     const-string v11, "IBIndependentClickedSearchURL"

@@ -8,6 +8,8 @@
 .field public problem:Ljava/lang/String;
 .field public target:Ljava/lang/String;
 .field private bestOffset:I
+.field private positioned:Z
+.field private originalDisplay:Ljava/lang/String;
 
 .method public constructor <init>(Landroid/app/Activity;)V
     .registers 3
@@ -227,10 +229,26 @@
     move-result-object v1
     invoke-interface {v1}, Ljava/lang/CharSequence;->toString()Ljava/lang/String;
     move-result-object v1
+    iget-object v11, p0, Lacceptance/shizuku/GoogleResultPoint;->originalDisplay:Ljava/lang/String;
+    if-nez v11, :same_source
+    iput-object v1, p0, Lacceptance/shizuku/GoogleResultPoint;->originalDisplay:Ljava/lang/String;
+    goto :source_ready
+  :same_source
+    invoke-virtual {v11, v1}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v11
+    if-eqz v11, :changed_source
+  :source_ready
+    const/4 v11, -0x1
+    iput v11, p0, Lacceptance/shizuku/GoogleResultPoint;->bestOffset:I
     invoke-direct {p0, v0, v1}, Lacceptance/shizuku/GoogleResultPoint;->findOffset(Landroid/widget/TextView;Ljava/lang/String;)I
     move-result v2
     if-ltz v2, :failed
+    iget-boolean v11, p0, Lacceptance/shizuku/GoogleResultPoint;->positioned:Z
+    if-nez v11, :positioned
     invoke-virtual {v0, v2}, Landroid/widget/TextView;->bringPointIntoView(I)Z
+    const/4 v11, 0x1
+    iput-boolean v11, p0, Lacceptance/shizuku/GoogleResultPoint;->positioned:Z
+  :positioned
     invoke-virtual {v0}, Landroid/widget/TextView;->getLayout()Landroid/text/Layout;
     move-result-object v1
     if-eqz v1, :failed
@@ -284,6 +302,12 @@
     if-eqz v7, :failed
     iput v5, p0, Lacceptance/shizuku/GoogleResultPoint;->x:F
     iput v4, p0, Lacceptance/shizuku/GoogleResultPoint;->y:F
+    const/4 v11, 0x0
+    iput-object v11, p0, Lacceptance/shizuku/GoogleResultPoint;->problem:Ljava/lang/String;
+    return-void
+  :changed_source
+    const-string v0, "FAIL Google source changed while settling the actual touch viewport"
+    iput-object v0, p0, Lacceptance/shizuku/GoogleResultPoint;->problem:Ljava/lang/String;
     return-void
   :failed
     const-string v0, "FAIL Google response has no visible public result link"

@@ -44,8 +44,20 @@ proc retain_failure_source(label) {
     "$adb" -s "$serial" pull /data/user/0/org.isomorphisms.ib.prepaint/files/arena \
       "$evidence/$label.failure-arena" > "$evidence/$label.failure-pull.txt" 2>&1
     chmod 700 "$evidence/$label.failure-arena"
+    test ! -L "$evidence/$label.failure-arena/staging"
+    mkdir -p -m 700 "$evidence/$label.failure-arena/staging"
+    chmod 700 "$evidence/$label.failure-arena/staging"
     test "$(du -sb "$evidence/$label.failure-arena" | cut -f 1)" -le 16777216
     find "$evidence/$label.failure-arena" -type f -exec sha256sum '{}' ';' > "$evidence/$label.failure-source.sha256"
+    mkdir -m 700 "$evidence/$label.failure-view"
+    for file in ib-acceptance-google-source.txt ib-acceptance-google-display.txt ib-acceptance-browser-google.png ib-acceptance-offline-browser-google.png {
+      if "$adb" -s "$serial" shell test -f "/data/user/0/org.isomorphisms.ib.prepaint/cache/$file" {
+        "$adb" -s "$serial" pull "/data/user/0/org.isomorphisms.ib.prepaint/cache/$file" \
+          "$evidence/$label.failure-view/$file" > "$evidence/$label.failure-view/$file.pull.txt" 2>&1
+        test "$(stat -c %s "$evidence/$label.failure-view/$file")" -le 2097152
+        sha256sum "$evidence/$label.failure-view/$file" >> "$evidence/$label.failure-source.sha256"
+      }
+    }
   }
   try { "$adb" -s "$serial" unroot > "$evidence/$label.failure-unroot.txt" 2>&1 }
   try { timeout 30 "$adb" -s "$serial" wait-for-device }
@@ -53,7 +65,10 @@ proc retain_failure_source(label) {
 proc observe(phase, label, marker) {
   "$grease" "$acceptance/ib-source/shizuku/prepare-test-screen.grease" "$adb" "$serial" "$evidence/$label.screen"
   try {
-    timeout 360 "$adb" -s "$serial" shell am instrument -w -r -e phase "$phase" \
+    # The multi-document phase includes three independently measured retained
+    # DOM preparations (up to42s each) plus the unchanged65s late-cancel watch.
+    # Browser acquisition120s and ICU60s request deadlines are unchanged.
+    timeout 600 "$adb" -s "$serial" shell am instrument -w -r -e phase "$phase" \
       org.isomorphisms.ib.acceptance/acceptance.shizuku.CapabilityInstrumentation > "$evidence/$label.txt" 2>&1
   }
   var result = _error.code

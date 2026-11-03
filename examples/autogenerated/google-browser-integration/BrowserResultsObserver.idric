@@ -20,7 +20,7 @@ opaque_href : Text
 opaque_href = "/url?q=CAESDindependent_control"
 
 dom : Text
-dom = "<html><body><div class=\"MjjYud\"><a href=\"/url?q=CAESDindependent_control\"><h3>Music &amp; sound</h3></a><div data-sncf=\"1\">Public music snippet.</div></div></body></html>"
+dom = "<html><body><div class=\"MjjYud\"><a href=\"/url?q=CAESDindependent_control\"><span>example.orghttps://example.org/music</span><h3>Music <em>&amp; sound</em></h3><span>Unrelated badge</span></a><div data-sncf=\"1\">Public music snippet.</div></div></body></html>"
 
 dom_fields : BrowserDomEvidence
 dom_fields = BrowserDomSourceEvidence "arena-dom:observer" "12" digest digest
@@ -78,6 +78,25 @@ observed_goto_correspondence =
           _ ⇒ False
       _ ⇒ False
 
+resolved_direct_scope : Bool
+resolved_direct_scope =
+  let html = "<a href=\"https://example.org/music\"><h3>Music</h3></a><a href=\"https://example.net/sound\"><h3>Unresolved</h3></a>"
+      fields = { claimed_bytes := cast (length (unpack html)),
+                 reopened_bytes := cast (length (unpack html)) } dom_fields
+      target_fields = { requested_url := "https://example.org/music" } response in
+  case convert_committed_browser_dom fields html of
+    Left _ ⇒ False
+    Right source ⇒ case google_results_from_source source of
+      Right _ ⇒ False
+      Left _ ⇒ case google_acquisition_candidates source of
+        Right [first, second] ⇒ case verify_google_destination source first.anchor_occurrence first.original_href target_fields body of
+          Left _ ⇒ False
+          Right target ⇒ case google_results_with_destinations source [target] of
+            Right (Just results) ⇒ map (\result ⇒ (result.title, result.destination)) results.results ≟
+              [("Music", "https://example.org/music")]
+            _ ⇒ False
+        _ ⇒ False
+
 main : IO ()
 main = do
   check "DOM and ICU source kind separation" (refused_dom ({ source_key := "arena:observer" } dom_fields))
@@ -97,6 +116,10 @@ main = do
   check "ambiguous goto parameters refusal"
     (google_snapshot_candidate_count requested resolved
       "<a href=\"/goto?url=CAESDindependent_control&amp;q=other\"><h3>Music</h3></a>" ≟ 0)
+  check "ambiguous multiple result headings refusal"
+    (google_snapshot_candidate_count requested resolved
+      "<a href=\"/url?q=CAESDindependent_control\"><h3>First</h3><h3>Second</h3></a>" ≟ 0)
+  check "unresolved browser direct links require corresponding original ICU acquisition" resolved_direct_scope
   case convert_committed_browser_dom dom_fields dom of
     Left _ ⇒ check "admitted retained browser serialization" False
     Right source ⇒ do
@@ -130,7 +153,7 @@ main = do
           case verify response body of
             Left _ ⇒ check "verified public ICU destination" False
             Right target ⇒ do
-              check "display retains real DOM title and public ICU target"
+              check "heading title excludes anchor labels while retaining the public ICU target"
                 (case google_results_with_destinations source [target] of
                   Right (Just results) ⇒ case results.results of
                     [result] ⇒ result.title ≟ "Music & sound" && result.destination ≟ "https://example.org/music" &&

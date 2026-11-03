@@ -174,3 +174,48 @@ private source/display snapshots`, with equality to the actual shown widget
 before writing. The maintained exactSourceClipboard observer independently
 exercises the real SDK copy action. google-source-snapshot-observer-1.dex
 assembles successfully; SDK and clipboard execution remain pending ART.
+
+The actual IB257e3adc pilot41614178129 reaches native Google result text on
+both APIs. API34 copies the complete source before the visible-point helper
+fails; API29 fails its empty-selection precondition because the negative
+selection sentinel remains a full selection. These are failures, not complete
+Google or touch acceptance. Current private artifacts are13223991245/API34
+(2254705 bytes, ZIP SHA2563470ab4bc8b89b175f9b149f3e2cf124c7ec331266fff320494862ba8bf55b40)
+and13222859060/API29 (644530 bytes, ZIP SHA2568b26d126bcf1cc6d3456f941c3156d915f1191cdf65b0886916e4d494bf158f8).
+The root collector now really retains canonical Arena. ZIP extraction restores
+neither the host-private directory mode nor an empty verifier staging area;
+those are prepared exactly as in the normal readback procedure, without
+changing any original Arena or receipt bytes. Failure collection additionally
+retains only the bounded named observer text/images, not a browser cache.
+
+The copy precondition now requests the valid collapsed SDK range0,0 and
+requires exactly0,0 after refresh; the later full-range action must still
+return true, select all displayed UTF16 units and copy the exact source with
+the source-owned label. GoogleResultPoint requests scrolling once and permits
+twenty100ms frame-settling observations of that same displayed source. Every
+attempt still requires actual visibility and the final point inside the
+actual SDK global viewport before real DOWN/UP input. A changed display fails.
+The overall multi-document instrumentation bound is600s to include repeated
+actual42s DOM preparations and the unchanged65s stale-callback watch. The
+per-acquisition120s and ICU60s deadlines are unchanged. This is not a longer
+application deadline or a substitute for a successful navigation.
+
+The retained API34 DOM has exactly one heading node in each first titled
+anchor; its whole anchor also contains site/address labels outside the
+heading. An independent fixture reproduces that distinction and refuses
+several headings per result. The producer now scopes title characters to one
+complete h3/role-heading node while preserving original href/event identity.
+The independent DOM observer reads that exact heading, not the whole anchor.
+Rendered direct hrefs also need a corresponding retained original ICU
+destination; an unresolved DOM-only reference cannot enter the native result
+set. The original ICU-only HTML result policy is unchanged.
+
+google-heading-eight-controls-1 passes27 independent assertions and rejects
+all eight separately compiled mutants at their intended semantic assertion.
+The added controls remove heading uniqueness, include external anchor labels,
+or restore unverified direct browser links. The retained385173-byte probe
+still supplies ten acquisition candidates and four bounded snippet groups in
+google-heading-retained-replay-2. Its first replay used the wrong requested
+query and correctly refused the location; the second reads the retained
+requested-url.txt. Neither replay claims canonical admission or ART. The
+revised SDK observer assembles; actual revised selection/touch remains pending.

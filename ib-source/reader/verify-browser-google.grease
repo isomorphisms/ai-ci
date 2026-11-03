@@ -130,7 +130,10 @@ for index in @(seq 1 "$count") {
     if (observed === href) {
       setvar matches += 1
       setvar matching_heading = int(heading)
-      timeout 20 xmllint --html --recover --nonet --xpath "normalize-space(string(($headings)[$heading]))" \
+      timeout 20 xmllint --html --recover --nonet --xpath "count(($headings)[$heading]//*[self::h3 or @role='heading'])" \
+        "$evidence/original.dom.html" > "$target/title-heading-count.txt" 2>> "$evidence/parser.stderr"
+      test "$(cat "$target/title-heading-count.txt")" = 1
+      timeout 20 xmllint --html --recover --nonet --xpath "normalize-space(string((($headings)[$heading]//*[self::h3 or @role='heading'])[1]))" \
         "$evidence/original.dom.html" > "$target/title.txt" 2>> "$evidence/parser.stderr"
     }
   }
