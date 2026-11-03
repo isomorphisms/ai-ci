@@ -18,5 +18,15 @@ and targeted negative fixtures exercise the observer without passing fixtures
 off as live search results. Idriç application semantics stay in IB. No fallback
 program or backend is introduced by this shell orchestration.
 
-Parsing/execution: PENDING. Live Google, actual ART and physical execution:
-NOT_RUN. A positive classifier exit does not establish any of those stages.
+The first local execution exposed Grease's strict-errexit rule: pipelines in
+command conditions are not permitted. The failing attempt was preserved in the
+initial commit. The repair makes each condition read a bounded file and uses
+`try` for an intentionally refusing procedure. Three positive cases and twelve
+targeted semantic refusals now execute successfully with Grease source
+5651cf97a1b5042f24f14112a7ade9a1518eb0bc, packaging
+6d19932f7a63faf38444bd3693aa61304f061fda, original artifact13062637698
+SHA256 fb500602a8ad878913e596f734c37769a5c7f3d2ac6941ee69ce22e31f479a19,
+and Ubuntu libxml2 2.9.14. The retained original 93,166-byte Google response is
+correctly refused as JAVASCRIPT_REQUIRED. This is historical capture analysis,
+not a new network transaction. Live Google, actual ART and physical execution
+remain NOT_RUN. A positive classifier exit does not establish those stages.
