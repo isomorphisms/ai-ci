@@ -21,3 +21,14 @@ content boundaries, decoded bytes, bounded text output, provenance and explicit
 unsupported content. It rejects corrupt archive data and a separately compiled
 assistant-to-user role mutation. Its supplied capture corpus is synthetic,
 not a user archive or live-account observation.
+
+`observe-ib-ui.grease` is a separate installed-application observer. After the
+existing reader has produced actual retained data, it opens that application,
+uses real History/Reader buttons, and checks the same reader View, projected
+text, selection and scroll position. It selects the first retained source,
+then independently reads the durable index, verifies its checksum, exact
+source/generation and cursor, and requires the ordered history to be unchanged.
+It only runs on an explicitly identified x86_64 emulator. Its Smali observers
+are external test code, not product application sources; assembly alone is not
+an Android execution receipt. It does not establish physical touch, recovery of
+a live site session, a complete task timeline, or performance.
