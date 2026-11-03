@@ -1,0 +1,30 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 6) { echo 'requires ADB SERIAL CANDIDATE OBSERVER NEW_OUTPUT EXPECTED_API' >&2; exit 2 }
+var adb = ARGV[0]
+var serial = ARGV[1]
+var candidate = ARGV[2]
+var observer = ARGV[3]
+var output = ARGV[4]
+var expected_api = ARGV[5]
+test ! -e "$output"
+mkdir -p "$output"
+var api = $("$adb" -s "$serial" shell getprop ro.build.version.sdk | tr -d '\r')
+test "$api" = "$expected_api"
+"$adb" -s "$serial" shell getprop ro.product.cpu.abilist > "$output/abi.txt"
+rg -q 'x86_64' "$output/abi.txt"
+"$adb" -s "$serial" install -r "$candidate" > "$output/install.txt"
+"$adb" -s "$serial" install -r "$observer/observer.apk" > "$output/observer-install.txt"
+"$adb" -s "$serial" shell am start -W -n org.isomorphisms.fastchat.diskstreaming.arena/android.app.NativeActivity \
+  --es fastchat_acceptance_store fc-m4-metrics > "$output/startup-cold.txt"
+"$adb" -s "$serial" shell am start -W -n org.isomorphisms.fastchat.diskstreaming.arena/android.app.NativeActivity \
+  --es fastchat_acceptance_store fc-m4-metrics > "$output/startup-warm.txt"
+"$adb" -s "$serial" exec-out screencap -p > "$output/native-screen.png"
+"$adb" -s "$serial" logcat -c
+"$adb" -s "$serial" shell am instrument -w -r org.isomorphisms.fastchat.observer/acceptance.presentation.FastChatUi > "$output/ui.txt" 2>&1
+cat "$output/ui.txt"
+rg -F 'PASS actual FastChat framework paging Stop multiline Unicode and exact page copy' "$output/ui.txt"
+"$adb" -s "$serial" logcat -d -v threadtime > "$output/runtime.txt"
+"$adb" -s "$serial" shell dumpsys meminfo org.isomorphisms.fastchat.diskstreaming.arena > "$output/memory.txt"
+sha256sum "$candidate" "$observer/observer.apk" > "$output/artifacts.sha256"
+printf 'schema\tfastchat-native-UI-v1\napi\t%s\nabi\tx86_64\nframework_controls\tPASS\npaging\tPASS\ncancellation\tPASS\nmultiline_Unicode\tPASS\nexact_page_clipboard\tPASS\nIME_keyboard\tNOT_RUN\nphysical_C67\tNOT_RUN\nphysical_TAB_P10\tNOT_RUN\n' "$api" > "$output/receipt.tsv"
