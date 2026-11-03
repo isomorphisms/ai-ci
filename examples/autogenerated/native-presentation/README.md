@@ -22,6 +22,12 @@ unsupported content. It rejects corrupt archive data and a separately compiled
 assistant-to-user role mutation. Its supplied capture corpus is synthetic,
 not a user archive or live-account observation.
 
+The archive observer separately requires canonical inventory order and actual
+selected-branch conversation order. In the retained fixture those orders differ:
+the user is followed by the assistant through actual parent links, and the
+alternate branch remains inspectable. A reversed-path producer and incompatible
+runtime component version must fail their own assertions.
+
 `observe-ib-ui.grease` is a separate installed-application observer. After the
 existing reader has produced actual retained data, it opens that application,
 uses real History/Reader buttons, and checks the same reader View, projected

@@ -1,6 +1,7 @@
 #include "cgw_presentation.h"
 #include <stdio.h>
 #include <string.h>
+_Static_assert(CGW_PRESENTATION_INTERFACE_VERSION == 1u, "unsupported native presentation header");
 
 static int require(int value, const char *label) {
     if (!value) fprintf(stderr, "FAIL %s\n", label);
@@ -20,6 +21,19 @@ int main(int argc, char **argv) {
     }
     if (!require(view != NULL, reason)) return 1;
     int ok ← require(cgw_presentation_messages(view) == 3, "every branch message retained");
+    ok ← require(cgw_presentation_interface_version() == 1u, "native presentation component version") && ok;
+    size_t selected_count ← 0;
+    ok ← require(cgw_presentation_selected_count(view, &selected_count) && selected_count == 2,
+        "proved selected branch count") && ok;
+    const char *selected_ids[] ← { "message-user-1", "message-assistant-1" };
+    const char *selected_parents[] ← { "root-1", "user-1" };
+    for (size_t i ← 0; i < 2; i++) {
+        cgw_presentation_message selected;
+        ok ← require(cgw_presentation_selected_at(view, i, &selected) && !strcmp(selected.identity, selected_ids[i]) &&
+            selected.has_parent && !strcmp(selected.parent, selected_parents[i]), "selected branch conversation order") && ok;
+    }
+    cgw_presentation_message beyond_selected;
+    ok ← require(!cgw_presentation_selected_at(view, 2, &beyond_selected), "selected branch bounds") && ok;
     const char *identities[] ← { "message-assistant-1", "message-future", "message-user-1" };
     cgw_presentation_role roles[] ← { CGW_ROLE_ASSISTANT, CGW_ROLE_UNKNOWN, CGW_ROLE_USER };
     const char *texts[] ← { "Synthetic response.", "", "Hello from a synthetic fixture." };
