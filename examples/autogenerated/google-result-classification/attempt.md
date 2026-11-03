@@ -30,3 +30,11 @@ and Ubuntu libxml2 2.9.14. The retained original 93,166-byte Google response is
 correctly refused as JAVASCRIPT_REQUIRED. This is historical capture analysis,
 not a new network transaction. Live Google, actual ART and physical execution
 remain NOT_RUN. A positive classifier exit does not establish those stages.
+
+The independent checked IB observer uses a different public destination and a
+supplementary-Unicode query. It checks title, once-decoded destination, source
+generation/digest and stable recovered-anchor identity. Three source mutants
+must compile and then fail the exact semantic assertion: accepting untitled
+anchors, accepting first-party retry links, or changing the result generation.
+These are host checked-Idriç controls, not ART or live-search claims. Their
+execution is PENDING until the producer consumes this immutable observer pin.

@@ -1,0 +1,75 @@
+module ResultsObserver
+
+import Data.Text
+import IB.HtmlPrepaint
+import IB.WebSearch.Results
+import IB.RecoveredInformation
+import System
+
+digest : Text
+digest = "3333333333333333333333333333333333333333333333333333333333333333"
+
+request : Text
+request = "https://google.com/search?q=guide+%2B+%252F+%F0%9F%8C%8D"
+
+observe : Text → Either Text HtmlPrepaintResult
+observe html = convert_admitted_html
+  (HtmlSourceEvidence "acceptance-source" "19" digest digest
+    (cast (length (unpack html))) (cast (length (unpack html)))
+    request "https://www.google.com/search?q=guide+%2B+%252F+%F0%9F%8C%8D"
+    "text/html" "utf-8" "200" True True) html
+
+require : Text → Bool → IO ()
+require name True = putStrLn ("PASS " ++ name)
+require name False = do
+  putStrLn ("FAIL " ++ name)
+  exitFailure
+
+one_result : Text → Either Text GoogleResult
+one_result html = do
+  source ← observe html
+  Just search ← google_results_from_source source | _ ⇒ Left "missing Google results"
+  case search.results of
+    [result] ⇒ Right result
+    _ ⇒ Left "result count"
+
+refused : Text → Bool
+refused html = case observe html of
+  Left _ ⇒ False
+  Right source ⇒ case google_results_from_source source of
+    Left _ ⇒ True
+    Right _ ⇒ False
+
+main : IO ()
+main = do
+  let body = "<html><body><a href=\"/url?url=https%3A%2F%2Fwww.gnu.org%2Fphilosophy%2FA%252FB&amp;source=web\"><h3>Free software &amp; music</h3></a></body></html>"
+  result ← case one_result body of
+    Left _ ⇒ do
+      require "independent titled result exists" False
+      exitFailure
+    Right value ⇒ pure value
+  require "independent original title" (result.title ≟ "Free software & music")
+  require "independent once-decoded destination" (result.destination ≟ "https://www.gnu.org/philosophy/A%2FB")
+  require "independent result source generation" (result.source_key ≟ "acceptance-source" && result.source_generation ≟ "19")
+  require "independent result source digest" (result.source_sha256 ≟ digest)
+  require "independent anchor occurrence identity"
+    (result.anchor_occurrence ≟ 2 && result.navigation_identity ≟
+      "acceptance-source;generation=19;sha256=" ++ digest ++ ";anchor=2")
+  require "independent retained Unicode query" (case observe body of
+    Right source ⇒ case google_results_from_source source of
+      Right (Just search) ⇒ search.original_query ≟ "guide + %2F 🌍"
+      _ ⇒ False
+    _ ⇒ False)
+  require "independent arbitrary-anchor refusal"
+    (refused "<html><body><a href=\"https://www.gnu.org/\">No result heading</a></body></html>")
+  require "independent first-party retry refusal"
+    (refused "<html><body><a href=\"/httpservice/retry/enablejs\"><h3>Continue</h3></a></body></html>")
+  require "independent consent refusal"
+    (refused "<html><body>Before you continue to Google<a href=\"https://www.gnu.org/\"><h3>Deceptive</h3></a></body></html>")
+  require "independent unsafe destination refusal"
+    (refused "<html><body><a href=\"javascript:alert(1)\"><h3>Unsafe</h3></a></body></html>")
+  require "independent source mismatch refusal" (case observe body of
+    Right source ⇒ case google_results_from_source ({ recovered := DocumentLog "different" (document_log_events source.recovered) } source) of
+      Left _ ⇒ True
+      _ ⇒ False
+    _ ⇒ False)
