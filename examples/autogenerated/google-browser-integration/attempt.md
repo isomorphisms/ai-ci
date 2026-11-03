@@ -144,3 +144,11 @@ The first compile correctly refused a missing explicit Prepaint.Reflow import;
 that import is added without changing the producer. A separately compiled
 mutant disables emergency wrapping at the integration call and must fail
 the named weighted-title assertion. Host controls do not count as ART.
+
+google-weighted-layout-independent-2 passes all25 assertions. All five
+separately compiled mutants execute and fail their designated semantic
+assertion, including disabled integration of emergency source cuts. The next
+actual Android lane binds IB257e3adcb551958337f41de2f4dbf7afb8bd65e1,
+producer41613301913, and the unchanged candidate archive. IB's producer pins
+observer19e533f832d5bef530529ba366830eef884483fb; this separate E2E binding
+commit changes no candidate or observer semantics.
