@@ -14,3 +14,10 @@ frame timing, keyboard behavior, an imported archive, or physical acceptance.
 
 The consumers keep their existing independent reader acceptance pinned
 separately. These checks do not replace or weaken it.
+
+`ArchiveAcceptance.c` calls the actual ChatGPTExporter read-only native archive
+adapter. It requires all ordered messages, exact roles including unknown,
+content boundaries, decoded bytes, bounded text output, provenance and explicit
+unsupported content. It rejects corrupt archive data and a separately compiled
+assistant-to-user role mutation. Its supplied capture corpus is synthetic,
+not a user archive or live-account observation.
