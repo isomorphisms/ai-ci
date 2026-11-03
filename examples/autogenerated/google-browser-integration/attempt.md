@@ -90,3 +90,20 @@ than the earlier API29 `/url?q=` form. The independent ICU resolver now has
 separate immutable API29/API34 capture profiles. No token is locally decoded
 into a public destination, and neither transport200 nor the host candidate
 count substitutes for a real public final response or native result acceptance.
+
+The exact API34 goto profile succeeds in actual ICU run41602013852 at
+aafb9cd2: three retained titled references resolve normally to public HTTPS200
+HTML at transposechord.com (116966 bytes), chordchanger.com (10109) and
+github.com/barrettj12/chord-transposer (218707). Artifact13214568524 is249378
+bytes, ZIP SHA2563365317a0938327cc996bb2d93a898164b50012097b3387df7a15f0af53840e2.
+It preserves actual redirects and exact entity bytes privately. API29's
+separate url profile also resolves all three. This is acquisition evidence,
+not native UI or ICU-only search acceptance.
+
+After the producer recognizes that observed opaque form as an acquisition
+candidate, replay5 counts ten candidates and four bounded snippet groups in
+the unchanged retained API34 derivative. Canonical admission, public-target
+verification and ART remain explicitly NOT_RUN in that replay receipt.
+google-goto-independent-1 passes18 independent model assertions, including
+the goto-to-retained-ICU correspondence and ambiguous-parameter refusal, and
+rejects all four compiled semantic mutants at their named assertion.

@@ -58,6 +58,25 @@ fixture_snippets html =
       _ ⇒ []
     _ ⇒ []
 
+observed_goto_correspondence : Bool
+observed_goto_correspondence =
+  let href = "/goto?url=CAESDindependent_control"
+      html = "<a href=\"" ++ href ++ "\"><h3>Music</h3></a>"
+      fields = { claimed_bytes := cast (length (unpack html)),
+                 reopened_bytes := cast (length (unpack html)) } dom_fields
+      target_fields = { requested_url := "https://www.google.com" ++ href } response in
+  case convert_committed_browser_dom fields html of
+    Left _ ⇒ False
+    Right source ⇒ case google_acquisition_candidates source of
+      Right [candidate] ⇒ case verify_google_destination source candidate.anchor_occurrence href target_fields body of
+        Left _ ⇒ False
+        Right target ⇒ case google_results_with_destinations source [target] of
+          Right (Just results) ⇒ case results.results of
+            [result] ⇒ result.title ≟ "Music" && result.destination ≟ "https://example.org/music"
+            _ ⇒ False
+          _ ⇒ False
+      _ ⇒ False
+
 main : IO ()
 main = do
   check "DOM and ICU source kind separation" (refused_dom ({ source_key := "arena:observer" } dom_fields))
@@ -73,6 +92,10 @@ main = do
   check "ambiguous snippet group refusal"
     (fixture_snippets ("<div class=\"MjjYud\">" ++ first ++ second ++ snippet ++ "</div>") ≟ [Nothing, Nothing])
   check "unrelated snippet refusal" (fixture_snippets (first ++ snippet) ≟ [Nothing])
+  check "observed goto requires a corresponding retained ICU destination" observed_goto_correspondence
+  check "ambiguous goto parameters refusal"
+    (google_snapshot_candidate_count requested resolved
+      "<a href=\"/goto?url=CAESDindependent_control&amp;q=other\"><h3>Music</h3></a>" ≟ 0)
   case convert_committed_browser_dom dom_fields dom of
     Left _ ⇒ check "admitted retained browser serialization" False
     Right source ⇒ do
