@@ -21,6 +21,7 @@ if (not resolved.startsWith('https://www.google.com/search?') and not resolved.s
 sha256sum "$dom" "$evidence/input/browser-probe/snapshot-29.url.txt" > "$evidence/original.sha256"
 var headings = '//a[.//h3 or .//*[@role="heading"]][not(ancestor::nav or ancestor::header or ancestor::footer or ancestor::script or ancestor::template)]'
 var positives = 0
+var captured_responses = 0
 proc public_destination(address, output) {
   printf '%s\n' "$address" > "$output"
   if ! rg -q -x 'https://[A-Za-z0-9][A-Za-z0-9.-]*(:[0-9]{1,5})?([/?#][!-~]*)?' "$output" { return 1 }
@@ -41,13 +42,18 @@ for index in 1 2 3 {
   if (not href.startsWith('/url?') or len(href) > 1900) { echo 'FAIL selected heading lacks a bounded actual Google redirect' >&2; exit 1 }
   var requested = 'https://www.google.com' ++ href
   printf '%s\n' "$requested" > "$destination/requested-url.txt"
-  try { "$icu" --http1.1 capture GET "$requested" "$destination/body" "$destination/metadata.tsv" > "$destination/stdout.txt" 2> "$destination/stderr.txt" }
+  printf '%s\n' --http1.1 get "$requested" > "$destination/arguments.txt"
+  try {
+    env ICU_CAPTURE_BODY_PATH="$destination/body" ICU_CAPTURE_METADATA_PATH="$destination/metadata.tsv" \
+      timeout 60 "$icu" --http1.1 get "$requested" > "$destination/stdout.bin" 2> "$destination/stderr.txt"
+  }
   var transport_status = _error.code
   printf '%s\n' "$transport_status" > "$destination/transport.exit"
   var status = 'UNOBSERVED'
   var amount = '0'
   var outcome = 'NO'
   if test -s "$destination/metadata.tsv" {
+    setvar captured_responses += 1
     setvar status = $(awk -F '\t' '$1=="http_status"{print $2}' "$destination/metadata.tsv")
     var final = $(awk -F '\t' '$1=="resolved_url"{print $2}' "$destination/metadata.tsv")
     setvar amount = $(stat -c %s "$destination/body")
@@ -58,7 +64,7 @@ for index in 1 2 3 {
     var declared = $(awk -F '\t' '$1=="received_length"{print $2}' "$destination/metadata.tsv")
     var mime = $(awk -F '\t' '$1=="content_type"{print $2}' "$destination/metadata.tsv")
     if (transport_status === 0 and status === '200' and public_status === 0 and
-        amount === declared and int(amount) > 0 and
+        amount === declared and int(amount) > 0 and int(amount) <= 4194304 and
         (mime === 'text/html' or mime.startsWith('text/html;'))) {
       setvar outcome = 'OBSERVED_PUBLIC_FINAL_RESPONSE'
       setvar positives += 1
@@ -68,3 +74,4 @@ for index in 1 2 3 {
 }
 printf 'captured_browser_result_hrefs\t3\nobserved_non_Google_HTTPS_200_targets\t%s\nbrowser_rendered_origin\tEXPLICIT\nICU_only_search\tFAIL\nnative_result_UI\tNOT_RUN\n' "$positives" > "$evidence/receipt.tsv"
 cat "$evidence/summary.tsv" "$evidence/receipt.tsv"
+if (captured_responses === 0) { echo 'FAIL no actual ICU response was captured' >&2; exit 1 }

@@ -30,3 +30,11 @@ The type boundary is `retained DOM → exact titled href → ICU observations`.
 Parser and OS coordination use Grease; the same checked ICU client and C TLS
 provider acquire responses. No new HTTP implementation, challenge answer,
 cookie extraction, unsupported API or alternate provider is introduced.
+
+First run41580231099 stopped all three invocations at ICU argument validation:
+the coordinator incorrectly used `capture GET` arguments. The maintained CLI
+requires `get URL` and `ICU_CAPTURE_BODY_PATH`/`ICU_CAPTURE_METADATA_PATH`.
+Artifact13206240118 (SHA2569417c62fa6badefaa141e1331e6eef1854e6e6d5a3c2b56f406ce8bc91e52eb0)
+retains those usage errors. No network conclusion or redirect failure is
+inferred from them. The corrected coordinator preserves exact arguments and
+fails if no actual response metadata was captured.
