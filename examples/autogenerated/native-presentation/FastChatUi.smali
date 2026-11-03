@@ -41,7 +41,7 @@
     if-eqz v6, :text
     invoke-interface {v6}, Ljava/lang/CharSequence;->toString()Ljava/lang/String;
     move-result-object v6
-    invoke-virtual {p1, v6}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    invoke-virtual {v6, p1}, Ljava/lang/String;->startsWith(Ljava/lang/String;)Z
     move-result v6
     if-nez v6, :found
   :text
