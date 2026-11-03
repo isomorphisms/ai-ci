@@ -47,7 +47,7 @@ proc retain_failure_source(label) {
 proc observe(phase, label, marker) {
   "$grease" "$acceptance/ib-source/shizuku/prepare-test-screen.grease" "$adb" "$serial" "$evidence/$label.screen"
   try {
-    timeout 300 "$adb" -s "$serial" shell am instrument -w -r -e phase "$phase" \
+    timeout 360 "$adb" -s "$serial" shell am instrument -w -r -e phase "$phase" \
       org.isomorphisms.ib.acceptance/acceptance.shizuku.CapabilityInstrumentation > "$evidence/$label.txt" 2>&1
   }
   var result = _error.code
@@ -166,5 +166,5 @@ reject_dom "$evidence/changed-DOM-generation" changed-DOM-generation-refused 'FA
 git -C "$acceptance" rev-parse HEAD > "$evidence/observer.commit"
 sha256sum "$input/native-client/ib-native-boundary.apk" "$installed/observer.dex" "$root/responses.arena" \
   "$root/last-source" "$root/receipts/$dom_id.dom.tsv" > "$evidence/source-bound.sha256"
-printf 'schema\tIB-browser-assisted-Google-E2E-v1\napi\t%s\nABI\tx86_64\nreal_ChordReader_search_and_authenticated_caller\tPASS\nactual_native_result_touch\tPASS\nICU_destination_acquisition\tPASS\nsource_to_native_title_destination\tPASS\nretained_Back_Forward\tPASS\nprocess_death_offline_restore\tPASS\nchanged_DOM_byte_generation\tREJECTED\nGoogle_acquisition\tBROWSER_ASSISTED\nICU_only_Google\tFAIL\nphysical_ARM\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"
+printf 'schema\tIB-browser-assisted-Google-E2E-v1\napi\t%s\nABI\tx86_64\nreal_ChordReader_search_and_authenticated_caller\tPASS\nactual_native_result_touch\tPASS\nICU_destination_acquisition\tPASS\nsource_to_native_title_destination\tPASS\nnative_Search_and_browser_Cancel\tPASS\nlate_completion_preserves_document_and_Forward\tPASS\nretained_Back_Forward\tPASS\nprocess_death_offline_restore\tPASS\nchanged_DOM_byte_generation\tREJECTED\nGoogle_acquisition\tBROWSER_ASSISTED\nICU_only_Google\tFAIL\nphysical_ARM\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"
 cat "$evidence/receipt.tsv"

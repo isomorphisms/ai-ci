@@ -107,3 +107,15 @@ verification and ART remain explicitly NOT_RUN in that replay receipt.
 google-goto-independent-1 passes18 independent model assertions, including
 the goto-to-retained-ICU correspondence and ambiguous-parameter refusal, and
 rejects all four compiled semantic mutants at their named assertion.
+
+The genuine browser transaction now also returns to the retained results,
+uses the native Search Google button with the retained original query, waits
+for a real browser-acquisition progress state, and invokes native Cancel.
+It requires the cancellation acknowledgement and observes unchanged native
+text and exact history for65 seconds, beyond the ICU per-request deadline,
+before requiring the existing Forward destination. The independent observer
+assembles in google-native-cancel-observer-1.dex. Assembly is not ART evidence;
+the added phase remains pending execution. A successful layout-driven reopen
+may replace the cancellation label while retaining the same source, so the
+long observation asserts document/history identity rather than a permanent UI
+status string. No producer source is modified for this observation.

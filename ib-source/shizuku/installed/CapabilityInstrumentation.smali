@@ -1164,6 +1164,75 @@
     const-string v1, "https://google.com/search?q=open+source+guitar+chord+transposition+chords"
     invoke-direct {p0, v0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->chordSearchHandoffFor(Ljava/lang/String;Ljava/lang/String;)V
     invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->clickGoogleResult()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyBack()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->requireRenderedGoogleDocument()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->nativeSearchCancellation()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->historyForward()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->requireClickedDocument()V
+    return-void
+.end method
+
+.method private nativeSearchCancellation()V
+    .registers 9
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->readableBody()Ljava/lang/String;
+    move-result-object v0
+    invoke-static {}, Lorg/isomorphisms/ib/ReaderBridge;->history()Ljava/lang/String;
+    move-result-object v1
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->sources()V
+    const-string v2, "org.isomorphisms.ib.prepaint"
+    const-string v3, "org.isomorphisms.ib.prepaint:id/search_button"
+    invoke-direct {p0, v2, v3}, Lacceptance/shizuku/CapabilityInstrumentation;->click(Ljava/lang/String;Ljava/lang/String;)V
+    # Observe a real browser acquisition before cancelling. The previous
+    # result label, an HTTP200, and a completed second search cannot pass.
+    const/16 v4, 0x578
+  :await_browser
+    const-string v3, "org.isomorphisms.ib.prepaint:id/reader_status"
+    invoke-direct {p0, v2, v3}, Lacceptance/shizuku/CapabilityInstrumentation;->node(Ljava/lang/String;Ljava/lang/String;)Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v3
+    invoke-virtual {v3}, Landroid/view/accessibility/AccessibilityNodeInfo;->getText()Ljava/lang/CharSequence;
+    move-result-object v3
+    if-eqz v3, :wait_browser
+    invoke-interface {v3}, Ljava/lang/CharSequence;->toString()Ljava/lang/String;
+    move-result-object v3
+    const-string v5, "Google needs browser rendering. Loading results…"
+    invoke-virtual {v5, v3}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v5
+    if-nez v5, :cancel_browser
+    const-string v5, "Verifying Google result links through ICU…"
+    invoke-virtual {v5, v3}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v5
+    if-nez v5, :cancel_browser
+  :wait_browser
+    const-wide/16 v5, 0x64
+    invoke-static {v5, v6}, Landroid/os/SystemClock;->sleep(J)V
+    add-int/lit8 v4, v4, -0x1
+    if-gtz v4, :await_browser
+    const-string v2, "FAIL native Search did not start an observable browser acquisition"
+    invoke-static {v2}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
+  :cancel_browser
+    const-string v3, "org.isomorphisms.ib.prepaint:id/cancel_button"
+    invoke-direct {p0, v2, v3}, Lacceptance/shizuku/CapabilityInstrumentation;->click(Ljava/lang/String;Ljava/lang/String;)V
+    const-string v3, "Search cancelled; the previous document is retained."
+    invoke-direct {p0, v3}, Lacceptance/shizuku/CapabilityInstrumentation;->waitStatus(Ljava/lang/String;)V
+    # Keep observing beyond the ICU per-request60s deadline. A late source
+    # completion must neither replace the text nor erase the Forward visit.
+    const/16 v4, 0x82
+  :retained_after_cancel
+    const-wide/16 v5, 0x1f4
+    invoke-static {v5, v6}, Landroid/os/SystemClock;->sleep(J)V
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->waitForIdleSync()V
+    invoke-direct {p0}, Lacceptance/shizuku/CapabilityInstrumentation;->readableBody()Ljava/lang/String;
+    move-result-object v5
+    invoke-virtual {v0, v5}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v5
+    if-eqz v5, :changed
+    invoke-direct {p0, v1}, Lacceptance/shizuku/CapabilityInstrumentation;->requireHistory(Ljava/lang/String;)V
+    add-int/lit8 v4, v4, -0x1
+    if-gtz v4, :retained_after_cancel
+    return-void
+  :changed
+    const-string v0, "FAIL cancelled browser callback changed the retained native document"
+    invoke-static {v0}, Lacceptance/shizuku/CapabilityInstrumentation;->failure(Ljava/lang/String;)V
     return-void
 .end method
 
