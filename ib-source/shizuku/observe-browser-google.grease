@@ -33,6 +33,17 @@ proc diagnose(label) {
       END{for(i=(n>12?n-11:1);i<=n;i++)print line[i]}' "$evidence/$label.logcat.txt"
   }
 }
+proc retain_failure_source(label) {
+  # The preflight has independently identified a fresh x86_64 emulator. Stop
+  # this candidate before taking its private committed-source failure snapshot.
+  try {
+    "$adb" -s "$serial" shell am force-stop org.isomorphisms.ib.prepaint
+    "$adb" -s "$serial" exec-out run-as org.isomorphisms.ib.prepaint tar -C files -cf - arena \
+      > "$evidence/$label.failure-source.tar" 2> "$evidence/$label.failure-source.stderr"
+    test "$(stat -c %s "$evidence/$label.failure-source.tar")" -le 16777216
+    sha256sum "$evidence/$label.failure-source.tar" > "$evidence/$label.failure-source.sha256"
+  }
+}
 proc observe(phase, label, marker) {
   "$grease" "$acceptance/ib-source/shizuku/prepare-test-screen.grease" "$adb" "$serial" "$evidence/$label.screen"
   try {
@@ -42,10 +53,15 @@ proc observe(phase, label, marker) {
   var result = _error.code
   printf '%s\n' "$result" > "$evidence/$label.exit"
   diagnose "$label"
-  if (result !== 0) { echo 'FAIL Google transaction observer process' >&2; exit 1 }
-  if ! rg -q -x -F 'INSTRUMENTATION_CODE: -1' "$evidence/$label.txt" { echo 'FAIL Google observer instrumentation status' >&2; exit 1 }
+  if (result !== 0) { retain_failure_source "$label"; echo 'FAIL Google transaction observer process' >&2; exit 1 }
+  if ! rg -q -x -F 'INSTRUMENTATION_CODE: -1' "$evidence/$label.txt" {
+    retain_failure_source "$label"
+    echo 'FAIL Google observer instrumentation status' >&2
+    exit 1
+  }
   if ! rg -q -x -F "INSTRUMENTATION_RESULT: stream=$marker" "$evidence/$label.txt" {
     sed -n '/^INSTRUMENTATION_RESULT: stream=/p' "$evidence/$label.txt" > "$evidence/$label.failure.txt"
+    retain_failure_source "$label"
     echo 'FAIL genuine Google end-to-end semantic assertion; retained private diagnostics identify the stage' >&2
     exit 1
   }
