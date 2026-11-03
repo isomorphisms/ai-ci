@@ -78,6 +78,8 @@ timeout 30 "$adb" -s "$serial" wait-for-device
 "$adb" -s "$serial" shell id -u | tr -d '\r' | rg -q -x 2000
 cmp "$navigation/actual-arena/last-source" "$evidence/caller-index"
 var tools = "$sdk/build-tools/35.0.0"
+"$tools/aapt2" dump permissions "$input/native-client/ib-native-boundary.apk" > "$evidence/candidate-permissions.txt"
+rg -q -x -F "uses-permission: name='android.permission.INTERNET'" "$evidence/candidate-permissions.txt"
 var chord_apk = "$chord/input/android/chordreader-x86_64.apk"
 rg -q -x -F 'source	e6c84d645ad7086a11ae2735258188a49e444d13' "$chord/input-identity.tsv"
 "$tools/apksigner" verify --verbose --print-certs "$chord_apk" > "$evidence/chord-signer.txt" 2>&1
@@ -95,6 +97,8 @@ var existing = $("$adb" -s "$serial" shell ps -A -o PID,NAME | tr -d '\r' | awk 
 if (len(existing) !== 0) { echo 'FAIL reused Shizuku authority before Google search' >&2; exit 1 }
 "$adb" -s "$serial" shell "$starter" "--apk=$manager" > "$evidence/start-server.txt" 2>&1
 observe browser-google transaction 'PASS genuine ChordReader browser-assisted Google native result touch destination and retained Back Forward'
+"$adb" -s "$serial" exec-out run-as org.isomorphisms.ib.prepaint cat cache/ib-acceptance-browser-google.png \
+  > "$evidence/native-Google-results.png" 2> "$evidence/native-Google-results.stderr"
 "$adb" -s "$serial" logcat -d -v raw -s IBIndependentClickedSearchURL:I '*:S' > "$evidence/clicked-URL.log"
 sed '/^[[:space:]]*$/d; /^---------/d' "$evidence/clicked-URL.log" > "$evidence/clicked-URL.txt"
 test "$(wc -l < "$evidence/clicked-URL.txt")" = 1
@@ -136,6 +140,8 @@ sh "$acceptance/ib-source/verify.sh" "$root" "$destination_id" "$destination_gen
 "$grease" "$acceptance/ib-source/reader/verify-browser-google.grease" \
   "$acceptance" "$root" "$dom_id" "$dom_generation" "$clicked" "$evidence/native-results.txt" "$evidence/source-positive"
 observe offline-browser-google offline 'PASS browser-derived Google and original ICU destination reopen and navigate without Shizuku'
+"$adb" -s "$serial" exec-out run-as org.isomorphisms.ib.prepaint cat cache/ib-acceptance-offline-browser-google.png \
+  > "$evidence/offline-native-Google-results.png" 2> "$evidence/offline-native-Google-results.stderr"
 "$adb" -s "$serial" shell am force-stop org.isomorphisms.ib.prepaint
 snapshot offline-arena
 cmp "$root/responses.arena" "$evidence/offline-arena/responses.arena"

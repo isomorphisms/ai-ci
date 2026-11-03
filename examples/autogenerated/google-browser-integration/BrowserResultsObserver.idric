@@ -19,7 +19,7 @@ opaque_href : Text
 opaque_href = "/url?q=CAESDindependent_control"
 
 dom : Text
-dom = "<html><body><a href=\"/url?q=CAESDindependent_control\"><h3>Music &amp; sound</h3></a></body></html>"
+dom = "<html><body><div class=\"MjjYud\"><a href=\"/url?q=CAESDindependent_control\"><h3>Music &amp; sound</h3></a><div data-sncf=\"1\">Public music snippet.</div></div></body></html>"
 
 dom_fields : BrowserDomEvidence
 dom_fields = BrowserDomSourceEvidence "arena-dom:observer" "12" digest digest
@@ -47,6 +47,17 @@ refused_dom fields = case convert_committed_browser_dom fields dom of
   Left _ ⇒ True
   _ ⇒ False
 
+fixture_snippets : Text → List (Maybe Text)
+fixture_snippets html =
+  let evidence = HtmlSourceEvidence "independent-semantic-fixture" "12" digest digest
+        (cast (length (unpack html))) (cast (length (unpack html))) requested resolved
+        "text/html" "utf-8" "200" True True in
+  case convert_admitted_html evidence html of
+    Right source ⇒ case google_results_from_source source of
+      Right (Just search) ⇒ map (\result ⇒ result.snippet) search.results
+      _ ⇒ []
+    _ ⇒ []
+
 main : IO ()
 main = do
   check "DOM and ICU source kind separation" (refused_dom ({ source_key := "arena:observer" } dom_fields))
@@ -56,6 +67,12 @@ main = do
   check "browser control and changed query refusal"
     (not (google_browser_location requested "https://consent.google.com/") &&
      not (google_browser_location requested "https://www.google.com/search?q=other"))
+  let first = "<a href=\"https://example.org/music\"><h3>Music</h3></a>"
+  let second = "<a href=\"https://example.net/sound\"><h3>Sound</h3></a>"
+  let snippet = "<div data-sncf=\"1\">Public music snippet.</div>"
+  check "ambiguous snippet group refusal"
+    (fixture_snippets ("<div class=\"MjjYud\">" ++ first ++ second ++ snippet ++ "</div>") ≟ [Nothing, Nothing])
+  check "unrelated snippet refusal" (fixture_snippets (first ++ snippet) ≟ [Nothing])
   case convert_committed_browser_dom dom_fields dom of
     Left _ ⇒ check "admitted retained browser serialization" False
     Right source ⇒ do
@@ -94,6 +111,7 @@ main = do
                   Right (Just results) ⇒ case results.results of
                     [result] ⇒ result.title ≟ "Music & sound" && result.destination ≟ "https://example.org/music" &&
                       result.source_key ≟ "arena-dom:observer" && result.source_generation ≟ "12" &&
+                      result.snippet ≟ Just "Public music snippet." &&
                       (case result.source_provenance of
                         RenderedBrowserDom _ ⇒ True
                         _ ⇒ False)

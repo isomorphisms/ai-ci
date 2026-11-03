@@ -51,3 +51,22 @@ Android integration tests remain PENDING until run. The
 producer still has to preserve parent ICU bytes and separately seal a DOM
 receipt after one or more source-bound destinations qualify. No assertion is
 weakened to make a newly committed producer pass.
+
+Run41597023103 at18ac06ab executes the actual ChordReader Search on API29/34
+against IB9f04600a. Both retain genuine Google ICU responses but fail before
+an admitted browser DOM/native public result. API34's private artifact13213018844
+is2369023 bytes, ZIP SHA256
+66dcc1406808cdb09e3387a8cd6fc0574ba5984d9ff1bffd4e255f61886f6cec.
+API29's private artifact13213247943 is439279 bytes, ZIP SHA256
+ea62e1abe6ef149ea6f2e0216c5b0c9ba1c1646c1849706db7fa871eece76434.
+These are real failed transactions; original bytes and exact diagnostics are
+preserved privately, and no result, touch or offline Google PASS is claimed.
+
+The available-snippet observer now passes16 independent checked assertions and
+four separately compiled semantic mutants in google-snippet-independent-1.
+The added mutant removes the one-eligible-result group condition and must fail
+the ambiguous-snippet assertion. The source-to-native observer independently
+parses actual MjjYud/data-sncf groups and requires available associated text in
+the native result body. It retains the full Google URL, permitting observed
+frontend continuation parameters only while requiring the exact original
+once-encoded q parameter exactly once on the same HTTPS origin/path.
