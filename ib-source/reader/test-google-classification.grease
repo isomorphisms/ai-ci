@@ -1,0 +1,40 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 3) { echo 'usage: grease test-google-classification.grease AICI GREASE NEW_EVIDENCE' >&2; exit 2 }
+var repository = ARGV[0]
+var grease = ARGV[1]
+var evidence = ARGV[2]
+if test -e "$evidence" { exit 2 }
+mkdir -p "$evidence"
+var oracle = "$repository/ib-source/reader/classify-google.grease"
+proc positive(label, html, count) {
+  printf '%s\n' "$html" > "$evidence/$label.html"
+  "$grease" "$oracle" "$evidence/$label.html" "$evidence/$label" > "$evidence/$label.log" 2>&1
+  rg -x -F "Google_titled_public_destinations	$count" "$evidence/$label/receipt.tsv"
+}
+proc negative(label, html, reason) {
+  printf '%s\n' "$html" > "$evidence/$label.html"
+  try { "$grease" "$oracle" "$evidence/$label.html" "$evidence/$label" > "$evidence/$label.log" 2>&1 }
+  var outcome = _error.code
+  if (outcome !== 1) { echo "FAIL classifier $label returned $outcome instead of its semantic refusal" >&2; exit 1 }
+  rg -x -F "Google_results	$reason" "$evidence/$label/receipt.tsv"
+}
+positive direct '<html><body><a href="https://en.wikipedia.org/wiki/Music"><h3>Music &amp; sound</h3></a></body></html>' 1
+printf 'title\tdestination\toriginal_href\nMusic & sound\thttps://en.wikipedia.org/wiki/Music\thttps://en.wikipedia.org/wiki/Music\n' > "$evidence/direct.expected"
+cmp "$evidence/direct.expected" "$evidence/direct/results.tsv"
+positive wrapper '<html><body><a href="/url?q=https%3A%2F%2Fen.wikipedia.org%2Fwiki%2FA%252FB&amp;source=web"><h3>Encoded path</h3></a></body></html>' 1
+rg -x -F 'https://en.wikipedia.org/wiki/A%2FB' "$evidence/wrapper/destinations.txt"
+positive duplicate '<html><body><a href="https://en.wikipedia.org/wiki/Music"><h3>One</h3></a><a href="https://en.wikipedia.org/wiki/Music"><h3>One again</h3></a></body></html>' 1
+negative arbitrary-anchor '<html><body><a href="https://en.wikipedia.org/wiki/Music">No result title</a></body></html>' NO_TITLED_PUBLIC_RESULTS
+negative retry '<html><body>Please enable JavaScript<a href="/httpservice/retry/enablejs"><h3>Continue</h3></a></body></html>' JAVASCRIPT_REQUIRED
+negative consent '<html><body>Before you continue to Google<a href="https://en.wikipedia.org/wiki/Music"><h3>Deceptive</h3></a></body></html>' REFUSED_CONSENT_OR_CHALLENGE
+negative challenge '<html><body>Our systems have detected unusual traffic<a href="https://en.wikipedia.org/wiki/Music"><h3>Deceptive</h3></a></body></html>' REFUSED_CONSENT_OR_CHALLENGE
+negative control '<html><body><a href="https://support.google.com/"><h3>Help</h3></a></body></html>' NO_TITLED_PUBLIC_RESULTS
+negative navigation '<html><body><nav><a href="https://en.wikipedia.org/wiki/Music"><h3>Navigation</h3></a></nav></body></html>' NO_TITLED_PUBLIC_RESULTS
+negative unsafe '<html><body><a href="javascript:alert(1)"><h3>Unsafe</h3></a></body></html>' NO_TITLED_PUBLIC_RESULTS
+negative local '<html><body><a href="http://127.0.0.1/private"><h3>Local</h3></a></body></html>' NO_TITLED_PUBLIC_RESULTS
+negative credentials '<html><body><a href="https://username@en.wikipedia.org/"><h3>Credentials</h3></a></body></html>' NO_TITLED_PUBLIC_RESULTS
+negative encoded-control '<html><body><a href="/url?q=https%3A%2F%2Fen.wikipedia.org%2F%00bad"><h3>Null byte</h3></a></body></html>' NO_TITLED_PUBLIC_RESULTS
+negative malformed-escape '<html><body><a href="/url?q=https%3A%2F%2Fen.wikipedia.org%2F%GG"><h3>Bad escape</h3></a></body></html>' NO_TITLED_PUBLIC_RESULTS
+negative duplicate-parameter '<html><body><a href="/url?q=https%3A%2F%2Fen.wikipedia.org%2F&amp;url=https%3A%2F%2Fwww.gnu.org%2F"><h3>Ambiguous</h3></a></body></html>' NO_TITLED_PUBLIC_RESULTS
+echo 'PASS independent original-body result positives and targeted semantic controls'

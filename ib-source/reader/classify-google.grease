@@ -1,0 +1,84 @@
+#!/usr/bin/env grease
+# Independent HTML semantics only. This does not fetch or alter candidate code.
+set -eu -o pipefail
+if (len(ARGV) !== 2) { echo 'usage: grease classify-google.grease ORIGINAL_BODY NEW_EVIDENCE' >&2; exit 2 }
+var body = ARGV[0]
+var evidence = ARGV[1]
+if test -e "$evidence" { echo 'FAIL reused Google classifier evidence' >&2; exit 2 }
+if (len(body) === 0 or body[0] !== '/' or len(evidence) === 0 or evidence[0] !== '/') { exit 2 }
+test -s "$body"
+test "$(wc -c < "$body")" -le 4194304
+umask 077
+mkdir -m 700 -p "$evidence"
+var parser = $(command -v xmllint)
+sha256sum "$body" "$parser" > "$evidence/inputs.sha256"
+xmllint --version > "$evidence/parser-version.txt" 2>&1
+proc query(expression, output) {
+  timeout 20 xmllint --html --recover --nonet --xpath "$expression" "$body" > "$output" 2>> "$evidence/parser.stderr"
+}
+var headings = '//a[.//h3 or .//*[@role="heading"]][not(ancestor::nav or ancestor::header or ancestor::footer or ancestor::script or ancestor::template)]'
+query "count($headings)" "$evidence/count.txt"
+var count = $(cat "$evidence/count.txt")
+printf '%s\n' "$count" | rg -x '[0-9]{1,3}' > /dev/null
+if (int(count) > 64) { echo 'FAIL Google result candidate budget' >&2; exit 1 }
+query 'normalize-space(string(//body))' "$evidence/body-text.txt"
+if rg -qi 'before you continue to google|our systems have detected unusual traffic|verify you are (a )?human|not a robot' "$evidence/body-text.txt" {
+  printf 'Google_results\tREFUSED_CONSENT_OR_CHALLENGE\n' > "$evidence/receipt.tsv"
+  echo 'FAIL Google consent or verification page' >&2
+  exit 1
+}
+proc destination(href, output) {
+  var target = href
+  var wrapper = false
+  for origin in '' https://google.com https://www.google.com {
+    if (href.startsWith(origin ++ '/url?')) {
+      setvar wrapper = true
+      printf '%s\n' "$href" | sed 's/^[^?]*?//' | tr '&' '\n' > "$output.parameters"
+      var n = $(awk '/^(q|url)=/{n++}END{print n+0}' "$output.parameters")
+      if (int(n) !== 1) { return 1 }
+      setvar target = $(sed -n -E 's/^(q|url)=//p' "$output.parameters")
+    }
+  }
+  if (wrapper) {
+    # %b is used only after refusing literal escapes, malformed percent pairs
+    # and percent-encoded controls; no NUL may disappear in command capture.
+    if printf '%s' "$target" | rg -q '\\|%([01][0-9A-Fa-f]|7[Ff])' { return 1 }
+    if printf '%s' "$target" | sed -E 's/%[0-9A-Fa-f]{2}//g' | rg -q '%' { return 1 }
+    var escaped = $(printf '%s' "$target" | sed 's/%/\\x/g')
+    setvar target = $(printf '%b' "$escaped")
+  }
+  if ! printf '%s\n' "$target" | rg -x 'https?://[A-Za-z0-9][A-Za-z0-9.-]*(:[0-9]{1,5})?([/?#][!-~]*)?' > "$output" { return 1 }
+  if (len(target) > 2048) { return 1 }
+  if printf '%s' "$target" | rg -q '[<>"\\]|%([01][0-9A-Fa-f]|7[Ff])' { return 1 }
+  var host = $(printf '%s\n' "$target" | awk -F / '{split($3,a,":");print tolower(a[1])}')
+  if ! printf '%s\n' "$host" | rg -q '\.' { return 1 }
+  if printf '%s\n' "$host" | rg -q '(^|\.)(google\.[a-z.]+|gstatic\.com|googleusercontent\.com|googleadservices\.com|localhost|local|invalid|test)$|^[0-9.]+$|^\.|\.$|\.\.' { return 1 }
+}
+var accepted = 0
+printf 'title\tdestination\toriginal_href\n' > "$evidence/results.tsv"
+for index in @(seq 1 "$count") {
+  query "string(($headings)[$index]/@href)" "$evidence/href-$index.txt"
+  query "normalize-space(string(($headings)[$index]))" "$evidence/title-$index.txt"
+  var href = $(cat "$evidence/href-$index.txt")
+  var title = $(cat "$evidence/title-$index.txt")
+  if (len(title) === 0 or len(title) > 1024 or len(href) > 2048) { continue }
+  if printf '%s%s' "$title" "$href" | LC_ALL=C rg -q '[\x00-\x1F\x7F]' { continue }
+  if destination "$href" "$evidence/destination-$index.txt" {
+    var target = $(cat "$evidence/destination-$index.txt")
+    if test -f "$evidence/destinations.txt" {
+      if rg -q -x -F -- "$target" "$evidence/destinations.txt" { continue }
+    }
+    printf '%s\n' "$target" >> "$evidence/destinations.txt"
+    printf '%s\t%s\t%s\n' "$title" "$target" "$href" >> "$evidence/results.tsv"
+    setvar accepted = accepted + 1
+  }
+}
+if (accepted === 0) {
+  var reason = 'NO_TITLED_PUBLIC_RESULTS'
+  if rg -qi 'enable javascript|enablejs|javascript.*disabled' "$evidence/body-text.txt" "$body" { setvar reason = 'JAVASCRIPT_REQUIRED' }
+  printf 'Google_results\t%s\n' "$reason" > "$evidence/receipt.tsv"
+  echo 'FAIL no titled public Google destination in original response' >&2
+  exit 1
+}
+printf 'Google_titled_public_destinations\t%s\noriginal_body_semantics\tPASS\ndestination_acquisition\tNOT_RUN\n' "$accepted" > "$evidence/receipt.tsv"
+echo 'PASS original Google body contains titled public destinations; destination acquisition remains unqualified'
