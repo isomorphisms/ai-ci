@@ -52,7 +52,9 @@ jobs:
         shell: sh
         env:
           GH_TOKEN: ${{ github.token }}
-        run: .tools/runtime/.build/grease/bin/grease -c 'gh api repos/isomorphisms/ai-ci/actions/artifacts/13202677402/zip > "$RUNNER_TEMP/actual-Google-original.zip"'
+        run: |
+          .tools/runtime/.build/grease/bin/grease -c 'var destination = ENV.RUNNER_TEMP ++ "/actual-Google-original.zip"
+          gh api repos/isomorphisms/ai-ci/actions/artifacts/13202677402/zip > "$destination"'
       - name: Independently replay original bytes, metadata and semantic failure
         shell: sh
         run: .tools/runtime/.build/grease/bin/grease ib-source/reader/replay-google-matrix.grease "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/.tools/runtime/.build/grease/bin/grease" "$RUNNER_TEMP/actual-Google-original.zip" "$RUNNER_TEMP/google-original-replay"

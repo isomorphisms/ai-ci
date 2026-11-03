@@ -27,3 +27,9 @@ results, touch, independently retained destination bytes and Back/Forward on
 API29/API34 remain required. Browser-rendered DOM must carry distinct provenance
 and must never be described as ICU original HTTP bytes. Physical ARM remains
 BLOCKED without an authenticated fresh device observation channel.
+
+The retained-original replay passes locally for all six exact bodies and
+metadata records. Its first hosted attempt41577170321 passed the synthetic
+semantic controls but stopped before retrieval because Grease correctly
+refused an undeclared shell-style `RUNNER_TEMP`. The coordinator now reads
+`ENV.RUNNER_TEMP` explicitly. That failed attempt is not byte replay acceptance.
