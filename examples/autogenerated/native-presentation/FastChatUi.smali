@@ -98,6 +98,54 @@
     move-result-object v0
     return-object v0
 .end method
+.method private static logProcessMemory()V
+    .locals 5
+  :read_begin
+    new-instance v0, Ljava/io/FileReader;
+    const-string v1, "/proc/self/status"
+    invoke-direct {v0, v1}, Ljava/io/FileReader;-><init>(Ljava/lang/String;)V
+    new-instance v1, Ljava/io/BufferedReader;
+    invoke-direct {v1, v0}, Ljava/io/BufferedReader;-><init>(Ljava/io/Reader;)V
+  :line
+    invoke-virtual {v1}, Ljava/io/BufferedReader;->readLine()Ljava/lang/String;
+    move-result-object v2
+    if-eqz v2, :close
+    const-string v3, "VmHWM:"
+    invoke-virtual {v2, v3}, Ljava/lang/String;->startsWith(Ljava/lang/String;)Z
+    move-result v3
+    if-nez v3, :log
+    const-string v3, "VmRSS:"
+    invoke-virtual {v2, v3}, Ljava/lang/String;->startsWith(Ljava/lang/String;)Z
+    move-result v3
+    if-eqz v3, :line
+  :log
+    const-string v3, "NativeUiProcessMemory"
+    invoke-static {v3, v2}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
+    goto :line
+  :close
+    invoke-virtual {v1}, Ljava/io/BufferedReader;->close()V
+    invoke-static {}, Landroid/os/Debug;->getPss()J
+    move-result-wide v0
+    invoke-static {v0, v1}, Ljava/lang/Long;->toString(J)Ljava/lang/String;
+    move-result-object v0
+    const-string v1, "NativeUiProcessPssKiB"
+    invoke-static {v1, v0}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
+    invoke-static {}, Landroid/os/Process;->getElapsedCpuTime()J
+    move-result-wide v0
+    invoke-static {v0, v1}, Ljava/lang/Long;->toString(J)Ljava/lang/String;
+    move-result-object v0
+    const-string v1, "NativeUiProcessCpuMs"
+    invoke-static {v1, v0}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
+  :read_end
+    .catch Ljava/io/IOException; {:read_begin .. :read_end} :unavailable
+    return-void
+  :unavailable
+    move-exception v0
+    const-string v1, "NativeUiProcessMemory"
+    const-string v2, "NOT_AVAILABLE process status"
+    invoke-static {v1, v2}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
+    return-void
+.end method
 .method public onStart()V
     .locals 12
   :begin
@@ -204,6 +252,7 @@
     const-string v0, "FAIL source-faithful bounded response clipboard"
     invoke-static {v0}, Lacceptance/presentation/FastChatUi;->fail(Ljava/lang/String;)V
   :copied
+    invoke-static {}, Lacceptance/presentation/FastChatUi;->logProcessMemory()V
     new-instance v0, Landroid/os/Bundle;
     invoke-direct {v0}, Landroid/os/Bundle;-><init>()V
     const-string v1, "stream"
