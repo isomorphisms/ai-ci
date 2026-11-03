@@ -38,11 +38,17 @@ proc retain_failure_source(label) {
   # this candidate before taking its private committed-source failure snapshot.
   try {
     "$adb" -s "$serial" shell am force-stop org.isomorphisms.ib.prepaint
-    "$adb" -s "$serial" exec-out run-as org.isomorphisms.ib.prepaint tar -C files -cf - arena \
-      > "$evidence/$label.failure-source.tar" 2> "$evidence/$label.failure-source.stderr"
-    test "$(stat -c %s "$evidence/$label.failure-source.tar")" -le 16777216
-    sha256sum "$evidence/$label.failure-source.tar" > "$evidence/$label.failure-source.sha256"
+    "$adb" -s "$serial" root > "$evidence/$label.failure-root.txt" 2>&1
+    timeout 30 "$adb" -s "$serial" wait-for-device
+    "$adb" -s "$serial" shell id -u | tr -d '\r' | rg -q -x 0
+    "$adb" -s "$serial" pull /data/user/0/org.isomorphisms.ib.prepaint/files/arena \
+      "$evidence/$label.failure-arena" > "$evidence/$label.failure-pull.txt" 2>&1
+    chmod 700 "$evidence/$label.failure-arena"
+    test "$(du -sb "$evidence/$label.failure-arena" | cut -f 1)" -le 16777216
+    find "$evidence/$label.failure-arena" -type f -exec sha256sum '{}' ';' > "$evidence/$label.failure-source.sha256"
   }
+  try { "$adb" -s "$serial" unroot > "$evidence/$label.failure-unroot.txt" 2>&1 }
+  try { timeout 30 "$adb" -s "$serial" wait-for-device }
 }
 proc observe(phase, label, marker) {
   "$grease" "$acceptance/ib-source/shizuku/prepare-test-screen.grease" "$adb" "$serial" "$evidence/$label.screen"
@@ -97,8 +103,6 @@ var existing = $("$adb" -s "$serial" shell ps -A -o PID,NAME | tr -d '\r' | awk 
 if (len(existing) !== 0) { echo 'FAIL reused Shizuku authority before Google search' >&2; exit 1 }
 "$adb" -s "$serial" shell "$starter" "--apk=$manager" > "$evidence/start-server.txt" 2>&1
 observe browser-google transaction 'PASS genuine ChordReader browser-assisted Google native result touch destination and retained Back Forward'
-"$adb" -s "$serial" exec-out run-as org.isomorphisms.ib.prepaint cat cache/ib-acceptance-browser-google.png \
-  > "$evidence/native-Google-results.png" 2> "$evidence/native-Google-results.stderr"
 "$adb" -s "$serial" logcat -d -v raw -s IBIndependentClickedSearchURL:I '*:S' > "$evidence/clicked-URL.log"
 sed '/^[[:space:]]*$/d; /^---------/d' "$evidence/clicked-URL.log" > "$evidence/clicked-URL.txt"
 test "$(wc -l < "$evidence/clicked-URL.txt")" = 1
@@ -113,6 +117,13 @@ proc snapshot(label) {
   timeout 30 "$adb" -s "$serial" wait-for-device
   "$adb" -s "$serial" shell id -u | tr -d '\r' | rg -q -x 0
   "$adb" -s "$serial" pull /data/user/0/org.isomorphisms.ib.prepaint/files/arena "$evidence/$label" > "$evidence/$label.pull.txt" 2>&1
+  if (label === 'actual-arena') {
+    "$adb" -s "$serial" pull /data/user/0/org.isomorphisms.ib.prepaint/cache/ib-acceptance-browser-google.png \
+      "$evidence/native-Google-results.png" > "$evidence/native-Google-results.pull.txt" 2>&1
+  } elif (label === 'offline-arena') {
+    "$adb" -s "$serial" pull /data/user/0/org.isomorphisms.ib.prepaint/cache/ib-acceptance-offline-browser-google.png \
+      "$evidence/offline-native-Google-results.png" > "$evidence/offline-native-Google-results.pull.txt" 2>&1
+  }
   "$adb" -s "$serial" unroot > "$evidence/$label.unroot.txt" 2>&1
   timeout 30 "$adb" -s "$serial" wait-for-device
   "$adb" -s "$serial" shell id -u | tr -d '\r' | rg -q -x 2000
@@ -140,8 +151,6 @@ sh "$acceptance/ib-source/verify.sh" "$root" "$destination_id" "$destination_gen
 "$grease" "$acceptance/ib-source/reader/verify-browser-google.grease" \
   "$acceptance" "$root" "$dom_id" "$dom_generation" "$clicked" "$evidence/native-results.txt" "$evidence/source-positive"
 observe offline-browser-google offline 'PASS browser-derived Google and original ICU destination reopen and navigate without Shizuku'
-"$adb" -s "$serial" exec-out run-as org.isomorphisms.ib.prepaint cat cache/ib-acceptance-offline-browser-google.png \
-  > "$evidence/offline-native-Google-results.png" 2> "$evidence/offline-native-Google-results.stderr"
 "$adb" -s "$serial" shell am force-stop org.isomorphisms.ib.prepaint
 snapshot offline-arena
 cmp "$root/responses.arena" "$evidence/offline-arena/responses.arena"

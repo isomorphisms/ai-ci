@@ -1,0 +1,72 @@
+module BrowserLayoutObserver
+
+import Data.Text
+import IB.HtmlPrepaint
+import IB.Reader.Document
+import IB.Reader.Selection
+import IB.Prepaint.Reflow
+import IB.Reflow
+import IB.Reflow.Source
+import IB.Reflow.SourceBreaks
+import IB.Reflow.Emergency
+import System
+
+check : Text → Bool → IO ()
+check name True = putStrLn ("PASS independent " ++ name)
+check name False = do
+  putStrLn ("FAIL independent " ++ name)
+  exitFailure
+
+advance : Char → Number
+advance 'W' = 5
+advance 'i' = 1
+advance _ = 2
+
+measure : Text → Number
+measure = foldl (\accumulated, character ⇒ accumulated + advance character) 0 . unpack
+
+digest : Text
+digest = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+
+export
+layout_checks : IO ()
+layout_checks = do
+  let title = "WiWWWWWWWWWWhttps://example.org/%F0%9F%8E%B8"
+  let html = "<a href=\"https://example.org/music\"><h3>" ++ title ++ "</h3></a>"
+  let fields = HtmlSourceEvidence "independent-layout-fixture" "12" digest digest
+        (cast (length (unpack html))) (cast (length (unpack html)))
+        "https://google.com/search?q=music" "https://www.google.com/search?q=music"
+        "text/html" "utf-8" "200" True True
+  for_ [promptly, evenly] $ \mode ⇒
+    case prepare_committed_document_advances fields html (Requirements 27 mode)
+        "independent-weighted-width-fixture" advance of
+      Left _ ⇒ check "weighted result layout admission" False
+      Right document ⇒ do
+        check "weighted title emergency wrapping"
+          (all (\block ⇒ all (\line ⇒ measure line.visible_text <= 27) block.text_lines)
+            document.revision_layout.block_plans)
+        case selection_projection document.revision_layout of
+          Left _ ⇒ check "weighted layout selection admission" False
+          Right projection ⇒ do
+            let expected = "music\n\n" ++ title ++ "\n\nhttps://example.org/music"
+            check "weighted title exact source selection"
+              (projected_source projection ≟ expected &&
+               copy_source_selection (projected_source projection) (projected_display projection)
+                 (projected_coordinates projection) 0
+                 (cast (length (unpack (projected_display projection)))) ≟ expected)
+  let ordinary = "ordinary title and short words"
+  for_ [promptly, evenly] $ \mode ⇒
+    check "fitting prose retains its source line choices"
+      (case (reflow_source_advances (Requirements 27 mode) advance ordinary,
+             reflow_emergency_advances (Requirements 27 mode) advance ordinary) of
+        (Right before, Right after) ⇒
+          map (\line ⇒ (line.first_codepoint, line.after_last_codepoint, line.visible_text)) before ≟
+          map (\line ⇒ (line.first_codepoint, line.after_last_codepoint, line.visible_text)) after
+        _ ⇒ False)
+  let protected = "WWWWWWWW%F0%9F%8E%B8e" ++ pack [chr 769, chr 8205] ++
+        "WWWWWWWW\r\nWWWWWWWW" ++ pack [chr 8288] ++ "WWWWWWWW"
+  check "emergency cuts preserve protected Unicode and CRLF boundaries"
+    (case emergency_source_breaks 27 advance protected of
+      Right cuts ⇒ valid_source_breaks protected cuts &&
+        not (any (\cut ⇒ elem cut.source_offset [9, 10, 12, 13, 15, 16, 18, 19]) cuts)
+      _ ⇒ False)

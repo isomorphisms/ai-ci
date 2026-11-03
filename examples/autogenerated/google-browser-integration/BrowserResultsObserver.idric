@@ -5,6 +5,7 @@ import IB.HtmlPrepaint
 import IB.WebSearch.Results
 import IB.RecoveredInformation
 import System
+import BrowserLayoutObserver
 
 digest : Text
 digest = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
@@ -150,3 +151,4 @@ main = do
                     Left _ ⇒ True
                     _ ⇒ False)
         _ ⇒ check "one real retained acquisition candidate" False
+  layout_checks

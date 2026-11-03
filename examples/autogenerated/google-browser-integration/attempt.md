@@ -119,3 +119,28 @@ the added phase remains pending execution. A successful layout-driven reopen
 may replace the cancellation label while retaining the same source, so the
 long observation asserts document/history identity rather than a permanent UI
 status string. No producer source is modified for this observation.
+
+Run41607144917 against unchanged IBbd4f0478 reaches original ICU acquisition,
+separate browser execution and canonical source completion on both APIs, with
+three public target originals on API29 and two on API34. The native layout
+guard then explicitly refuses an overlong source run. No result-touch,
+cancellation, offline Google or final E2E PASS is claimed.
+
+Failure collection incorrectly attempted run-as on the maintained
+non-debuggable candidate. Its supposed tar contains only that diagnostic;
+it is not original-source evidence. The observer now stops the verified
+emulator package and uses adb root/pull with a16MiB bound and file digests,
+then returns adb to unprivileged state. Successful native screenshots are
+pulled during the same existing root snapshot. Candidate debug/signing
+identity is unchanged. This repaired capture still requires actual execution.
+
+BrowserLayoutObserver independently drives the public document preparation
+surface using unequal character advances. It requires the measured viewport
+and exact source-selection reconstruction for Greedy and Squared, unchanged
+line choices for fitting prose, and valid protected Unicode/CRLF/percent
+boundaries. Type sketch: `independent fixture HtmlEvidence + Text + measured
+Number advances → checked layout → independent width/copy assertions`.
+The first compile correctly refused a missing explicit Prepaint.Reflow import;
+that import is added without changing the producer. A separately compiled
+mutant disables emergency wrapping at the integration call and must fail
+the named weighted-title assertion. Host controls do not count as ART.
