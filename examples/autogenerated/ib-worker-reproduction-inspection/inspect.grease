@@ -1,0 +1,47 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 1) { echo 'requires NEW_EVIDENCE' >&2; exit 2 }
+var evidence = ARGV[0]
+if (len(evidence) === 0 or evidence[0] !== '/') { exit 2 }
+if test -e "$evidence" { echo 'FAIL reused worker inspection evidence' >&2; exit 2 }
+mkdir -p "$evidence/input"
+var authorization = ENV.GITHUB_TOKEN
+var archive = "$evidence/source.zip"
+curl --fail --location --silent --show-error --max-time 300 --max-filesize 1073741824 \
+  --header "Authorization: Bearer $authorization" \
+  https://api.github.com/repos/isomorphisms/ib/actions/artifacts/13108753418/zip --output "$archive"
+test "$(wc -c < "$archive")" = 469333550
+printf '0184dffe97bafb6508095682edcaccf62ac3010627da9f1863e3ef5d5edf01c1  %s\n' "$archive" | sha256sum -c -
+unzip -Z1 "$archive" > "$evidence/entries.txt"
+awk 'substr($0,1,1)=="/" || $0~/(^|\/)\.\.(\/|$)/ {exit 1}' "$evidence/entries.txt"
+unzip -q "$archive" -d "$evidence/input" ib-commit.txt backend-commit.txt \
+  native-client/icu-worker.dex native-client/icu-worker-repeat.dex \
+  native-client/icu-worker.dex.plan native-client/icu-worker-repeat.dex.plan oracles/baksmali.jar
+test "$(cat "$evidence/input/ib-commit.txt")" = dce78140c79d43674fdc2300b0a0852334b31450
+test "$(cat "$evidence/input/backend-commit.txt")" = 153e7fc8053ba4072954a5e77d4efa3609d829e4
+rm "$archive"
+var first = "$evidence/input/native-client/icu-worker.dex"
+var second = "$evidence/input/native-client/icu-worker-repeat.dex"
+try { cmp -s "$first" "$second" }
+var original_status = _error.code
+if (original_status !== 1) { echo 'FAIL retained pair did not reproduce its original byte difference' >&2; exit 1 }
+java -version > "$evidence/java-version.txt" 2>&1
+java -jar "$evidence/input/oracles/baksmali.jar" --version > "$evidence/parser-version.txt"
+java -jar "$evidence/input/oracles/baksmali.jar" disassemble "$first" -o "$evidence/first-decoded"
+java -jar "$evidence/input/oracles/baksmali.jar" disassemble "$second" -o "$evidence/second-decoded"
+try { diff -ru "$evidence/first-decoded" "$evidence/second-decoded" > "$evidence/decoded-difference.observed.txt" 2>&1 }
+var decoded_status = _error.code
+if (decoded_status !== 1) { echo 'FAIL independent decoded pair did not expose a semantic input difference' >&2; exit 1 }
+test "$(wc -c < "$evidence/decoded-difference.observed.txt")" -le 32768
+cat "$evidence/decoded-difference.observed.txt"
+var class = 'Idric/Generated.smali'
+test "$(rg -c -F '"icu-worker"' "$evidence/first-decoded/$class")" = 1
+test "$(rg -c -F '"icu-worker-repeat"' "$evidence/second-decoded/$class")" = 1
+# Test-only decoded-text classification. Original DEX is never rewritten, and
+# no normalized file becomes an application or input to product acceptance.
+cp -R "$evidence/second-decoded" "$evidence/classification-only"
+sed 's/"icu-worker-repeat"/"icu-worker"/g' "$evidence/second-decoded/$class" > "$evidence/classification-only/$class"
+diff -rq "$evidence/first-decoded" "$evidence/classification-only" > "$evidence/remaining-differences.observed.txt"
+sha256sum "$first" "$second" "$evidence/input/oracles/baksmali.jar" > "$evidence/inputs.sha256"
+printf 'schema\tib-managed-worker-DEX-difference-v1\nsource\tdce78140c79d43674fdc2300b0a0852334b31450\nsource_artifact\t13108753418\nsource_archive_sha256\t0184dffe97bafb6508095682edcaccf62ac3010627da9f1863e3ef5d5edf01c1\noriginal_DEX_byte_comparator\t1\nindependent_decoded_difference\tCOMMAND_NAME_CONSTANT_ONLY\nclassification_normalization\tTEST_TEXT_ONLY\ncandidate_DEX_modification\tNONE\ncompiler_repair_acceptance\tNOT_RUN\nreader_ART\tNOT_RUN\nphysical_TAB_P10\tNOT_RUN\n' > "$evidence/receipt.tsv"
+cat "$evidence/inputs.sha256" "$evidence/receipt.tsv"

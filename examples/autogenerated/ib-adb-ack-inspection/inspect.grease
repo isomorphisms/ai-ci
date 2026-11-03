@@ -1,0 +1,35 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 1) { exit 2 }
+var evidence = ARGV[0]
+if (len(evidence) === 0 or evidence[0] !== '/') { exit 2 }
+if test -e "$evidence" { exit 2 }
+mkdir -p "$evidence/input"
+var authorization = ENV.GITHUB_TOKEN
+var archive = "$evidence/decoder.zip"
+curl --fail --location --silent --show-error --max-time 120 --max-filesize 33554432 \
+  --header "Authorization: Bearer $authorization" \
+  https://api.github.com/repos/isomorphisms/ai-ci/actions/artifacts/13111240470/zip --output "$archive"
+test "$(wc -c < "$archive")" = 21088218
+printf '39eb376b2a5d3642e04c66be61aa393a4bf27e4c55c97cc9cfa8f6138caa2620  %s\n' "$archive" | sha256sum -c -
+unzip -Z1 "$archive" > "$evidence/entries.txt"
+awk 'substr($0,1,1)=="/" || $0~/(^|\/)\.\.(\/|$)/ {exit 1}' "$evidence/entries.txt"
+unzip -q "$archive" -d "$evidence/input" ib-installed-replay/input-identity.tsv \
+  ib-installed-replay/encoding/snapshot-root.txt \
+  ib-installed-replay/encoding/snapshot-unroot.txt \
+  ib-installed-replay/encoding/snapshot-unroot.exit
+rg -x -F 'source	f43af99856a8ad4161114863e681c118e38c2218' "$evidence/input/ib-installed-replay/input-identity.tsv"
+var root = "$evidence/input/ib-installed-replay/encoding"
+for name in snapshot-root.txt snapshot-unroot.txt snapshot-unroot.exit {
+  test -f "$root/$name"
+  test "$(wc -c < "$root/$name")" -le 8192
+  printf 'retained_file\t%s\nbyte_count\t%s\n' "$name" "$(wc -c < "$root/$name")" >> "$evidence/acknowledgement.observed.txt"
+  cat "$root/$name" >> "$evidence/acknowledgement.observed.txt"
+  od -An -tx1 "$root/$name" >> "$evidence/acknowledgement.observed.txt"
+  sha256sum "$root/$name" >> "$evidence/inputs.sha256"
+}
+var status = $(cat "$root/snapshot-unroot.exit")
+printf '%s\n' "$status" | rg -x '[0-9]{1,3}'
+var amount = $(wc -c < "$root/snapshot-unroot.txt")
+printf 'schema\tib-ADB-unroot-original-evidence-v1\nsource_artifact\t13111240470\nsource_archive_sha256\t39eb376b2a5d3642e04c66be61aa393a4bf27e4c55c97cc9cfa8f6138caa2620\nunroot_exit\t%s\nunroot_acknowledgement_byte_count\t%s\npost_unroot_UID\tNOT_OBSERVED_OR_CLAIMED\nreader_acceptance\tNOT_RUN\nphysical_TAB_P10\tNOT_RUN\n' "$status" "$amount" > "$evidence/receipt.tsv"
+cat "$evidence/acknowledgement.observed.txt" "$evidence/receipt.tsv"

@@ -1,0 +1,39 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 1) { exit 2 }
+var evidence = ARGV[0]
+if (len(evidence) === 0 or evidence[0] !== '/') { exit 2 }
+if test -e "$evidence" { exit 2 }
+mkdir -p "$evidence"
+gh --version > "$evidence/gh-version.txt"
+for run in 41376593878 41376593837 {
+  var expected_job = '125058071021'
+  var expected_name = 'API 34 / fragments'
+  if (run === '41376593837') {
+    setvar expected_job = '125058070979'
+    setvar expected_name = 'installed API 34 / search'
+  }
+  test "$(gh api "repos/isomorphisms/ai-ci/actions/runs/$run" --jq .head_sha)" = ecea325a32d7d922540a51d6e460349d4d9fabef
+  test "$(gh api "repos/isomorphisms/ai-ci/actions/runs/$run" --jq .head_branch)" = acceptance/ib-chordreader-handoff
+  var state = $(gh api "repos/isomorphisms/ai-ci/actions/runs/$run" --jq .status)
+  if (state !== 'in_progress') {
+    printf 'run\t%s\ncancel_request\tNOT_NEEDED\nobserved_state\t%s\n' "$run" "$state" >> "$evidence/receipt.tsv"
+    continue
+  }
+  gh api "repos/isomorphisms/ai-ci/actions/runs/$run/jobs?per_page=100" \
+    --jq '.jobs[] | [.id,.name,.status,.conclusion] | @tsv' > "$evidence/$run.jobs-before.tsv"
+  awk -F '\t' -v job="$expected_job" -v name="$expected_name" '
+    $3=="in_progress" {if($1!=job || $2!=name)exit 1; seen++}
+    $3=="queued" || $3=="pending" {exit 1}
+    END {if(seen!=1)exit 1}
+  ' "$evidence/$run.jobs-before.tsv"
+  var started = $(gh api "repos/isomorphisms/ai-ci/actions/jobs/$expected_job" --jq '.steps[] | select(.status=="in_progress") | .started_at')
+  var start_seconds = $(date -u -d "$started" +%s)
+  var now_seconds = $(date -u +%s)
+  var elapsed = int(now_seconds) - int(start_seconds)
+  if (elapsed < 1200) { echo 'FAIL refusing to stop a non-stalled test step' >&2; exit 1 }
+  gh api --method POST "repos/isomorphisms/ai-ci/actions/runs/$run/cancel" > "$evidence/$run.cancel-result.txt"
+  printf 'run\t%s\nonly_active_job\t%s\nonly_active_name\t%s\nstep_elapsed_seconds\t%s\ncancel_request\tACCEPTED\ncompleted_results\tPRESERVED\n' \
+    "$run" "$expected_job" "$expected_name" "$elapsed" >> "$evidence/receipt.tsv"
+}
+cat "$evidence/receipt.tsv"

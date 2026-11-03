@@ -1,0 +1,110 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 2) { echo 'requires FROZEN_CASE NEW_EVIDENCE' >&2; exit 2 }
+var kind = ARGV[0]
+var evidence = ARGV[1]
+var artifact = ''
+var size = ''
+var digest = ''
+var source = '57e0352175ee2dc6254ea5b722540e94e0d6d50a'
+if (kind === 'full29') {
+  setvar artifact = '13101870020'
+  setvar size = '160982333'
+  setvar digest = '3278c6e805c67d1cf58374e0f9dd468c54dc9fe1787a3ef379f2b1388e66aa2c'
+} elif (kind === 'full34') {
+  setvar artifact = '13101916188'
+  setvar size = '175358904'
+  setvar digest = '47066016268bcb7c287cc13c92fe9d61b277c484832fc4a57da9dd3331d34513'
+} elif (kind === 'lifecycle34') {
+  setvar artifact = '13101592242'
+  setvar size = '11232622'
+  setvar digest = '137063d31ee6c0771b8864d29fdf9919387c26308db6f6c8bde297a355a6f57f'
+} elif (kind === 'decoder29') {
+  setvar artifact = '13100973523'
+  setvar size = '12519346'
+  setvar digest = 'b5499bd31936be3c09003ad62207df60a2193fb5b4a6d59d7690bcf5f632899d'
+} elif (kind === 'decoder34') {
+  setvar artifact = '13100798874'
+  setvar size = '3025202'
+  setvar digest = 'b9ae3e1a1714f8aec8cd5e137ab5e9998d897aa7e3e3b1f4a258cd3d920a5b3d'
+} elif (kind === 'd02search29') {
+  setvar artifact = '13103337606'
+  setvar size = '11189861'
+  setvar digest = '931dca07059ba8427b8fc902ffba3dc749c177fb99a298d7188bc0fac363a3f6'
+  setvar source = 'd02fe516833d0941e8ff1ab2b84369c1661aee6c'
+} elif (kind === 'd02full34') {
+  setvar artifact = '13103920697'
+  setvar size = '121927646'
+  setvar digest = '2d8df9d91cb0bb38bce9053c09ab088a721050e5d7e92edc971b93ed9f70361c'
+  setvar source = 'd02fe516833d0941e8ff1ab2b84369c1661aee6c'
+} elif (kind === 'd42full29') {
+  setvar artifact = '13104564402'
+  setvar size = '139042233'
+  setvar digest = '94858a124f4f08ad4dea106e98eeb37430e512e4bd6c0ad262c952a5c7de831a'
+  setvar source = 'd02fe516833d0941e8ff1ab2b84369c1661aee6c'
+} elif (kind === 'd02decoder29') {
+  setvar artifact = '13103438329'
+  setvar size = '12477334'
+  setvar digest = '1b3fdb4256fb33afda5821f5b9e3903a1d0c06162386f655620494497fe73b69'
+  setvar source = 'd02fe516833d0941e8ff1ab2b84369c1661aee6c'
+} else { exit 2 }
+if (len(evidence) === 0 or evidence[0] !== '/') { exit 2 }
+if test -e "$evidence" { echo 'FAIL reused failure inspection evidence' >&2; exit 2 }
+if (kind === 'd42full29' and artifact !== '13104564402') { echo 'FAIL frozen case selected the wrong artifact' >&2; exit 1 }
+mkdir -p "$evidence"
+printf 'case\t%s\nartifact_id\t%s\narchive_byte_count\t%s\narchive_sha256\t%s\n' "$kind" "$artifact" "$size" "$digest"
+var authorization = ENV.GITHUB_TOKEN
+var archive = "$evidence/original.zip"
+curl --fail --location --silent --show-error --max-time 180 --max-filesize 300000000 \
+  --header "Authorization: Bearer $authorization" \
+  "https://api.github.com/repos/isomorphisms/ai-ci/actions/artifacts/$artifact/zip" --output "$archive"
+test "$(wc -c < "$archive")" = "$size"
+printf '%s  %s\n' "$digest" "$archive" | sha256sum -c -
+unzip -Z1 "$archive" > "$evidence/entries.txt"
+awk 'substr($0,1,1)=="/" || $0~/(^|\/)\.\.(\/|$)/ {exit 1}' "$evidence/entries.txt"
+var records = 0
+for file in @(awk '/\.(pid|exit|txt|log|tsv|xml)$/ && $0!~/[^A-Za-z0-9._\/-]/ {print}' "$evidence/entries.txt") {
+  setglobal records = records + 1
+  var captured = "$evidence/$records.capture"
+  unzip -p "$archive" "$file" > "$captured"
+  var bytes = $(wc -c < "$captured")
+  if (file.endsWith('.pid') or file.endsWith('/held-instrumentation.txt') or
+      file.endsWith('/held-instrumentation.exit') or file.endsWith('/held-ready.log') or
+      file.endsWith('/completed-control.unchanged-claim.txt') or file.endsWith('/input-identity.tsv') or file.endsWith('/snapshot-unroot.txt')) {
+    printf 'record\t%s\nrecord_bytes\t%s\n' "$file" "$bytes" > "$evidence/$records.observed.txt"
+    if (int(bytes) > 4000) { echo 'FAIL unexpected bounded process record' >&2; exit 1 }
+    cat "$captured" >> "$evidence/$records.observed.txt"
+    cat "$evidence/$records.observed.txt"
+  } elif (file.endsWith('.logcat.txt')) {
+    if (kind === 'd02search29' or kind === 'd42full29') {
+      printf 'complete_retained_reader_body\t%s\n' "$file"
+      awk '/IBIndependentReaderBody|IBIndependentReadiness/ {print}' "$captured"
+    }
+    awk '/IBIndependentReaderBody|IBIndependentReaderSurface|IBIndependentMissingControl|IBIndependentCopyDisplay|IBIndependentClipboard|IBIndependentReaderStatus|IBIndependentReaderStack|IBIndependentHeldSource|Force stopping.*org[.]isomorphisms[.]ib|Killing.*org[.]isomorphisms[.]ib/ {line[++n]=$0}
+      END {for(i=(n>70?n-69:1);i<=n;i++)print line[i]}' "$captured" |
+      sed -E 's/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}-[0-9]{10,}/[REDACTED_SERVICE_NONCE]/g' > "$evidence/$records.observed.txt"
+    if test -s "$evidence/$records.observed.txt" {
+      printf 'log\t%s\n' "$file"
+      cat "$evidence/$records.observed.txt"
+    }
+  } elif (file.endsWith('.xml')) {
+    printf 'post_test_XML_only\t%s\nbytes\t%s\n' "$file" "$bytes" > "$evidence/$records.observed.txt"
+    head -c 2000 "$captured" >> "$evidence/$records.observed.txt"
+    printf '\n' >> "$evidence/$records.observed.txt"
+    cat "$evidence/$records.observed.txt"
+  }
+}
+if (kind === 'd02full34') {
+  for screen in @(awk '/\/full\/(lifecycle\/resume-noop|link-shapes\/actual-link-shapes)[.]png$/ {print}' "$evidence/entries.txt") {
+    unzip -p "$archive" "$screen" > "$evidence/post-test-system-window.png"
+    printf 'post_instrumentation_system_window_diagnostic_only\t%s\n' "$screen"
+    printf '%s\n' 'IB_SYSTEM_SCREENSHOT_BEGIN'
+    base64 --wrap=4096 "$evidence/post-test-system-window.png"
+    printf '%s\n' 'IB_SYSTEM_SCREENSHOT_END'
+    break
+  }
+}
+if (records < 1) { echo 'FAIL no retained text records' >&2; exit 1 }
+printf 'schema\tib-frozen-runtime-failure-inspection-v1\ncase\t%s\nsource\t%s\noriginal_observer\tRECORDED_IN_ARCHIVE_IDENTITY\narchive_integrity\tPASS\nnew_Android_execution\tNOT_RUN\nproduct_completion\tNOT_CLAIMED\nphysical_TAB_P10\tNOT_RUN\n' "$kind" "$source" > "$evidence/receipt.tsv"
+printf 'artifact_id\t%s\narchive_byte_count\t%s\narchive_sha256\t%s\n' "$artifact" "$size" "$digest" >> "$evidence/receipt.tsv"
+cat "$evidence/receipt.tsv"
