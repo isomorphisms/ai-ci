@@ -11,6 +11,8 @@ proc positive(label, html, count) {
   printf '%s\n' "$html" > "$evidence/$label.html"
   "$grease" "$oracle" "$evidence/$label.html" "$evidence/$label" > "$evidence/$label.log" 2>&1
   rg -x -F "Google_titled_public_destinations	$count" "$evidence/$label/receipt.tsv"
+  var actual = $(wc -l < "$evidence/$label/destinations.txt")
+  if (actual !== count) { echo "FAIL classifier $label destination count differs from its receipt" >&2; exit 1 }
 }
 proc negative(label, html, reason) {
   printf '%s\n' "$html" > "$evidence/$label.html"
@@ -18,6 +20,11 @@ proc negative(label, html, reason) {
   var outcome = _error.code
   if (outcome !== 1) { echo "FAIL classifier $label returned $outcome instead of its semantic refusal" >&2; exit 1 }
   rg -x -F "Google_results	$reason" "$evidence/$label/receipt.tsv"
+  if test -s "$evidence/$label/destinations.txt" { echo "FAIL refused classifier $label retained an accepted public destination" >&2; exit 1 }
+  if test -f "$evidence/$label/results.tsv" {
+    var rows = $(wc -l < "$evidence/$label/results.tsv")
+    if (rows !== '1') { echo "FAIL refused classifier $label retained result records" >&2; exit 1 }
+  }
 }
 positive direct '<html><body><a href="https://en.wikipedia.org/wiki/Music"><h3>Music &amp; sound</h3></a></body></html>' 1
 printf 'title\tdestination\toriginal_href\nMusic & sound\thttps://en.wikipedia.org/wiki/Music\thttps://en.wikipedia.org/wiki/Music\n' > "$evidence/direct.expected"
@@ -25,16 +32,22 @@ cmp "$evidence/direct.expected" "$evidence/direct/results.tsv"
 positive wrapper '<html><body><a href="/url?q=https%3A%2F%2Fen.wikipedia.org%2Fwiki%2FA%252FB&amp;source=web"><h3>Encoded path</h3></a></body></html>' 1
 rg -x -F 'https://en.wikipedia.org/wiki/A%2FB' "$evidence/wrapper/destinations.txt"
 positive duplicate '<html><body><a href="https://en.wikipedia.org/wiki/Music"><h3>One</h3></a><a href="https://en.wikipedia.org/wiki/Music"><h3>One again</h3></a></body></html>' 1
+positive heading-scope '<html><body><a href="https://en.wikipedia.org/wiki/Music">Outside site label<h3><div>Complete &amp; scoped title</div></h3>Outside address</a></body></html>' 1
+printf 'title\tdestination\toriginal_href\nComplete & scoped title\thttps://en.wikipedia.org/wiki/Music\thttps://en.wikipedia.org/wiki/Music\n' > "$evidence/heading-scope.expected"
+cmp "$evidence/heading-scope.expected" "$evidence/heading-scope/results.tsv"
+positive role-heading '<html><body><a href="https://en.wikipedia.org/wiki/Music"><div role="heading">Accessible title</div></a></body></html>' 1
 negative arbitrary-anchor '<html><body><a href="https://en.wikipedia.org/wiki/Music">No result title</a></body></html>' NO_TITLED_PUBLIC_RESULTS
 negative retry '<html><body>Please enable JavaScript<a href="/httpservice/retry/enablejs"><h3>Continue</h3></a></body></html>' JAVASCRIPT_REQUIRED
+negative retry-without-heading '<html><body>Please enable JavaScript<a href="/httpservice/retry/enablejs">Continue</a></body></html>' JAVASCRIPT_REQUIRED
 negative consent '<html><body>Before you continue to Google<a href="https://en.wikipedia.org/wiki/Music"><h3>Deceptive</h3></a></body></html>' REFUSED_CONSENT_OR_CHALLENGE
 negative challenge '<html><body>Our systems have detected unusual traffic<a href="https://en.wikipedia.org/wiki/Music"><h3>Deceptive</h3></a></body></html>' REFUSED_CONSENT_OR_CHALLENGE
-negative control '<html><body><a href="https://support.google.com/"><h3>Help</h3></a></body></html>' NO_TITLED_PUBLIC_RESULTS
+negative control '<html><body><a href="https://support.google.com/"><h3>Help</h3></a></body></html>' TITLED_TARGETS_NOT_VERIFIED_PUBLIC
 negative navigation '<html><body><nav><a href="https://en.wikipedia.org/wiki/Music"><h3>Navigation</h3></a></nav></body></html>' NO_TITLED_PUBLIC_RESULTS
-negative unsafe '<html><body><a href="javascript:alert(1)"><h3>Unsafe</h3></a></body></html>' NO_TITLED_PUBLIC_RESULTS
-negative local '<html><body><a href="http://127.0.0.1/private"><h3>Local</h3></a></body></html>' NO_TITLED_PUBLIC_RESULTS
-negative credentials '<html><body><a href="https://username@en.wikipedia.org/"><h3>Credentials</h3></a></body></html>' NO_TITLED_PUBLIC_RESULTS
-negative encoded-control '<html><body><a href="/url?q=https%3A%2F%2Fen.wikipedia.org%2F%00bad"><h3>Null byte</h3></a></body></html>' NO_TITLED_PUBLIC_RESULTS
-negative malformed-escape '<html><body><a href="/url?q=https%3A%2F%2Fen.wikipedia.org%2F%GG"><h3>Bad escape</h3></a></body></html>' NO_TITLED_PUBLIC_RESULTS
-negative duplicate-parameter '<html><body><a href="/url?q=https%3A%2F%2Fen.wikipedia.org%2F&amp;url=https%3A%2F%2Fwww.gnu.org%2F"><h3>Ambiguous</h3></a></body></html>' NO_TITLED_PUBLIC_RESULTS
+negative unsafe '<html><body><a href="javascript:alert(1)"><h3>Unsafe</h3></a></body></html>' TITLED_TARGETS_NOT_VERIFIED_PUBLIC
+negative local '<html><body><a href="http://127.0.0.1/private"><h3>Local</h3></a></body></html>' TITLED_TARGETS_NOT_VERIFIED_PUBLIC
+negative credentials '<html><body><a href="https://username@en.wikipedia.org/"><h3>Credentials</h3></a></body></html>' TITLED_TARGETS_NOT_VERIFIED_PUBLIC
+negative encoded-control '<html><body><a href="/url?q=https%3A%2F%2Fen.wikipedia.org%2F%00bad"><h3>Null byte</h3></a></body></html>' TITLED_TARGETS_NOT_VERIFIED_PUBLIC
+negative malformed-escape '<html><body><a href="/url?q=https%3A%2F%2Fen.wikipedia.org%2F%GG"><h3>Bad escape</h3></a></body></html>' TITLED_TARGETS_NOT_VERIFIED_PUBLIC
+negative duplicate-parameter '<html><body><a href="/url?q=https%3A%2F%2Fen.wikipedia.org%2F&amp;url=https%3A%2F%2Fwww.gnu.org%2F"><h3>Ambiguous</h3></a></body></html>' TITLED_TARGETS_NOT_VERIFIED_PUBLIC
+negative multiple-headings '<html><body><a href="https://en.wikipedia.org/wiki/Music"><h3>One</h3><h3>Two</h3></a></body></html>' TITLED_TARGETS_NOT_VERIFIED_PUBLIC
 echo 'PASS independent original-body result positives and targeted semantic controls'

@@ -48,3 +48,23 @@ independent arbitrary-anchor semantic assertion. The public-host and source
 generation controls remain unchanged. google-classifier-complete-heading-controls-1
 passes eleven positives and rejects all three compiled controls at their
 designated assertion. Host qualification is not live Google or ART.
+
+## Independent original-body classifier correction
+
+Observer7e089d34 workflows41634779393/41634779520 fail the retry diagnostic
+before live acquisition. Its fixture has a first-party retry h3, which the
+classifier counts as a titled candidate before recognizing JavaScript text.
+The zero-result classification now reports JavaScript-required first. The
+remaining unsafe/first-party titled references retain the existing more
+specific TITLED_TARGETS_NOT_VERIFIED_PUBLIC refusal, and their expected
+diagnostics now state that exact stage. All still exit1, retain no accepted
+destinations and retain no result records. No refusal becomes a positive.
+
+The independent libxml classifier also requires exactly one complete actual
+h3/role heading and extracts only its text, excluding adjacent site labels.
+New nested-block/role-heading positives and ambiguous-heading refusal exercise
+this boundary. The first local command-capture condition hit Grease
+strict_errexit; assigning its result before comparison repairs the guard.
+google-original-classifier-scoped-3 passes five positives and fourteen
+semantic refusal controls. These shell/HTML controls are separate from the
+maintained compiled Idriç semantic controls and actual Google acceptance.

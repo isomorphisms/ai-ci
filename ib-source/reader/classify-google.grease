@@ -65,7 +65,10 @@ var accepted = 0
 printf 'title\tdestination\toriginal_href\n' > "$evidence/results.tsv"
 for index in @(seq 1 "$count") {
   query "string(($headings)[$index]/@href)" "$evidence/href-$index.txt"
-  query "normalize-space(string(($headings)[$index]))" "$evidence/title-$index.txt"
+  query "count(($headings)[$index]//*[self::h3 or @role='heading'])" "$evidence/title-count-$index.txt"
+  var title_count = $(cat "$evidence/title-count-$index.txt")
+  if (title_count !== '1') { continue }
+  query "normalize-space(string((($headings)[$index]//*[self::h3 or @role='heading'])[1]))" "$evidence/title-$index.txt"
   var href = $(cat "$evidence/href-$index.txt")
   var title = $(cat "$evidence/title-$index.txt")
   if (len(title) === 0 or len(title) > 1024 or len(href) > 2048) { continue }
@@ -85,10 +88,10 @@ for index in @(seq 1 "$count") {
 }
 if (accepted === 0) {
   var reason = 'NO_TITLED_PUBLIC_RESULTS'
-  if (int(count) > 0) {
-    setvar reason = 'TITLED_TARGETS_NOT_VERIFIED_PUBLIC'
-  } elif rg -qi 'enable javascript|enablejs|javascript.*disabled' "$evidence/body-text.txt" "$body" {
+  if rg -qi 'enable javascript|enablejs|javascript.*disabled' "$evidence/body-text.txt" "$body" {
     setvar reason = 'JAVASCRIPT_REQUIRED'
+  } elif (int(count) > 0) {
+    setvar reason = 'TITLED_TARGETS_NOT_VERIFIED_PUBLIC'
   }
   printf 'Google_results\t%s\n' "$reason" > "$evidence/receipt.tsv"
   echo 'FAIL no titled public Google destination in original response' >&2
