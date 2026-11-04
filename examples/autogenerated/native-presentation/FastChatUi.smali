@@ -227,6 +227,7 @@
     invoke-virtual {v0, v1, v2}, Landroid/content/Intent;->putExtra(Ljava/lang/String;Ljava/lang/String;)Landroid/content/Intent;
     invoke-virtual {p0, v0}, Landroid/app/Instrumentation;->startActivitySync(Landroid/content/Intent;)Landroid/app/Activity;
     move-result-object v7
+    invoke-direct {p0, v7}, Lacceptance/presentation/FastChatUi;->assertContentOwner(Landroid/app/Activity;)V
     const-string v0, "Message, multiline draft"
     invoke-direct {p0, v0}, Lacceptance/presentation/FastChatUi;->node(Ljava/lang/String;)Landroid/view/accessibility/AccessibilityNodeInfo;
     move-result-object v6
@@ -426,5 +427,25 @@
     const-string v0, "NativeTimelineAcceptance"
     const-string v1, "PASS actual prior roles source text request selection and return to latest"
     invoke-static {v0, v1}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
+    return-void
+.end method
+
+.method private assertContentOwner(Landroid/app/Activity;)V
+    .locals 4
+    new-instance v0, Lacceptance/presentation/ContentOwnerTask;
+    invoke-direct {v0, p1}, Lacceptance/presentation/ContentOwnerTask;-><init>(Landroid/app/Activity;)V
+    const/16 v3, 0xc8
+  :retry
+    invoke-virtual {p0, v0}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
+    iget-boolean v1, v0, Lacceptance/presentation/ContentOwnerTask;->attached:Z
+    if-nez v1, :done
+    const-wide/16 v1, 0x64
+    invoke-static {v1, v2}, Landroid/os/SystemClock;->sleep(J)V
+    add-int/lit8 v3, v3, -1
+    if-gtz v3, :retry
+    invoke-direct {p0}, Lacceptance/presentation/FastChatUi;->dumpMissingNode()V
+    const-string v0, "FAIL native controls belong to the Activity content hierarchy"
+    invoke-static {v0}, Lacceptance/presentation/FastChatUi;->fail(Ljava/lang/String;)V
+  :done
     return-void
 .end method

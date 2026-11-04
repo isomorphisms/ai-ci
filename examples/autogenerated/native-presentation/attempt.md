@@ -54,3 +54,13 @@ only after its existing lookup has failed. It still fails that assertion.
 These named acceptance stores contain synthetic input; no user conversation
 or credential is logged by this diagnostic. No product window redesign is
 selected from the undiagnosed observation.
+
+The retained failure tree then showed the Activity's FrameLayout, native
+surface and status-bar background, with no framework controls. The producer
+repair moves the existing Material/settings Views from a separate application
+panel into android.R.id.content. `ContentOwnerTask` checks the actual Send/Stop
+Button on the main thread: it must be found through the Activity and share its
+decor root and Context. The old signed0c5288a2 producer is a concrete bad
+integration control for that boundary; a passing screenshot or a randomly
+selected overlay window cannot satisfy it. Existing accessibility, source-text
+and actual Button-action assertions remain required afterward.
