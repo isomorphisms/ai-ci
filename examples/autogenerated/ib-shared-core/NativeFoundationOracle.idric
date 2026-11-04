@@ -1,0 +1,38 @@
+module NativeFoundationOracle
+
+import Data.Text
+import IB.Linux.Platform
+import SharedCoreOracle
+import System
+
+native_cases : IO (List (Text, Bool))
+native_cases = do
+  version ← native_abi_version
+  width ← native_pointer_bits
+  empty ← utf8_text_bytes ""
+  ascii ← utf8_text_bytes "abc"
+  japanese ← utf8_text_bytes "東京"
+  emoji ← utf8_text_bytes "🙂"
+  mixed ← utf8_text_bytes "A東京🙂éB"
+  nul ← utf8_text_bytes "a\0b"
+  pure
+    [ ("native-abi-version", version ≟ 1)
+    , ("native-pointer-width", width ≟ 64)
+    , ("native-empty-bytes", empty ≟ Just 0)
+    , ("native-ascii-bytes", ascii ≟ Just 3)
+    , ("native-japanese-bytes", japanese ≟ Just 6)
+    , ("native-emoji-bytes", emoji ≟ Just 4)
+    , ("native-mixed-bytes", mixed ≟ Just 15)
+    , ("embedded-nul-refused", nul ≟ Nothing)
+    ]
+
+report : List (Text, Bool) → IO ()
+report [] = pure ()
+report ((name, passed) :: rest) = do
+  putStrLn (name ++ "=" ++ show passed)
+  if passed then report rest else exitFailure
+
+main : IO ()
+main = do
+  boundary ← native_cases
+  report (acceptance_results ++ boundary)
