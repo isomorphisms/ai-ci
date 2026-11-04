@@ -174,18 +174,43 @@
   :back
     const/4 v0, 4
     invoke-virtual {p0, v0}, Landroid/app/Instrumentation;->sendKeyDownUpSync(I)V
-    const-wide/16 v0, 0x1f4
+    const/16 v5, 40
+  :back_wait
+    const-wide/16 v0, 0x32
     invoke-static {v0, v1}, Landroid/os/SystemClock;->sleep(J)V
     invoke-virtual {p0, v6}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
     invoke-direct {p0}, Lacceptance/presentation/FastChatIme;->keyboardTop()I
-    move-result v0
-    if-gtz v0, :back_bad
+    move-result v9
     invoke-virtual {v7}, Landroid/app/Activity;->isFinishing()Z
     move-result v0
     if-nez v0, :back_bad
+    if-gtz v9, :back_retry
     iget v0, v6, Lacceptance/presentation/ImeTask;->height:I
     if-ge v0, v8, :pass
+  :back_retry
+    add-int/lit8 v5, v5, -1
+    if-gtz v5, :back_wait
   :back_bad
+    new-instance v0, Ljava/lang/StringBuilder;
+    const-string v1, "Back failure: baseline="
+    invoke-direct {v0, v1}, Ljava/lang/StringBuilder;-><init>(Ljava/lang/String;)V
+    invoke-virtual {v0, v8}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    const-string v1, " observed="
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    iget v1, v6, Lacceptance/presentation/ImeTask;->height:I
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    const-string v1, " keyboard_top="
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v0, v9}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    const-string v1, " finishing="
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v7}, Landroid/app/Activity;->isFinishing()Z
+    move-result v1
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Z)Ljava/lang/StringBuilder;
+    invoke-virtual {v0}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+    move-result-object v1
+    const-string v0, "FastChatImeGeometry"
+    invoke-static {v0, v1}, Landroid/util/Log;->e(Ljava/lang/String;Ljava/lang/String;)I
     const-string v0, "FAIL Back dismisses IME and restores the live conversation"
     invoke-static {v0}, Lacceptance/presentation/FastChatIme;->fail(Ljava/lang/String;)V
   :pass

@@ -174,3 +174,23 @@ then still requires connection within30 seconds and an observed root UID before
 any source readback. All other errors fail. This is emulator observer plumbing,
 not physical root permission or a relaxed product assertion.
 
+## Follow-up rendering and asynchronous keyboard evidence
+
+The new independent8528 run41767027593 passed all ten FastChat cases, including
+actual compositor and key/Back on both APIs. A da920 repeat had two SDK emulator
+archive failures before boot. These are not product or negative-control passes.
+Its API34 IME case separately failed the final Back geometry assertion after
+all compositor/typing checks, so it must not be described as infrastructure.
+That oracle sampled once after500ms, without retaining measured geometry.
+The same final-state assertions now wait up to40*50ms for asynchronous keyboard
+window and layout restoration; Activity finishing still fails immediately.
+A final refusal logs baseline/current height, keyboard top and finishing state.
+This is a bounded state-observation deadline, not a responsiveness benchmark.
+The real broken resize mutation and input/journal assertions are unchanged.
+
+Actual IB6f screenshots also exposed old XML backgroundTint overriding shared
+neutral surfaces. ReaderFrameProbe now samples live Sources/History compositor
+pixels, saves that actual frame before instrumentation finishes, and requires
+the actual inflated-control tint mutation to reach the designated refusal.
+IBa6ef removes only conflicting XML tints and pins that independent oracle.
+Old reader/history semantic passes do not qualify old button contrast.
