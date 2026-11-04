@@ -27,3 +27,13 @@ Smali API29 assembly and Grease syntax have passed locally. Runtime and
 physical acceptance remain pending until source-bound receipts are present.
 Long Unicode paging, arbitrary branches/assets, full accessibility and device
 input need additional independent coverage. No claim of completion is made.
+
+The current observer also submits a real same-ID View to the app's actual
+native callback on the main thread. A real current Button must remain enabled:
+an admitted command disables it synchronously before worker publication can
+run. The actual producer is then separately compiled with only its object-
+identity guard deleted and signed with the existing fixture identity. That
+installed mutant must fail precisely `FAIL same-ID archive control admitted`.
+The archive bytes/UID must survive, and the unchanged production APK is
+restored and byte-compared before the corrupt-provenance case. A reflection,
+loader, timeout or other application failure cannot count as this refusal.

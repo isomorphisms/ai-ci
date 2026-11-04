@@ -20,6 +20,34 @@
   :ok
     return-void
 .end method
+.method private static admitOnlyActualControl(Landroid/app/Activity;)V
+    .locals 8
+    new-instance v0, Landroid/view/View;
+    invoke-direct {v0, p0}, Landroid/view/View;-><init>(Landroid/content/Context;)V
+    const/16 v1, 1006
+    invoke-virtual {v0, v1}, Landroid/view/View;->setId(I)V
+    invoke-virtual {p0}, Ljava/lang/Object;->getClass()Ljava/lang/Class;
+    move-result-object v2
+    const/4 v5, 1
+    new-array v3, v5, [Ljava/lang/Class;
+    const-class v4, Landroid/view/View;
+    const/4 v6, 0
+    aput-object v4, v3, v6
+    const-string v1, "onClick"
+    invoke-virtual {v2, v1, v3}, Ljava/lang/Class;->getMethod(Ljava/lang/String;[Ljava/lang/Class;)Ljava/lang/reflect/Method;
+    move-result-object v2
+    new-array v3, v5, [Ljava/lang/Object;
+    aput-object v0, v3, v6
+    invoke-virtual {v2, p0, v3}, Ljava/lang/reflect/Method;->invoke(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;
+    const/16 v1, 1006
+    invoke-virtual {p0, v1}, Landroid/app/Activity;->findViewById(I)Landroid/view/View;
+    move-result-object v0
+    invoke-virtual {v0}, Landroid/view/View;->isEnabled()Z
+    move-result v0
+    const-string v1, "FAIL same-ID archive control admitted"
+    invoke-static {v0, v1}, Lacceptance/presentation/ArchiveUiTask;->require(ZLjava/lang/String;)V
+    return-void
+.end method
 .method private static walk(Landroid/view/View;)V
     .locals 3
     instance-of v0, p0, Landroid/webkit/WebView;
@@ -128,6 +156,7 @@
     invoke-virtual {v3}, Landroid/view/Window;->getDecorView()Landroid/view/View;
     move-result-object v3
     invoke-static {v3}, Lacceptance/presentation/ArchiveUiTask;->walk(Landroid/view/View;)V
+    invoke-static {v0}, Lacceptance/presentation/ArchiveUiTask;->admitOnlyActualControl(Landroid/app/Activity;)V
     goto :content
   :branches
     const/16 v1, 1006

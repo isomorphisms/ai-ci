@@ -1,6 +1,6 @@
 #!/usr/bin/env grease
 set -eu -o pipefail
-if (len(ARGV) !== 8) { echo 'requires AICI SDK ADB PRODUCTION_APK KEYSTORE SMALI NEW_OUTPUT API' >&2; exit 2 }
+if (len(ARGV) !== 9) { echo 'requires AICI SDK ADB PRODUCTION_APK KEYSTORE SMALI NEW_OUTPUT API CONTROL_MUTANT_APK' >&2; exit 2 }
 var aici = ARGV[0]
 var sdk = ARGV[1]
 var adb = ARGV[2]
@@ -9,6 +9,7 @@ var keystore = ARGV[4]
 var smali = ARGV[5]
 var output = ARGV[6]
 var api = ARGV[7]
+var mutant = ARGV[8]
 var package = 'org.isomorphisms.chatgptexporter.e1fixture'
 var private = "/data/user/0/$package/files"
 var tools = "$sdk/build-tools/36.0.0"
@@ -87,6 +88,26 @@ observe first
 observe reopened
 snapshot after
 cmp "$output/before.sha256" "$output/after.sha256"
+# Compile-time deletion in the actual producer, not an oracle pretending to
+# reject its own fake object. Require the specific admission assertion.
+"$tools/apksigner" verify --verbose --print-certs "$mutant" > "$output/control-mutant-signer.txt"
+rg -x -F 'Signer #1 certificate SHA-256 digest: de9b1d47c5a65e6d46a204b79dd9ee566b9d3c9832ba81ebc4213d3392e92ff9' "$output/control-mutant-signer.txt"
+try { cmp -s "$apk" "$mutant" }
+if (_error.code !== 1) { echo 'FAIL ineffective archive control mutation' >&2; exit 1 }
+"$adb" install -r "$mutant" > "$output/control-mutant-install.txt"
+test "$before_uid" = "$("$adb" shell pm list packages -U "$package" | tr -d '\r')"
+"$adb" shell am force-stop "$package"
+timeout 90 "$adb" shell am instrument -w -r org.isomorphisms.archive.observer/acceptance.presentation.ArchiveUi > "$output/control-mutant-refused.txt" 2>&1
+cat "$output/control-mutant-refused.txt"
+rg -x -F 'INSTRUMENTATION_CODE: 0' "$output/control-mutant-refused.txt"
+rg -x -F 'INSTRUMENTATION_RESULT: stream=java.lang.AssertionError: FAIL same-ID archive control admitted' "$output/control-mutant-refused.txt"
+snapshot after-control-negative
+cmp "$output/before.sha256" "$output/after-control-negative.sha256"
+"$adb" install -r "$apk" > "$output/production-restored.txt"
+test "$before_uid" = "$("$adb" shell pm list packages -U "$package" | tr -d '\r')"
+var restored = $("$adb" shell pm path "$package" | tr -d '\r' | sed -n 's/^package://p')
+"$adb" pull "$restored" "$output/restored.apk"
+cmp "$apk" "$output/restored.apk"
 # Deliberately corrupt only the dedicated synthetic emulator namespace, keeping
 # its original owner and mode. No private user archive is ever a mutation target.
 var workspace_hash = $(printf synthetic_interrupted_workspace | sha256sum | cut -d ' ' -f 1)
@@ -105,6 +126,6 @@ timeout 90 "$adb" shell am instrument -w -r -e corrupt yes \
 cat "$output/corrupt-refused.txt"
 rg -x -F 'INSTRUMENTATION_CODE: -1' "$output/corrupt-refused.txt"
 rg -x -F 'INSTRUMENTATION_RESULT: stream=PASS actual production native archive refused corrupt normalized source' "$output/corrupt-refused.txt"
-sha256sum "$apk" "$output/installed.apk" "$output/production.so" "$output/observer.apk" > "$output/artifact.sha256"
+sha256sum "$apk" "$mutant" "$output/installed.apk" "$output/production.so" "$output/observer.apk" > "$output/artifact.sha256"
 git -C "$aici" rev-parse HEAD > "$output/observer-source.txt"
-printf 'schema\tnative-C1-archive-UI-v1\napi\t%s\nabi\tx86_64\nnamespace\t%s\ntransport\tproduction\nfixture_data\tsynthetic-captured-C1\noffline_view\tPASS\nreopen\tPASS\nsource_roles\tPASS\nselection_copy\tPASS\nno_archive_writes\tPASS\ncorrupt_normalized_source\tREFUSED\nphysical\tNOT_RUN\nactual_user_archive\tNOT_RUN\n' "$api" "$package" > "$output/receipt.tsv"
+printf 'schema\tnative-C1-archive-UI-v1\napi\t%s\nabi\tx86_64\nnamespace\t%s\ntransport\tproduction\nfixture_data\tsynthetic-captured-C1\noffline_view\tPASS\nreopen\tPASS\nsource_roles\tPASS\nselection_copy\tPASS\nno_archive_writes\tPASS\nactual_control_guard_mutation\tREFUSED\ncorrupt_normalized_source\tREFUSED\nphysical\tNOT_RUN\nactual_user_archive\tNOT_RUN\n' "$api" "$package" > "$output/receipt.tsv"
