@@ -1,0 +1,231 @@
+"""Independent finite realization checks; no calibrated mechanics claim."""
+import math
+import pathlib
+import sys
+from builtins import ValueError, OSError, SystemExit, int, float, str
+from math_oracle import point, height, target_edge
+
+def require(condition ∈ bool, reason ∈ str) → None:
+    if not condition:
+        raise ValueError(reason)
+
+def as_text(value ∈ object) → str:
+    return str(value)
+
+def near(actual ∈ float, expected ∈ float, reason ∈ str) → None:
+    finite ∈ bool ← math.isfinite(actual)
+    require(finite,"nonfinite:"+reason)
+    error ∈ float ← actual-expected
+    if error < 0.0:
+        error ← -error
+    require(error <= 3.0e-10,"realization-mismatch:"+reason)
+
+def read(path ∈ str) → list[str]:
+    source ∈ object ← pathlib.Path(path)
+    size ∈ int ← source.stat().st_size
+    require(size <= 64*1024*1024,"input-limit")
+    content ∈ str ← source.read_text(encoding="utf-8")
+    return content.splitlines()
+
+def metadata() → list[list[int]]:
+    counts ∈ list[int] ← [8,12,18,27]
+    starts ∈ list[int] ← [0,8,20,38]
+    result ∈ list[list[int]] ← []
+    for row in range(4):
+        for index in range(counts[row]):
+            parent ∈ int ← index
+            if row > 0:
+                parent ← 2*(index//3)
+                if index%3 != 0:
+                    parent ← parent+1
+                parent ← parent+starts[row-1]
+            result.append([row,index,parent,starts[row]+(index+1)%counts[row]])
+    return result
+
+def marker_reference() → list[list[float]]:
+    pi ∈ float ← math.pi
+    h ∈ float ← math.log(1.5)
+    counts ∈ list[int] ← [8,12,18,27]
+    result ∈ list[list[float]] ← []
+    for row in range(4):
+        u ∈ float ← row*h
+        z ∈ float ← height("exponential",u)
+        for index in range(counts[row]):
+            angle ∈ float ← 2.0*pi*index/counts[row]
+            p ∈ list[float] ← point("exponential",u,angle,z)
+            result.append([u,angle,p[0],p[1],p[2]])
+    return result
+
+def markers(lines ∈ list[str], reference ∈ list[list[float]]) → None:
+    require(len(lines) == 66,"marker-count")
+    require(lines[0] == "material_id\tround\tindex\tparent_kind\tparent\tu\ttheta\tx\ty\tz","marker-header")
+    meta ∈ list[list[int]] ← metadata()
+    for i in range(65):
+        fields ∈ list[str] ← lines[i+1].split("\t")
+        require(len(fields) == 10,"marker-schema")
+        expected_kind ∈ str ← "stitch"
+        if i < 8:
+            expected_kind ← "foundation"
+        require(fields[0] == as_text(i) and fields[1] == as_text(meta[i][0]) and fields[2] == as_text(meta[i][1]),"marker-stable-id")
+        require(fields[3] == expected_kind and fields[4] == as_text(meta[i][2]),"marker-parent")
+        for j in range(5):
+            value ∈ float ← float(fields[5+j])
+            near(value,reference[i][j],"marker-coordinate")
+
+def mesh(lines ∈ list[str], density ∈ int) → None:
+    require(density == 1 or density == 2,"mesh-density")
+    radial ∈ int ← 3*density
+    angular ∈ int ← 216*density
+    expected_vertices ∈ int ← (radial+1)*angular
+    expected_faces ∈ int ← 2*radial*angular
+    pi ∈ float ← math.pi
+    h ∈ float ← math.log(1.5)
+    heights ∈ list[float] ← []
+    for row in range(radial+1):
+        z ∈ float ← height("exponential",3.0*h*row/radial)
+        heights.append(z)
+        if row > 0:
+            require(z > heights[row-1],"smooth-height-monotonicity")
+    vertices ∈ int ← 0
+    faces ∈ int ← 0
+    for line in lines:
+        fields ∈ list[str] ← line.split()
+        if len(fields) == 0:
+            continue
+        comment ∈ bool ← fields[0].startswith("#")
+        if comment:
+            continue
+        require(len(fields) == 4,"obj-schema")
+        if fields[0] == "v":
+            require(faces == 0 and vertices < expected_vertices,"obj-vertex-order")
+            row ← vertices//angular
+            col ∈ int ← vertices%angular
+            p ∈ list[float] ← point("exponential",3.0*h*row/radial,2.0*pi*col/angular,heights[row])
+            for j in range(3):
+                value ∈ float ← float(fields[j+1])
+                near(value,p[j],"mesh-position")
+            vertices ← vertices+1
+        elif fields[0] == "f":
+            require(vertices == expected_vertices and faces < expected_faces,"obj-face-order")
+            cell ∈ int ← faces//2
+            row ← cell//angular
+            col ← cell%angular
+            a ∈ int ← row*angular+col+1
+            b ∈ int ← (row+1)*angular+col+1
+            c ∈ int ← (row+1)*angular+(col+1)%angular+1
+            d ∈ int ← row*angular+(col+1)%angular+1
+            expected_face ∈ list[int] ← [a,b,c]
+            if faces%2 == 1:
+                expected_face ← [a,c,d]
+            for j in range(3):
+                label ∈ int ← int(fields[j+1])
+                require(label == expected_face[j],"mesh-incidence")
+            faces ← faces+1
+        else:
+            raise ValueError("obj-record")
+    require(vertices == expected_vertices and faces == expected_faces,"obj-count")
+
+def edges(lines ∈ list[str], reference ∈ list[list[float]]) → None:
+    require(len(lines) == 123,"material-edge-count")
+    require(lines[0] == "kind\tfirst_material_id\tsecond_material_id\treference_developed_length\trealized_chord_length\tchord_over_reference","edge-header")
+    meta ∈ list[list[int]] ← metadata()
+    pi ∈ float ← math.pi
+    cursor ∈ int ← 1
+    for i in range(65):
+        for kind in ["cyclic","parent"]:
+            if kind == "parent" and i < 8:
+                continue
+            other ∈ int ← meta[i][3]
+            if kind == "parent":
+                other ← meta[i][2]
+            fields ∈ list[str] ← lines[cursor].split("\t")
+            require(len(fields) == 6,"edge-schema")
+            require(fields[0] == kind and fields[1] == as_text(i) and fields[2] == as_text(other),"material-adjacency")
+            first_angle ∈ float ← reference[i][1]
+            second_angle ∈ float ← reference[other][1]
+            if second_angle-first_angle > pi:
+                second_angle ← second_angle-2.0*pi
+            if first_angle-second_angle > pi:
+                second_angle ← second_angle+2.0*pi
+            intended ∈ float ← target_edge("exponential",reference[i][0],first_angle,reference[other][0],second_angle)
+            squared ∈ float ← 0.0
+            for j in range(2,5):
+                delta ∈ float ← reference[i][j]-reference[other][j]
+                squared ← squared+delta*delta
+            chord ∈ float ← math.sqrt(squared)
+            values ∈ list[float] ← [intended,chord,chord/intended]
+            for j in range(3):
+                actual ∈ float ← float(fields[j+3])
+                near(actual,values[j],"material-edge-length")
+            cursor ← cursor+1
+    require(cursor == len(lines),"edge-trailing-record")
+
+def reject(mode ∈ str, wanted ∈ str, lines ∈ list[str], reference ∈ list[list[float]]) → None:
+    try:
+        if mode == "markers":
+            markers(lines,reference)
+        elif mode == "mesh":
+            mesh(lines,1)
+        else:
+            edges(lines,reference)
+    except ValueError as error:
+        diagnostic ∈ str ← str(error)
+        require(diagnostic == wanted,"wrong-rejection:"+diagnostic)
+        print("REJECT\t"+mode+"\t"+diagnostic)
+        return
+    raise ValueError("accepted-mutant:"+wanted)
+
+def mutants(marker_lines ∈ list[str], coarse_lines ∈ list[str], edge_lines ∈ list[str], reference ∈ list[list[float]]) → None:
+    bad ∈ list[str] ← marker_lines.copy()
+    fields ∈ list[str] ← bad[9].split("\t")
+    fields[4] ← "999"
+    bad[9] ← "\t".join(fields)
+    reject("markers","marker-parent",bad,reference)
+    bad ← marker_lines.copy()
+    fields ← bad[9].split("\t")
+    fields[5] ← "0"
+    bad[9] ← "\t".join(fields)
+    reject("markers","realization-mismatch:marker-coordinate",bad,reference)
+    bad ← coarse_lines.copy()
+    for index in range(len(bad)):
+        is_vertex ∈ bool ← bad[index].startswith("v ")
+        if is_vertex:
+            bad[index] ← "v 1 0 0"
+            break
+    reject("mesh","realization-mismatch:mesh-position",bad,reference)
+    bad ← coarse_lines.copy()
+    for index in range(len(bad)):
+        is_face ∈ bool ← bad[index].startswith("f ")
+        if is_face:
+            bad[index] ← "f 1 2 3"
+            break
+    reject("mesh","mesh-incidence",bad,reference)
+    bad ← edge_lines.copy()
+    fields ← bad[1].split("\t")
+    fields[3] ← fields[4]
+    bad[1] ← "\t".join(fields)
+    reject("edges","realization-mismatch:material-edge-length",bad,reference)
+    bad ← edge_lines[:-1]
+    reject("edges","material-edge-count",bad,reference)
+
+def main() → None:
+    argv ∈ list[str] ← sys.argv
+    require(len(argv) == 5,"usage: realization.pi MARKERS.tsv COARSE.obj FINE.obj MATERIAL_EDGES.tsv")
+    reference ∈ list[list[float]] ← marker_reference()
+    marker_lines ∈ list[str] ← read(argv[1])
+    coarse_lines ∈ list[str] ← read(argv[2])
+    fine_lines ∈ list[str] ← read(argv[3])
+    edge_lines ∈ list[str] ← read(argv[4])
+    markers(marker_lines,reference)
+    mesh(coarse_lines,1)
+    mesh(fine_lines,2)
+    edges(edge_lines,reference)
+    mutants(marker_lines,coarse_lines,edge_lines,reference)
+    print("PASS\t65 authoritative markers\t122 material edges\t864 and 3024 Euclidean vertices")
+    print("scope\tsynthetic zero-thickness monotone revolution family; physical equilibrium and general self-contact unverified")
+
+try:
+    main()
+except (ValueError,OSError) as error:
+    print("FAIL\t"+as_text(error),file=sys.stderr)
+    raise SystemExit(1)

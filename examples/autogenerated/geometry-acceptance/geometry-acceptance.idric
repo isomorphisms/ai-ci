@@ -1,0 +1,10 @@
+module GeometryAcceptance
+
+valid_increase_count : Number → Number → Number → Bool
+valid_increase_count parents additional_children claimed_total =
+  parents + additional_children ≟ claimed_total
+
+main : IO ()
+main = if valid_increase_count 8 4 12
+          then putChar 'Y'
+          else putChar 'N'

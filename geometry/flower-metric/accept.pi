@@ -1,0 +1,120 @@
+"""Independent scalar and mutation acceptance for finite Flower geometry."""
+import math
+import pathlib
+import sys
+from builtins import ValueError, OSError, SystemExit, str, float
+from math_oracle import require, measure
+
+def magnitude(value ∈ float) → float:
+    if value < 0.0:
+        return -value
+    return value
+
+def as_text(value ∈ object) → str:
+    return str(value)
+
+def reference() → dict[str,float]:
+    pi ∈ float ← math.pi
+    h ∈ float ← math.log(1.5)
+    sinh_two ∈ float ← math.sinh(2.0)
+    result ∈ dict[str,float] ← {"format":1.0,"synthetic_gauge":1.0,"stitches":65.0,"increases":19.0,"stitch_width":pi/16.0,"row_height":h,
+        "hyperbolic_polar_4.radius1":sinh_two/2.0,"hyperbolic_polar_4.circumference1":pi*sinh_two,"hyperbolic_polar_4.radial_edge":1.0,
+        "exponential.radius0":0.25,"exponential.radius1":0.375,"exponential.radius2":0.5625,"exponential.radius3":0.84375,
+        "triangle.minimum_stretch":0.5,"triangle.maximum_stretch":2.0,"triangle.factor":2.0,"triangle.anisotropy":4.0}
+    suffixes ∈ list[str] ← ["chi","vertices","edges","faces","boundary_components","defect","boundary","gb","flat_area","smooth_area","curvature_integral","minimum_stretch","maximum_stretch","factor","edge_discrepancy"]
+    names ∈ list[str] ← ["flat_disk","flat_annulus","hyperbolic_annulus.coarse","hyperbolic_annulus.fine","exponential.coarse","exponential.fine","cylinder"]
+    kinds ∈ list[str] ← ["flat","flat","hyperbolic","hyperbolic","exponential","exponential","cylinder"]
+    lows ∈ list[float] ← [0.0,0.25,0.25,0.25,0.0,0.0,0.0]
+    highs ∈ list[float] ← [1.5,1.5,1.5,1.5,3.0*h,3.0*h,3.0*h]
+    radial ∈ list[int] ← [16,16,16,32,3,6,3]
+    angular ∈ list[int] ← [64,64,64,128,216,432,216]
+    for i in range(len(names)):
+        values ∈ list[float] ← measure(kinds[i],lows[i],highs[i],radial[i],angular[i])
+        require(len(values) == len(suffixes),"oracle-width")
+        for j in range(len(suffixes)):
+            result[names[i]+"."+suffixes[j]] ← values[j]
+    return result
+
+def parse(content ∈ str, expected ∈ dict[str,float]) → dict[str,float]:
+    lines ∈ list[str] ← content.splitlines()
+    require(len(lines) == len(expected),"scalar-record-count")
+    result ∈ dict[str,float] ← {}
+    row ∈ int ← 0
+    for key in expected:
+        fields ∈ list[str] ← lines[row].split("\t")
+        require(len(fields) == 2 and fields[0] == key,"scalar-order:"+key)
+        value ∈ float ← float(fields[1])
+        finite ∈ bool ← math.isfinite(value)
+        require(finite,"nonfinite:"+key)
+        result[key] ← value
+        row ← row + 1
+    return result
+
+def validate(actual ∈ dict[str,float], expected ∈ dict[str,float]) → None:
+    require(len(actual) == len(expected),"scalar-record-count")
+    for key in expected:
+        value ∈ float ← actual[key]
+        finite ∈ bool ← math.isfinite(value)
+        require(finite,"nonfinite:"+key)
+        tolerance ∈ float ← 5.0e-8*(1.0+magnitude(expected[key]))
+        require(magnitude(value-expected[key]) <= tolerance,"scalar-mismatch:"+key)
+    for prefix in ["hyperbolic_annulus","exponential"]:
+        first ∈ str ← prefix+".coarse."
+        second ∈ str ← prefix+".fine."
+        require(actual[first+"defect"] < -0.1 and actual[first+"boundary"] > 0.1,"curvature-boundary-sign")
+        require(magnitude(actual[second+"flat_area"]-actual[second+"smooth_area"]) < magnitude(actual[first+"flat_area"]-actual[first+"smooth_area"]),"area-refinement")
+    require(actual["exponential.fine.factor"] < actual["exponential.coarse.factor"],"stretch-refinement")
+    require(actual["hyperbolic_annulus.fine.minimum_stretch"] < 0.8,"preferred-realized-distinction")
+    require(actual["hyperbolic_annulus.fine.edge_discrepancy"] > 0.2,"edge-distortion-visible")
+
+def reject_scalar(name ∈ str, key ∈ str, value ∈ float, expected ∈ dict[str,float]) → None:
+    changed ∈ dict[str,float] ← expected.copy()
+    changed[key] ← value
+    try:
+        validate(changed,expected)
+    except ValueError as error:
+        diagnostic ∈ str ← str(error)
+        wanted ∈ str ← "scalar-mismatch:"+key
+        finite ∈ bool ← math.isfinite(value)
+        if not finite:
+            wanted ← "nonfinite:"+key
+        require(diagnostic == wanted,"wrong-rejection:"+name+":"+diagnostic)
+        print("REJECT\t"+name+"\t"+diagnostic)
+        return
+    raise ValueError("accepted-mutant:"+name)
+
+def self_test(expected ∈ dict[str,float]) → None:
+    validate(expected,expected)
+    reject_scalar("curvature-sign","hyperbolic_annulus.coarse.curvature_integral",-expected["hyperbolic_annulus.coarse.curvature_integral"],expected)
+    reject_scalar("omitted-boundary-turn","exponential.coarse.boundary",0.0,expected)
+    reject_scalar("missing-square-root-scale","hyperbolic_polar_4.radius1",2.0*expected["hyperbolic_polar_4.radius1"],expected)
+    reject_scalar("circumference-unit-scale","stitch_width",2.0*expected["stitch_width"],expected)
+    reject_scalar("preferred-equals-realized","hyperbolic_annulus.fine.minimum_stretch",1.0,expected)
+    reject_scalar("fake-refinement","exponential.fine.factor",expected["exponential.coarse.factor"],expected)
+    reject_scalar("physical-calibration-claim","synthetic_gauge",0.0,expected)
+    invalid ∈ float ← float("nan")
+    reject_scalar("nonfinite","flat_disk.defect",invalid,expected)
+    print("PASS\tmetric self-test\t122 oracle fields\t8 targeted scalar rejections")
+
+def main() → None:
+    argv ∈ list[str] ← sys.argv
+    expected ∈ dict[str,float] ← reference()
+    if argv[1:] == ["--self-test"]:
+        self_test(expected)
+        return
+    require(len(argv) == 2 or (len(argv) == 3 and argv[2] == "--self-test"),"usage: accept.pi METRICS.tsv [--self-test]")
+    source ∈ object ← pathlib.Path(argv[1])
+    size ∈ int ← source.stat().st_size
+    require(size <= 65536,"input-limit")
+    content ∈ str ← source.read_text(encoding="utf-8")
+    actual ∈ dict[str,float] ← parse(content,expected)
+    validate(actual,expected)
+    print("PASS\tFlower metric independent oracle\t"+as_text(len(expected))+" ordered finite fields")
+    if len(argv) == 3:
+        self_test(expected)
+
+try:
+    main()
+except (ValueError, OSError) as error:
+    print("FAIL\t"+as_text(error),file=sys.stderr)
+    raise SystemExit(1)

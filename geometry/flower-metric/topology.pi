@@ -1,0 +1,239 @@
+"""Checked host adapter to foreign Regina; no candidate code is imported."""
+import importlib.metadata
+import math
+import pathlib
+import sys
+import regina
+from builtins import ValueError, OSError, IndexError, SystemExit, int, float, str, list
+
+def require(condition ∈ bool, reason ∈ str) → None:
+    if not condition:
+        raise ValueError(reason)
+
+def as_text(value ∈ object) → str:
+    return str(value)
+
+def edge_key(a ∈ int, b ∈ int) → str:
+    if a < b:
+        return as_text(a) + ":" + as_text(b)
+    return as_text(b) + ":" + as_text(a)
+
+def inspect(vertex_count ∈ int, faces ∈ list[list[int]], declared_boundary ∈ list[str]) → list[int]:
+    require(vertex_count > 0 and len(faces) > 0, "empty-mesh")
+    require(vertex_count <= 300000 and len(faces) <= 600000, "mesh-limit")
+    edges ∈ dict[str, list[list[int]]] ← {}
+    used ∈ list[bool] ← []
+    global_vertices ∈ list[int] ← []
+    for index in range(vertex_count):
+        used.append(False)
+        global_vertices.append(-1)
+    seen_faces ∈ dict[str, bool] ← {}
+    for face_id in range(len(faces)):
+        face ∈ list[int] ← faces[face_id]
+        require(len(face) == 3, "triangle-schema")
+        require(face[0] != face[1] and face[1] != face[2] and face[2] != face[0], "degenerate-face")
+        for vertex in face:
+            require(vertex >= 0 and vertex < vertex_count, "unknown-vertex")
+            used[vertex] ← True
+        ordered ∈ list[int] ← face.copy()
+        ordered.sort()
+        face_key ∈ str ← str(ordered)
+        seen ∈ bool ← seen_faces.get(face_key, False)
+        require(not seen, "duplicate-face")
+        seen_faces[face_key] ← True
+        for side in range(3):
+            key ∈ str ← edge_key(face[(side + 1) % 3], face[(side + 2) % 3])
+            empty_apps ∈ list[list[int]] ← []
+            appearances ∈ list[list[int]] ← edges.get(key, empty_apps)
+            appearances.append([face_id, side])
+            edges[key] ← appearances
+            require(len(appearances) <= 2, "nonmanifold-edge")
+    for was_used in used:
+        require(was_used, "unused-vertex")
+    surface ∈ object ← regina.Triangulation2()
+    triangles ∈ list[object] ← []
+    for face in faces:
+        triangle ∈ object ← surface.newTriangle()
+        triangles.append(triangle)
+    boundary ∈ list[str] ← []
+    for key in edges:
+        appearances ← edges[key]
+        if len(appearances) == 1:
+            boundary.append(key)
+            continue
+        first ∈ int ← appearances[0][0]
+        side ← appearances[0][1]
+        second ∈ int ← appearances[1][0]
+        other_side ∈ int ← appearances[1][1]
+        mapping ∈ list[int] ← [0, 0, 0]
+        mapping[side] ← other_side
+        for local in range(3):
+            if local != side:
+                target ∈ int ← faces[second].index(faces[first][local])
+                mapping[local] ← target
+        permutation ∈ object ← regina.Perm3(mapping[0], mapping[1], mapping[2])
+        triangles[first].join(side, triangles[second], permutation)
+    if len(declared_boundary) > 0:
+        boundary.sort()
+        supplied ∈ list[str] ← declared_boundary.copy()
+        supplied.sort()
+        require(boundary == supplied, "boundary-edge-mismatch")
+    valid ∈ bool ← surface.isValid()
+    require(valid, "regina-invalid")
+    # A source vertex pinch can split into distinct Regina vertices: keep the
+    # labelled quotient instead of accepting its normalized separate links.
+    for face_id in range(len(faces)):
+        for local in range(3):
+            vertex ← faces[face_id][local]
+            global_vertex ∈ int ← triangles[face_id].vertex(local).index()
+            if global_vertices[vertex] == -1:
+                global_vertices[vertex] ← global_vertex
+            require(global_vertices[vertex] == global_vertex, "pinched-vertex")
+    actual_vertices ∈ int ← surface.countVertices()
+    actual_edges ∈ int ← surface.countEdges()
+    actual_boundary ∈ int ← surface.countBoundaryEdges()
+    chi ∈ int ← surface.eulerChar()
+    require(vertex_count == actual_vertices, "vertex-quotient-mismatch")
+    require(len(edges) == actual_edges, "edge-quotient-mismatch")
+    require(vertex_count - len(edges) + len(faces) == chi, "euler-count-mismatch")
+    require(len(boundary) == actual_boundary, "regina-boundary-mismatch")
+    components ∈ int ← surface.countComponents()
+    orientable ∈ bool ← surface.isOrientable()
+    boundary_count ∈ int ← surface.countBoundaryComponents()
+    orientation_flag ∈ int ← 0
+    if orientable:
+        orientation_flag ← 1
+    return [components, orientation_flag, boundary_count, chi, vertex_count, len(edges), len(faces)]
+
+def expected(vertex_count ∈ int, faces ∈ list[list[int]], kind ∈ str, boundary ∈ list[str]) → list[int]:
+    wanted ∈ dict[str, list[int]] ← {"annulus": [1, 1, 2, 0], "disk": [1, 1, 1, 1], "torus": [1, 1, 0, 0], "mobius": [1, 0, 1, 0]}
+    empty_target ∈ list[int] ← []
+    target ∈ list[int] ← wanted.get(kind, empty_target)
+    require(len(target) == 4, "unknown-topology")
+    report ∈ list[int] ← inspect(vertex_count, faces, boundary)
+    require(report[:4] == target, "topology-mismatch")
+    return report
+
+def read_obj(path ∈ str) → list[list[int]]:
+    source ∈ object ← pathlib.Path(path)
+    size ∈ int ← source.stat().st_size
+    require(size <= 64 * 1024 * 1024, "input-limit")
+    content ∈ str ← source.read_text(encoding="utf-8")
+    lines ∈ list[str] ← content.splitlines()
+    faces ∈ list[list[int]] ← []
+    count ∈ int ← 0
+    for line in lines:
+        fields ∈ list[str] ← line.split()
+        if len(fields) == 0:
+            continue
+        comment ∈ bool ← fields[0].startswith("#")
+        if comment:
+            continue
+        if fields[0] == "v":
+            require(len(fields) == 4, "vertex-schema")
+            for index in range(1, 4):
+                value ∈ float ← float(fields[index])
+                finite ∈ bool ← math.isfinite(value)
+                require(finite, "nonfinite-position")
+            count ← count + 1
+        elif fields[0] == "f":
+            require(len(fields) == 4, "triangle-schema")
+            face ∈ list[int] ← []
+            for index in range(1, 4):
+                vertex_label ∈ int ← int(fields[index])
+                require(vertex_label > 0, "absolute-vertex-required")
+                face.append(vertex_label - 1)
+            faces.append(face)
+        else:
+            raise ValueError("unknown-obj-record")
+    faces.append([count])
+    return faces
+
+def label(row ∈ int, col ∈ int, kind ∈ str, around ∈ int, across ∈ int) → int:
+    r ∈ int ← row
+    c ∈ int ← col
+    if c == around:
+        c ← 0
+        if kind == "mobius":
+            r ← across - r
+    if kind == "torus" and r == across:
+        r ← 0
+    return r * around + c
+
+def grid(kind ∈ str, around ∈ int, across ∈ int) → list[list[int]]:
+    faces ∈ list[list[int]] ← []
+    for row in range(across):
+        for col in range(around):
+            a ∈ int ← label(row, col, kind, around, across)
+            b ∈ int ← label(row, col + 1, kind, around, across)
+            c ∈ int ← label(row + 1, col + 1, kind, around, across)
+            d ∈ int ← label(row + 1, col, kind, around, across)
+            faces.append([a, b, c])
+            faces.append([a, c, d])
+    return faces
+
+def reject(name ∈ str, reason ∈ str, count ∈ int, faces ∈ list[list[int]], kind ∈ str, boundary ∈ list[str]) → None:
+    try:
+        expected(count, faces, kind, boundary)
+    except ValueError as error:
+        diagnostic ∈ str ← str(error)
+        require(diagnostic == reason, "wrong-rejection:" + name + ":" + diagnostic)
+        print("REJECT\t" + name + "\t" + reason)
+        return
+    raise ValueError("accepted-mutant:" + name)
+
+def self_test() → None:
+    expected(3, [[0, 1, 2]], "disk", [])
+    for kind in ["annulus", "torus", "mobius"]:
+        faces ∈ list[list[int]] ← grid(kind, 6, 4)
+        count ∈ int ← 30
+        if kind == "torus":
+            count ← 24
+        result ∈ list[int] ← expected(count, faces, kind, [])
+        refined ∈ list[list[int]] ← []
+        reversed_faces ∈ list[list[int]] ← []
+        fresh ∈ int ← count
+        for face in faces:
+            refined.append([face[0], face[1], fresh])
+            refined.append([face[1], face[2], fresh])
+            refined.append([face[2], face[0], fresh])
+            reversed_faces.append([face[2], face[1], face[0]])
+            fresh ← fresh + 1
+        refined_result ∈ list[int] ← expected(fresh, refined, kind, [])
+        reversed_result ∈ list[int] ← expected(count, reversed_faces, kind, [])
+        require(refined_result[:4] == result[:4], "refinement-topology")
+        require(reversed_result[:4] == result[:4], "orientation-invariance")
+    reject("seam-reversal", "topology-mismatch", 18, grid("mobius", 6, 2), "annulus", [])
+    reject("missing-boundary", "boundary-edge-mismatch", 3, [[0, 1, 2]], "disk", ["0:1", "1:2"])
+    reject("extra-boundary", "boundary-edge-mismatch", 3, [[0, 1, 2]], "disk", ["0:1", "1:2", "0:2", "0:3"])
+    reject("pinched-disks", "pinched-vertex", 5, [[0, 1, 2], [0, 3, 4]], "disk", [])
+    reject("three-faces-one-edge", "nonmanifold-edge", 5, [[0, 1, 2], [1, 0, 3], [0, 1, 4]], "disk", [])
+    reject("missing-vertex", "unknown-vertex", 3, [[0, 1, 3]], "disk", [])
+    reject("repeated-face", "duplicate-face", 3, [[0, 1, 2], [0, 2, 1]], "disk", [])
+    print("PASS\tRegina topology self-test\t4 surfaces\t7 targeted rejections")
+
+def main() → None:
+    version ∈ str ← importlib.metadata.version("regina")
+    require(version == "7.4.1", "regina-version-mismatch:" + version)
+    print("regina.version\t" + version)
+    argv ∈ list[str] ← sys.argv
+    arguments ∈ list[str] ← argv[1:]
+    if arguments == ["--self-test"]:
+        self_test()
+        return
+    require(len(arguments) == 2, "usage: topology.pi MESH.obj annulus|disk|torus|mobius")
+    faces ∈ list[list[int]] ← read_obj(arguments[0])
+    final ∈ list[int] ← faces.pop()
+    report ∈ list[int] ← expected(final[0], faces, arguments[1], [])
+    print("topology\tcomponents\torientable\tboundaries\tchi\tV\tE\tF")
+    values ∈ list[str] ← []
+    for value in report:
+        values.append(str(value))
+    text ∈ str ← "\t".join(values)
+    print("PASS\t" + text)
+
+try:
+    main()
+except (ValueError, OSError, IndexError) as error:
+    print("FAIL\t" + as_text(error), file=sys.stderr)
+    raise SystemExit(1)
