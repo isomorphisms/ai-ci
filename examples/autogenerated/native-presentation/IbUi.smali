@@ -1,12 +1,19 @@
 .class public final Lacceptance/presentation/IbUi;
 .super Landroid/app/Instrumentation;
+.field private broken:Z
 .method public constructor <init>()V
     .locals 0
     invoke-direct {p0}, Landroid/app/Instrumentation;-><init>()V
     return-void
 .end method
 .method public onCreate(Landroid/os/Bundle;)V
-    .locals 0
+    .locals 1
+    if-eqz p1, :start
+    const-string v0, "broken"
+    invoke-virtual {p1, v0}, Landroid/os/Bundle;->containsKey(Ljava/lang/String;)Z
+    move-result v0
+    iput-boolean v0, p0, Lacceptance/presentation/IbUi;->broken:Z
+  :start
     invoke-virtual {p0}, Landroid/app/Instrumentation;->start()V
     return-void
 .end method
@@ -26,6 +33,13 @@
     move-result-object v0
     const-wide/16 v1, 0x7d0
     invoke-static {v1, v2}, Landroid/os/SystemClock;->sleep(J)V
+    iget-boolean v1, p0, Lacceptance/presentation/IbUi;->broken:Z
+    if-eqz v1, :frame
+    new-instance v1, Lacceptance/presentation/ReaderTintTask;
+    invoke-direct {v1, v0}, Lacceptance/presentation/ReaderTintTask;-><init>(Landroid/app/Activity;)V
+    invoke-virtual {p0, v1}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
+  :frame
+    invoke-static {p0, v0}, Lacceptance/presentation/ReaderFrameProbe;->assertVisible(Landroid/app/Instrumentation;Landroid/app/Activity;)V
     new-instance v3, Lacceptance/presentation/IbUiTask;
     invoke-direct {v3, v0}, Lacceptance/presentation/IbUiTask;-><init>(Landroid/app/Activity;)V
     const/4 v4, 0
