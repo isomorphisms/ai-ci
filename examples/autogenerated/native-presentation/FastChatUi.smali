@@ -1,6 +1,7 @@
 .class public final Lacceptance/presentation/FastChatUi;
 .super Landroid/app/Instrumentation;
 .field private timeline:Z
+.field private dumpBudget:I
 
 .method public constructor <init>()V
     .locals 0
@@ -71,10 +72,60 @@
     invoke-static {v6, v7}, Landroid/os/SystemClock;->sleep(J)V
     add-int/lit8 v1, v1, -1
     if-gtz v1, :retry
+    invoke-direct {p0}, Lacceptance/presentation/FastChatUi;->dumpMissingNode()V
     invoke-static {p1}, Lacceptance/presentation/FastChatUi;->fail(Ljava/lang/String;)V
     const/4 v5, 0
   :found
     return-object v5
+.end method
+
+.method private dumpMissingNode()V
+    .locals 3
+    const/16 v0, 0x40
+    iput v0, p0, Lacceptance/presentation/FastChatUi;->dumpBudget:I
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->getUiAutomation()Landroid/app/UiAutomation;
+    move-result-object v0
+    invoke-virtual {v0}, Landroid/app/UiAutomation;->getRootInActiveWindow()Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v1
+    if-nez v1, :root
+    const-string v0, "NativeUiMissingNode"
+    const-string v1, "Active accessibility root is null"
+    invoke-static {v0, v1}, Landroid/util/Log;->e(Ljava/lang/String;Ljava/lang/String;)I
+    return-void
+  :root
+    const/4 v2, 0
+    invoke-direct {p0, v1, v2}, Lacceptance/presentation/FastChatUi;->dumpNode(Landroid/view/accessibility/AccessibilityNodeInfo;I)V
+    return-void
+.end method
+
+.method private dumpNode(Landroid/view/accessibility/AccessibilityNodeInfo;I)V
+    .locals 4
+    if-eqz p1, :done
+    const/16 v0, 0xa
+    if-gt p2, v0, :done
+    iget v0, p0, Lacceptance/presentation/FastChatUi;->dumpBudget:I
+    if-lez v0, :done
+    add-int/lit8 v0, v0, -1
+    iput v0, p0, Lacceptance/presentation/FastChatUi;->dumpBudget:I
+    invoke-virtual {p1}, Landroid/view/accessibility/AccessibilityNodeInfo;->toString()Ljava/lang/String;
+    move-result-object v0
+    const-string v1, "NativeUiMissingNode"
+    invoke-static {v1, v0}, Landroid/util/Log;->e(Ljava/lang/String;Ljava/lang/String;)I
+    const/4 v2, 0
+  :child
+    invoke-virtual {p1}, Landroid/view/accessibility/AccessibilityNodeInfo;->getChildCount()I
+    move-result v0
+    if-ge v2, v0, :done
+    iget v0, p0, Lacceptance/presentation/FastChatUi;->dumpBudget:I
+    if-lez v0, :done
+    invoke-virtual {p1, v2}, Landroid/view/accessibility/AccessibilityNodeInfo;->getChild(I)Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v1
+    add-int/lit8 v3, p2, 1
+    invoke-direct {p0, v1, v3}, Lacceptance/presentation/FastChatUi;->dumpNode(Landroid/view/accessibility/AccessibilityNodeInfo;I)V
+    add-int/lit8 v2, v2, 1
+    goto :child
+  :done
+    return-void
 .end method
 .method private click(Ljava/lang/String;)V
     .locals 3

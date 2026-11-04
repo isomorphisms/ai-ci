@@ -44,3 +44,13 @@ The correction adds an explicit retry on request 2, so preceding requests
 2,3,4 must retain attempts 3,4,5. Request identity and attempt identity are
 checked separately. This changes a disproved expectation, not the producer or
 its identity contract; original failure remains in that retained run.
+
+API34 run 41750520443 at FastChat b382c67f failed to discover the composer
+through the active accessibility root while that actual app continued to
+generate and commit response prefixes. Its earlier cold screenshot contains
+the composer; it is not a failure-time screenshot. No crash or ANR is proved.
+The independent observer now dumps at most 64 accessibility nodes to depth 10
+only after its existing lookup has failed. It still fails that assertion.
+These named acceptance stores contain synthetic input; no user conversation
+or credential is logged by this diagnostic. No product window redesign is
+selected from the undiagnosed observation.
