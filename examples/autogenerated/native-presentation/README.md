@@ -50,3 +50,10 @@ archive without rebuilding application code. Its repaired external probe prints
 the exact semantic refusal and deliberately exits42, so an uncaught exception
 reported as `Killed` cannot satisfy a mutation. Real native acquisition creates
 retained data before the independent History/Reader UI check.
+
+`observe-fastchat-ime.grease` is separate from the conversation exercise. It
+observes the actual IME window, content resize and composer focus, dispatches
+keys and Enter while preserving a Unicode base string, and dismisses the IME
+with Back. The isolated store's durable request journal must remain empty.
+An actual ADJUST_NOTHING window mutation must fail the geometry assertion.
+Physical typing and language-specific IME composition remain unqualified.

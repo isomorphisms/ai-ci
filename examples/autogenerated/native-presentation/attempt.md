@@ -76,6 +76,22 @@ requires the first conversation exercise to pass and then the exact settings
 diagnostic, rather than accepting an unrelated failure.
 # IB unchanged-artifact requalification
 
+The added IME observer uses the real current signed FastChat APK in a fresh
+emulator and its existing isolated `fc-m4-` store. It discovers the Activity's
+actual EditText, requests the system IME, measures that actual input-method
+window independently through AccessibilityWindowInfo, and requires the content
+to resize with the composer above it. Instrumentation dispatches ASCII keys
+and Enter after a Unicode/combining/RTL base string, then checks exact multiline
+text. Back must dismiss the IME while preserving the Activity and geometry.
+The actual durable request journal must remain empty before and after; no send
+action or provider configuration is used. This does not prove language-specific
+IME composition, physical typing, font scaling or a physical-device outcome.
+
+The targeted integration mutation changes only the actual Activity window to
+ADJUST_NOTHING before showing the same keyboard. The independent geometry
+assertion must reject that real broken resize state with its precise diagnostic;
+an absent keyboard, crash or missing composer cannot satisfy the control.
+
 The first independent API29 attempt in run41756980836 did not execute ART:
 the emulator reported insufficient disk space and never booted. Archive/input
 verification and external probe assembly passed first. The coordinator now

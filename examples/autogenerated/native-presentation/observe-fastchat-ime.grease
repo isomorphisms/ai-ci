@@ -1,0 +1,43 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 7) { echo 'requires ADB SERIAL APK OBSERVER NEW_OUTPUT API EXPECTED' >&2; exit 2 }
+var adb = ARGV[0]
+var serial = ARGV[1]
+var candidate = ARGV[2]
+var observer = ARGV[3]
+var output = ARGV[4]
+var api = ARGV[5]
+var expected = ARGV[6]
+if (expected !== 'ime-pass' and expected !== 'ime-refused') { exit 2 }
+test ! -e "$output"
+mkdir -p "$output"
+"$adb" -s "$serial" shell getprop ro.kernel.qemu | tr -d '\r' | rg -x 1
+"$adb" -s "$serial" shell getprop ro.product.cpu.abilist | tr -d '\r' | rg 'x86_64'
+test "$("$adb" -s "$serial" shell getprop ro.build.version.sdk | tr -d '\r')" = "$api"
+"$adb" -s "$serial" shell getprop ro.build.fingerprint > "$output/fingerprint.txt"
+"$adb" -s "$serial" install -r "$candidate" > "$output/install.txt"
+"$adb" -s "$serial" install -r "$observer/observer.apk" > "$output/observer-install.txt"
+var arguments = []
+if (expected === 'ime-refused') { setvar arguments = ['-e', 'broken', 'adjust-nothing'] }
+"$adb" -s "$serial" logcat -c
+try {
+  timeout 90 "$adb" -s "$serial" shell am instrument -w -r @arguments \
+    org.isomorphisms.fastchat.observer/acceptance.presentation.FastChatIme > "$output/ime.txt" 2>&1
+}
+var status = _error.code
+cat "$output/ime.txt"
+"$adb" -s "$serial" logcat -d -v threadtime > "$output/runtime.txt"
+"$adb" -s "$serial" shell dumpsys input_method > "$output/input-method.txt"
+"$adb" -s "$serial" shell dumpsys window windows > "$output/windows.txt"
+"$adb" -s "$serial" exec-out screencap -p > "$output/screen.png"
+if (status !== 0) { echo 'FAIL IME observer process' >&2; exit 1 }
+if (expected === 'ime-pass') {
+  rg -x -F 'INSTRUMENTATION_CODE: -1' "$output/ime.txt"
+  rg -x -F 'INSTRUMENTATION_RESULT: stream=PASS real IME resize focus input dispatch multiline Unicode and Back; no request submitted' "$output/ime.txt"
+  printf 'schema\tFastChat-actual-IME-v1\napi\t%s\nabi\tx86_64\nactual_IME_window_and_composer_resize\tPASS\nfocus_real_key_dispatch_Unicode_multiline\tPASS\nBack_dismisses_IME_preserves_Activity\tPASS\nempty_durable_journal_preserved\tPASS\nphysical\tNOT_RUN\n' "$api" > "$output/receipt.tsv"
+} else {
+  rg -x -F 'INSTRUMENTATION_CODE: 0' "$output/ime.txt"
+  rg -x -F 'INSTRUMENTATION_RESULT: stream=java.lang.AssertionError: FAIL keyboard resize keeps composer above actual IME' "$output/ime.txt"
+  printf 'schema\tFastChat-actual-IME-refusal-v1\napi\t%s\nabi\tx86_64\nactual_broken_window_resize_integration\tREJECTED\nintended_geometry_diagnostic\tPASS\nphysical\tNOT_RUN\n' "$api" > "$output/receipt.tsv"
+}
+sha256sum "$candidate" "$observer/observer.apk" > "$output/artifacts.sha256"

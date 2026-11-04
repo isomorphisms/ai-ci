@@ -94,6 +94,24 @@ jobs:
             source: aaabc570c4416fd3e39fc72154ba176fe750853f
             producer: 41753731428
             artifact: 13286189228
+          - api: 29
+            target: default
+            expected: ime-pass
+            source: bdae9a45abca9d7a75aaeb2e6b93e971a06f3760
+            producer: 41754800398
+            artifact: 13288600748
+          - api: 34
+            target: google_apis
+            expected: ime-pass
+            source: bdae9a45abca9d7a75aaeb2e6b93e971a06f3760
+            producer: 41754800398
+            artifact: 13288600748
+          - api: 29
+            target: default
+            expected: ime-refused
+            source: bdae9a45abca9d7a75aaeb2e6b93e971a06f3760
+            producer: 41754800398
+            artifact: 13288600748
     env:
       ASAN_OPTIONS: detect_leaks=0
     steps:
