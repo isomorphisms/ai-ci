@@ -67,3 +67,8 @@ from this producer. A consumer must qualify those capabilities separately.
 The output establishes a native C producer and the qualified glyph syntax. It does
 not establish an Android sysroot, an Android ABI, a physical-device result,
 or a semantic style review. Cross compilers remain consumer-owned.
+
+The qualified installed stage is saved before the action returns to consumer
+work. A later consumer failure cannot erase that dependency checkpoint. Its
+existence never qualifies the consumer, and all cache restores retain the
+original semantic and negative-control qualification.
