@@ -1,0 +1,76 @@
+#!/usr/bin/env grease
+set -o errexit -o nounset -o pipefail
+if (int($#) !== 9) { echo 'requires APP HEAD PACKAGES BUILD_TOOLS AICI AICI_HEAD ICK NDK EVIDENCE' >&2; exit 2 }
+var app = $1
+var head = $2
+var packages = $3
+var build_tools = $4
+var aici = $5
+var aici_head = $6
+var compiler = $7
+var ndk = $8
+var evidence = $9
+for path in "$app" "$packages" "$build_tools" "$aici" "$compiler" "$ndk" "$evidence" {
+  case "$path" in /*) ;; *) echo 'absolute paths required' >&2; exit 2 ;; esac
+  case "$path" in *[[:space:]]*|*\'*) echo 'unsupported path characters' >&2; exit 2 ;; esac
+}
+test "$(git -C "$app" rev-parse HEAD)" = "$head"
+test -z "$(git -C "$app" status --porcelain)"
+test "$(git -C "$aici" rev-parse HEAD)" = "$aici_head"
+test -z "$(git -C "$aici" status --porcelain)"
+test "$(sha256sum "$compiler" | cut -d ' ' -f1)" = 45805e3295f2709737fcc87985a8a2341aa8663ff8e4e398d2a9d78dc1283e10
+test ! -e "$evidence"
+test -x "$build_tools/aapt2"
+test -x "$build_tools/apksigner"
+var readelf = "$ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf"
+test -x "$readelf"
+var registry = "$aici/android-signing/identities.tsv"
+var lane = "$(awk -F '\t' '$1 == "signing_lane" {print $2}' "$app/android/package.tsv")"
+test "$lane" = public-development
+mkdir -m 700 "$evidence"
+var verifier = "$evidence/android-signing"
+"$compiler" -fno-link-libatomic -std=c17 -Wall -Wextra -Werror -pedantic -O2 "$aici/src/aici_android_signing.c" -o "$verifier"
+"$verifier" self-test "$aici/android-signing/tests/cases.tsv" "$registry" > "$evidence/registry-tests.log"
+printf 'abi\tprofile\tapk_sha256\tbytes\tcertificate_sha256\n' > "$evidence/packages.tsv"
+for abi in armeabi-v7a arm64-v8a x86_64 {
+  var target = ''
+  var machine = ''
+  case "$abi" in armeabi-v7a) target=A1; machine=ARM ;; arm64-v8a) target=C67; machine=AArch64 ;; x86_64) target=emulator; machine='Advanced Micro Devices X86-64' ;; esac
+  for profile in Debug Release {
+    var suffix = ''
+    if (profile === 'Debug') { suffix=-Debug }
+    var apk = "$packages/Mathieu-$target$suffix.apk"
+    test -f "$apk"
+    var stem = "$evidence/$abi-$profile"
+    "$build_tools/aapt2" dump badging "$apk" > "$stem.badging"
+    var package = "$(awk -F "'" '/^package: name=/ {print $2}' "$stem.badging")"
+    test "$package" = org.isomorphisms.mathieu
+    grep -Fq "versionCode='1'" "$stem.badging"
+    grep -Fq "versionName='0.1.0-development'" "$stem.badging"
+    var minimum_sdk = "$(awk -F "'" '/^(minSdkVersion|sdkVersion):/ {print $2}' "$stem.badging" | sort -u)"
+    test "$minimum_sdk" = 26
+    grep -Fq "targetSdkVersion:'35'" "$stem.badging"
+    var label = "$(awk -F "'" '/^application-label:/ {print $2} /^application: label=/ {print $2}' "$stem.badging" | sort -u)"
+    if test "$label" != Mathieu { printf 'LAUNCHER_LABEL_MISMATCH expected=Mathieu observed=%s\n' "$label" >&2; exit 1 }
+    grep -Fq "launchable-activity: name='android.app.NativeActivity'" "$stem.badging"
+    if grep -Fq android.permission.INTERNET "$stem.badging" { echo 'network permission not admitted' >&2; exit 1 }
+    "$build_tools/apksigner" verify --verbose --print-certs "$apk" > "$stem.certificates" 2>&1
+    var signer = "$(sed -n 's/^.*certificate SHA-256 digest:[[:space:]]*//p' "$stem.certificates" | tr '[:upper:]' '[:lower:]' | tr -d ':[:space:]')"
+    "$verifier" verify "$registry" "$package" "$lane" "$signer" > "$stem.identity"
+    "$build_tools/zipalign" -c 4 "$apk" > "$stem.alignment"
+    unzip -Z1 "$apk" > "$stem.contents"
+    test "$(grep -c '^lib/' "$stem.contents")" = 1
+    grep -Fxq "lib/$abi/libmathieu.so" "$stem.contents"
+    if grep -Eq '^classes[0-9]*\.dex$' "$stem.contents" { echo 'unexpected DEX' >&2; exit 1 }
+    unzip -p "$apk" "lib/$abi/libmathieu.so" > "$stem.so"
+    grep -aFq "$head" "$stem.so"
+    "$readelf" -h "$stem.so" > "$stem.elf"
+    grep -Fq "$machine" "$stem.elf"
+    "$readelf" -SW "$stem.so" > "$stem.sections"
+    if grep -Eq '\.(debug_|symtab)' "$stem.sections" { echo 'unstripped native payload' >&2; exit 1 }
+    printf '%s\t%s\t%s\t%s\t%s\n' "$abi" "$profile" "$(sha256sum "$apk" | cut -d ' ' -f1)" "$(wc -c < "$apk" | tr -d '[:space:]')" "$signer" >> "$evidence/packages.tsv"
+  }
+}
+printf 'source_head\t%s\naici_head\t%s\nfinished_APK_identity\tPASS\nstripped_native_payload\tPASS\nAndroid_execution\tNOT_RUN\nphysical_A1\tNOT_RUN\nphysical_C67\tNOT_RUN\n' "$head" "$aici_head" > "$evidence/receipt.tsv"
+sha256sum "$0" "$compiler" "$verifier" "$registry" "$build_tools/aapt2" "$build_tools/apksigner" "$build_tools/lib/apksigner.jar" "$readelf" > "$evidence/materials.sha256"
+printf '\033[32mPASS\033[0m six finished APK identities, signatures, ABI payloads and stripping; Android execution NOT_RUN\n'

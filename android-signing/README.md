@@ -33,3 +33,11 @@ Current stable public test identity:
 
 The self-test includes hostile cases for a wrong signer, an unregistered
 package, an unregistered release lane, and a malformed digest.
+
+Mathieu has a separately authorized permanent public development key in
+`isomorphisms/mathieu` commit `025e26a55f3f1e230dd958a87773d532e92c8382`.
+Its `public-development` row pins that certificate, with passing, wrong-signer,
+and unregistered-release-lane fixtures. Registration in this candidate branch
+does not authorize delivery until the owning policy change is accepted into
+main. Neither this registration nor the public key authorizes production/store
+signing or proves an APK installation.

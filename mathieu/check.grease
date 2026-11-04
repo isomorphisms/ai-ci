@@ -1,0 +1,31 @@
+#!/usr/bin/env grease
+set -o errexit -o nounset -o pipefail
+if (int($#) !== 6) { echo 'requires SOURCE HEAD ENGINE GAP GAP_ROOT EVIDENCE' >&2; exit 2 }
+var source = $1
+var head = $2
+var engine = $3
+var gap = $4
+var gap_root = $5
+var evidence = $6
+var oracle = "$(dirname -- "$0")/reference.g"
+test "$(git -C "$source" rev-parse HEAD)" = "$head"
+test -z "$(git -C "$source" status --porcelain)"
+test -x "$engine"
+test -x "$gap"
+test ! -e "$evidence"
+mkdir -m 700 "$evidence"
+cd -- "$source"
+"$engine" --reference > "$evidence/native.txt"
+"$gap" -l "$gap_root" -q -b "$oracle" > "$evidence/gap.txt" 2> "$evidence/gap.stderr"
+test "$(wc -l < "$evidence/native.txt" | tr -d '[:space:]')" = 5009
+cmp "$evidence/native.txt" "$evidence/gap.txt"
+# Prove that coordinate-word, design and code corruption is rejected.
+for family in word block code {
+  sed "0,/^$family /s/^$family /CORRUPTED /" "$evidence/native.txt" > "$evidence/bad-$family.txt"
+  if cmp -s "$evidence/bad-$family.txt" "$evidence/gap.txt" {
+    echo "FAIL oracle accepted $family corruption" >&2; exit 1
+  }
+}
+printf 'schema\tmathieu-gap-v1\nsource_head\t%s\nreference_lines\t5009\nGAP_vs_native\tPASS\nword_corruption\tREJECTED\ndesign_corruption\tREJECTED\ncode_corruption\tREJECTED\nAndroid\tNOT_RUN\nphysical_A1\tNOT_RUN\nphysical_C67\tNOT_RUN\n' "$head" > "$evidence/receipt.tsv"
+sha256sum "$oracle" "$0" "$engine" "$gap" "$evidence/native.txt" "$evidence/gap.txt" > "$evidence/materials.sha256"
+printf '\033[32mPASS\033[0m independent GAP/native exact permutations, orders, stabilizers, designs and Golay code\n'
