@@ -8,6 +8,9 @@ on:
 permissions:
   contents: read
   actions: read
+concurrency:
+  group: independent-native-presentation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
   c67-delivery:
     name: Independent signed C67 delivery and artifact controls

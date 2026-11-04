@@ -5,6 +5,7 @@ var apk = ARGV[0]
 var source = ARGV[1]
 var sdk = ARGV[2]
 var output = ARGV[3]
+printf '%s\n' "$source" | rg -x '[0-9a-f]{40}'
 var abi = 'x86_64'
 if (len(ARGV) === 5) { setvar abi = ARGV[4] }
 if (abi !== 'x86_64' and abi !== 'arm64-v8a' and abi !== 'armeabi-v7a') { exit 2 }

@@ -76,6 +76,15 @@ requires the first conversation exercise to pass and then the exact settings
 diagnostic, rather than accepting an unrelated failure.
 # IB unchanged-artifact requalification
 
+The first independent API29 attempt in run41756980836 did not execute ART:
+the emulator reported insufficient disk space and never booted. Archive/input
+verification and external probe assembly passed first. The coordinator now
+copies only the required already-verified APKs, keys, Smali jar and metadata,
+compares every copy, retains their digests, rechecks the original archive ZIP
+digest, and reclaims only that workflow's exact downloaded extraction/ZIP paths.
+It requires at least4GiB free before launching the same 2GiB AVD. This changes
+host capacity, not application bytes or required assertions.
+
 The C67 delivery observer separately downloads the actual signed ARM64 candidate.
 SDK apksigner, aapt2, the declared callback digest, embedded source and readelf
 inspect that artifact independently of its producer receipt. Wrong-source and
