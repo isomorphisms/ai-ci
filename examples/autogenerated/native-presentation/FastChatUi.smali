@@ -1,6 +1,7 @@
 .class public final Lacceptance/presentation/FastChatUi;
 .super Landroid/app/Instrumentation;
 .field private timeline:Z
+.field private settings:Z
 .field private dumpBudget:I
 
 .method public constructor <init>()V
@@ -18,6 +19,12 @@
     invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
     move-result v0
     iput-boolean v0, p0, Lacceptance/presentation/FastChatUi;->timeline:Z
+    const-string v0, "settings"
+    invoke-virtual {p1, v0}, Landroid/os/Bundle;->getString(Ljava/lang/String;)Ljava/lang/String;
+    move-result-object v0
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v0
+    iput-boolean v0, p0, Lacceptance/presentation/FastChatUi;->settings:Z
   :start
     invoke-virtual {p0}, Landroid/app/Instrumentation;->start()V
     return-void
@@ -210,6 +217,18 @@
 .method public onStart()V
     .locals 12
   :begin
+    iget-boolean v0, p0, Lacceptance/presentation/FastChatUi;->settings:Z
+    if-eqz v0, :conversation
+    invoke-direct {p0}, Lacceptance/presentation/FastChatUi;->assertSettingsOwner()V
+    new-instance v0, Landroid/os/Bundle;
+    invoke-direct {v0}, Landroid/os/Bundle;-><init>()V
+    const-string v1, "stream"
+    const-string v2, "PASS actual Activity-owned secure provider settings and return to composer; no provider request"
+    invoke-virtual {v0, v1, v2}, Landroid/os/Bundle;->putString(Ljava/lang/String;Ljava/lang/String;)V
+    const/4 v1, -1
+    invoke-virtual {p0, v1, v0}, Landroid/app/Instrumentation;->finish(ILandroid/os/Bundle;)V
+    return-void
+  :conversation
     invoke-static {}, Landroid/os/SystemClock;->elapsedRealtime()J
     move-result-wide v8
     new-instance v0, Landroid/content/Intent;
@@ -447,5 +466,38 @@
     const-string v0, "FAIL native controls belong to the Activity content hierarchy"
     invoke-static {v0}, Lacceptance/presentation/FastChatUi;->fail(Ljava/lang/String;)V
   :done
+    return-void
+.end method
+
+.method private assertSettingsOwner()V
+    .locals 5
+    new-instance v0, Landroid/content/Intent;
+    invoke-direct {v0}, Landroid/content/Intent;-><init>()V
+    const-string v1, "org.isomorphisms.fastchat.diskstreaming.arena"
+    const-string v2, "android.app.NativeActivity"
+    invoke-virtual {v0, v1, v2}, Landroid/content/Intent;->setClassName(Ljava/lang/String;Ljava/lang/String;)Landroid/content/Intent;
+    const v1, 0x10008000
+    invoke-virtual {v0, v1}, Landroid/content/Intent;->addFlags(I)Landroid/content/Intent;
+    invoke-virtual {p0, v0}, Landroid/app/Instrumentation;->startActivitySync(Landroid/content/Intent;)Landroid/app/Activity;
+    move-result-object v4
+    invoke-direct {p0, v4}, Lacceptance/presentation/FastChatUi;->assertContentOwner(Landroid/app/Activity;)V
+    const-string v0, "Setup"
+    invoke-direct {p0, v0}, Lacceptance/presentation/FastChatUi;->click(Ljava/lang/String;)V
+    new-instance v0, Lacceptance/presentation/ContentOwnerTask;
+    invoke-direct {v0, v4}, Lacceptance/presentation/ContentOwnerTask;-><init>(Landroid/app/Activity;)V
+    const/4 v1, 1
+    iput-boolean v1, v0, Lacceptance/presentation/ContentOwnerTask;->settings:Z
+    invoke-virtual {p0, v0}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
+    iget-boolean v1, v0, Lacceptance/presentation/ContentOwnerTask;->attached:Z
+    if-nez v1, :secure
+    const-string v0, "FAIL provider settings Activity hierarchy and secure window"
+    invoke-static {v0}, Lacceptance/presentation/FastChatUi;->fail(Ljava/lang/String;)V
+  :secure
+    const-string v0, "Back"
+    invoke-direct {p0, v0}, Lacceptance/presentation/FastChatUi;->click(Ljava/lang/String;)V
+    invoke-direct {p0, v4}, Lacceptance/presentation/FastChatUi;->assertContentOwner(Landroid/app/Activity;)V
+    const-string v0, "NativeSettingsAcceptance"
+    const-string v1, "PASS Activity-owned settings secure window and return to composer; no provider request"
+    invoke-static {v0, v1}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
     return-void
 .end method

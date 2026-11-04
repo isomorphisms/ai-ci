@@ -59,7 +59,19 @@ sha256sum "$candidate" "$observer/observer.apk" > "$output/artifacts.sha256"
 if (status !== 0) { exit 1 }
 rg -x -F 'INSTRUMENTATION_CODE: -1' "$output/ui.txt"
 rg -x -F 'INSTRUMENTATION_RESULT: stream=PASS actual FastChat framework paging Stop multiline Unicode and exact page copy' "$output/ui.txt"
+"$adb" -s "$serial" logcat -c
+try {
+  timeout 120 "$adb" -s "$serial" shell am instrument -w -r -e settings required \
+    org.isomorphisms.fastchat.observer/acceptance.presentation.FastChatUi > "$output/settings-ui.txt" 2>&1
+}
+var settings_status = _error.code
+cat "$output/settings-ui.txt"
+"$adb" -s "$serial" logcat -d -v threadtime > "$output/settings-runtime.txt"
+if (settings_status !== 0) { exit 1 }
+rg -x -F 'INSTRUMENTATION_CODE: -1' "$output/settings-ui.txt"
+rg -x -F 'INSTRUMENTATION_RESULT: stream=PASS actual Activity-owned secure provider settings and return to composer; no provider request' "$output/settings-ui.txt"
 printf 'schema\tfastchat-native-UI-v1\napi\t%s\nabi\tx86_64\nframework_controls\tPASS\npaging\tPASS\ncancellation\tPASS\nmultiline_Unicode\tPASS\nexact_page_clipboard\tPASS\nIME_keyboard\tNOT_RUN\nphysical_C67\tNOT_RUN\nphysical_TAB_P10\tNOT_RUN\n' "$api" > "$output/receipt.tsv"
+printf 'settings_Activity_hierarchy_and_secure_window\tPASS\n' >> "$output/receipt.tsv"
 printf 'exact_callback_on_ART\tPASS\nincompatible_callback_consumer\tREJECTED\n' >> "$output/receipt.tsv"
 if (len(ARGV) === 7) {
   rg -F 'NativeTimelineAcceptance' "$output/runtime.txt" | rg -F 'PASS actual prior roles source text request selection and return to latest'

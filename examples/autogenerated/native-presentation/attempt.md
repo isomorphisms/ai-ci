@@ -64,3 +64,13 @@ decor root and Context. The old signed0c5288a2 producer is a concrete bad
 integration control for that boundary; a passing screenshot or a randomly
 selected overlay window cannot satisfy it. Existing accessibility, source-text
 and actual Button-action assertions remain required afterward.
+
+Provider configuration is exercised in a separate instrumentation process over
+the emulator's empty ordinary profile, after the conversation fixture run.
+No configuration is saved and no provider request is submitted. The actual Save
+Button must belong to the Activity decor and that window must carry FLAG_SECURE;
+Back must restore the composer. This preserves the original password/screenshot
+boundary after moving controls out of a separate panel window. The signed
+aaabc570 producer is the targeted missing-secure-window control; the wrapper
+requires the first conversation exercise to pass and then the exact settings
+diagnostic, rather than accepting an unrelated failure.
