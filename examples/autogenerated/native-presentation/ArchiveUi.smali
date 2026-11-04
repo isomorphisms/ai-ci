@@ -1,6 +1,8 @@
 .class public final Lacceptance/presentation/ArchiveUi;
 .super Landroid/app/Instrumentation;
 .field private corrupt:Z
+.field private source:Ljava/lang/String;
+.field private inventory:Ljava/lang/String;
 .method public constructor <init>()V
     .locals 0
     invoke-direct {p0}, Landroid/app/Instrumentation;-><init>()V
@@ -13,6 +15,14 @@
     invoke-virtual {p1, v0}, Landroid/os/Bundle;->containsKey(Ljava/lang/String;)Z
     move-result v0
     iput-boolean v0, p0, Lacceptance/presentation/ArchiveUi;->corrupt:Z
+    const-string v0, "source"
+    invoke-virtual {p1, v0}, Landroid/os/Bundle;->getString(Ljava/lang/String;)Ljava/lang/String;
+    move-result-object v0
+    iput-object v0, p0, Lacceptance/presentation/ArchiveUi;->source:Ljava/lang/String;
+    const-string v0, "inventory"
+    invoke-virtual {p1, v0}, Landroid/os/Bundle;->getString(Ljava/lang/String;)Ljava/lang/String;
+    move-result-object v0
+    iput-object v0, p0, Lacceptance/presentation/ArchiveUi;->inventory:Ljava/lang/String;
   :start
     invoke-virtual {p0}, Landroid/app/Instrumentation;->start()V
     return-void
@@ -33,9 +43,17 @@
     move-result-object v0
     new-instance v3, Lacceptance/presentation/ArchiveUiTask;
     invoke-direct {v3, v0}, Lacceptance/presentation/ArchiveUiTask;-><init>(Landroid/app/Activity;)V
+    iget-object v1, p0, Lacceptance/presentation/ArchiveUi;->source:Ljava/lang/String;
+    iput-object v1, v3, Lacceptance/presentation/ArchiveUiTask;->source:Ljava/lang/String;
+    iget-object v1, p0, Lacceptance/presentation/ArchiveUi;->inventory:Ljava/lang/String;
+    iput-object v1, v3, Lacceptance/presentation/ArchiveUiTask;->inventory:Ljava/lang/String;
     const/16 v4, 100
   :await
     invoke-virtual {p0, v3}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
+    iget-object v1, v3, Lacceptance/presentation/ArchiveUiTask;->failure:Ljava/lang/Throwable;
+    if-eqz v1, :observed
+    throw v1
+  :observed
     iget-boolean v1, p0, Lacceptance/presentation/ArchiveUi;->corrupt:Z
     if-eqz v1, :good
     iget-boolean v1, v3, Lacceptance/presentation/ArchiveUiTask;->refused:Z
@@ -59,6 +77,10 @@
   :phase
     iput v4, v3, Lacceptance/presentation/ArchiveUiTask;->phase:I
     invoke-virtual {p0, v3}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
+    iget-object v1, v3, Lacceptance/presentation/ArchiveUiTask;->failure:Ljava/lang/Throwable;
+    if-eqz v1, :advanced
+    throw v1
+  :advanced
     const-wide/16 v1, 0x1f4
     invoke-static {v1, v2}, Landroid/os/SystemClock;->sleep(J)V
     add-int/lit8 v4, v4, 1

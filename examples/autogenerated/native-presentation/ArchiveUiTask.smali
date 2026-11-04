@@ -5,6 +5,9 @@
 .field public phase:I
 .field public ready:Z
 .field public refused:Z
+.field public failure:Ljava/lang/Throwable;
+.field public source:Ljava/lang/String;
+.field public inventory:Ljava/lang/String;
 .method public constructor <init>(Landroid/app/Activity;)V
     .locals 0
     invoke-direct {p0}, Ljava/lang/Object;-><init>()V
@@ -78,6 +81,7 @@
 .end method
 .method public run()V
     .locals 8
+  :begin
     iget-object v0, p0, Lacceptance/presentation/ArchiveUiTask;->activity:Landroid/app/Activity;
     const/16 v1, 1010
     invoke-virtual {v0, v1}, Landroid/app/Activity;->findViewById(I)Landroid/view/View;
@@ -150,6 +154,22 @@
     invoke-virtual {v3}, Ljava/util/regex/Matcher;->find()Z
     move-result v3
     const-string v4, "FAIL actual archive source provenance"
+    invoke-static {v3, v4}, Lacceptance/presentation/ArchiveUiTask;->require(ZLjava/lang/String;)V
+    iget-object v3, p0, Lacceptance/presentation/ArchiveUiTask;->source:Ljava/lang/String;
+    const-string v4, "Source SHA-256: "
+    invoke-virtual {v4, v3}, Ljava/lang/String;->concat(Ljava/lang/String;)Ljava/lang/String;
+    move-result-object v3
+    invoke-virtual {v2, v3}, Ljava/lang/String;->contains(Ljava/lang/CharSequence;)Z
+    move-result v3
+    const-string v4, "FAIL actual archive expected source digest"
+    invoke-static {v3, v4}, Lacceptance/presentation/ArchiveUiTask;->require(ZLjava/lang/String;)V
+    iget-object v3, p0, Lacceptance/presentation/ArchiveUiTask;->inventory:Ljava/lang/String;
+    const-string v4, "Inventory SHA-256: "
+    invoke-virtual {v4, v3}, Ljava/lang/String;->concat(Ljava/lang/String;)Ljava/lang/String;
+    move-result-object v3
+    invoke-virtual {v2, v3}, Ljava/lang/String;->contains(Ljava/lang/CharSequence;)Z
+    move-result v3
+    const-string v4, "FAIL actual archive expected inventory digest"
     invoke-static {v3, v4}, Lacceptance/presentation/ArchiveUiTask;->require(ZLjava/lang/String;)V
     invoke-virtual {v0}, Landroid/app/Activity;->getWindow()Landroid/view/Window;
     move-result-object v3
@@ -231,5 +251,11 @@
     move-result-object v1
     invoke-virtual {v1}, Landroid/view/View;->performClick()Z
   :done
+    return-void
+  :end
+    .catch Ljava/lang/Throwable; {:begin .. :end} :failed
+  :failed
+    move-exception v0
+    iput-object v0, p0, Lacceptance/presentation/ArchiveUiTask;->failure:Ljava/lang/Throwable;
     return-void
 .end method

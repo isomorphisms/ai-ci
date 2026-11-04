@@ -72,10 +72,19 @@ proc snapshot(label) {
 }
 snapshot before
 rg -x -F synthetic_interrupted_workspace "$output/before/files/selected-workspace.txt"
+var workspace_hash = $(printf synthetic_interrupted_workspace | sha256sum | cut -d ' ' -f 1)
+var conversation_hash = $(printf conversation-1 | sha256sum | cut -d ' ' -f 1)
+var source_file = "$output/before/files/archive-$workspace_hash/conversation-$conversation_hash.json"
+var source_digest = $(sha256sum "$source_file" | cut -d ' ' -f 1)
+# The producer's canonical C1 index has already been reconstructed independently
+# by the requalification stage; this reads that bounded, exact schema field.
+var inventory_digest = $(sed -n 's/.*"inventorySha256":"\([0-9a-f]\{64\}\)".*/\1/p' "$output/before/files/archive-$workspace_hash/native-index.json")
+printf '%s\n' "$inventory_digest" | rg -x '[0-9a-f]{64}'
 proc observe(label) {
   "$adb" shell am force-stop "$package"
   "$adb" logcat -c
-  timeout 90 "$adb" shell am instrument -w -r org.isomorphisms.archive.observer/acceptance.presentation.ArchiveUi > "$output/$label.txt" 2>&1
+  timeout 90 "$adb" shell am instrument -w -r -e source "$source_digest" -e inventory "$inventory_digest" \
+    org.isomorphisms.archive.observer/acceptance.presentation.ArchiveUi > "$output/$label.txt" 2>&1
   cat "$output/$label.txt"
   "$adb" logcat -d -v threadtime > "$output/$label.runtime.txt"
   rg -x -F 'INSTRUMENTATION_CODE: -1' "$output/$label.txt"
@@ -97,8 +106,10 @@ if (_error.code !== 1) { echo 'FAIL ineffective archive control mutation' >&2; e
 "$adb" install -r "$mutant" > "$output/control-mutant-install.txt"
 test "$before_uid" = "$("$adb" shell pm list packages -U "$package" | tr -d '\r')"
 "$adb" shell am force-stop "$package"
-timeout 90 "$adb" shell am instrument -w -r org.isomorphisms.archive.observer/acceptance.presentation.ArchiveUi > "$output/control-mutant-refused.txt" 2>&1
+timeout 90 "$adb" shell am instrument -w -r -e source "$source_digest" -e inventory "$inventory_digest" \
+  org.isomorphisms.archive.observer/acceptance.presentation.ArchiveUi > "$output/control-mutant-refused.txt" 2>&1
 cat "$output/control-mutant-refused.txt"
+"$adb" logcat -d -v threadtime > "$output/control-mutant.runtime.txt"
 rg -x -F 'INSTRUMENTATION_CODE: 0' "$output/control-mutant-refused.txt"
 rg -x -F 'INSTRUMENTATION_RESULT: stream=java.lang.AssertionError: FAIL same-ID archive control admitted' "$output/control-mutant-refused.txt"
 snapshot after-control-negative
@@ -110,8 +121,6 @@ var restored = $("$adb" shell pm path "$package" | tr -d '\r' | sed -n 's/^packa
 cmp "$apk" "$output/restored.apk"
 # Deliberately corrupt only the dedicated synthetic emulator namespace, keeping
 # its original owner and mode. No private user archive is ever a mutation target.
-var workspace_hash = $(printf synthetic_interrupted_workspace | sha256sum | cut -d ' ' -f 1)
-var conversation_hash = $(printf conversation-1 | sha256sum | cut -d ' ' -f 1)
 var member = "$private/archive-$workspace_hash/conversation-$conversation_hash.json"
 root_for_fixture corrupt
 printf '{}' > "$output/corrupt.json"
@@ -121,7 +130,7 @@ printf '{}' > "$output/corrupt.json"
 "$adb" pull "$member" "$output/corrupt-actual.json"
 cmp "$output/corrupt.json" "$output/corrupt-actual.json"
 unroot_fixture corrupt
-timeout 90 "$adb" shell am instrument -w -r -e corrupt yes \
+timeout 90 "$adb" shell am instrument -w -r -e corrupt yes -e source "$source_digest" -e inventory "$inventory_digest" \
   org.isomorphisms.archive.observer/acceptance.presentation.ArchiveUi > "$output/corrupt-refused.txt" 2>&1
 cat "$output/corrupt-refused.txt"
 rg -x -F 'INSTRUMENTATION_CODE: -1' "$output/corrupt-refused.txt"

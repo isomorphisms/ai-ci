@@ -37,3 +37,17 @@ installed mutant must fail precisely `FAIL same-ID archive control admitted`.
 The archive bytes/UID must survive, and the unchanged production APK is
 restored and byte-compared before the corrupt-provenance case. A reflection,
 loader, timeout or other application failure cannot count as this refusal.
+
+Producer b2ef2af6 passed both valid-view observations but its deliberately bad
+producer crashed the target process instead of returning the required assertion.
+That entire runtime gate failed. Android14 Instrumentation.SyncRunnable calls
+the main-thread Runnable without catching its exception. The repaired task
+records the actual Throwable and relays it to the instrumentation thread,
+which reports its original diagnostic; the required assertion is unchanged.
+The unchanged b2 APKs are requalified independently before any producer repin.
+
+The independent job reconstructs the actual captured C1 disk archive with a
+separately compiled verifier, checks the signed source/ABI/manifest inputs,
+and seeds only a fresh asserted emulator fixture namespace. The UI must show
+the actual independently computed normalized-source and inventory digests,
+not merely any64-character strings. No producer status flag authorizes a pass.
