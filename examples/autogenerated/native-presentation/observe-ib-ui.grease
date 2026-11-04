@@ -88,8 +88,12 @@ try {
     org.isomorphisms.ib.presentation.observer/acceptance.presentation.IbUi > "$output/tint-refused.txt" 2>&1
 }
 if (_error.code !== 0) { echo 'FAIL IB tint control process' >&2; exit 1 }
+cat "$output/tint-refused.txt"
+"$adb" -s "$serial" logcat -d -v threadtime > "$output/tint-runtime.txt"
 rg -x -F 'INSTRUMENTATION_CODE: 0' "$output/tint-refused.txt"
 rg -x -F 'INSTRUMENTATION_RESULT: stream=java.lang.AssertionError: FAIL IB semantic surfaces differ from actual compositor' "$output/tint-refused.txt"
+rg -F 'PASS actual tint mutation reached compositor' "$output/tint-runtime.txt"
+"$adb" -s "$serial" pull /sdcard/Android/data/org.isomorphisms.ib.prepaint/files/acceptance-reader-frame.png "$output/actual-tint-frame.png"
 snapshot after
 for label in before after {
   sed '$d' "$output/$label.index" > "$output/$label.prefix"

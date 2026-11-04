@@ -194,3 +194,21 @@ pixels, saves that actual frame before instrumentation finishes, and requires
 the actual inflated-control tint mutation to reach the designated refusal.
 IBa6ef removes only conflicting XML tints and pins that independent oracle.
 Old reader/history semantic passes do not qualify old button contrast.
+## Tint mutation activation is a rendered-state boundary
+
+IBa6ef's API34 run41773741372 passed actual compositor color matching, native
+reader/acquisition/history and saved a live readable frame. The required second
+instrumentation instead returned its normal PASS, so the whole run failed.
+It set the actual View tint and immediately sampled without proving that a
+new compositor frame contained that mutation. An in-memory setter returning is
+not a completed render. The original false-negative remains in artifact13296357562
+(ZIP fc26c7acc01e1820d7d1a30f9ed646ab191ff0aaed81c9356c7b0432d72eb6ff).
+
+The repaired mutation driver requires the actual Sources pixel to reach the
+declared old tint #292929 before running the unchanged palette-compositor
+assertion. Activation is bounded and has a distinct failure that cannot count
+as rejection. Its actual dark frame and activation log are retained separately
+from the positive live frame. The wrapper still requires the exact designated
+compositor refusal and unchanged durable history. It now prints and retains
+the second instrumentation result, rather than hiding its diagnostic in a file.
+This changes test activation/evidence, not product semantics or accepted colors.

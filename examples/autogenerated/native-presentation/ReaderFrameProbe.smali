@@ -30,6 +30,57 @@
   :done
     return-void
 .end method
+.method public static awaitTint(Landroid/app/Instrumentation;Landroid/app/Activity;)V
+    .locals 10
+    new-instance v0, Lacceptance/presentation/FrameTask;
+    const v1, 0x7f030003
+    invoke-direct {v0, p1, v1}, Lacceptance/presentation/FrameTask;-><init>(Landroid/app/Activity;I)V
+    const/16 v1, 40
+  :sample
+    invoke-virtual {p0, v0}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
+    iget-boolean v3, v0, Lacceptance/presentation/FrameTask;->valid:Z
+    if-eqz v3, :wait
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->getUiAutomation()Landroid/app/UiAutomation;
+    move-result-object v2
+    invoke-virtual {v2}, Landroid/app/UiAutomation;->takeScreenshot()Landroid/graphics/Bitmap;
+    move-result-object v2
+    if-eqz v2, :wait
+    iget v3, v0, Lacceptance/presentation/FrameTask;->x:I
+    iget v4, v0, Lacceptance/presentation/FrameTask;->y:I
+    if-ltz v3, :recycle
+    if-ltz v4, :recycle
+    invoke-virtual {v2}, Landroid/graphics/Bitmap;->getWidth()I
+    move-result v7
+    if-ge v3, v7, :recycle
+    invoke-virtual {v2}, Landroid/graphics/Bitmap;->getHeight()I
+    move-result v7
+    if-ge v4, v7, :recycle
+    invoke-virtual {v2, v3, v4}, Landroid/graphics/Bitmap;->getPixel(II)I
+    move-result v6
+    const v5, 0xff292929
+    invoke-static {v5, v6}, Lacceptance/presentation/ReaderFrameProbe;->near(II)Z
+    move-result v7
+    invoke-virtual {v2}, Landroid/graphics/Bitmap;->recycle()V
+    if-nez v7, :drawn
+    goto :wait
+  :recycle
+    invoke-virtual {v2}, Landroid/graphics/Bitmap;->recycle()V
+  :wait
+    const-wide/16 v2, 0x32
+    invoke-static {v2, v3}, Landroid/os/SystemClock;->sleep(J)V
+    add-int/lit8 v1, v1, -1
+    if-gtz v1, :sample
+    new-instance v0, Ljava/lang/AssertionError;
+    const-string v1, "FAIL actual tint mutation never reached compositor"
+    invoke-direct {v0, v1}, Ljava/lang/AssertionError;-><init>(Ljava/lang/Object;)V
+    throw v0
+  :drawn
+    invoke-static {p0}, Lacceptance/presentation/ReaderFrameProbe;->saveFrame(Landroid/app/Instrumentation;)V
+    const-string v0, "IbTintActivation"
+    const-string v1, "PASS actual tint mutation reached compositor"
+    invoke-static {v0, v1}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
+    return-void
+.end method
 .method private static near(II)Z
     .locals 5
     const/4 v0, 0

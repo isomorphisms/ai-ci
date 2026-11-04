@@ -38,6 +38,7 @@
     new-instance v1, Lacceptance/presentation/ReaderTintTask;
     invoke-direct {v1, v0}, Lacceptance/presentation/ReaderTintTask;-><init>(Landroid/app/Activity;)V
     invoke-virtual {p0, v1}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
+    invoke-static {p0, v0}, Lacceptance/presentation/ReaderFrameProbe;->awaitTint(Landroid/app/Instrumentation;Landroid/app/Activity;)V
   :frame
     invoke-static {p0, v0}, Lacceptance/presentation/ReaderFrameProbe;->assertVisible(Landroid/app/Instrumentation;Landroid/app/Activity;)V
     new-instance v3, Lacceptance/presentation/IbUiTask;
