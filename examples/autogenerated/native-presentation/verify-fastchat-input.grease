@@ -25,5 +25,6 @@ rg -x -F 'Signer #1 certificate SHA-256 digest: aa9151e3922fa4795987c3655bc7aa47
 unzip -p "$apk" classes.dex > "$output/classes.dex"
 printf '%s  %s\n' 24e37795b5c8001a280b9f5f46c64ed510660358fb42f2a7109b52e2a5c067ad "$output/classes.dex" | sha256sum -c -
 unzip -p "$apk" "lib/$abi/libfastchat.so" > "$output/libfastchat.so"
-if ! strings "$output/libfastchat.so" | rg -x -F "$source" { echo 'FAIL FastChat embedded source identity' >&2; exit 1 }
+strings "$output/libfastchat.so" > "$output/embedded-strings.txt"
+if ! rg -x -F "$source" "$output/embedded-strings.txt" { echo 'FAIL FastChat embedded source identity' >&2; exit 1 }
 sha256sum "$apk" "$output/classes.dex" "$output/libfastchat.so" > "$output/digests.txt"

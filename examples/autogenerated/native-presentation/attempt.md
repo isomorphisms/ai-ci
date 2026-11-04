@@ -85,6 +85,12 @@ digest, and reclaims only that workflow's exact downloaded extraction/ZIP paths.
 It requires at least4GiB free before launching the same 2GiB AVD. This changes
 host capacity, not application bytes or required assertions.
 
+The new delivery check first reached valid manifest/ABI/SDK and actual signer
+verification, then stopped because a pipeline in an `if` condition is forbidden
+by Grease's strict error semantics (run41758414315). The source-identity check
+now writes `strings` output first and branches on the single ripgrep status.
+That retains both failure causes without relaxing the required identity match.
+
 The C67 delivery observer separately downloads the actual signed ARM64 candidate.
 SDK apksigner, aapt2, the declared callback digest, embedded source and readelf
 inspect that artifact independently of its producer receipt. Wrong-source and
