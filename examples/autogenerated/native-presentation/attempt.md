@@ -35,3 +35,12 @@ boundary with a superseded revision and retired owner. Separately compiled
 actual producer mutations reverse history and bypass revision refusal; exact
 diagnostics are required. Thread completion times out as failure. Host pthread
 execution does not qualify Android UI, UI stalls or physical behavior.
+
+The first executed oracle incorrectly expected attempt 1 for every request.
+FastChat's actual `begin_request` advances one conversation-wide durable attempt
+counter; its existing tests also require advancement across retries. Run
+41750520306 rejected that oracle while the worker preserved the source values.
+The correction adds an explicit retry on request 2, so preceding requests
+2,3,4 must retain attempts 3,4,5. Request identity and attempt identity are
+checked separately. This changes a disproved expectation, not the producer or
+its identity contract; original failure remains in that retained run.

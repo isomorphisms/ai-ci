@@ -37,6 +37,12 @@ int main(int argc, char **argv) {
         memcpy(response + 1022, "😀", 4);
         ok ← require(submit_text(&store, prompt, (size_t)length) == FC_OK &&
             admit_event(&store, store.request, store.attempt, START) == FC_OK, "timeline real submit") && ok;
+        if (turn == 2) {
+            ok ← require(admit_event(&store, store.request, store.attempt, TRANSPORT_LOSS) == FC_OK &&
+                retry_request(&store) == FC_OK &&
+                admit_event(&store, store.request, store.attempt, START) == FC_OK,
+                "timeline explicit retry preserves request and advances attempt") && ok;
+        }
         WriteResult written ← store_response_bytes(&store, store.request, store.attempt, response, sizeof(response));
         ok ← require(written.result == FC_OK && written.consumed == sizeof(response) &&
             admit_event(&store, store.request, store.attempt, COMPLETE) == FC_OK, "timeline real durable completion") && ok;
@@ -51,9 +57,10 @@ int main(int argc, char **argv) {
         TimelineTurn *turn ← &view.turns[i];
         char expected[128];
         int length ← snprintf(expected, sizeof(expected), "Turn %u\nTürkçe é שלום 😀", (unsigned)i + 2);
-        ok ← require(turn->turn.request == i + 2 && turn->turn.attempt == 1 && turn->turn.phase == COMPLETED &&
+        ok ← require(turn->turn.request == i + 2 && turn->turn.phase == COMPLETED &&
             turn->turn.prompt_length == (size_t)length && !memcmp(turn->turn.prompt, expected, (size_t)length),
             "timeline source identity order and exact Unicode prompt") && ok;
+        ok ← require(turn->turn.attempt == i + 3, "timeline durable attempt identity including retry") && ok;
         int exact ← turn->length == 1022 && turn->turn.extent == 2048;
         for (size_t j ← 0; j < turn->length; j++) exact ← exact && turn->bytes[j] == (unsigned char)('c' + i);
         ok ← require(exact, "bounded source-exact UTF8 response preview") && ok;
