@@ -1,0 +1,26 @@
+name: AICI independent IB Prepaint acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'ib-prepaint/**'
+      - '.github/workflows/ib-prepaint-acceptance.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verified-wire-and-mutations:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Independently validate Version 1 semantics, source binding and malicious changes
+        run: |
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          sh -n ib-prepaint/verify.sh
+          sh -n ib-prepaint/self-test.sh
+          sh ib-prepaint/self-test.sh
