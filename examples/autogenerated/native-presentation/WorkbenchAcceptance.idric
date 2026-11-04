@@ -1,0 +1,48 @@
+module WorkbenchAcceptance
+
+import Data.Text
+import IB.Reader.Navigation
+import IB.Reader.Workbench
+import System
+
+%export "dex:projected_history"
+projected_history : Text → Text → Int32 → Text
+projected_history expected current position =
+  case select_projected_source expected current position of
+    Left reason ⇒ "REFUSED: " ++ reason
+    Right history ⇒ history_text history
+
+require : Text → Bool → IO ()
+require label True = pure ()
+require label False = do putStrLn ("FAIL " ++ label); exitFailure
+
+refused : Either Text BrowserHistory → Bool
+refused (Left _) = True
+refused _ = False
+
+selected_is : Text → Text → Either Text BrowserHistory → Bool
+selected_is identity generation (Right history) = case history_current history of
+  Just source ⇒ retained_identity source ≟ identity && retained_generation source ≟ generation
+  Nothing ⇒ False
+selected_is _ _ _ = False
+
+main : IO ()
+main = do
+  let revision = "IBH1\n2\nalpha\t1\nbeta\t4\nalpha\t2\n"
+  require "ordered occurrence and generation" (selected_is "beta" "4" (select_projected_source revision revision 1))
+  require "same identity newer generation retained" (selected_is "alpha" "2" (select_projected_source revision revision 2))
+  case select_projected_source revision revision 0 of
+    Left _ ⇒ require "valid first occurrence" False
+    Right history ⇒ require "selection preserves sequence without append"
+      (history_text history ≟ "IBH1\n0\nalpha\t1\nbeta\t4\nalpha\t2\n")
+  require "stale projection refused" (refused (select_projected_source revision "IBH1\n0\nalpha\t3\n" 0))
+  require "negative position refused" (refused (select_projected_source revision revision (-1)))
+  require "absent occurrence refused" (refused (select_projected_source revision revision 3))
+  require "bounded position refused" (refused (select_projected_source revision revision 128))
+  let corrupt = "IBH1\n0\nalpha\t0\n"
+  require "corrupt source generation refused" (refused (select_projected_source corrupt corrupt 0))
+  let truncated = "IBH1\n0\nalpha\t1"
+  require "truncated metadata refused" (refused (select_projected_source truncated truncated 0))
+  let incompatible = "IBH2\n0\nalpha\t1\n"
+  require "unknown metadata version refused" (refused (select_projected_source incompatible incompatible 0))
+  putStrLn "PASS independent retained workbench source identity, order, revision and refusals"

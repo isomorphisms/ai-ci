@@ -1,0 +1,214 @@
+# Independent native presentation acceptance
+
+Values: retained source occurrences keep identity, generation, order and cursor.
+The displayed metadata revision grants no mutation authority after it becomes
+stale. A View callback must implement the Android listener's exact signature.
+
+Operations: `select_projected_source : Text → Text → Int32 → Either Text BrowserHistory`
+is the actual IB implementation. The observer chooses expected identities and
+cursor bytes independently, including a repeated identity at a newer generation.
+
+The host observer runs through the pinned Idriç frontend (Chez target); the same
+source also emits direct DEX. Host execution is not ART acceptance. A separately
+compiled producer mutation bypasses the revision guard and must fail the stale
+history assertion. Other controls reject corrupt generations, negative/absent
+positions, truncated metadata, and unknown history versions.
+
+`CallbackProbe.smali` is an independent ART reflection observer, never a product
+DEX source. It requires View.OnClickListener, onClick(View), native and void.
+The typed producer's onClick(Int32) mutation must fail that observer.
+
+## Native timeline worker
+
+The input remains FastChat's existing typed `HistoryTurn` and committed journal
+prefix. A borrowed read-only worker projection yields at most three ordered
+turns with bounded exact UTF-8 previews. Its effects are positional file reads
+and pthread scheduling; the Android renderer alone owns Views. The independent
+C observer exercises that actual C platform boundary and the actual durable
+store. This does not introduce alternative Idriç conversation semantics.
+
+The observer constructs five real committed turns with independently chosen
+Unicode prompts and responses spanning the preview boundary. It requires
+identities 2,3,4 before focus 5; an earlier focus, empty history, unavailable
+source and invalid focus are separate results. It calls the actual publication
+boundary with a superseded revision and retired owner. Separately compiled
+actual producer mutations reverse history and bypass revision refusal; exact
+diagnostics are required. Thread completion times out as failure. Host pthread
+execution does not qualify Android UI, UI stalls or physical behavior.
+
+The first executed oracle incorrectly expected attempt 1 for every request.
+FastChat's actual `begin_request` advances one conversation-wide durable attempt
+counter; its existing tests also require advancement across retries. Run
+41750520306 rejected that oracle while the worker preserved the source values.
+The correction adds an explicit retry on request 2, so preceding requests
+2,3,4 must retain attempts 3,4,5. Request identity and attempt identity are
+checked separately. This changes a disproved expectation, not the producer or
+its identity contract; original failure remains in that retained run.
+
+API34 run 41750520443 at FastChat b382c67f failed to discover the composer
+through the active accessibility root while that actual app continued to
+generate and commit response prefixes. Its earlier cold screenshot contains
+the composer; it is not a failure-time screenshot. No crash or ANR is proved.
+The independent observer now dumps at most 64 accessibility nodes to depth 10
+only after its existing lookup has failed. It still fails that assertion.
+These named acceptance stores contain synthetic input; no user conversation
+or credential is logged by this diagnostic. No product window redesign is
+selected from the undiagnosed observation.
+
+The retained failure tree then showed the Activity's FrameLayout, native
+surface and status-bar background, with no framework controls. The producer
+repair moves the existing Material/settings Views from a separate application
+panel into android.R.id.content. `ContentOwnerTask` checks the actual Send/Stop
+Button on the main thread: it must be found through the Activity and share its
+decor root and Context. The old signed0c5288a2 producer is a concrete bad
+integration control for that boundary; a passing screenshot or a randomly
+selected overlay window cannot satisfy it. Existing accessibility, source-text
+and actual Button-action assertions remain required afterward.
+
+Provider configuration is exercised in a separate instrumentation process over
+the emulator's empty ordinary profile, after the conversation fixture run.
+No configuration is saved and no provider request is submitted. The actual Save
+Button must belong to the Activity decor and that window must carry FLAG_SECURE;
+Back must restore the composer. This preserves the original password/screenshot
+boundary after moving controls out of a separate panel window. The signed
+aaabc570 producer is the targeted missing-secure-window control; the wrapper
+requires the first conversation exercise to pass and then the exact settings
+diagnostic, rather than accepting an unrelated failure.
+# IB unchanged-artifact requalification
+
+## Real compositor and NativeActivity ownership regression
+
+The API29 IME run41762938888 timed out during real key dispatch. Its Window
+diagnostics reported no focused input window; its startup screenshot, and the
+earlier API34 startup screenshot, were black. The old bdae9a45 APK therefore
+does not qualify as usable visible UI, despite passing accessibility actions.
+NativeActivity had claimed both Surface and InputQueue before native startup.
+Moving controls under Activity content had not released either platform claim.
+
+FastChat759605c4 pins android-NDK b2ee1912, releases both claims before Decor
+attachment and keeps the existing native controller/lifecycle. This follows
+Android10 NativeActivity.java, Window.java and PhoneWindow.java rather than
+adding another overlay or a managed application layer.
+
+The new independent FrameProbe samples the actual compositor screenshot at
+the actual Send and Setup Button coordinates. Each pixel must match that
+Button's real semantic fill within two RGB levels, and the fills must differ.
+The check precedes real IME/key dispatch. A layout tree alone cannot satisfy it.
+The actual signed bdae9a45 product is retained as frame-refused: only the exact
+compositor assertion is accepted, not a crash, timeout or absent sample control.
+Fresh API29/34 positives and resize mutation use the rebuilt759605c4 APK.
+All runtime outcomes remain pending until those exact jobs finish.
+
+The IB requalification now consumes6f88d23d's source-bound archive and its
+actual67b42568 producer observer pin. Before pruning the job-owned input it
+reads the already verified archive digest receipt, validates its complete
+64-hex value and rechecks the actual ZIP. Selected-byte comparisons, guarded
+paths and the4GiB capacity gate remain unchanged.
+
+The added IME observer uses the real current signed FastChat APK in a fresh
+emulator and its existing isolated `fc-m4-` store. It discovers the Activity's
+actual EditText, requests the system IME, measures that actual input-method
+window independently through AccessibilityWindowInfo, and requires the content
+to resize with the composer above it. Instrumentation dispatches ASCII keys
+and Enter after a Unicode/combining/RTL base string, then checks exact multiline
+text. Back must dismiss the IME while preserving the Activity and geometry.
+The actual durable request journal must remain empty before and after; no send
+action or provider configuration is used. This does not prove language-specific
+IME composition, physical typing, font scaling or a physical-device outcome.
+
+The targeted integration mutation changes only the actual Activity window to
+ADJUST_NOTHING before showing the same keyboard. The independent geometry
+assertion must reject that real broken resize state with its precise diagnostic;
+an absent keyboard, crash or missing composer cannot satisfy the control.
+
+The first IME runtime attempt (run41762149915, source68ec45cc) was rejected at
+instrumentation loading: the new Smali class had no explicit zero-argument
+constructor. The product UI was not exercised by those three IME cases, and
+none counted as a passing refusal. The constructor is now explicit; positive
+readiness also waits for actual Activity window focus before requesting the
+IME. The same keyboard geometry/input/Back assertions and negative control
+remain required.
+
+The first independent API29 attempt in run41756980836 did not execute ART:
+the emulator reported insufficient disk space and never booted. Archive/input
+verification and external probe assembly passed first. The coordinator now
+copies only the required already-verified APKs, keys, Smali jar and metadata,
+compares every copy, retains their digests, rechecks the original archive ZIP
+digest, and reclaims only that workflow's exact downloaded extraction/ZIP paths.
+It requires at least4GiB free before launching the same 2GiB AVD. This changes
+host capacity, not application bytes or required assertions.
+
+The new delivery check first reached valid manifest/ABI/SDK and actual signer
+verification, then stopped because a pipeline in an `if` condition is forbidden
+by Grease's strict error semantics (run41758414315). The source-identity check
+now writes `strings` output first and branches on the single ripgrep status.
+That retains both failure causes without relaxing the required identity match.
+
+The C67 delivery observer separately downloads the actual signed ARM64 candidate.
+SDK apksigner, aapt2, the declared callback digest, embedded source and readelf
+inspect that artifact independently of its producer receipt. Wrong-source and
+wrong-ABI consumers must reach exact diagnostics; deleting classes.dex without
+resigning must reach the actual APK-signature refusal. This boundary is host
+artifact verification, not ARM64 ART or physical installation. The existing x86
+verifier keeps its four-argument default and gains a bounded explicit ABI input.
+
+IB `a30381aee243d56d83da19befe64e2f84ebccfc9` built and signed byte-identical
+APKs in run41748455979. API29's source/reflow/anchors/large-source/parcelable,
+installed reader, navigation, fragment and Activity ownership coordinators
+returned zero. Its ART presentation mutation produced only `Killed`, so the
+required semantic diagnostic was absent. The API34 retained History/Reader UI
+exercise passed independently, but that does not repair the failed mutation gate.
+
+The external Smali oracle now prints its exact stale-projection diagnostic and
+exits42 deliberately. Both revision and callback controls require that exact
+status and diagnostic; a process crash cannot satisfy either. No producer DEX
+is modified. The new workflow downloads the original signed source-bound IB
+archive, verifies its original observer pin, and rebuilds only the independent
+probe. It executes actual installed native acquisition and retained-source
+History/Reader controls on fresh API29/34 x86_64 emulators.
+
+API29 also retained `adb: unable to connect for root: closed` at the link-shape
+snapshot; its following UI observer saw an offline emulator. The snapshot now
+admits only that exact status1 diagnostic during a requested adbd transition,
+then still requires connection within30 seconds and an observed root UID before
+any source readback. All other errors fail. This is emulator observer plumbing,
+not physical root permission or a relaxed product assertion.
+
+## Follow-up rendering and asynchronous keyboard evidence
+
+The new independent8528 run41767027593 passed all ten FastChat cases, including
+actual compositor and key/Back on both APIs. A da920 repeat had two SDK emulator
+archive failures before boot. These are not product or negative-control passes.
+Its API34 IME case separately failed the final Back geometry assertion after
+all compositor/typing checks, so it must not be described as infrastructure.
+That oracle sampled once after500ms, without retaining measured geometry.
+The same final-state assertions now wait up to40*50ms for asynchronous keyboard
+window and layout restoration; Activity finishing still fails immediately.
+A final refusal logs baseline/current height, keyboard top and finishing state.
+This is a bounded state-observation deadline, not a responsiveness benchmark.
+The real broken resize mutation and input/journal assertions are unchanged.
+
+Actual IB6f screenshots also exposed old XML backgroundTint overriding shared
+neutral surfaces. ReaderFrameProbe now samples live Sources/History compositor
+pixels, saves that actual frame before instrumentation finishes, and requires
+the actual inflated-control tint mutation to reach the designated refusal.
+IBa6ef removes only conflicting XML tints and pins that independent oracle.
+Old reader/history semantic passes do not qualify old button contrast.
+## Tint mutation activation is a rendered-state boundary
+
+IBa6ef's API34 run41773741372 passed actual compositor color matching, native
+reader/acquisition/history and saved a live readable frame. The required second
+instrumentation instead returned its normal PASS, so the whole run failed.
+It set the actual View tint and immediately sampled without proving that a
+new compositor frame contained that mutation. An in-memory setter returning is
+not a completed render. The original false-negative remains in artifact13296357562
+(ZIP fc26c7acc01e1820d7d1a30f9ed646ab191ff0aaed81c9356c7b0432d72eb6ff).
+
+The repaired mutation driver requires the actual Sources pixel to reach the
+declared old tint #292929 before running the unchanged palette-compositor
+assertion. Activation is bounded and has a distinct failure that cannot count
+as rejection. Its actual dark frame and activation log are retained separately
+from the positive live frame. The wrapper still requires the exact designated
+compositor refusal and unchanged durable history. It now prints and retains
+the second instrumentation result, rather than hiding its diagnostic in a file.
+This changes test activation/evidence, not product semantics or accepted colors.

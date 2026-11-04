@@ -1,0 +1,29 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 5) { echo 'requires ADB SERIAL WORKBENCH_OUTPUT CALLBACK_OUTPUT NEW_OUTPUT' >&2; exit 2 }
+var adb = ARGV[0]
+var serial = ARGV[1]
+var workbench = ARGV[2]
+var callback = ARGV[3]
+var output = ARGV[4]
+test ! -e "$output"
+mkdir -p "$output"
+var api = $("$adb" -s "$serial" shell getprop ro.build.version.sdk | tr -d '\r')
+test "$api" = 29 || test "$api" = 34 || test "$api" = 35
+var remote = "/data/local/tmp/native-presentation-$api"
+"$adb" -s "$serial" shell mkdir -p "$remote"
+for file in observer.dex mutant.dex probe.dex { "$adb" -s "$serial" push "$workbench/$file" "$remote/$file" > /dev/null }
+"$adb" -s "$serial" push "$callback/Action.dex" "$remote/Action.dex" > /dev/null
+"$adb" -s "$serial" push "$callback/wrong-signature.dex" "$remote/wrong-signature.dex" > /dev/null
+"$adb" -s "$serial" shell "CLASSPATH=$remote/probe.dex:$remote/observer.dex app_process / acceptance.presentation.WorkbenchProbe" > "$output/workbench.txt" 2>&1
+rg -x -F 'PASS independent retained occurrence and stale revision refusal on ART' "$output/workbench.txt"
+try { "$adb" -s "$serial" shell "CLASSPATH=$remote/probe.dex:$remote/mutant.dex app_process / acceptance.presentation.WorkbenchProbe" > "$output/workbench-mutant.txt" 2>&1 }
+if (_error.code !== 42) { echo 'FAIL stale revision producer mutation missed its exact ART refusal' >&2; exit 1 }
+rg -x -F 'FAIL stale projection refused' "$output/workbench-mutant.txt"
+"$adb" -s "$serial" shell "CLASSPATH=$remote/probe.dex:$remote/Action.dex app_process / acceptance.presentation.CallbackProbe" > "$output/callback.txt" 2>&1
+rg -x -F 'PASS independent exact framework callback declaration on ART' "$output/callback.txt"
+try { "$adb" -s "$serial" shell "CLASSPATH=$remote/probe.dex:$remote/wrong-signature.dex app_process / acceptance.presentation.CallbackProbe" > "$output/callback-mutant.txt" 2>&1 }
+if (_error.code !== 42) { echo 'FAIL incompatible callback missed its exact ART refusal' >&2; exit 1 }
+rg -F 'NoSuchMethodException' "$output/callback-mutant.txt"
+printf 'schema\tnative-presentation-ART-v1\napi\t%s\nabi\tx86_64\nworkbench\tPASS\ncallback_declaration\tPASS\nwrong_revision_mutation\tREJECTED\nwrong_callback_mutation\tREJECTED\nphysical\tNOT_RUN\n' "$api" > "$output/receipt.tsv"
+sha256sum "$workbench/observer.dex" "$workbench/mutant.dex" "$workbench/probe.dex" "$callback/Action.dex" "$callback/wrong-signature.dex" > "$output/artifacts.sha256"

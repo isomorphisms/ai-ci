@@ -1,0 +1,81 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) < 6 or len(ARGV) > 7) { echo 'requires ADB SERIAL CANDIDATE OBSERVER NEW_OUTPUT EXPECTED_API [required-timeline]' >&2; exit 2 }
+var adb = ARGV[0]
+var serial = ARGV[1]
+var candidate = ARGV[2]
+var observer = ARGV[3]
+var output = ARGV[4]
+var expected_api = ARGV[5]
+var timeline_arguments = []
+if (len(ARGV) === 7) {
+  var timeline_mode = ARGV[6]
+  test "$timeline_mode" = required-timeline
+  setvar timeline_arguments = ['-e', 'timeline', 'required']
+}
+test ! -e "$output"
+mkdir -p "$output"
+var api = $("$adb" -s "$serial" shell getprop ro.build.version.sdk | tr -d '\r')
+test "$api" = "$expected_api"
+"$adb" -s "$serial" shell getprop ro.kernel.qemu | tr -d '\r' | rg -x 1
+"$adb" -s "$serial" shell getprop ro.product.cpu.abilist > "$output/abi.txt"
+rg -q 'x86_64' "$output/abi.txt"
+"$adb" -s "$serial" shell getprop ro.build.fingerprint > "$output/build-fingerprint.txt"
+"$adb" -s "$serial" shell getprop ro.hardware > "$output/hardware.txt"
+unzip -p "$candidate" classes.dex > "$output/Action.dex"
+var remote = '/data/local/tmp/aici-fastchat-native-callback-v1'
+"$adb" -s "$serial" shell mkdir -p "$remote"
+"$adb" -s "$serial" push "$output/Action.dex" "$remote/Action.dex"
+"$adb" -s "$serial" push "$observer/callback-probe.dex" "$remote/probe.dex"
+"$adb" -s "$serial" push "$observer/wrong-consumer.dex" "$remote/wrong-consumer.dex"
+"$adb" -s "$serial" shell "CLASSPATH=$remote/Action.dex:$remote/probe.dex" \
+  app_process /system/bin acceptance.presentation.CallbackProbe > "$output/callback-positive.txt" 2>&1
+rg -x -F 'PASS independent exact framework callback declaration on ART' "$output/callback-positive.txt"
+try {
+  "$adb" -s "$serial" shell "CLASSPATH=$remote/Action.dex:$remote/wrong-consumer.dex" \
+    app_process /system/bin acceptance.presentation.CallbackProbe > "$output/callback-wrong-consumer.txt" 2>&1
+}
+var callback_status = _error.code
+printf '%s\n' "$callback_status" > "$output/callback-wrong-consumer.exit"
+cat "$output/callback-wrong-consumer.txt"
+if (callback_status !== 42) { echo 'FAIL callback consumer did not reach its exact signature refusal' >&2; exit 1 }
+rg 'NoSuchMethodException:.*onClick.*\bint\b' "$output/callback-wrong-consumer.txt"
+"$adb" -s "$serial" install -r "$candidate" > "$output/install.txt"
+"$adb" -s "$serial" install -r "$observer/observer.apk" > "$output/observer-install.txt"
+"$adb" -s "$serial" shell am start -W -n org.isomorphisms.fastchat.diskstreaming.arena/android.app.NativeActivity \
+  --es fastchat_acceptance_store fc-m4-metrics > "$output/startup-cold.txt"
+"$adb" -s "$serial" shell am start -W -n org.isomorphisms.fastchat.diskstreaming.arena/android.app.NativeActivity \
+  --es fastchat_acceptance_store fc-m4-metrics > "$output/startup-warm.txt"
+"$adb" -s "$serial" exec-out screencap -p > "$output/native-screen.png"
+"$adb" -s "$serial" logcat -c
+try {
+  timeout 120 "$adb" -s "$serial" shell am instrument -w -r @timeline_arguments org.isomorphisms.fastchat.observer/acceptance.presentation.FastChatUi > "$output/ui.txt" 2>&1
+}
+var status = _error.code
+cat "$output/ui.txt"
+"$adb" -s "$serial" logcat -d -v threadtime > "$output/runtime.txt"
+"$adb" -s "$serial" shell dumpsys meminfo org.isomorphisms.fastchat.diskstreaming.arena > "$output/memory.txt"
+sha256sum "$candidate" "$observer/observer.apk" > "$output/artifacts.sha256"
+if (status !== 0) { exit 1 }
+rg -x -F 'INSTRUMENTATION_CODE: -1' "$output/ui.txt"
+rg -x -F 'INSTRUMENTATION_RESULT: stream=PASS actual FastChat framework paging Stop multiline Unicode and exact page copy' "$output/ui.txt"
+"$adb" -s "$serial" logcat -c
+try {
+  timeout 120 "$adb" -s "$serial" shell am instrument -w -r -e settings required \
+    org.isomorphisms.fastchat.observer/acceptance.presentation.FastChatUi > "$output/settings-ui.txt" 2>&1
+}
+var settings_status = _error.code
+cat "$output/settings-ui.txt"
+"$adb" -s "$serial" logcat -d -v threadtime > "$output/settings-runtime.txt"
+if (settings_status !== 0) { exit 1 }
+rg -x -F 'INSTRUMENTATION_CODE: -1' "$output/settings-ui.txt"
+rg -x -F 'INSTRUMENTATION_RESULT: stream=PASS actual Activity-owned secure provider settings and return to composer; no provider request' "$output/settings-ui.txt"
+printf 'schema\tfastchat-native-UI-v1\napi\t%s\nabi\tx86_64\nframework_controls\tPASS\npaging\tPASS\ncancellation\tPASS\nmultiline_Unicode\tPASS\nexact_page_clipboard\tPASS\nIME_keyboard\tNOT_RUN\nphysical_C67\tNOT_RUN\nphysical_TAB_P10\tNOT_RUN\n' "$api" > "$output/receipt.tsv"
+printf 'settings_Activity_hierarchy_and_secure_window\tPASS\n' >> "$output/receipt.tsv"
+printf 'exact_callback_on_ART\tPASS\nincompatible_callback_consumer\tREJECTED\n' >> "$output/receipt.tsv"
+if (len(ARGV) === 7) {
+  rg -F 'NativeTimelineAcceptance' "$output/runtime.txt" | rg -F 'PASS actual prior roles source text request selection and return to latest'
+  printf 'prior_turn_timeline_UI\tPASS\n' >> "$output/receipt.tsv"
+} else {
+  printf 'prior_turn_timeline_UI\tNOT_RUN\n' >> "$output/receipt.tsv"
+}

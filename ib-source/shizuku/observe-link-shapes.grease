@@ -36,7 +36,15 @@ proc install(lane) {
 }
 proc snapshot(label) {
   "$adb" -s "$serial" shell am force-stop org.isomorphisms.ib.prepaint
-  "$adb" -s "$serial" root > "$evidence/$label.root.txt" 2>&1
+  try { "$adb" -s "$serial" root > "$evidence/$label.root.txt" 2>&1 }
+  var root_status = _error.code
+  if (root_status !== 0) {
+    # adbd can close its transport while completing this requested transition.
+    # Only that observed disconnect is admissible; the required post-transition
+    # root UID below must still be reached within the existing deadline.
+    test "$root_status" = 1
+    rg -x -F 'adb: unable to connect for root: closed' "$evidence/$label.root.txt"
+  }
   timeout 30 "$adb" -s "$serial" wait-for-device
   "$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 0
   "$adb" -s "$serial" pull /data/user/0/org.isomorphisms.ib.prepaint/files/arena "$evidence/$label-arena"
