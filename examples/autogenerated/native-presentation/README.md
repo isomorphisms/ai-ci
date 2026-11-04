@@ -57,3 +57,11 @@ keys and Enter while preserving a Unicode base string, and dismisses the IME
 with Back. The isolated store's durable request journal must remain empty.
 An actual ADJUST_NOTHING window mutation must fail the geometry assertion.
 Physical typing and language-specific IME composition remain unqualified.
+
+Before keyboard interaction, FrameProbe samples actual compositor screenshot
+pixels at two real framework Button bounds and requires their distinct semantic
+fills. A populated invisible layout/accessibility tree cannot pass. The actual
+signed FastChat bdae9a45 APK is frame-refused: only its intended compositor
+assertion counts, never a timeout, crash or missing sampling control. Runtime
+acceptance8528c49e passes these positive checks on API29/34 for FastChat759605c4.
+Its real key/Back exercise and resize mutation are distinct from human typing.

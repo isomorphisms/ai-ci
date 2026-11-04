@@ -3,17 +3,21 @@
 Campaign: SUN-M3-NATIVE-WORKBENCH-COMPLETE-01. Overall status: PARTIAL.
 This ledger separates implementation, build, ART execution and physical use.
 No merge or production release is authorized or performed by this campaign.
+Shared native controls function in FastChat, IB's reader/history panes and
+the exporter's C1 archive view. Full task/evidence history, Pensieve/Longview
+native execution bridges, the remaining rich-content controls and physical
+acceptance remain unfinished.
 
 ## Ownership and exact sources
 
 | Workstream | Default source inspected | Chosen integration source | Decision and evidence | Status |
 | --- | --- | --- | --- | --- |
-| FastChat | `442e8135c018ee003021f1c3f681686c80be9fd0` | `bdae9a45abca9d7a75aaeb2e6b93e971a06f3760` | REPAIR existing native controller/store/transport and framework surface; add bounded preceding-turn projection, Activity-owned accessible content and secure settings. Keep existing `HistoryTurn`, request/attempt identities and response arena. | PARTIAL |
-| IB | `0f3d8dcdc20239987ce30da3d27788a90d2c090a` | `a30381aee243d56d83da19befe64e2f84ebccfc9`, stacked on reader `9f468f9b6dfba8f3895f4ab5cd7a316dc08c562e` | REUSE checked reader and its source owner; REPAIR styling to preserve qualified reflow labels; ADAPT existing BrowserHistory occurrences through revision-checked selection. | PARTIAL |
-| Shared Android primitives | `6ab4818219efa7ea5eda137ca6b76976eb2a4d42` | `1f9c30aeb7cc719075ed470b6135c4cc8ce194ca` | REUSE small `native/presentation/material.h` and checked `Action.dex`; application semantics stay in consumers. Base is checked-export-aliases `153e7fc8053ba4072954a5e77d4efa3609d829e4`. | PARTIAL |
-| Idriç | master `0fb1192cd30ec4747cbc727f26ddbfad515d1363` | Existing consumer pins: IB `740bbf2b1d9e811fd00c719c3473eede17ceea3b`; FastChat `ff4d852862a3942592f8ade9afde8d409d9803be` | REUSE existing typed semantic interfaces. No speculative compiler change or new universal serialization. Current master is inventory, not a silently substituted consumer pin. | PARTIAL |
-| ChatGPTExporter | `1285e1e89537e92d6df7317b882e192fc942dc6c` | `6c84de4b8c4fe298c2bb61386b7158833249aca4` | REUSE verified read-only native C1 adapter and cached selected-parent path; retain browser/offline V2 verifier separately. | PARTIAL |
-| ai-ci | `a66e3a9bb1070a338f8c4a67f9b4b4ac39dfb5ec` | FastChat qualification `a4037d59ed203ff8b36db20416f094d3d0e9308d`; IB requalification implementation `ba24eb20ababbcf6933973ef67d248f1f0f51e59`; consumer host oracle `0293230005b70bde26108e8ae5803512b52072cd`, UI/settings oracle `80d1fcd43305df0537e05c69c2bb5a90657185dd`; original IB reader observer `39ba6eb1218c7883fa1f1c98b07bf0dceabbf6d5` and presentation observer `b30c3896c76ffe2c391647da65465c655539997b` | ADAPT independent actual-producer observers, source/order/revision mutants and actual signed UI-defect controls. New observer code never changes the tested product APK. Consumer pins remain immutable. | PARTIAL |
+| FastChat | `442e8135c018ee003021f1c3f681686c80be9fd0` | `759605c434fc94b6ea3ce604710f8340a36918a8` | REPAIR existing native controller/store/transport and framework surface; add bounded preceding-turn projection, Activity-owned accessible content and secure settings. Keep existing `HistoryTurn`, request/attempt identities and response arena. | PARTIAL |
+| IB | `0f3d8dcdc20239987ce30da3d27788a90d2c090a` | `994dbe273d5d198525a34e55feb9fd007827e4a4`, stacked on reader `9f468f9b6dfba8f3895f4ab5cd7a316dc08c562e` | REUSE checked reader and its source owner; REPAIR styling to preserve qualified reflow labels; ADAPT existing BrowserHistory occurrences through revision-checked selection. | PARTIAL |
+| Shared Android primitives | `6ab4818219efa7ea5eda137ca6b76976eb2a4d42` | `b2ee19121aa3fa1112cd8338b7b6a7baca237b5f` | REUSE small `native/presentation/material.h` and checked `Action.dex`; application semantics stay in consumers. Base is checked-export-aliases `153e7fc8053ba4072954a5e77d4efa3609d829e4`. | PARTIAL |
+| Idriç | master `0fb1192cd30ec4747cbc727f26ddbfad515d1363` | Existing consumer pins: IB `740bbf2b1d9e811fd00c719c3473eede17ceea3b`; FastChat/Exporter `ff4d852862a3942592f8ade9afde8d409d9803be` | REUSE existing typed semantic interfaces. No speculative compiler change or new universal serialization. Current master is inventory, not a silently substituted consumer pin. | PARTIAL |
+| ChatGPTExporter | `1285e1e89537e92d6df7317b882e192fc942dc6c` | `41132f68f2b74cb4f2a4f5c7fdbba8a2c96543d2` | ADAPT verified C1 snapshots to shared native controls, read-only entry and bounded worker-owned Unicode pages; REUSE archive verification/storage and retain browser/offline V2 verifier separately. Actual native source/runtime qualification is scoped below. | PARTIAL |
+| ai-ci | `a66e3a9bb1070a338f8c4a67f9b4b4ac39dfb5ec` | Archive input qualification `fc5e5fca71b9d8d5831619b7a9a0130e449a93a6`; qualified archive/reader observer `6cfacc591b5e6b187547b4409e976772f319c28b`; IB signed-input pin `4c6da077072308fa2a649e40bc84129e78429e8d`; qualified IB producer/compositor observer `d059e45b56de1f9b17e71852c886111940701f27`. Earlier exact-source receipts remain scoped below. | ADAPT independent actual-producer observers, source/order/revision mutants and actual signed UI-defect/artifact controls. New observer code never changes the tested product APK. Consumer pins remain immutable. | PARTIAL |
 | Cat Food | `eafd7fa9e61138a664b205bf8ba82ec6837bbbb9` | TAB_P10 discovery `0e73eada1193b9b7de55defacfdf425b35101de7` | REUSE target discovery. Historical C67 ARM64/API34 profile is distinct from a fresh device observation. No authenticated current device channel or local adb is available. | BLOCKED |
 | Android precedents/reference | main `34b2391a97867ab25ea885cedc7ac2e04b591609` | Material API reference `689bda5bf777a39d35e5aa14bbbb921d8af555b1` | REUSE reference only: 43 signature files at AndroidX `cdeafe5b4e450d61cdb623d58c148efbb0d508cf`. Inspection complete; no Compose product dependency. | NOT_RUN (new consumer integration) |
 | climenu, canonical owner `dilapidated-shed/climenu` | `b39dbb2bd44d0f87d3321f01c995edb80358b21b` | unchanged | DEFER Android adoption: current implementation is a pure Idriç command-description to HTML projection; executable/stdin bridge is still unqualified. Preserve command semantics; no chat replacement. | NOT_RUN (Android integration) |
@@ -40,13 +44,22 @@ FastChat owns conversation/controller/transport/storage; IB owns source visits,
 reader navigation and task decisions; Exporter owns archive verification.
 There is no shared database, new serialization envelope or forced process split.
 
+| Responsibility and source entry point | Authoritative interface / boundary |
+| --- | --- |
+| FastChat: [conversation contract](https://github.com/isomorphisms/fastchat/blob/759605c434fc94b6ea3ce604710f8340a36918a8/src/conversation.h), [actual store/controller](https://github.com/isomorphisms/fastchat/blob/759605c434fc94b6ea3ce604710f8340a36918a8/src/conversation.c), [transport boundary](https://github.com/isomorphisms/fastchat/blob/759605c434fc94b6ea3ce604710f8340a36918a8/src/transport_boundary.h) | `Conversation`, `HistoryTurn`, request/attempt/event admission, committed response extents and journal replay stay in the existing application owner. Transport/provider configuration remains separate from the renderer. |
+| Same FastChat source: [native controller](https://github.com/isomorphisms/fastchat/blob/759605c434fc94b6ea3ce604710f8340a36918a8/android/native_activity.c), [framework panel](https://github.com/isomorphisms/fastchat/blob/759605c434fc94b6ea3ce604710f8340a36918a8/android/material_panel.inc), [historical worker](https://github.com/isomorphisms/fastchat/blob/759605c434fc94b6ea3ce604710f8340a36918a8/android/timeline_projection.h), [provider editor](https://github.com/isomorphisms/fastchat/blob/759605c434fc94b6ea3ce604710f8340a36918a8/android/provider_setup.inc) | Native controller dispatch, composer/draft lifecycle, reusable framework controls, bounded immutable historical projection and Activity-owned credential editor. The worker has no append/transport authority. |
+| IB: [navigation](https://github.com/isomorphisms/ib/blob/994dbe273d5d198525a34e55feb9fd007827e4a4/src/IB/Reader/Navigation.idric), [selection](https://github.com/isomorphisms/ib/blob/994dbe273d5d198525a34e55feb9fd007827e4a4/src/IB/Reader/Selection.idric), [document](https://github.com/isomorphisms/ib/blob/994dbe273d5d198525a34e55feb9fd007827e4a4/src/IB/Reader/Document.idric), [history projection](https://github.com/isomorphisms/ib/blob/994dbe273d5d198525a34e55feb9fd007827e4a4/src/IB/Reader/Workbench.idric) | BrowserHistory occurrence order/cursor and exact source/revision/selection semantics; revision-checked projected source selection. Source arena/receipt validation remains upstream of display. |
+| Same IB source: [checked Activity/controller](https://github.com/isomorphisms/ib/blob/994dbe273d5d198525a34e55feb9fd007827e4a4/examples/autogenerated/native-reader/NativeReader.idric), [native pane adapter](https://github.com/isomorphisms/ib/blob/994dbe273d5d198525a34e55feb9fd007827e4a4/native/android/ib_reader_workbench.c) | Existing checked Activity/controller and NativeTextView stay authoritative; JNI styles controls and switches pane visibility, without rebuilding the reader or creating a store. |
+| android-NDK: [shared controls](https://github.com/isomorphisms/android-NDK/blob/b2ee19121aa3fa1112cd8338b7b6a7baca237b5f/native/presentation/material.h), [checked callback](https://github.com/isomorphisms/android-NDK/blob/b2ee19121aa3fa1112cd8338b7b6a7baca237b5f/examples/autogenerated/presentation-callback/PresentationCallback.idric) | Theme tokens, framework View primitives, real control IDs/hit regions and checked native `onClick(View)` declaration; no application model. |
+| Exporter: [read-only contract](https://github.com/dilapidated-shed/ChatGPTExporter/blob/41132f68f2b74cb4f2a4f5c7fdbba8a2c96543d2/native/cgw_presentation.h), [verified implementation](https://github.com/dilapidated-shed/ChatGPTExporter/blob/41132f68f2b74cb4f2a4f5c7fdbba8a2c96543d2/native/cgw_presentation.c) | Worker-only verified native C1 archive access; selected parent path, exact roles/parts, assets, unsupported source spans and archive provenance. No provider-send interface. |
+
 Focused handoff branches remain unmerged:
 
 - [isomorphisms/fastchat PR #22, “Present durable turns with native Material message and paging controls”](https://github.com/isomorphisms/fastchat/pull/22), `work/m3-native-presentation`, based on `sun/fc-ui-01` at `7a4b57acf4df8809f6884a6adcaedc4fad03c141`.
 - [isomorphisms/ib PR #169, “Present retained source history through native Material controls beside the reader”](https://github.com/isomorphisms/ib/pull/169), `work/m3-native-workbench`, based on `work/tabp10-reader-complete` at `9f468f9b6dfba8f3895f4ab5cd7a316dc08c562e`.
 - [isomorphisms/android-NDK PR #42, “Share native Material role controls and a typed framework View callback”](https://github.com/isomorphisms/android-NDK/pull/42), `work/m3-native-controls`, based on checked-export-aliases `153e7fc8053ba4072954a5e77d4efa3609d829e4`.
 - [isomorphisms/ai-ci PR #336, “Add independent native presentation and archive acceptance”](https://github.com/isomorphisms/ai-ci/pull/336), `acceptance/m3-native-workbench`, based on `acceptance/ib-chordreader-handoff` at `76375652724a6921f8374738cea9360366526242`.
-- [dilapidated-shed/ChatGPTExporter PR #17, “Expose verified native archive messages through a bounded read-only presentation adapter”](https://github.com/dilapidated-shed/ChatGPTExporter/pull/17), `work/native-readonly-presentation`, based on `sun/chatgpt-export-complete-01` at `d19dba2bd0a10fc8b59a94931caf26cc128b9335`.
+- [dilapidated-shed/ChatGPTExporter PR #17, “Read verified C1 archives through bounded native Material controls”](https://github.com/dilapidated-shed/ChatGPTExporter/pull/17), `work/native-readonly-presentation`, based on `sun/chatgpt-export-complete-01` at `d19dba2bd0a10fc8b59a94931caf26cc128b9335`.
 - [isomorphisms/ib PR #135, “Project source-linked retained items and prepare Pensieve actions”](https://github.com/isomorphisms/ib/pull/135), source `39cc7257f9434f24f1aba390d40bd16c05b1f212`, remains the S08 Home projection.
 - [isomorphisms/ib PR #134, “Move Long View lifecycle dispatch into Idriç and exercise its direct-DEX path”](https://github.com/isomorphisms/ib/pull/134), source `41d4cae9c15e42d3b0b4ed4ed957ba86a7ac396a`, remains the lifecycle diagnostic.
 - [isomorphisms/catfood PR #156, “Discover TAB_P10 hardware and storage without assuming phone state”](https://github.com/isomorphisms/catfood/pull/156), source `0e73eada1193b9b7de55defacfdf425b35101de7`, remains the tablet discovery workstream.
@@ -127,178 +140,360 @@ parts, unsupported raw spans, assets and source/inventory digests. Its selected
 path derives from actual parent links, not mapping iteration order. It has no
 provider send operation. The native C1 and browser/offline V2 envelopes remain
 distinct supported interfaces. No user archive was supplied; retained test
-archives are synthetic. A cross-app Android archive handoff/viewer is still
-unimplemented, and the existing Android shell's success does not qualify one.
+archives are synthetic. The new native reader uses the same shared Material
+controls, an app-owned checked `onClick(View)` declaration, and existing private
+workspace selection. Its explicit READ_SAVED entry constructs neither bridge
+nor WebView. A capture-menu reader temporarily retains the existing capture
+root and returns to it on Close; it refuses entry during an archive operation.
 
-## Qualification and independent refusals
+Archive verification, JSON/role/part decoding and Android ICU grapheme paging
+run on one detached worker. UI publication contains at most2048 UTF16 units,
+reuses Views and rejects stale request revisions. One outstanding verification
+across Activity destruction prevents accumulating snapshots during repeated
+recreation; the unavailable state is visible and recoverable with Back/reopen.
+No UI-thread verification join is introduced. Page and part navigation retains
+the selected-parent path; canonical all-branch inventory is separately labelled.
+Unknown provider roles come from verified original metadata. Unknown/asset
+blocks display their actual raw metadata, without inventing asset acquisition.
+TextView selection/copy remains native. Reopen restores archive data, not a
+prior viewport or a live page.
 
-Source review, host execution, packaging, ART and physical observations remain
-separate. API35 is NOT_RUN; the maintained product matrix uses APIs29/34.
+This source uses ICK for the new JNI renderer and C1 projection, followed by
+NDK assembly/link. Legacy capture/WebView platform C keeps its explicit NDK
+qualification gap. The standalone signed x86 production-code test package uses
+the existing fixture namespace/signature/UID and actual captured synthetic
+archive, without its synthetic transport. That namespace is distinct from the
+deliverable ARM64 app. Independent ai-ci6cfacc59/fc5e5fca observes actual text, roles,
+branch callback, framework copy, compositor, offline reopening and unchanged
+archive bytes, then corrupts an actual normalized file and requires refusal.
+At source41132f68 the producer additionally passes byte-identical signed ARM64
+reproduction and actual API34 viewing with the qualified6cf observer. The
+independent29/34 observations of unchanged final411 bytes are scoped below.
 
-| Source-bound check | Receipt | Result and limit |
+Exporter reuses the existing source-bound ICK cross compiler stages from IB
+producer `82cc8716b3feb05a05e5aa7fa0bac7b4db40f8c6`, ICK source
+`fbe86e23d55cfec2000c08e61deea2a407fd7175`. ARM64 compiler artifact12240678290
+ZIP SHA-256 is `16525b18ca3cb38848be6f6ea35527eee218e52a0934a4719c7fda6a3332edd7`;
+x86_64 artifact12240692135 is
+`9fdd4788b872f355545ad177a825fd9aa99f04bddc07d1615efeb9348652f3ac`.
+The final producer requalifies these actual target compilers against NDK29
+before compiling new owned UI/C1 source: glyph/Bionic, API25 rejection,
+atomics, complex values and branch protection. Target-prefixed GCC paths remain
+honest. This does not relabel an older qualification or compile the new owned
+renderer with NDK Clang. Source-stage and qualification receipts are retained
+in the producer artifact. Existing legacy capture platform-C compilation remains
+the explicit exception awaiting separate migration.
+
+
+## Visible-surface regression and actual input qualification
+
+The first Activity-content repair passed accessibility actions against an
+**invisible view tree**. Old signed FastChat
+`bdae9a45abca9d7a75aaeb2e6b93e971a06f3760` has black API29 and API34 startup
+screenshots. Real API29 key dispatch timed out in run41762938888 while
+InputDispatcher reported no focused input window. Its earlier semantic checks
+do not qualify a functioning visible app. That APK is superseded.
+
+Android10 platform [NativeActivity.java](https://github.com/aosp-mirror/platform_frameworks_base/blob/android-10.0.0_r47/core/java/android/app/NativeActivity.java)
+claims Surface and InputQueue before native startup.
+[Window.java](https://github.com/aosp-mirror/platform_frameworks_base/blob/android-10.0.0_r47/core/java/android/view/Window.java)
+and [PhoneWindow.java](https://github.com/aosp-mirror/platform_frameworks_base/blob/android-10.0.0_r47/core/java/com/android/internal/policy/PhoneWindow.java)
+define their release. Shared `m3_framework_window` clears both callbacks before
+Decor attachment and refuses late/failed handoff. FastChat759605c4 calls it.
+Native lifecycle/controller remains; Canvas comparison stays separate. IB's
+ordinary checked Activity has no NativeActivity claims and retains the
+compatible shared predecessor1f9c30aeb7cc719075ed470b6135c4cc8ce194ca.
+
+Independent FrameProbe now samples actual compositor pixels at actual Send and
+Setup Button bounds. Each must match its real semantic fill within two RGB
+levels, and fills must differ. A populated layout/accessibility tree cannot
+pass. The old signed bdae APK must reach the exact compositor refusal, not a
+crash, timeout or missing sampling control.
+
+The separate IME observer uses an empty isolated durable store. It requires an
+actual system keyboard window, resized content, focus and composer bounds,
+injects real ASCII/Enter events after Unicode/combining/RTL text, checks exact
+multiline text, dismisses the keyboard with Back and verifies the journal stays
+empty. An actual ADJUST_NOTHING mutation must fail precise geometry admission.
+This does not prove language-specific composition or physical typing.
+
+IB6f's actual retained-document screenshots separately exposed old XML
+backgroundTint values surviving the native shared background. Shared dark text
+then appeared on legacy dark buttons, while the new untinted History Button
+was correct. IBa6ef removes those conflicting XML tint attributes. Independent
+ReaderFrameProbe compares live Sources/History compositor pixels to their actual
+shared neutral fills and saves that live frame before instrumentation ends.
+The actual inflated-control tint mutation must reach the exact compositor
+refusal. Earlier6f source/reader semantic passes do not establish correct colors.
+The D059 observer additionally proves dark pixels reached the live compositor
+before asserting refusal. The earlier9efa tint negative returned ordinary PASS
+and failed the gate; setter completion was insufficient activation evidence.
+The stronger observer passed both APIs on a6ef before producer994 pinned it.
+In [run41769213879](https://github.com/isomorphisms/ai-ci/actions/runs/41769213879),
+API29 job126374870133 executed the old signed6f artifact through its reader,
+acquisition, offline and provenance checks, then failed precisely
+`FAIL IB semantic surfaces differ from actual compositor`. This is a reproduced
+bad-producer failure, not a passing full workflow.
+API34 job126374870421 in that same repeat stopped earlier at the declared
+emulator reboot-transport deadline; it did not reach the new compositor check
+and cannot count as a theme refusal or passing qualification.
+
+The da920 repeat of FastChat had two corrupt emulator SDK archive failures
+before boot. Its API34 IME case separately failed final Back geometry after
+typing; it is not an infrastructure failure. That probe sampled once after500ms.
+Source4c41 retains all state requirements, observes asynchronous restoration
+with a bounded40*50ms deadline, fails immediately if Activity finishes and logs
+actual baseline/current height, keyboard top and finishing state on refusal.
+This deadline is not an interaction-latency benchmark.
+
+## Source-bound qualification
+
+API29/34 runtime below means x86_64 emulator ART. ARM64 ART and physical
+acceptance remain separate. API35/36 runtime is NOT_RUN, including where IB's
+manifest targets36.
+
+| Source-bound check | Receipt | Outcome and limit |
 | --- | --- | --- |
-| FastChat `bdae9a45abca9d7a75aaeb2e6b93e971a06f3760`, producer | [41754800398](https://github.com/isomorphisms/fastchat/actions/runs/41754800398) | PASS reproducible ARM32/ARM64/x86_64 APKs, signing and API29/34 actual controls/paging/Stop/multiline Unicode/exact copy/two durable turns/prior-turn selection/secure settings. IME and physical use NOT_RUN. |
-| Same FastChat source, actual ICK core/worker | [41754800418](https://github.com/isomorphisms/fastchat/actions/runs/41754800418) | PASS store/retry/replay, independent pthread worker and real reversed-order/stale-publication mutations. |
-| Same FastChat source, typed semantics and HTTP2 | [Idriç41754800578](https://github.com/isomorphisms/fastchat/actions/runs/41754800578), [HTTP241754800596](https://github.com/isomorphisms/fastchat/actions/runs/41754800596) | PASS; HTTP2 uses credential-free qualification, not a claim of a live paid provider conversation. |
-| ai-ci `a4037d59ed203ff8b36db20416f094d3d0e9308d`, independently downloaded exact signed FastChat | [41756196770](https://github.com/isomorphisms/ai-ci/actions/runs/41756196770) | PASS all five jobs: API29/34 current APK, independently compiled worker/mutations, actual signed old Activity-ownership producer refusal, actual signed missing-secure-window producer refusal. |
-| IB `a30381aee243d56d83da19befe64e2f84ebccfc9`, source/build | [41748455979](https://github.com/isomorphisms/ib/actions/runs/41748455979) | PASS checked DEX emission/independent decoding, three ABI compilation, stable signing and byte-identical APK reconstruction. Overall runtime jobs FAIL; see the narrower results below. |
-| Same IB source, original API29 ART | [artifact13287828092](https://github.com/isomorphisms/ib/actions/runs/41748455979/artifacts/13287828092) | Source/reflow/anchors/large-source/parcelable/installed reader/navigation/fragment/Activity ownership coordinators PASS. Presentation mutation lacks its diagnostic; root-transition snapshot FAIL; following History UI BLOCKED by offline emulator. |
-| Same IB source, original API34 ART | [artifact13288642249](https://github.com/isomorphisms/ib/actions/runs/41748455979/artifacts/13288642249) | Actual History/Reader View/text/selection/scroll preservation and retained-source selection PASS. Presentation mutation diagnostic FAIL; entire job is not PASS. |
-| ai-ci `ba24eb20ababbcf6933973ef67d248f1f0f51e59`, unchanged IB APK requalification | [41756980836](https://github.com/isomorphisms/ai-ci/actions/runs/41756980836) | PENDING at this checkpoint. Downloads original source-bound archive; rebuilds only external probe; preserves producer APK/DEX identities. |
-| Exporter `6c84de4b8c4fe298c2bb61386b7158833249aca4` | [41703456445](https://github.com/dilapidated-shed/ChatGPTExporter/actions/runs/41703456445) | PASS independent read-only archive/selected path/roles and actual compiled role/reversed-path/version mutants. Actual disk fixtures are synthetic; no user archive or native viewer is qualified. |
-| Same Exporter source, Android shell | [41703456385](https://github.com/dilapidated-shed/ChatGPTExporter/actions/runs/41703456385) | PASS capture-shell boundary; not archive-viewer acceptance. |
-| android-NDK `1f9c30aeb7cc719075ed470b6135c4cc8ce194ca` | [41690275331](https://github.com/isomorphisms/android-NDK/actions/runs/41690275331) | PASS canonical checked DEX/JNI; consumer ART evidence remains separate. |
+| FastChat759605c4 reproducible producer | [41766075259](https://github.com/isomorphisms/fastchat/actions/runs/41766075259) | PASS signed ARM32/ARM64/x86 APK reproduction and API29/34 semantic controls, paging, Stop, exact clipboard, durable turns/history and secure settings. Compositor/IME are separately required below. |
+| Same FastChat core/worker and HTTP2 | [41766075298](https://github.com/isomorphisms/fastchat/actions/runs/41766075298), [41766075366](https://github.com/isomorphisms/fastchat/actions/runs/41766075366) | PASS store/replay/retry/worker/mutations and credential-free transport qualification; not a paid-provider request. |
+| Same FastChat typed semantics | [41766075166](https://github.com/isomorphisms/fastchat/actions/runs/41766075166) | PASS existing Idriç conversation semantics. |
+| Independent ai-ci8528c49e FastChat | [41767027593](https://github.com/isomorphisms/ai-ci/actions/runs/41767027593) | PASS all ten jobs: actual conversation controls on API29/34, visible compositor surfaces and real IME/key/Back on both APIs, targeted signed ownership/settings/black-surface producers, actual broken resize integration, independent worker/mutations and ARM64 signature/ABI/source/tamper inspection. |
+| Follow-up ai-ci4c41cf77 FastChat, same759 APK | [41769213192](https://github.com/isomorphisms/ai-ci/actions/runs/41769213192) | PASS all ten jobs after the bounded asynchronous Back observation. API29/34 compositor, actual IME input and unchanged final restoration/journal requirements pass. Same exact signed source/ABI/settings/ownership/frame/resize/worker controls remain required. |
+| IB tint repair a6efebaf producer | [41768558936](https://github.com/isomorphisms/ib/actions/runs/41768558936) | Source/three-ABI reproducibility PASS. Both Android jobs FAIL the old negative observer after actual good-color/history assertions; a tint setter return did not prove that the mutation had reached the compositor. Not a whole-run PASS. |
+| Independent ai-ci9efa0c9b, unchanged signed IB a6efebaf | [41773741372](https://github.com/isomorphisms/ai-ci/actions/runs/41773741372) | API34 actual source/history/compositor positive PASS; required tint negative returned ordinary PASS and therefore the job FAILS. No passing negative inferred. |
+| Independent ai-ciD059, same a6efebaf bytes | [41775440050](https://github.com/isomorphisms/ai-ci/actions/runs/41775440050) | API29/34 PASS after requiring actual dark-pixel mutation activation before the unchanged precise refusal assertion. Ordered durable history remains unchanged. This observer was qualified before IB consumed its pin. |
+| IB994dbe27 final producer | [41776460289](https://github.com/isomorphisms/ib/actions/runs/41776460289) | PASS source/checked DEX/three-ABI signed byte reproduction and both API29/34 real reader/acquisition/source-history/UI/compositor/tint-negative gates with the qualified D059 pin. |
+| Independent ai-ci4c6da077, unchanged final IB994dbe27 APK | [41781023723](https://github.com/isomorphisms/ai-ci/actions/runs/41781023723) | API34 PASS all required source/callback/capability/provenance/acquisition/offline/History/Reader/compositor gates and activated actual tint refusal. API29 FAIL before emulator boot (TCP5554 refused/boot deadline); no app execution result. |
+| Follow-up ai-ci70d9d1ec, unchanged final IB994dbe27 APK | [41782774097](https://github.com/isomorphisms/ai-ci/actions/runs/41782774097) | API29 PASS. Original API34 stopped before boot; one rerun passed native capability/acquisition/reflow/copy/offline gates, then failed the120s emulator-reboot transport deadline before History UI. Not a passing whole matrix, and not a new application refusal. |
+| Independent ai-ci6cfacc59, unchanged final IB994dbe27 APK | [41790878088](https://github.com/isomorphisms/ai-ci/actions/runs/41790878088) | API29 and34 PASS all required source/callback/capability/provenance/acquisition/offline/History/Reader/compositor gates and the activated actual dark-tint refusal. |
+| Follow-up ai-ci4c6da077 FastChat, unchanged759 APK | [41781023332](https://github.com/isomorphisms/ai-ci/actions/runs/41781023332) | PASS all ten jobs, including real compositor/IME/key/Back API29/34, signed bad producers, broken resize, worker and ARM64 inspection. |
+| Independent ai-ci6cfacc59 FastChat, unchanged759 APK | [41790877894](https://github.com/isomorphisms/ai-ci/actions/runs/41790877894) | PASS all ten required jobs; no new FastChat product build or source relabelling. |
+| IB6f88d23d producer | [41760151727](https://github.com/isomorphisms/ib/actions/runs/41760151727) | PASS checked DEX/independent decode, 3ABI compilation, byte-identical signing and both API29/34 reader, acquisition, provenance, lifecycle, navigation and History/Reader gates. |
+| Independent ai-ci8528c49e unchanged IB APK | [41767028106](https://github.com/isomorphisms/ai-ci/actions/runs/41767028106) | API29 and API34 PASS: exact-source typed revision/callback mutations, actual installed acquisition/capability controls, provenance refusal, offline history and History/Reader View/selection/scroll/source identity. Independent external probe rebuilt; no product APK recompiled or modified. |
+| android-NDK b2ee1912 | [41764933438](https://github.com/isomorphisms/android-NDK/actions/runs/41764933438) | PASS canonical checked DEX/JNI, independent decode, framework/ICU ART and mutations. New handoff's actual screen/input evidence belongs to FastChat. |
+| Exporter6c84de4b | [41703456445](https://github.com/dilapidated-shed/ChatGPTExporter/actions/runs/41703456445) | PASS independent real C1 read-only adapter and compiled role, selected-parent-path and component-version mutants. Actual disk archives are synthetic; no Android archive viewer qualified. |
+| Same Exporter capture shell | [41703456385](https://github.com/dilapidated-shed/ChatGPTExporter/actions/runs/41703456385) | PASS capture boundary only. |
+| First actual Exporter native viewer4aec7193 | [41787433847](https://github.com/dilapidated-shed/ChatGPTExporter/actions/runs/41787433847) | PASS checked app callbacks, ICK projection/UI source and NDK link, signed ARM64 byte reproduction, actual API34 production-code read-only view/role/branch/copy/compositor/offline reopen/no archive writes/corrupt-source refusal. Distinct synthetic fixture namespace; not user-data or ARM64 runtime acceptance. |
+| Exporter b2ef2af6 stronger producer | [41788146871](https://github.com/dilapidated-shed/ChatGPTExporter/actions/runs/41788146871) | Source/reproduction and valid native views PASS. Deliberate signed bad producer crashed from an unrelayed UI-thread assertion; required precise rejection was absent, so the runtime job FAILS. No generic crash accepted as a negative pass. |
+| Independent ai-ci6cfacc59, unchanged b2ef2af6 APKs | [41790878034](https://github.com/isomorphisms/ai-ci/actions/runs/41790878034) | Both API29/34 PASS independently reconstructed actual C1 archive, SDK/source/ABI inspection, actual archive digests/roles/branch/framework copy/compositor/reopen, unchanged archive bytes, exact signed control-guard mutant rejection and corrupt-source refusal. Product APKs not recompiled. |
+| Final Exporter41132f68 producer | [41791869583](https://github.com/dilapidated-shed/ChatGPTExporter/actions/runs/41791869583) | PASS all three jobs: current checked DEX, ICK new UI/C1 source with fresh NDK29 qualification, both native ABI payloads, byte-reproduced established ARM64 signature, actual API34 production UI and both meaningful refusals. Uses already qualified6cf observer and8dp control gaps. Legacy platform-C qualification gap remains declared. |
+| Independent final Exporter41132f68, ai-ci fc5e5fca | [41792856962](https://github.com/isomorphisms/ai-ci/actions/runs/41792856962) | Both API29/34 PASS on unchanged final production bytes: independently reconstructed captured C1 disk data, exact source/SDK/signer/ABI, native roles/branch/copy/compositor/offline reopen, no archive writes, precise signed control-guard mutation rejection and actual corrupt-source refusal. Actual user archive and physical NOT_RUN. |
+| Final fc5e5fca FastChat repeat, unchanged759 APK | [41792856875](https://github.com/isomorphisms/ai-ci/actions/runs/41792856875) | All ten jobs PASS, including actual signed candidate, API29/34 native/IME, source-order/revision, ownership/secure-window/compositor/keyboard and artifact negatives. |
+| Final fc5e5fca IB repeat, unchanged994 APK | [41792856831](https://github.com/isomorphisms/ai-ci/actions/runs/41792856831) | API29 PASS. API34 capability/acquisition/reflow/copy/offline gates PASS, then emulator failed to return within the120s reboot-transport bound before History UI. Whole API34 job FAIL; not a new application assertion refusal and not a whole-matrix pass. Preceding6cf unchanged-source both-API PASS remains separately recorded. No retry of this run. |
+| Historical IBa303 independent | [41758756603](https://github.com/isomorphisms/ai-ci/actions/runs/41758756603) | API29/34 PASS unchanged signed bytes, semantic/callback/capability mutants, acquisition, offline history and reader/history preservation. Not promoted to new6f source. |
 
-The first worker test launcher failed because renaming the verified Grease
-implementation binary broke its applet dispatch. The corrected invocation uses
-the same verified implementation path; source scripts remain Grease. A later
-oracle incorrectly assumed attempts restarted at1 for each request. Actual
-conversation-wide identity disproved that assumption in run41750520306. The
-corrected independent fixture includes explicit retry and requires attempts3/4/5
-for requests2/3/4. Producer semantics were preserved.
+Critical controls compile actual worker mutations reversing turn order and
+bypassing stale publication; typed IB mutations bypass revision admission and
+change onClick(View) to onClick(Int32). Installed IB capability mutants bypass
+UID/death/flags/stale authorization. Archive mutants corrupt roles/path/version.
+Each requires the intended diagnostic; compile failures or crashes cannot pass.
 
-IB's negative ART workbench control raised an uncaught AssertionError that
-`app_process` exposed only as `Killed`. This did not satisfy its required
-diagnostic and was never called a passing refusal. The independent probe now
-prints the exact semantic refusal and deliberately exits42; both the source
-revision and callback controls require status42 and their intended diagnostic.
-A crash or loader failure cannot pass. The original good/mutant producer DEX
-remains unchanged. The API29 root-transition repair admits only the observed
-status1 `adb: unable to connect for root: closed`, then still requires connection
-within30 seconds and verified root UID before reading source bytes. Other errors
-fail. This is emulator observer plumbing, not device root authorization.
+Actual signed FastChat producers test Activity ownership0c5288a2,
+secure settingsaaabc570 and compositor failurebdae9a45. Host artifact controls
+reject wrong source, wrong ABI and changed signed bytes using actual SDK
+verification. Loader failure in IME source68ec was not counted as a passing
+negative. Corrected709e run41762938888 passed API34 IME and the resize mutation,
+but API29 key dispatch timed out and exposed the black-screen flaw; that whole
+run is not PASS.
 
-Independent FastChat evidence was downloaded and ZIP-hashed again:
+Exact old signed producers retained solely as rejection controls:
 
-| Actual artifact | SHA-256 of retained ZIP | Outcome |
+| Boundary | Actual rejected source | Producer run / x86 artifact |
 | --- | --- | --- |
-| [Current API29,13287868838](https://github.com/isomorphisms/ai-ci/actions/runs/41756196770/artifacts/13287868838) | `f025a832a153d9deea1ffdfe0580be8f79885139dbf05a16d88ce0ece5d80b6d` | PASS |
-| [Current API34,13287833390](https://github.com/isomorphisms/ai-ci/actions/runs/41756196770/artifacts/13287833390) | `4a6ea5d87ee85efd8a83206b098781f979d30b6090a0c6f1aa4357092046a05d` | PASS |
-| [Old content-owner control,13288442786](https://github.com/isomorphisms/ai-ci/actions/runs/41756196770/artifacts/13288442786) | `009648dd6b9d3a94f73410dfc030061428f6ba79dc2f606b5d6340451a96326f` | Actual signed `0c5288a207595a0d6924875731091092595fa711` rejected for Activity hierarchy ownership |
-| [Old settings control,13287673435](https://github.com/isomorphisms/ai-ci/actions/runs/41756196770/artifacts/13287673435) | `2b7e714a5e54a6bf8eac28b741d370fb119bb71d9a784b9e21027a23c85ab1bd` | Actual signed `aaabc570c4416fd3e39fc72154ba176fe750853f` rejected for unprotected settings window |
-| [Independent worker,13288911762](https://github.com/isomorphisms/ai-ci/actions/runs/41756196770/artifacts/13288911762) | `959f8d8b5d38c6a8a1821d1403a47eb95d8129c3f7e2e8f8e7bf960589407d4a` | PASS actual source and intended mutation refusals |
+| Activity content ownership | `0c5288a207595a0d6924875731091092595fa711` | 41751490657 /13286571421 |
+| Secure settings window | `aaabc570c4416fd3e39fc72154ba176fe750853f` | 41753731428 /13286189228 |
+| Visible framework compositor | `bdae9a45abca9d7a75aaeb2e6b93e971a06f3760` | 41754800398 /13288600748 |
+| IB XML tint integration | `6f88d23d337c17e076ded68a308542f0955b921e` | 41760151727 /13290449853 full archive; independently rejected by API29 in41769213879 |
 
-The original IB API29 diagnostics ZIP is
-`9e2d0144bacd1f3a54d51f6f916406803fe9a1750a460960135e96fa78e0f331`;
-API34 is `bd9a19fd687f6b0915a9800a500da1e693a1d62c34abfd44ff6cc8af69f964db`.
-Expected failing producer controls inside those jobs are distinct from a failed
-required coordinator. `required.tsv` records each actual coordinator exit.
+The resize and tint controls also mutate actual live Window/View state in the
+observer. They do not replace the application with a mock or count generic
+crashes as refusals.
 
-## Signed Android candidates
+The archive UI has a separately compiled, signed production-code mutant with
+one actual View-object identity admission guard deleted. A same-ID foreign
+View must leave the current control enabled; the mutant admits it and disables
+that control synchronously, reaching the precise rejection. Its source patch,
+native binary, APK and hashes are retained. The repaired observer relays the
+original UI-thread Throwable to its result handler; Android14's
+[Instrumentation.SyncRunnable](https://github.com/aosp-mirror/platform_frameworks_base/blob/android-14.0.0_r1/core/java/android/app/Instrumentation.java)
+does not catch Runnable exceptions. That preserves the assertion and prevents
+an uncaught process death from substituting for a semantic refusal.
 
-| Candidate | Exact source | Package / ABI / bytes | APK SHA-256 |
+Earlier IB emulator capacity/adbd failures were repaired in the harness:
+verified selected bytes are retained, the exact verified archive digest is
+rechecked before pruning guarded job-owned paths, and4GiB free space is required.
+Only the exact observed root-transition status1 diagnostic permits bounded
+reconnect plus verified root UID. The independent Smali probe prints its
+semantic refusal and exits42; source/callback controls require both, rather
+than accepting an uncaught AssertionError exposed only as “Killed”.
+
+## Signed Android artifacts and installation
+
+| Candidate | Exact source | Package / ABI / size | APK SHA-256 |
 | --- | --- | --- | --- |
-| [FastChat C67 artifact13288111471](https://github.com/isomorphisms/fastchat/actions/runs/41754800398/artifacts/13288111471) | `bdae9a45abca9d7a75aaeb2e6b93e971a06f3760` | `org.isomorphisms.fastchat.diskstreaming.arena`, version7 / `0.7-native-material-candidate`, min26/target34; ARM64; 2,319,187 bytes | `df713beb48277b54ffc6e1c20eef6da6b502f0deeaeb9122af435df9a9815bfa` |
-| [IB reader/history artifact13286138443](https://github.com/isomorphisms/ib/actions/runs/41748455979/artifacts/13286138443) | `a30381aee243d56d83da19befe64e2f84ebccfc9` | `org.isomorphisms.ib.prepaint`, version3 / `0.3.0`; universal ARM32/ARM64/x86_64; 10,372,647 bytes | `1dec51d8711f17e941aa5ccf0cf0adb05819b68e7fcec78ae120c346bddd94b0` |
+| [FastChat13293216565](https://github.com/isomorphisms/fastchat/actions/runs/41766075259/artifacts/13293216565) | `759605c434fc94b6ea3ce604710f8340a36918a8` | org.isomorphisms.fastchat.diskstreaming.arena; version7/0.7-native-material-candidate; min26/target34; ARM64; 2,319,187 bytes | `e7f1d847cfea4c1dccee164c643ded8c3b57f5b82d62aa6112188e0c9f435936` |
+| [IB13297599590](https://github.com/isomorphisms/ib/actions/runs/41776460289/artifacts/13297599590) | `994dbe273d5d198525a34e55feb9fd007827e4a4` | org.isomorphisms.ib.prepaint; version3/0.3.0; min29/target36; universal ARM32/ARM64/x86_64; 10,372,647 bytes | `50a38c613a89c3e1ea3dbfd954ba5917c5e18ef44f27f297eae61ffcd76a4b47` |
+| [Exporter13304221264](https://github.com/dilapidated-shed/ChatGPTExporter/actions/runs/41791869583/artifacts/13304221264) | `41132f68f2b74cb4f2a4f5c7fdbba8a2c96543d2` | org.isomorphisms.chatgptexporter; version5/0.4-native-reader-candidate; min26/target34; ARM64; 94,924 bytes | `1d402d9d908b4d25662fb9bfba3b4509997d7d38c7caf5f174619939c54ac98f` |
 
-FastChat uses established public development certificate SHA-256
-`aa9151e3922fa4795987c3655bc7aa4712620f1d94c24a2075acd7b29d8ac86e`;
-IB uses established test certificate
-`de9b1d47c5a65e6d46a204b79dd9ee566b9d3c9832ba81ebc4213d3392e92ff9`.
-These are signed development candidates, not store/production releases.
-Source jobs verify manifests, signatures and reproducibility. Independent ART
-jobs inspect the actual installed APK identity and signer separately.
+Established public development/test certificate SHA-256:
+FastChat `aa9151e3922fa4795987c3655bc7aa4712620f1d94c24a2075acd7b29d8ac86e`;
+IB and Exporter `de9b1d47c5a65e6d46a204b79dd9ee566b9d3c9832ba81ebc4213d3392e92ff9`.
+These are development candidates, not production/store releases.
+Checked572-byte Action.dex remains
+`24e37795b5c8001a280b9f5f46c64ed510660358fb42f2a7109b52e2a5c067ad`.
 
-| Other build artifact | ZIP SHA-256 |
-| --- | --- |
-| FastChat C67 ZIP13288111471 | `d2f35e157ed78281f25351e817ac228152564b8b3c27f0f9c79b6f3380ef47c5` |
-| [FastChat A1 ARM32,13287911447](https://github.com/isomorphisms/fastchat/actions/runs/41754800398/artifacts/13287911447) | `60702f538a8f085850bbeafe52b9001ffb7487a04100a29f548aca07a18b0607` |
-| [FastChat x86_64,13288600748](https://github.com/isomorphisms/fastchat/actions/runs/41754800398/artifacts/13288600748) | `6d6e1add5115c067211e390d96a3f0e611d6b361b0c50b73f22e4a522c7190f9` |
-| IB signed candidate ZIP13286138443 | `672a4ec631621232a5998b5a43d8039399c8877b652d917ab281c497ff8b7f53` |
+Downloaded ZIP digests match GitHub artifact digests and actual extracted APKs:
+FastChat ARM64 `bc9b2fada46c5b29f198d8fc3033abcb3a6e1882db5054a6d0cb818394dfcbc9`;
+IB candidate `343e2666266a19a115c8b7772a0707d20ac270e0c0e2b26cc24fb83bb1378879`.
+IB full source archive13299215602 (verified by source-bound input guards):
+`973328d29c109d7efa898a04b97e05fb9ca77c88b48bf943773855a4a25cbde8`.
+FastChat x86 artifact13292987492:
+`c60253da29ccc4341d9b007533f41567da56c70e752350b7f821f6935b6caefc`;
+ARM32 artifact13292274462:
+`762f1bbd8216353beebc9c7365d8fdd141894c833c9299d74da862edf1837e05`.
+Exporter final ZIP13304221264:
+`24d3d5b13862d280c65c60f90cedafc99d4d7252406d396a7def1dea820a8b2c`.
+Its signed ARM64 repeat hashes are both the1d402d9d digest above; unsigned
+repeats are both `e6afe08adac6062e3b50127b24e5a2c3029e77f858e968b09cd5cd2627a9f15b`.
+Production-code x86 test APK is
+`ecb949038f4d4ffd5b9692b0e791d16b095d821b808f93cc7c8ad93690ab3d1e`;
+its namespace is `org.isomorphisms.chatgptexporter.e1fixture`, version1.
+It contains the actual production transport/renderer, while its existing test
+namespace permits keeping the actual captured synthetic archive and UID.
+This namespace and x86 execution are not ARM64 device acceptance.
+Independent SDK signature/manifest/source/ELF checks are a distinct acceptance
+job, not merely trust in producer receipts.
 
-Downloaded FastChat receipt/schema/material/APK/DEX checks passed the maintained
-strict v3 verifier. `readelf` on the actual extracted C67 library confirms
-ELF64/AArch64 with only libandroid, liblog, libc, libm and libdl dependencies.
-The exact source is embedded in that library. The checked572-byte callback DEX
-SHA-256 is `24e37795b5c8001a280b9f5f46c64ed510660358fb42f2a7109b52e2a5c067ad`.
-Local receipt/ELF inspection is not a second cryptographic signature check or
-a physical install.
+The following independent receipts were downloaded, ZIP hashes matched and
+their exact result/signature diagnostics inspected:
 
-Installation handoff: discover each device afresh; verify ABI, installed package,
-version/signer and free space before using the matching prebuilt APK. C67 uses
-the ARM64 FastChat candidate, A1 uses the separate ARM32 candidate when available.
-The IB APK is universal, but its tablet acceptance still requires fresh tablet
-facts. Use replacement installation and preserve existing data. If Android
-refuses signer/version compatibility, stop and report the mismatch; do not
-uninstall or clear storage. No compiler/build bundle belongs on either device.
-
-## Performance evidence
-
-These are single-run x86_64 emulator observations of FastChat
-`bdae9a45abca9d7a75aaeb2e6b93e971a06f3760`, observer
-`80d1fcd43305df0537e05c69c2bb5a90657185dd`. They include instrumentation
-overhead. Actual measurement receipts:
-[API29 artifact13288151032](https://github.com/isomorphisms/fastchat/actions/runs/41754800398/artifacts/13288151032),
-ZIP `1c97bc7a2313807159e6c4729217fcab910012c7c28c8cfb9977429b95ccd119`;
-[API34 artifact13288301418](https://github.com/isomorphisms/fastchat/actions/runs/41754800398/artifacts/13288301418),
-ZIP `aba96e33c4d8c1a10ffc431948074c140a0f844b971d1ead473483b08541c374`.
-Both ZIPs were downloaded and hashed again.
-
-| Metric | API29 | API34 | Scope |
-| --- | --- | --- | --- |
-| Cold Activity launch TotalTime | 188ms | 971ms | Android `am start -W`; not time to physical input |
-| Observer launch to discoverable composer | 123ms | 311ms | Instrumented launch, not cold/warm matched samples |
-| Peak process RSS, VmHWM | 173720kB | 126888kB | Runtime/mappings/observer included |
-| Process RSS at observation | 138212kB | 124468kB | Instrumented process |
-| Android PSS at observation | 31969KiB | 17750KiB | Different metric from RSS |
-| Cumulative process CPU | 251ms | 150ms | Not a percentage, streaming cost or thermal measurement |
-| Second am start | Existing Activity, WaitTime1ms | Existing Activity, WaitTime2ms | Not a warm startup sample; TotalTime0 is not zero launch cost |
-
-Post-instrumentation `dumpsys meminfo` says “No process found”; this is unavailable
-data, not zero memory. No matched native/Compose/Canvas hardware experiment ran.
-UI-thread stalls, incremental rendering cost, interaction latency distributions,
-physical startup/RSS/CPU/thermal and warm startup are NOT_RUN. Do not attribute
-differences across emulator runs to the renderer repair. The Compose reference
-APK size1,042,096 bytes at its different semantic/storage source is historical
-build evidence only; it cannot establish a relative efficiency claim.
-
-## Release blockers and per-workstream handoff
-
-The PR links above give each implementation branch and exact base. None was
-merged, closed, retargeted over an unresolved base, or promoted as a release.
-Current implementation heads are in the source ledger. Consumer pins differ
-intentionally from later independent observer commits.
-
-| Workstream | Integration status | Remaining dependency / next concrete action |
+| Artifact in independent FastChat run41767027593 | ZIP SHA-256 | Observed result |
 | --- | --- | --- |
-| FastChat | PARTIAL | Qualified native durable conversation exists. Complete Markdown/links, Share, attachments, search/wide layouts and remaining controller/store/transport I/O off the UI ALooper; qualify physical issue21. |
-| IB reader | PARTIAL | Preserve passing reader/source/selection gates. Finish unchanged-artifact requalification with exact diagnostic probes; separately diagnose inherited live progressive-prepaint failure. |
-| IB workbench | PARTIAL | Qualified API34 retained-source history exists. Integrate actual task/request/evidence/action state through existing IB owners; history visits alone are not the requested workbench. |
-| Pensieve, IB-owned | BLOCKED | Existing S08 Home projection/executor has no qualified bridge into the native retained-source arena. Connect source/revision/decision identity and actual persistence outcomes; do not invent another decision store. |
-| Longview, IB-owned | PARTIAL | Lifecycle diagnostic exists. Connect durable native task host and restored inputs before claiming recoverable integrated sessions; live cookies/forms/heap are separate. |
-| ChatGPTExporter | PARTIAL | Verified C1 read-only adapter exists with independent mutations. Android archive handoff/viewer remains unimplemented. No actual user export was found in the available title search; supplied test archives are synthetic. Sending must stay unavailable in imported views. |
-| android-NDK | PARTIAL | Shared controls/callback are consumed by two apps. Resolve checked-export-aliases base topology, then finish role/component accessibility/theme/font-scale qualification. |
-| Idriç | PARTIAL | Existing consumer pins execute; no new language/backend change proposed. Any required extension needs a reduced real failing consumer before implementation. |
-| ai-ci | PARTIAL | FastChat independent qualification complete for implemented scope; IB requalification active. Add remaining IME/recreation/theme/long-thread/stall assertions with meaningful negative controls. |
-| Cat Food / physical targets | BLOCKED | No current authenticated device channel. Discover C67 and TAB_P10 independently, inspect installed identity/capacity, then replacement-install exact signed candidates and exercise human input. |
-| utilities Android precedents / API reference | NOT_RUN for new integration | Reference inspection is complete; no product changes or matched physical comparator run. Preserve pinned AndroidX reference. |
-| climenu | NOT_RUN for Android | Qualify current command/stdin bridge before mapping its Idriç command descriptions to native controls. Canonical owner is dilapidated-shed. |
-| az | NOT_RUN for native migration | Existing first-party Java Android frontend cannot enter this product lane. Preserve canonical command/TSV/permissions/signer while implementing a checked native frontend. Canonical owner is Ashtray-Archer. |
+| API29 IME13293282610 | `4edac2d191aa000a7ed6d32988dd96bfb0e916f3348476497ada905b5a048680` | compositor, actual keyboard/input/Back and empty journal PASS |
+| API34 IME13293490684 | `3d4cdcfbd09c3325bf915f89580657fd17431fa412d340629ebc970978ffe3d7` | same actual positive assertions PASS |
+| Follow-up4c41 API29 IME13294282013, run41769213192 | `9ce8d7ef9dbe26a23f114b5d20bc0a3d99690e4225320a3b37ba5a5db34aa937` | compositor, actual input and bounded asynchronous Back restoration PASS |
+| Follow-up4c41 API34 IME13294780026, same run | `880df71e1ab1e23d3ba51756f7a35847b3eeb397d848d753ad8486e4c71f15e6` | same required state assertions PASS; not an interaction-latency benchmark |
+| Old signed black-surface13293306895 | `77a4441907331a72a6bc91a3e27dee4de473e440dc3d76feb0ebd42ea2075c6b` | exact compositor assertion REJECTED |
+| Broken resize13292803391 | `da18ebc891a18a31d10ca9f1d13dd42298e393629a34c597a085eddddd1efdf6` | exact keyboard geometry assertion REJECTED |
+| Actual C67 signed delivery13293097758 | `eae996cce8e6e2507d44bc48788d8b73374a6e75b9489b7b201ed495728766eb` | SDK verifies one v2 signer, declared ARM64/SDK/manifest, checked DEX, ELF64/AArch64 and source; wrong source/ABI and tampered signed bytes REJECTED. ARM64 ART and physical remain NOT_RUN. |
+| IB API29 artifact13293073980, run41767028106 | `10bbe8faea56d124977e56a4deb147350b2b4c0d902a95e345d37f31f8c9ee01` | Actual6f source, typed/callback/capability/provenance controls and History/Reader source/generation/order preservation PASS. SDK verifies one v3 signer matching the established IB certificate. |
+| IB API34 artifact13293416150, same run | `60b8e09ada3787d47268b7194da83115862d4d414a8e621f77c3da2aca6b4f0e` | Same required unchanged-product gates PASS; actual retained source and generation1 read back. End-of-instrumentation screenshot shows launcher, so it is not an IB visual reference. |
+| IB a6ef API29 artifact13296564170, run41775440050 | `e700c8e9e9354571341ba72e77c6c220cd126f88f3080df003b251af64754841` | Positive reader/history/compositor and activated actual dark-tint refusal PASS. Durable source/generation/order preserved. |
+| IB a6ef API34 artifact13297361319, same run | `622ff70c29db7df9d9b78b1f5e34a7828d0831386872cce1acac46a76bf11f68` | Same positive and actual activated negative PASS; both good and deliberately dark compositor frames inspected. |
+| Final IB994dbe27 API34 artifact13298814595, run41781023723 | `f2466b0afb0f352d3093e6d638bd5e61fcc820b8e922af92f1576a3f532cd9ff` | Unchanged installed APK, actual retained source/history, one established v3 signer, live good-color frame and precisely refused activated dark mutation inspected. |
+| Final IB994 API29 artifact13303557447, run41790878088 | `f5e3f45a39cce2a022b8be61f92a224b509a3db3b5f5505b91151a8fd3a18258` | Full independent actual-source/callback/capability/acquisition/offline/History/Reader PASS; preserved durable generation1, source and history; precisely rejected activated dark-tint mutation. |
+| Final IB994 API34 artifact13303333511, same run | `34fa564d2d90aec3d7ad8ffc004bfcab04095527e2ae8bdde91ff54a6e564b5d` | Same required gates PASS. Actual live good reader frame inspected; Forward wraps on320dp, so compact/font-scale qualification remains incomplete. |
+| Final Exporter411 API29 artifact13303992886, run41792856962 | `5afc721874a2d4a95b8506e9f8949256573478e7c79c92d45f4cc67dbe411cc6` | Actual reconstructed archive expected=verified1, full-account-complete=false. Source/roles/native view/reopen/copy/no writes PASS. Actual signed guard mutant returns CODE0 with exact same-ID assertion; corrupt normalized source returns CODE-1 with explicit refusal. |
+| Final Exporter411 API34 artifact13304262751, same run | `b50021365342c2f9c2e3a80a8fee06bddb2c778d1e110f7ab492856b07cc14d4` | Same required assertions and precise refusals inspected. Actual production-code frame viewed; eight real controls and readable source/role/body. Synthetic captured C1 data; actual user archive NOT_RUN. |
 
-The inherited live arXiv progressive-prepaint assertion fails in IB
-[browser-foundation41748456059](https://github.com/isomorphisms/ib/actions/runs/41748456059).
-Preceding actual HTML/image acquisition for four papers passed. Its silent
-assertion remains unresolved; this is not evidence of network unavailability
-and was not waived. Full semantic UI requirements also remain incomplete:
-virtualized history, Markdown blocks/links, attachment actions, search, tablet
-layout, live IME/focus/back/recreation and font/contrast/accessibility coverage.
-A bounded historical worker does not establish a fully nonblocking frontend.
+Installation handoff: discover each device, ABI, installed package, signer,
+version and free space afresh. C67 uses ARM64 FastChat; A1 uses its separate
+ARM32 APK only if functioning and compatible. Universal IB still requires min29
+and fresh tablet facts. Replacement-install while preserving data. On signer
+or version mismatch stop; do not uninstall or clear storage. No build tools or
+compiler bundles belong on the devices.
 
-## Physical acceptance
+On a matching device, open the downloaded APK from Downloads, select the Android
+package installer's Update action and then Open. Installation has not been
+performed by this campaign. If Android refuses the existing signer/version,
+record that result and keep the current app/data intact.
+IB's network acquisition also requires its existing authorized Shizuku/ICU
+worker route. Installing this APK does not provision that authority. Offline
+reopening requires actual retained source data; the empty/capability states
+are distinct from a functioning acquisition route.
 
-| Required physical exercise | MIRO C67 Android14 | SVITOO TAB_P10 | MIRO A1, functioning device conditional |
+## Performance and physical acceptance
+
+Single-run FastChat759605c4 observations, x86_64 emulators, include the runtime
+and observer. Cold screenshots were inspected and show actual framework UI on
+both APIs. These are not matched physical-device or renderer comparisons.
+
+| Metric | API29 | API34 | Limit |
+| --- | --- | --- | --- |
+| Cold Activity launch TotalTime | 920ms | 2329ms | am start -W; not first composited frame latency |
+| Instrumented launch to discoverable composer | 930ms | 2159ms | Includes instrumentation, not a warm/cold matched sample |
+| Peak process RSS, VmHWM | 184284kB | 123532kB | Process/runtime/observer included |
+| Observed process RSS | 145908kB | 123532kB | Not a bounded-memory long-thread proof |
+| Observed Android PSS | 34360KiB | 30067KiB | Distinct from RSS |
+| Cumulative process CPU | 1578ms | 1299ms | Not incremental cost, percent CPU or thermal behavior |
+| Second am start | Existing Activity; WaitTime4ms | Existing Activity; WaitTime8ms | Not a warm launch; TotalTime0 is not zero launch cost |
+
+Receipts: [API29 artifact13293156945](https://github.com/isomorphisms/fastchat/actions/runs/41766075259/artifacts/13293156945),
+downloaded ZIP SHA-256 `ba89cb7df91e652ff392cb1bfb7208524f35554b83e819c48357a4a894aabbe4`;
+[API34 artifact13292439133](https://github.com/isomorphisms/fastchat/actions/runs/41766075259/artifacts/13292439133),
+ZIP `a4658d2c30e05c13c8a58b2beb4bdf1ef421bf289d8d15528df1cf8e1692a406`.
+Post-instrumentation meminfo says no process found; that means unavailable,
+not zero memory. Differences between these emulator runs do not establish
+renderer efficiency or causation.
+
+No matched native/Compose/framebuffer semantic-fixture/hardware experiment ran.
+IB and Exporter startup, RSS and interaction-latency measurements remain NOT_RUN.
+Compose's historical1,042,096-byte APK used different managed storage and cannot
+establish efficiency. Warm startup, UI-thread stall distribution, incremental
+layout cost, long-conversation peak memory and physical CPU/thermal comparison
+are NOT_RUN. Earlier bdae launch/accessibility/RSS timings measured a black
+compositor frame; they are not usable-render startup or product comparison.
+
+| Required physical exercise | MIRO C67 Android14 | SVITOO TAB_P10 | MIRO A1, functioning conditional |
 | --- | --- | --- | --- |
 | Fresh identity/ABI, installed signer/version, capacity | BLOCKED | BLOCKED | NOT_RUN |
 | Replacement install and launch | BLOCKED | BLOCKED | NOT_RUN |
-| Long real thread, human paging/scrolling | BLOCKED | BLOCKED | NOT_RUN |
-| Multiline entry, actual IME/focus and Copy | BLOCKED | BLOCKED | NOT_RUN |
-| App switching, rotation/recreation and retained reopen | BLOCKED | BLOCKED | NOT_RUN |
+| Long thread, scrolling/pagination, touch feedback | BLOCKED | BLOCKED | NOT_RUN |
+| Multiline human entry and exact message copy | BLOCKED | BLOCKED | NOT_RUN |
+| App switching and rotation/recreation | BLOCKED | BLOCKED | NOT_RUN |
+| Offline retained-content reopen | BLOCKED | BLOCKED | NOT_RUN |
 | IB reader separately | BLOCKED | BLOCKED | NOT_RUN |
-| IB workbench separately, then actual source navigation | BLOCKED | BLOCKED | NOT_RUN |
+| IB history/workbench separately and reader transition | BLOCKED | BLOCKED | NOT_RUN |
 
-Historical C67 ARM64/API34 facts are not fresh physical discovery. TAB_P10 facts
-must come from that tablet. A1 acceptance cannot come from C67, ARM32 compilation
-or an emulator. No physical PASS, production release or full campaign completion
-is claimed. The deliverables are independently usable integration branches,
-signed candidates and the source-bound qualification receipts listed here.
+No authenticated live device channel exists. Emulator observations do not
+qualify C67, TAB_P10 or A1. The physical pagination report remains open:
+[isomorphisms/fastchat issue #21](https://github.com/isomorphisms/fastchat/issues/21).
+The branch's black-surface regression does not establish the cause of the
+original physical v6 Canvas “Unresponsive” report.
 
+## Release status and next concrete actions
+
+The focused PR links above give each exact base/branch. All five implementation
+PRs remain drafts; no merge, close, retarget over an unresolved base or release
+was performed. Source heads are in the ownership ledger. A later documentation
+head must not be confused with tested acceptance sources6cfacc591b5e6b187547b4409e976772f319c28b
+and fc5e5fca71b9d8d5831619b7a9a0130e449a93a6. The latter passes archive29/34
+and all ten FastChat jobs; its IB29 passes while IB34 stops at emulator reboot.
+The preceding6cf IB matrix passes both APIs. Documentation publication does not
+relabel pending automatic reruns as passing.
+
+| Workstream | Integration | Remaining dependency / next action |
+| --- | --- | --- |
+| FastChat | PARTIAL | Visible/IME emulator qualification passes; physical issue21 remains. Add Markdown/links/Share/attachments/search/wide layout; move remaining controller/store/transport I/O off UI ALooper. |
+| IB reader | PARTIAL | Preserve passing API29/34 source/reader gates; diagnose inherited live scientific-media assertion separately. |
+| IB workbench | PARTIAL | Retained-source History/Reader works; connect actual task/request/evidence/action state through IB's existing owners. Visits are not task history. Move synchronous history reads/projection and the bounded128-control rebuild behind asynchronous ownership and measure incremental cost before claiming a fully nonblocking workbench. |
+| IB browser frontend | NOT_RUN | Preserve existing browser frontend and source authorities; integrate shared presentation through its actual task/controller interface and qualify it separately. No browser frontend changes were made by this campaign. |
+| Pensieve, IB-owned | NOT_RUN (native integration) | Connect existing S08 producer/executor and actual persistence outcomes to native source arena while preserving identity and authority. This missing implementation is unfinished work, not an external blocker. |
+| Longview, IB-owned | PARTIAL | Connect durable native task host and restored inputs. Distinguish durable reopen from live page cookies/forms/heap recovery. |
+| ChatGPTExporter | PARTIAL | Native C1 Android viewer, offline entry and producer plus independent29/34 gates pass. Complete generalized V2/SAF archive handoff, actual user-export acceptance, rich content, long Unicode UI stress, theme/font/a11y/tablet/performance qualification. Existing256-byte workspace initialization still performs legacy UI-thread storage access; page worker still decodes full parts. Preserve read-only authority. |
+| android-NDK | PARTIAL | Shared controls are consumed by three apps; resolve checked-export-aliases base dependency and finish theme/font-scale/state/accessibility qualification. |
+| Idriç | PARTIAL | Existing consumer pins execute; any language/backend extension requires a reduced real failing consumer. |
+| ai-ci | PARTIAL | Retain exact-source producer negatives and current receipts; add remaining recreation/touch/font/contrast/long-thread/performance assertions. |
+| Cat Food / physical targets | BLOCKED | Establish live authenticated device channel; discover C67/TAB independently, inspect installed identity/capacity, then install exact candidates and exercise human input. |
+| Android precedents/reference | NOT_RUN for new consumer | Reference inspection complete; preserve pinned43-signature AndroidX reference, no matched physical comparison yet. |
+| climenu | NOT_RUN for Android | Qualify command/stdin bridge before mapping existing Idriç descriptions to native controls. |
+| az | NOT_RUN for native migration | Implement checked native frontend preserving command/TSV/permission/signer authority; Java frontend cannot enter this lane. |
+
+IB [browser-foundation41760151831](https://github.com/isomorphisms/ib/actions/runs/41760151831)
+still fails inherited arXiv progressive-prepaint while core passes. Four actual
+HTML/image harvests preceded the failure; this is not network-unavailability
+evidence and was not waived. It is separate from passing reader/history gates.
+Virtualized long history, full semantic controls, media/Markdown/links,
+attachments, search, tablet layout and complete accessibility remain unfinished.
+A bounded history worker does not prove a fully nonblocking frontend.
+
+Cat Food's inspected `eafd7fa9e61138a664b205bf8ba82ec6837bbbb9`
+`android/delivery.tsv` explicitly leaves IB as `gap:android-package-missing`;
+the inspected package registry has no entries for these new APK candidates.
+Its documented runtime archive/file/direct-DEX delivery is not evidence of a
+qualified APK-install path for these applications. Do not invent a Cat Food
+install command or register a fake pending package. GitHub Actions artifacts
+are the source-bound distribution handoff; native Android Update is a manual
+handoff until the existing Cat Food owner wires and qualifies APK delivery.
+The campaign's full completion criteria are not met; these PRs are not
+merge-ready for that claim.
