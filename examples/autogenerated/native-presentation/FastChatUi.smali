@@ -1,5 +1,6 @@
 .class public final Lacceptance/presentation/FastChatUi;
 .super Landroid/app/Instrumentation;
+.field private timeline:Z
 
 .method public constructor <init>()V
     .locals 0
@@ -7,7 +8,16 @@
     return-void
 .end method
 .method public onCreate(Landroid/os/Bundle;)V
-    .locals 0
+    .locals 2
+    if-eqz p1, :start
+    const-string v0, "timeline"
+    invoke-virtual {p1, v0}, Landroid/os/Bundle;->getString(Ljava/lang/String;)Ljava/lang/String;
+    move-result-object v0
+    const-string v1, "required"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v0
+    iput-boolean v0, p0, Lacceptance/presentation/FastChatUi;->timeline:Z
+  :start
     invoke-virtual {p0}, Landroid/app/Instrumentation;->start()V
     return-void
 .end method
@@ -252,6 +262,10 @@
     const-string v0, "FAIL source-faithful bounded response clipboard"
     invoke-static {v0}, Lacceptance/presentation/FastChatUi;->fail(Ljava/lang/String;)V
   :copied
+    iget-boolean v0, p0, Lacceptance/presentation/FastChatUi;->timeline:Z
+    if-eqz v0, :timeline_done
+    invoke-direct {p0}, Lacceptance/presentation/FastChatUi;->assertTimeline()V
+  :timeline_done
     invoke-static {}, Lacceptance/presentation/FastChatUi;->logProcessMemory()V
     new-instance v0, Landroid/os/Bundle;
     invoke-direct {v0}, Landroid/os/Bundle;-><init>()V
@@ -273,5 +287,93 @@
     invoke-virtual {v0, v2, v1}, Landroid/os/Bundle;->putString(Ljava/lang/String;Ljava/lang/String;)V
     const/4 v1, 0
     invoke-virtual {p0, v1, v0}, Landroid/app/Instrumentation;->finish(ILandroid/os/Bundle;)V
+    return-void
+.end method
+
+.method private assertTimeline()V
+    .locals 5
+    const-string v0, "Send"
+    invoke-direct {p0, v0}, Lacceptance/presentation/FastChatUi;->click(Ljava/lang/String;)V
+    const/16 v4, 0x64
+  :wait_completed
+    const-string v0, "FastChat generation status"
+    invoke-direct {p0, v0}, Lacceptance/presentation/FastChatUi;->text(Ljava/lang/String;)Ljava/lang/String;
+    move-result-object v0
+    const-string v1, "completed"
+    invoke-virtual {v0, v1}, Ljava/lang/String;->contains(Ljava/lang/CharSequence;)Z
+    move-result v0
+    if-nez v0, :completed
+    const-wide/16 v0, 0x64
+    invoke-static {v0, v1}, Landroid/os/SystemClock;->sleep(J)V
+    add-int/lit8 v4, v4, -1
+    if-gtz v4, :wait_completed
+    const-string v0, "FAIL second durable timeline turn completion"
+    invoke-static {v0}, Lacceptance/presentation/FastChatUi;->fail(Ljava/lang/String;)V
+  :completed
+    const-string v0, "Conversation timeline"
+    invoke-direct {p0, v0}, Lacceptance/presentation/FastChatUi;->node(Ljava/lang/String;)Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v3
+    const/16 v4, 0x8
+  :scroll_top
+    const/16 v0, 0x2000
+    invoke-virtual {v3, v0}, Landroid/view/accessibility/AccessibilityNodeInfo;->performAction(I)Z
+    const-wide/16 v0, 0xc8
+    invoke-static {v0, v1}, Landroid/os/SystemClock;->sleep(J)V
+    add-int/lit8 v4, v4, -1
+    if-gtz v4, :scroll_top
+    const-string v0, "Earlier user message, turn 1"
+    invoke-direct {p0, v0}, Lacceptance/presentation/FastChatUi;->text(Ljava/lang/String;)Ljava/lang/String;
+    move-result-object v0
+    const-string v1, ":long"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v0
+    if-nez v0, :user_ok
+    const-string v0, "FAIL timeline prior source prompt and role"
+    invoke-static {v0}, Lacceptance/presentation/FastChatUi;->fail(Ljava/lang/String;)V
+  :user_ok
+    const-string v0, "Earlier assistant response preview, turn 1"
+    invoke-direct {p0, v0}, Lacceptance/presentation/FastChatUi;->text(Ljava/lang/String;)Ljava/lang/String;
+    move-result-object v0
+    invoke-virtual {v0}, Ljava/lang/String;->length()I
+    move-result v0
+    if-gtz v0, :assistant_ok
+    const-string v0, "FAIL timeline prior stored assistant response"
+    invoke-static {v0}, Lacceptance/presentation/FastChatUi;->fail(Ljava/lang/String;)V
+  :assistant_ok
+    const/16 v4, 0x4
+  :scroll_read
+    const/16 v0, 0x1000
+    invoke-virtual {v3, v0}, Landroid/view/accessibility/AccessibilityNodeInfo;->performAction(I)Z
+    const-wide/16 v0, 0xc8
+    invoke-static {v0, v1}, Landroid/os/SystemClock;->sleep(J)V
+    add-int/lit8 v4, v4, -1
+    if-gtz v4, :scroll_read
+    const-string v0, "Read turn 1"
+    invoke-direct {p0, v0}, Lacceptance/presentation/FastChatUi;->click(Ljava/lang/String;)V
+    const-string v0, "FastChat generation status"
+    invoke-direct {p0, v0}, Lacceptance/presentation/FastChatUi;->text(Ljava/lang/String;)Ljava/lang/String;
+    move-result-object v0
+    const-string v1, "Turn 1 / 2"
+    invoke-virtual {v0, v1}, Ljava/lang/String;->contains(Ljava/lang/CharSequence;)Z
+    move-result v0
+    if-nez v0, :selected
+    const-string v0, "FAIL timeline Button selects its real durable request"
+    invoke-static {v0}, Lacceptance/presentation/FastChatUi;->fail(Ljava/lang/String;)V
+  :selected
+    const-string v0, "Latest"
+    invoke-direct {p0, v0}, Lacceptance/presentation/FastChatUi;->click(Ljava/lang/String;)V
+    const-string v0, "FastChat generation status"
+    invoke-direct {p0, v0}, Lacceptance/presentation/FastChatUi;->text(Ljava/lang/String;)Ljava/lang/String;
+    move-result-object v0
+    const-string v1, "Turn 2 / 2"
+    invoke-virtual {v0, v1}, Ljava/lang/String;->contains(Ljava/lang/CharSequence;)Z
+    move-result v0
+    if-nez v0, :latest
+    const-string v0, "FAIL timeline return to latest durable request"
+    invoke-static {v0}, Lacceptance/presentation/FastChatUi;->fail(Ljava/lang/String;)V
+  :latest
+    const-string v0, "NativeTimelineAcceptance"
+    const-string v1, "PASS actual prior roles source text request selection and return to latest"
+    invoke-static {v0, v1}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
     return-void
 .end method
