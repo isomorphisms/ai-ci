@@ -23,8 +23,8 @@ jobs:
           - api: 34
             target: google_apis
     env:
-      PRODUCER_SHA: e6c84d645ad7086a11ae2735258188a49e444d13
-      PRODUCER_RUN: '41347983217'
+      PRODUCER_SHA: da21ff9f711f15a5205b9ac2ec0200b5e9546d93
+      PRODUCER_RUN: '41748990620'
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -38,7 +38,7 @@ jobs:
           persist-credentials: false
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
-          artifact-ids: 13100269370
+          artifact-ids: 13286066472
           repository: dilapidated-shed/tablature
           run-id: ${{ env.PRODUCER_RUN }}
           github-token: ${{ github.token }}

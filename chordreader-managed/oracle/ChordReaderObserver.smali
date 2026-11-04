@@ -255,8 +255,24 @@
     const-string v1, "1B"
     const-string v2, "FAIL independent enharmonic octave edge 4"
     invoke-static {v0, v1, v2}, Lacceptance/ChordReaderObserver;->reply(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+    const-string v0, "bChordReader/Idric/1\nP2:202:246:GuitarS1:11:T4:A/C♯R1:112:reading_song1:21:11:0"
+    const-string v1, "1B♭/D"
+    const-string v2, "FAIL independent semitone capo composition"
+    invoke-static {v0, v1, v2}, Lacceptance/ChordReaderObserver;->reply(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+    const-string v0, "fB♭/D"
+    const-string v1, "110|C|2"
+    const-string v2, "FAIL independent displayed slash fingering pitches"
+    invoke-static {v0, v1, v2}, Lacceptance/ChordReaderObserver;->reply(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+    const-string v0, "bChordReader/Idric/1\nP2:202:246:GuitarS1:11:T5:B♯/D♭R1:112:reading_song1:81:01:0"
+    const-string v1, "1G♯/B♭♭"
+    const-string v2, "FAIL independent bounded deliberate slash interval 1"
+    invoke-static {v0, v1, v2}, Lacceptance/ChordReaderObserver;->reply(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+    const-string v0, "bChordReader/Idric/1\nP2:202:246:GuitarS1:11:T5:B♯/D♭R1:112:reading_song2:-41:01:0"
+    const-string v1, "1G♯/B♭♭"
+    const-string v2, "FAIL independent bounded deliberate slash interval 2"
+    invoke-static {v0, v1, v2}, Lacceptance/ChordReaderObserver;->reply(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
     sget-object v0, Ljava/lang/System;->out:Ljava/io/PrintStream;
-    const-string v1, "PASS independent ChordReader managed ART: 57 assertions"
+    const-string v1, "PASS independent ChordReader managed ART: 61 assertions"
     invoke-virtual {v0, v1}, Ljava/io/PrintStream;->println(Ljava/lang/String;)V
     return-void
 .end method
