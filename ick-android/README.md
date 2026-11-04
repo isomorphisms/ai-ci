@@ -161,6 +161,11 @@ qualified ICK boundary; this action does not establish cross-compiler complex
 ABI compatibility or a replacement ICK runtime.
 
 The cache key binds the source, host architecture, ABI and build recipe version.
+After qualification succeeds, the action saves that compiler before returning
+to the consumer. A later consumer compile/test failure must not discard an
+already qualified dependency and force its bootstrap on the next attempt.
+The consumer's result is still separate; cache existence never supplies its
+acceptance. Every restore still reruns all original qualification probes.
 Increment its recipe version if compiler configuration changes. It contains
 only the installed compiler; every invocation recompiles and inspects the
 qualification products with the supplied NDK.
