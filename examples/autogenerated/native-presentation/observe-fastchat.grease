@@ -9,7 +9,8 @@ var output = ARGV[4]
 var expected_api = ARGV[5]
 var timeline_arguments = []
 if (len(ARGV) === 7) {
-  test "${ARGV[6]}" = required-timeline
+  var timeline_mode = ARGV[6]
+  test "$timeline_mode" = required-timeline
   setvar timeline_arguments = ['-e', 'timeline', 'required']
 }
 test ! -e "$output"
