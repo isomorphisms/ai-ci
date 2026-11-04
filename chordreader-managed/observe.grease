@@ -51,7 +51,7 @@ for lane in candidate mutant {
   printf '%s\n' "$status" > "$evidence/$lane.exit"
   cat "$evidence/$lane.txt"
   var expected_status = 0
-  var expected_marker = 'PASS independent ChordReader managed ART: 19 assertions'
+  var expected_marker = 'PASS independent ChordReader managed ART: 53 assertions'
   if (lane === 'mutant') {
     setvar expected_status = 93
     setvar expected_marker = 'FAIL independent ChordReader written minor second'
@@ -64,4 +64,4 @@ for lane in candidate mutant {
   }
 }
 sha256sum "$input/android/chordreader-x86_64.apk" "$evidence/oracle.dex" "$evidence/candidate.received.dex" "$evidence/mutant.received.dex" > "$evidence/sha256.txt"
-printf 'schema\taici-chordreader-managed-art-v1\napi\t%s\nabi\tx86_64\nAPK_asset_identity\tPASS\nindependent_ART_assertions\t19 PASS\ncompiled_music_mutant\tREJECTED\nphysical_TAB_P10\tNOT_RUN\ninstalled_UI\tPRODUCER_OWNED_SEPARATE_GATE\n' "$api" > "$evidence/receipt.tsv"
+printf 'schema\taici-chordreader-managed-art-v1\napi\t%s\nabi\tx86_64\nAPK_asset_identity\tPASS\nindependent_ART_assertions\t53 PASS\ncompiled_music_mutant\tREJECTED\nphysical_TAB_P10\tNOT_RUN\ninstalled_UI\tPRODUCER_OWNED_SEPARATE_GATE\n' "$api" > "$evidence/receipt.tsv"
