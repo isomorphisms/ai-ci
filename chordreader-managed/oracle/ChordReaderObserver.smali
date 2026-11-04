@@ -239,8 +239,24 @@
     const-string v1, "1B♭m"
     const-string v2, "FAIL independent chromatic case 34: Bm -1"
     invoke-static {v0, v1, v2}, Lacceptance/ChordReaderObserver;->reply(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+    const-string v0, "bChordReader/Idric/1\nP2:202:246:GuitarS1:11:T2:A♭R1:112:reading_song3:-111:01:0"
+    const-string v1, "1A"
+    const-string v2, "FAIL independent enharmonic octave edge 1"
+    invoke-static {v0, v1, v2}, Lacceptance/ChordReaderObserver;->reply(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+    const-string v0, "bChordReader/Idric/1\nP2:202:246:GuitarS1:11:T2:A♭R1:112:reading_song3:-231:01:0"
+    const-string v1, "1A"
+    const-string v2, "FAIL independent enharmonic octave edge 2"
+    invoke-static {v0, v1, v2}, Lacceptance/ChordReaderObserver;->reply(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+    const-string v0, "bChordReader/Idric/1\nP2:202:246:GuitarS1:11:T2:B♯R1:112:reading_song2:111:01:0"
+    const-string v1, "1B"
+    const-string v2, "FAIL independent enharmonic octave edge 3"
+    invoke-static {v0, v1, v2}, Lacceptance/ChordReaderObserver;->reply(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+    const-string v0, "bChordReader/Idric/1\nP2:202:246:GuitarS1:11:T2:B♯R1:112:reading_song2:231:01:0"
+    const-string v1, "1B"
+    const-string v2, "FAIL independent enharmonic octave edge 4"
+    invoke-static {v0, v1, v2}, Lacceptance/ChordReaderObserver;->reply(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
     sget-object v0, Ljava/lang/System;->out:Ljava/io/PrintStream;
-    const-string v1, "PASS independent ChordReader managed ART: 53 assertions"
+    const-string v1, "PASS independent ChordReader managed ART: 57 assertions"
     invoke-virtual {v0, v1}, Ljava/io/PrintStream;->println(Ljava/lang/String;)V
     return-void
 .end method

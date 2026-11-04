@@ -1,5 +1,7 @@
 name: Independent ChordReader managed ART qualification
 on:
+  push:
+    branches: [qualification/chordreader-managed]
   pull_request:
     paths:
       - 'chordreader-managed/**'
