@@ -1,0 +1,72 @@
+#!/usr/bin/env grease
+# AICI_ROOT MOSTOW_ROOT OUTPUT; compiler and Grease supplied by verified caller.
+var owner = $(git -C "$[ARGV[0]]" rev-parse --show-toplevel)
+var root = $(git -C "$[ARGV[1]]" rev-parse --show-toplevel)
+var output = ARGV[2]
+var compiler = ENV.MOSTOW_HOST_COMPILER
+test -x "$compiler"
+var frontend = $("$compiler" -print-prog-name=cc1)
+test -x "$frontend"
+test -f "$owner/mostow/verify.c"
+mkdir -p "$output"
+git -C "$root" rev-parse HEAD > "$output/source-revision.txt"
+git -C "$owner" rev-parse HEAD > "$output/oracle-base-revision.txt"
+sha256sum "$compiler" "$frontend" "$root/icky/mostow_distortion.c" "$root/icky/mostow_octagon.c" \
+  "$root/icky/mostow_pants.c" "$root/icky/mostow_m004.c" \
+  "$root/native/mostow_distortion.h" "$root/native/mostow_octagon.h" \
+  "$root/native/mostow_pants.h" "$root/native/mostow_m004.h" \
+  "$owner/mostow/verify.c" "$owner/mostow/run.grease" > "$output/inputs-before.tsv"
+"$compiler" -fno-link-libatomic -std=c11 -O2 -Wall -Wextra -Werror -Wpedantic \
+  -I "$root/native" "$root/icky/mostow_distortion.c" "$root/icky/mostow_octagon.c" \
+  "$root/icky/mostow_pants.c" "$root/icky/mostow_m004.c" "$owner/mostow/verify.c" \
+  -lm -o "$output/verify"
+"$output/verify"
+# Each altered producer is linked to this unchanged independent verifier.
+for mutant in ([
+  ['distortion-K', 'distortion', 's/result.dilatation ← dilatation;/result.dilatation ← 1;/', 'DISTORTION_K'],
+  ['octagon-chi', 'octagon', 's/result.euler_characteristic ← (int)result.vertices-(int)result.edges+1;/result.euler_characteristic ← 0;/', 'OCTAGON_ACCEPTED'],
+  ['pants-twist', 'pants', r's/axis_translation(reflections\[cuff\],parameters->twists\[cuff\])/axis_translation(reflections[cuff],0)/', 'PANTS_TWIST_TRACE'],
+  ['m004-cusp', 'm004', r's/if (diagnostic.residual\[equation\]>residual_tolerance)/if (equation<2 \&\& diagnostic.residual[equation]>residual_tolerance)/', 'M004_CUSP_NEGATIVE'],
+  ['m004-basis', 'm004', 's/diagnostic.peripheral_basis_valid ← lattice_index==1;/diagnostic.peripheral_basis_valid ← lattice_index>=0;/', 'M004_NONPRIMITIVE_REFUSAL'],
+  ['m004-volume', 'm004', 's/result.volume += lobachevsky/result.volume += 0*lobachevsky/', 'M004_SNAPPY_VOLUME']
+]) {
+  var name = mutant[0]
+  var unit = mutant[1]
+  var changed = "$output/$name.c"
+  sed "$[mutant[2]]" "$root/icky/mostow_$unit.c" > "$changed"
+  if cmp -s "$root/icky/mostow_$unit.c" "$changed" {
+    printf '\033[31mFAIL\033[0m mutation did not alter producer: %s\n' "$name"
+    exit 1
+  }
+  var distortion = "$root/icky/mostow_distortion.c"
+  var octagon = "$root/icky/mostow_octagon.c"
+  var pants = "$root/icky/mostow_pants.c"
+  var m004 = "$root/icky/mostow_m004.c"
+  if test "$unit" = distortion { setvar distortion = changed }
+  if test "$unit" = octagon { setvar octagon = changed }
+  if test "$unit" = pants { setvar pants = changed }
+  if test "$unit" = m004 { setvar m004 = changed }
+  "$compiler" -fno-link-libatomic -std=c11 -O2 -Wall -Wextra -Werror -Wpedantic \
+    -I "$root/native" "$distortion" "$octagon" "$pants" "$m004" \
+    "$owner/mostow/verify.c" -lm -o "$output/$name"
+  if "$output/$name" > "$output/$name.log" 2>&1 {
+    printf '\033[31mFAIL\033[0m independent acceptance admitted %s\n' "$name"
+    exit 1
+  }
+  rg -F "FAIL $[mutant[3]]" "$output/$name.log"
+}
+sha256sum "$compiler" "$frontend" "$root/icky/mostow_distortion.c" "$root/icky/mostow_octagon.c" \
+  "$root/icky/mostow_pants.c" "$root/icky/mostow_m004.c" \
+  "$root/native/mostow_distortion.h" "$root/native/mostow_octagon.h" \
+  "$root/native/mostow_pants.h" "$root/native/mostow_m004.h" \
+  "$owner/mostow/verify.c" "$owner/mostow/run.grease" > "$output/inputs-after.tsv"
+cmp "$output/inputs-before.tsv" "$output/inputs-after.tsv"
+git -C "$root" rev-parse HEAD > "$output/source-revision-after.txt"
+git -C "$owner" rev-parse HEAD > "$output/oracle-base-revision-after.txt"
+cmp "$output/source-revision.txt" "$output/source-revision-after.txt"
+cmp "$output/oracle-base-revision.txt" "$output/oracle-base-revision-after.txt"
+sha256sum "$output/verify" "$output/distortion-K.c" "$output/octagon-chi.c" \
+  "$output/pants-twist.c" "$output/m004-cusp.c" "$output/m004-basis.c" "$output/m004-volume.c" \
+  "$output/distortion-K.log" "$output/octagon-chi.log" "$output/pants-twist.log" \
+  "$output/m004-cusp.log" "$output/m004-basis.log" "$output/m004-volume.log" > "$output/artifact-digests.tsv"
+printf '\033[32mPASS\033[0m independent Mostow mathematics and six constraint-removal mutants\n'
