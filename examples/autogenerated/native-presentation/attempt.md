@@ -76,6 +76,14 @@ requires the first conversation exercise to pass and then the exact settings
 diagnostic, rather than accepting an unrelated failure.
 # IB unchanged-artifact requalification
 
+The C67 delivery observer separately downloads the actual signed ARM64 candidate.
+SDK apksigner, aapt2, the declared callback digest, embedded source and readelf
+inspect that artifact independently of its producer receipt. Wrong-source and
+wrong-ABI consumers must reach exact diagnostics; deleting classes.dex without
+resigning must reach the actual APK-signature refusal. This boundary is host
+artifact verification, not ARM64 ART or physical installation. The existing x86
+verifier keeps its four-argument default and gains a bounded explicit ABI input.
+
 IB `a30381aee243d56d83da19befe64e2f84ebccfc9` built and signed byte-identical
 APKs in run41748455979. API29's source/reflow/anchors/large-source/parcelable,
 installed reader, navigation, fragment and Activity ownership coordinators

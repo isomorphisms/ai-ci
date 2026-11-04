@@ -1,21 +1,28 @@
 #!/usr/bin/env grease
 set -eu -o pipefail
-if (len(ARGV) !== 4) { echo 'requires APK SOURCE_SHA SDK NEW_OUTPUT' >&2; exit 2 }
+if (len(ARGV) !== 4 and len(ARGV) !== 5) { echo 'requires APK SOURCE_SHA SDK NEW_OUTPUT [ABI]' >&2; exit 2 }
 var apk = ARGV[0]
 var source = ARGV[1]
 var sdk = ARGV[2]
 var output = ARGV[3]
+var abi = 'x86_64'
+if (len(ARGV) === 5) { setvar abi = ARGV[4] }
+if (abi !== 'x86_64' and abi !== 'arm64-v8a' and abi !== 'armeabi-v7a') { exit 2 }
 test ! -e "$output"
 mkdir -p "$output"
 var tools = "$sdk/build-tools/34.0.0"
 "$tools/aapt2" dump badging "$apk" > "$output/badging.txt"
 rg -F "package: name='org.isomorphisms.fastchat.diskstreaming.arena' versionCode='7'" "$output/badging.txt"
 rg -F "launchable-activity: name='android.app.NativeActivity'" "$output/badging.txt"
-rg -F "native-code: 'x86_64'" "$output/badging.txt"
-"$tools/apksigner" verify --verbose --print-certs "$apk" > "$output/signer.txt"
+if ! rg -x -F "native-code: '$abi'" "$output/badging.txt" { echo 'FAIL FastChat declared ABI' >&2; exit 1 }
+rg -x -F "sdkVersion:'26'" "$output/badging.txt"
+rg -x -F "targetSdkVersion:'34'" "$output/badging.txt"
+if ! "$tools/apksigner" verify --verbose --print-certs "$apk" > "$output/signer.txt" 2>&1 {
+  echo 'FAIL FastChat APK signature' >&2; exit 1
+}
 rg -x -F 'Signer #1 certificate SHA-256 digest: aa9151e3922fa4795987c3655bc7aa4712620f1d94c24a2075acd7b29d8ac86e' "$output/signer.txt"
 unzip -p "$apk" classes.dex > "$output/classes.dex"
 printf '%s  %s\n' 24e37795b5c8001a280b9f5f46c64ed510660358fb42f2a7109b52e2a5c067ad "$output/classes.dex" | sha256sum -c -
-unzip -p "$apk" lib/x86_64/libfastchat.so > "$output/libfastchat.so"
-strings "$output/libfastchat.so" | rg -x -F "$source"
+unzip -p "$apk" "lib/$abi/libfastchat.so" > "$output/libfastchat.so"
+if ! strings "$output/libfastchat.so" | rg -x -F "$source" { echo 'FAIL FastChat embedded source identity' >&2; exit 1 }
 sha256sum "$apk" "$output/classes.dex" "$output/libfastchat.so" > "$output/digests.txt"

@@ -38,3 +38,15 @@ It only runs on an explicitly identified x86_64 emulator. Its Smali observers
 are external test code, not product application sources; assembly alone is not
 an Android execution receipt. It does not establish physical touch, recovery of
 a live site session, a complete task timeline, or performance.
+
+`qualify-fastchat-delivery.grease` independently inspects the exact signed C67
+ARM64 deliverable: SHA-256, manifest/SDK/ABI, actual APK certificate/signature,
+checked callback DEX, embedded source and ELF architecture. It requires targeted
+refusals for an incompatible source, wrong ABI and modified signed APK bytes.
+This is artifact inspection on the host; ARM64 ART and physical C67 are NOT_RUN.
+
+The IB requalification workflow consumes the original source-bound producer
+archive without rebuilding application code. Its repaired external probe prints
+the exact semantic refusal and deliberately exits42, so an uncaught exception
+reported as `Killed` cannot satisfy a mutation. Real native acquisition creates
+retained data before the independent History/Reader UI check.
