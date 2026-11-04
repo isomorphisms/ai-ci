@@ -74,3 +74,27 @@ boundary after moving controls out of a separate panel window. The signed
 aaabc570 producer is the targeted missing-secure-window control; the wrapper
 requires the first conversation exercise to pass and then the exact settings
 diagnostic, rather than accepting an unrelated failure.
+# IB unchanged-artifact requalification
+
+IB `a30381aee243d56d83da19befe64e2f84ebccfc9` built and signed byte-identical
+APKs in run41748455979. API29's source/reflow/anchors/large-source/parcelable,
+installed reader, navigation, fragment and Activity ownership coordinators
+returned zero. Its ART presentation mutation produced only `Killed`, so the
+required semantic diagnostic was absent. The API34 retained History/Reader UI
+exercise passed independently, but that does not repair the failed mutation gate.
+
+The external Smali oracle now prints its exact stale-projection diagnostic and
+exits42 deliberately. Both revision and callback controls require that exact
+status and diagnostic; a process crash cannot satisfy either. No producer DEX
+is modified. The new workflow downloads the original signed source-bound IB
+archive, verifies its original observer pin, and rebuilds only the independent
+probe. It executes actual installed native acquisition and retained-source
+History/Reader controls on fresh API29/34 x86_64 emulators.
+
+API29 also retained `adb: unable to connect for root: closed` at the link-shape
+snapshot; its following UI observer saw an offline emulator. The snapshot now
+admits only that exact status1 diagnostic during a requested adbd transition,
+then still requires connection within30 seconds and an observed root UID before
+any source readback. All other errors fail. This is emulator observer plumbing,
+not physical root permission or a relaxed product assertion.
+

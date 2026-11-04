@@ -18,12 +18,12 @@ for file in observer.dex mutant.dex probe.dex { "$adb" -s "$serial" push "$workb
 "$adb" -s "$serial" shell "CLASSPATH=$remote/probe.dex:$remote/observer.dex app_process / acceptance.presentation.WorkbenchProbe" > "$output/workbench.txt" 2>&1
 rg -x -F 'PASS independent retained occurrence and stale revision refusal on ART' "$output/workbench.txt"
 try { "$adb" -s "$serial" shell "CLASSPATH=$remote/probe.dex:$remote/mutant.dex app_process / acceptance.presentation.WorkbenchProbe" > "$output/workbench-mutant.txt" 2>&1 }
-if (_error.code === 0) { echo 'FAIL stale revision producer mutation accepted on ART' >&2; exit 1 }
-rg -F 'FAIL stale projection refused' "$output/workbench-mutant.txt"
+if (_error.code !== 42) { echo 'FAIL stale revision producer mutation missed its exact ART refusal' >&2; exit 1 }
+rg -x -F 'FAIL stale projection refused' "$output/workbench-mutant.txt"
 "$adb" -s "$serial" shell "CLASSPATH=$remote/probe.dex:$remote/Action.dex app_process / acceptance.presentation.CallbackProbe" > "$output/callback.txt" 2>&1
 rg -x -F 'PASS independent exact framework callback declaration on ART' "$output/callback.txt"
 try { "$adb" -s "$serial" shell "CLASSPATH=$remote/probe.dex:$remote/wrong-signature.dex app_process / acceptance.presentation.CallbackProbe" > "$output/callback-mutant.txt" 2>&1 }
-if (_error.code === 0) { echo 'FAIL incompatible callback accepted on ART' >&2; exit 1 }
+if (_error.code !== 42) { echo 'FAIL incompatible callback missed its exact ART refusal' >&2; exit 1 }
 rg -F 'NoSuchMethodException' "$output/callback-mutant.txt"
 printf 'schema\tnative-presentation-ART-v1\napi\t%s\nabi\tx86_64\nworkbench\tPASS\ncallback_declaration\tPASS\nwrong_revision_mutation\tREJECTED\nwrong_callback_mutation\tREJECTED\nphysical\tNOT_RUN\n' "$api" > "$output/receipt.tsv"
 sha256sum "$workbench/observer.dex" "$workbench/mutant.dex" "$workbench/probe.dex" "$callback/Action.dex" "$callback/wrong-signature.dex" > "$output/artifacts.sha256"

@@ -25,10 +25,15 @@
     return-void
   :stale
     const-string v1, "FAIL stale projection refused"
-    goto :throw
+    sget-object v0, Ljava/lang/System;->out:Ljava/io/PrintStream;
+    invoke-virtual {v0, v1}, Ljava/io/PrintStream;->println(Ljava/lang/String;)V
+    const/16 v0, 0x2a
+    invoke-static {v0}, Ljava/lang/System;->exit(I)V
+    return-void
   :fail
     const-string v1, "FAIL retained occurrence identity or order"
-  :throw
+    sget-object v0, Ljava/lang/System;->out:Ljava/io/PrintStream;
+    invoke-virtual {v0, v1}, Ljava/io/PrintStream;->println(Ljava/lang/String;)V
     new-instance v0, Ljava/lang/AssertionError;
     invoke-direct {v0, v1}, Ljava/lang/AssertionError;-><init>(Ljava/lang/Object;)V
     throw v0
