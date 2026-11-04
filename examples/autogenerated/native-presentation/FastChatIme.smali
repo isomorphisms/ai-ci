@@ -1,8 +1,14 @@
 .class public final Lacceptance/presentation/FastChatIme;
 .super Landroid/app/Instrumentation;
 .field private broken:Z
+.method public constructor <init>()V
+    .locals 0
+    invoke-direct {p0}, Landroid/app/Instrumentation;-><init>()V
+    return-void
+.end method
 .method public onCreate(Landroid/os/Bundle;)V
     .locals 2
+    if-eqz p1, :start
     const-string v0, "broken"
     invoke-virtual {p1, v0}, Landroid/os/Bundle;->getString(Ljava/lang/String;)Ljava/lang/String;
     move-result-object v0
@@ -10,6 +16,7 @@
     invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
     move-result v0
     iput-boolean v0, p0, Lacceptance/presentation/FastChatIme;->broken:Z
+  :start
     invoke-virtual {p0}, Landroid/app/Instrumentation;->start()V
     return-void
 .end method
@@ -103,7 +110,10 @@
     iget-object v0, v6, Lacceptance/presentation/ImeTask;->editor:Landroid/widget/EditText;
     if-eqz v0, :find_wait
     iget v0, v6, Lacceptance/presentation/ImeTask;->height:I
-    if-gtz v0, :ready
+    if-lez v0, :find_wait
+    invoke-virtual {v7}, Landroid/app/Activity;->hasWindowFocus()Z
+    move-result v0
+    if-nez v0, :ready
   :find_wait
     const-wide/16 v0, 0x32
     invoke-static {v0, v1}, Landroid/os/SystemClock;->sleep(J)V

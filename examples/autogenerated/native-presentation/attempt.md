@@ -92,6 +92,14 @@ ADJUST_NOTHING before showing the same keyboard. The independent geometry
 assertion must reject that real broken resize state with its precise diagnostic;
 an absent keyboard, crash or missing composer cannot satisfy the control.
 
+The first IME runtime attempt (run41762149915, source68ec45cc) was rejected at
+instrumentation loading: the new Smali class had no explicit zero-argument
+constructor. The product UI was not exercised by those three IME cases, and
+none counted as a passing refusal. The constructor is now explicit; positive
+readiness also waits for actual Activity window focus before requesting the
+IME. The same keyboard geometry/input/Back assertions and negative control
+remain required.
+
 The first independent API29 attempt in run41756980836 did not execute ART:
 the emulator reported insufficient disk space and never booted. Archive/input
 verification and external probe assembly passed first. The coordinator now
