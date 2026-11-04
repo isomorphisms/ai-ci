@@ -1,0 +1,37 @@
+#!/usr/bin/env grease
+set -o errexit -o nounset -o pipefail
+
+var root = ENV.GITHUB_WORKSPACE
+var application_id = ENV.INSTRUMENT_PACKAGE
+var apk = ENV.INSTRUMENT_APK
+var adb = "$[ENV.ANDROID_HOME]/platform-tools/adb"
+var output = "$root/receipts"
+test -x "$adb"
+test -f "$apk"
+mkdir -p "$output"
+sha256sum "$apk" > "$output/emulator-apk.sha256"
+"$adb" install -r -t "$apk"
+"$adb" install -r -t "$apk"
+"$adb" logcat -c
+"$adb" shell am start -W -n "$application_id/android.app.NativeActivity" | tee "$output/emulator-start.txt"
+grep -Fq 'Status: ok' "$output/emulator-start.txt"
+var target_pid = "$("$adb" shell pidof "$application_id" | tr -d '\r')"
+printf '%s\n' "$target_pid" | grep -Eq '^[0-9]+$'
+
+# NativeActivity launch can finish before the first cold glyph cache is ready.
+# Preserve the posted-frame assertion; wait for this exact process, bounded.
+var attempts = 0
+while (attempts < 30) {
+    "$adb" logcat -d "--pid=$target_pid" -s Instrument:I > "$output/emulator-frames.txt"
+    try { grep -Fq frame_posted "$output/emulator-frames.txt" }
+    if (_error.code === 0) { break }
+    setvar attempts = attempts + 1
+    sleep 1
+}
+"$adb" logcat -d "--pid=$target_pid" > "$output/emulator-process.txt"
+grep -Fq frame_posted "$output/emulator-frames.txt"
+"$adb" shell dumpsys meminfo "$application_id" > "$output/emulator-memory.txt"
+"$adb" exec-out screencap -p > "$output/emulator.png"
+printf 'schema\tsensor-app-emulator-v1\nsource\t%s\npackage\t%s\npid\t%s\nsame_candidate_replacement\tPASS\nlaunch\tPASS\nfirst_native_frame\tPASS\nphysical\tNOT_RUN\n' \
+    "$[ENV.CANDIDATE_SHA]" "$application_id" "$target_pid" > "$output/emulator.tsv"
+printf '\033[32mPASS\033[0m replacement, launch and first native frame; physical checks not run\n'

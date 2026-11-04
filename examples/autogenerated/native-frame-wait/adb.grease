@@ -1,0 +1,23 @@
+#!/usr/bin/env grease
+# Synthetic checker fixture only. This is not an Android execution witness.
+set -o errexit -o nounset -o pipefail
+var operation = "$1"
+var state_file = ENV.FRAME_FIXTURE_STATE
+if (operation === 'install') { echo 'fixture installation acknowledged'; exit 0 }
+if (operation === 'logcat') {
+    if ("$2" === '-c') { echo 0 > "$state_file"; exit 0 }
+    var count = int("$(cat "$state_file")") + 1
+    printf '%d\n' "$count" > "$state_file"
+    if (get(ENV, 'FRAME_FIXTURE_NEVER', '') !== '1' and count >= 2) {
+        echo 'I Instrument: frame_posted frames=1 render_ns=1 cached_bytes=35'
+    }
+    exit 0
+}
+if (operation === 'shell') {
+    if ("$2" === 'am') { echo 'Status: ok'; exit 0 }
+    if ("$2" === 'pidof') { echo 4242; exit 0 }
+    if ("$2" === 'dumpsys') { echo 'fixture memory only'; exit 0 }
+}
+if (operation === 'exec-out') { echo 'fixture screenshot only'; exit 0 }
+echo 'Unexpected synthetic adb fixture operation' >&2
+exit 2
