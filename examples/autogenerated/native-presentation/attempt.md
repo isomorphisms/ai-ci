@@ -76,6 +76,35 @@ requires the first conversation exercise to pass and then the exact settings
 diagnostic, rather than accepting an unrelated failure.
 # IB unchanged-artifact requalification
 
+## Real compositor and NativeActivity ownership regression
+
+The API29 IME run41762938888 timed out during real key dispatch. Its Window
+diagnostics reported no focused input window; its startup screenshot, and the
+earlier API34 startup screenshot, were black. The old bdae9a45 APK therefore
+does not qualify as usable visible UI, despite passing accessibility actions.
+NativeActivity had claimed both Surface and InputQueue before native startup.
+Moving controls under Activity content had not released either platform claim.
+
+FastChat759605c4 pins android-NDK b2ee1912, releases both claims before Decor
+attachment and keeps the existing native controller/lifecycle. This follows
+Android10 NativeActivity.java, Window.java and PhoneWindow.java rather than
+adding another overlay or a managed application layer.
+
+The new independent FrameProbe samples the actual compositor screenshot at
+the actual Send and Setup Button coordinates. Each pixel must match that
+Button's real semantic fill within two RGB levels, and the fills must differ.
+The check precedes real IME/key dispatch. A layout tree alone cannot satisfy it.
+The actual signed bdae9a45 product is retained as frame-refused: only the exact
+compositor assertion is accepted, not a crash, timeout or absent sample control.
+Fresh API29/34 positives and resize mutation use the rebuilt759605c4 APK.
+All runtime outcomes remain pending until those exact jobs finish.
+
+The IB requalification now consumes6f88d23d's source-bound archive and its
+actual67b42568 producer observer pin. Before pruning the job-owned input it
+reads the already verified archive digest receipt, validates its complete
+64-hex value and rechecks the actual ZIP. Selected-byte comparisons, guarded
+paths and the4GiB capacity gate remain unchanged.
+
 The added IME observer uses the real current signed FastChat APK in a fresh
 emulator and its existing isolated `fc-m4-` store. It discovers the Activity's
 actual EditText, requests the system IME, measures that actual input-method

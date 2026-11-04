@@ -45,8 +45,9 @@ sha256sum -c "$output/selected-runtime.sha256"
 # and duplicate ZIP are reproducible job-owned inputs, not user data or evidence.
 # Preserve the archive digest and selected-byte identities before reclaiming.
 df -PB1 "$scratch" > "$output/before.capacity.txt"
-printf '392f0be0989c649aa517c32a1a74191bf2a7ea0b9042adb8f085bb611c45c5b8  %s\n' \
-  "$scratch/ib-input/candidate.zip" | sha256sum -c -
+var archive_sha = $(awk -F '\t' '$1 == "archive_sha256" {print $2}' "$scratch/ib-input/receipt.tsv")
+printf '%s\n' "$archive_sha" | rg -x '[0-9a-f]{64}'
+printf '%s  %s\n' "$archive_sha" "$scratch/ib-input/candidate.zip" | sha256sum -c -
 rm -rf -- "$input"
 rm -- "$scratch/ib-input/candidate.zip"
 df -PB1 "$scratch" > "$output/after.capacity.txt"

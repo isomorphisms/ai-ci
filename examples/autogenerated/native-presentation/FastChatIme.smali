@@ -122,6 +122,7 @@
     const-string v0, "FAIL actual IME composer discovery"
     invoke-static {v0}, Lacceptance/presentation/FastChatIme;->fail(Ljava/lang/String;)V
   :ready
+    invoke-static {p0, v7}, Lacceptance/presentation/FrameProbe;->assertVisible(Landroid/app/Instrumentation;Landroid/app/Activity;)V
     invoke-direct {p0}, Lacceptance/presentation/FastChatIme;->assertNoSubmission()V
     iget v8, v6, Lacceptance/presentation/ImeTask;->height:I
     const/4 v0, 1
