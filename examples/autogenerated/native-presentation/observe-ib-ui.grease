@@ -8,6 +8,7 @@ var adb = ARGV[3]
 var serial = ARGV[4]
 var output = ARGV[5]
 var expected_api = ARGV[6]
+var charcoal_runtime = ENV.CHARCOAL_GREASE
 test ! -e "$output"
 mkdir -p "$output/source"
 var tools = "$sdk/build-tools/35.0.0"
@@ -88,7 +89,7 @@ for mode in no yes {
     org.isomorphisms.ib.presentation.observer/acceptance.presentation.IbUi > "$output/charcoal-$mode.txt" 2>&1
   rg -x -F 'INSTRUMENTATION_CODE: -1' "$output/charcoal-$mode.txt"
   "$adb" -s "$serial" pull /sdcard/Android/data/org.isomorphisms.ib.prepaint/files/acceptance-reader-frame.png "$output/charcoal-$mode.png"
-  "$CHARCOAL_GREASE" "$aici/charcoal/check-frame.grease" "$ffmpeg" "$output/charcoal-$mode.png" "$output/charcoal-$mode.frame.txt"
+  "$charcoal_runtime" "$aici/charcoal/check-frame.grease" "$ffmpeg" "$output/charcoal-$mode.png" "$output/charcoal-$mode.frame.txt"
 }
 "$adb" -s "$serial" shell cmd uimode night no > "$output/night-restored.txt"
 # Reproduce the real old XML tint as an actual inflated-control mutation.

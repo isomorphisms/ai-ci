@@ -10,6 +10,7 @@ var smali = ARGV[5]
 var output = ARGV[6]
 var api = ARGV[7]
 var mutant = ARGV[8]
+var charcoal_runtime = ENV.CHARCOAL_GREASE
 var package = 'org.isomorphisms.chatgptexporter.e1fixture'
 var private = "/data/user/0/$package/files"
 var tools = "$sdk/build-tools/36.0.0"
@@ -99,7 +100,7 @@ observe first
 observe reopened
 var ffmpeg = $(command -v ffmpeg)
 for name in first reopened {
-  "$CHARCOAL_GREASE" "$aici/charcoal/check-frame.grease" "$ffmpeg" "$output/$name.frame.png" "$output/$name.frame.txt"
+  "$charcoal_runtime" "$aici/charcoal/check-frame.grease" "$ffmpeg" "$output/$name.frame.png" "$output/$name.frame.txt"
 }
 "$adb" shell cmd uimode night no > "$output/night-restored.txt"
 snapshot after
