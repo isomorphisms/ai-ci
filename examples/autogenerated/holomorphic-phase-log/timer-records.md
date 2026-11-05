@@ -11,6 +11,13 @@ supply a required mathematical observation. Preserve every input, divisor,
 measurement, colour, count, policy, tolerance and same-program requirement.
 Unknown GPU events still fail, now before reading their case field.
 
+The same actual native source emits HOLO_GPU_QUERY_WINDOW after every60 frames,
+including a NOT_RUN record without the timing extension. The bounded streamed
+capture retains those later records too. Recognize that exact periodic timing
+event alongside HOLO_GPU_TIMER; neither may replace a mathematical observation.
+The positive fixture includes both production-shaped timing records, and a
+query-window-for-measurement mutant must fail for missing numerical output.
+
 Extend the existing Ithon self-test with a valid corpus plus real-shaped timer
 metadata, a timer-for-measurement replacement that must fail for missing numeric
 output, and unknown metadata that must fail as an unexpected event. Existing
