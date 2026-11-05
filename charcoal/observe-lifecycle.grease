@@ -130,7 +130,8 @@ proc capture(stage, orientation) {
 }
 for mode in no yes {
   "$adb" -s "$serial" shell wm "$rotation_command" lock 0 > "$output/$mode.rotation-initial.txt"
-  "$adb" -s "$serial" shell cmd uimode night "$mode" > "$output/$mode.night.txt"
+  "$grease" "$suite/admit-system-mode.grease" "$adb" "$serial" "$api" "$mode" "$output/$mode.system-mode"
+  cp "$output/$mode.system-mode/night.txt" "$output/$mode.night.txt"
   "$adb" -s "$serial" shell am force-stop "$package"
   setvar remote = "/sdcard/aici-charcoal-$package-$api-$mode.mp4"
   "$adb" -s "$serial" shell rm -f "$remote"
@@ -155,7 +156,7 @@ for mode in no yes {
   "$grease" "$suite/check-startup-video.grease" "$(command -v ffmpeg)" "$output/$mode-startup.mp4" "$output/$mode.sequence"
 }
 "$adb" -s "$serial" shell wm "$rotation_command" lock 0
-"$adb" -s "$serial" shell cmd uimode night no
+"$grease" "$suite/admit-system-mode.grease" "$adb" "$serial" "$api" no "$output/final.system-mode"
 sha256sum "$apk" > "$output/apk.sha256"
 printf 'entry_action\t%s\n' "$action" > "$output/entry.tsv"
 printf 'source\t%s\nproducer\t%s\nAPI\t%s\nboth_system_modes\tPASS\nsame_candidate_replacement\tPASS\nactual_charcoal_canvas_and_ink\tPASS\nrotation_request_and_return\tPASS\nrotation_policy\t%s\nbackground_resume\tPASS\nforce_stop_reopen\tPASS\nstartup_videos\tCAPTURED_DECODED\nbroad_white_canvas_frame_guard\tPASS\npartial_surfaces_dialogs\tNOT_QUALIFIED_BY_VIDEO_GUARD\nscroll_selection_retention\tNOT_TESTED_BY_THIS_SAMPLER\nphysical_C67\tNOT_RUN\n' "$source" "$producer" "$api" "$rotated_orientation" > "$output/receipt.tsv"

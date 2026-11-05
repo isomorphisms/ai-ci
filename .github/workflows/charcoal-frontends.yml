@@ -4,6 +4,7 @@ on:
     paths:
       - .github/workflows/charcoal-frontends.yml
       - charcoal/observe-lifecycle.grease
+      - charcoal/admit-system-mode.grease
       - charcoal/activity-match.grease
       - charcoal/replay-frontend.grease
       - charcoal/qualify-activity-match.grease
