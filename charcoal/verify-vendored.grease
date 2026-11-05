@@ -4,9 +4,9 @@ if (len(ARGV) !== 3) { echo 'usage: verify-vendored.grease OWNER HEADER_OR_DASH 
 var owner = ARGV[0]
 var header = ARGV[1]
 var resources = ARGV[2]
-test $(git -C "$owner" rev-parse HEAD) = e8b67dfc67776c2b8da919785d15f38d68c91db0
+test $(git -C "$owner" rev-parse HEAD) = 38d6899706d855201239d86e1629e2620c0e8821
 if (header !== '-') { cmp "$owner/native/presentation/charcoal.h" "$header" }
-for relative in values/charcoal.xml values-v21/charcoal.xml values-v31/charcoal.xml color/charcoal_text_states.xml {
+for relative in values/charcoal.xml values-v21/charcoal.xml values-v23/charcoal.xml values-v27/charcoal.xml values-v29/charcoal.xml values-v31/charcoal.xml color/charcoal_text_states.xml {
   cmp "$owner/native/presentation/res/$relative" "$resources/$relative"
 }
 printf 'PASS: vendored native/XML charcoal resources match the fixed shared owner\n'

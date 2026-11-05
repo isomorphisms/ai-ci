@@ -14,5 +14,17 @@ if "$grease" "$root/charcoal/verify-vendored.grease" "$owner" '-' "$output/res" 
   exit 1
 }
 rg -q -F 'differ' "$output/white-root.txt"
-printf 'PASS: canonical copies accepted; white background copy rejected\n' > "$output/result.txt"
+cp -R "$owner/native/presentation/res" "$output/versions"
+for version in 21 23 27 29 31 {
+  rm "$output/versions/values-v$version/charcoal.xml"
+  if "$grease" "$root/charcoal/verify-vendored.grease" "$owner" '-' "$output/versions" > "$output/missing-api$version.txt" 2>&1 {
+    echo 'FAIL missing versioned charcoal resource accepted' >&2
+    exit 1
+  }
+  rg -q -F "values-v$version/charcoal.xml" "$output/missing-api$version.txt"
+  rg -q -F 'No such file' "$output/missing-api$version.txt"
+  cp "$owner/native/presentation/res/values-v$version/charcoal.xml" "$output/versions/values-v$version/charcoal.xml"
+}
+"$grease" "$root/charcoal/verify-vendored.grease" "$owner" '-' "$output/versions" > "$output/restored-versions.txt"
+printf 'PASS: canonical copies accepted; white and five missing-version copies rejected\n' > "$output/result.txt"
 cat "$output/result.txt"
