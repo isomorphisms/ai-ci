@@ -1,0 +1,44 @@
+#!/usr/bin/env grease
+# One independently failing application per API/frontend matrix cell.
+set -eu -o pipefail
+test "$#" -eq 5
+var root = ARGV[0]
+var sdk = ARGV[1]
+var temporary = ARGV[2]
+var api = ARGV[3]
+var frontend = ARGV[4]
+var apk = ''
+var package = ''
+var activity = ''
+var certificate = ''
+var source = ''
+var producer = ''
+var rotation = 'landscape'
+if (frontend === 'porthole') {
+  setvar apk = 'candidate/porthole/porthole-debug.apk'
+  setvar package = 'com.stevenfoerster.porthole'
+  setvar activity = 'com.stevenfoerster.porthole.ui.MainActivity'
+  setvar certificate = 'f24d40b84abed031a4e7449cba17c60f6d8f725e6ac94a072021f1506ac1771c'
+  setvar source = 'cd30a91a11036ca8eb664d8ad60c79891a210f83'
+  setvar producer = '42016835371'
+} elif (frontend === 'wifi') {
+  setvar apk = 'candidate/wifi/outputs/apk/debug/app-debug.apk'
+  setvar package = 'com.wifiscanner.app'
+  setvar activity = 'com.wifiscanner.app.MainActivity'
+  setvar certificate = '4eb1a2222544ff1ba4869587a3cc717fd52f6036c550572f9c81028c21266c94'
+  setvar source = 'cba330d298a66b156daad4cbd33a99423feed189'
+  setvar producer = '42002148615'
+  setvar rotation = 'portrait'
+} elif (frontend === 'wifi-analyzer') {
+  setvar apk = 'candidate/wifi-analyzer/app-debug.apk'
+  setvar package = 'com.vrem.wifianalyzer.BETA'
+  setvar activity = 'com.vrem.wifianalyzer.MainActivity'
+  setvar certificate = '5ed8efc9c5ecca1980e29ecac8d84fe4de3d978790ffba70e52c2ca0fb59af44'
+  setvar source = '0b2d5c1013d86c1ed3eb310811a6b5eec18121ac'
+  setvar producer = '42009723843'
+} else {
+  echo 'FAIL unknown frontend fixture' >&2
+  exit 2
+}
+var grease = "$root/grease/bin/grease"
+"$grease" "$root/charcoal/observe-lifecycle.grease" "$sdk/platform-tools/adb" emulator-5554 "$sdk" "$root/$apk" "$grease" "$temporary/charcoal-frontend-$frontend" "$api" "$package" "$activity" "$certificate" "$source" "$producer" "$rotation" "$frontend"

@@ -5,6 +5,7 @@ on:
       - .github/workflows/charcoal-frontends.yml
       - charcoal/observe-lifecycle.grease
       - charcoal/activity-match.grease
+      - charcoal/replay-frontend.grease
       - charcoal/qualify-activity-match.grease
       - charcoal/check-frame.grease
       - charcoal/check-startup-video.grease
@@ -20,6 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        frontend: [porthole, wifi, wifi-analyzer]
         include:
           - api: 29
             target: default
@@ -36,12 +38,12 @@ jobs:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           repository: Ashtray-Archer/porthole
-          run-id: 42002138345
-          artifact-ids: 13403550049
+          run-id: 42016835371
+          artifact-ids: 13408974539
           merge-multiple: true
           github-token: ${{ github.token }}
           path: candidate/porthole
-      - run: echo '350834be74b4e113095422b78b8a5238ed9a9e0fb1fad56f7a3b1d5461faaa2f  candidate/porthole/porthole-debug.apk' | sha256sum -c -
+      - run: echo '90599bb3c2c02cd4f2688f53bca988e879f26b3323d0d2f89722854e8bf4889a  candidate/porthole/porthole-debug.apk' | sha256sum -c -
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           repository: Ashtray-Archer/WifiScanner
@@ -91,13 +93,10 @@ jobs:
           disk-size: 2048M
           disable-animations: true
           emulator-options: -no-window -no-audio -no-snapshot -no-boot-anim -memory 2048 -gpu swiftshader_indirect
-          script: |
-            "$CHARCOAL_GREASE" charcoal/observe-lifecycle.grease "$ANDROID_HOME/platform-tools/adb" emulator-5554 "$ANDROID_HOME" "$GITHUB_WORKSPACE/candidate/porthole/porthole-debug.apk" "$CHARCOAL_GREASE" "$RUNNER_TEMP/charcoal-frontend-porthole" "${{ matrix.api }}" com.stevenfoerster.porthole com.stevenfoerster.porthole.ui.MainActivity 525bca2cedda6235efd586043a4f3e75beedb1657b1361bcc519ebd3e5f1b194 6995e71de244d113428f9c7c0b0755eb5d7ac3c0 42002138345 landscape porthole
-            "$CHARCOAL_GREASE" charcoal/observe-lifecycle.grease "$ANDROID_HOME/platform-tools/adb" emulator-5554 "$ANDROID_HOME" "$GITHUB_WORKSPACE/candidate/wifi/outputs/apk/debug/app-debug.apk" "$CHARCOAL_GREASE" "$RUNNER_TEMP/charcoal-frontend-wifi" "${{ matrix.api }}" com.wifiscanner.app com.wifiscanner.app.MainActivity 4eb1a2222544ff1ba4869587a3cc717fd52f6036c550572f9c81028c21266c94 cba330d298a66b156daad4cbd33a99423feed189 42002148615 portrait wifi
-            "$CHARCOAL_GREASE" charcoal/observe-lifecycle.grease "$ANDROID_HOME/platform-tools/adb" emulator-5554 "$ANDROID_HOME" "$GITHUB_WORKSPACE/candidate/wifi-analyzer/app-debug.apk" "$CHARCOAL_GREASE" "$RUNNER_TEMP/charcoal-frontend-wifi-analyzer" "${{ matrix.api }}" com.vrem.wifianalyzer.BETA com.vrem.wifianalyzer.MainActivity 5ed8efc9c5ecca1980e29ecac8d84fe4de3d978790ffba70e52c2ca0fb59af44 0b2d5c1013d86c1ed3eb310811a6b5eec18121ac 42009723843 landscape wifi-analyzer
+          script: '"$CHARCOAL_GREASE" charcoal/replay-frontend.grease "$GITHUB_WORKSPACE" "$ANDROID_HOME" "$RUNNER_TEMP" "${{ matrix.api }}" "${{ matrix.frontend }}"'
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: charcoal-frontends-API${{ matrix.api }}-${{ github.event.pull_request.head.sha || github.sha }}
+          name: charcoal-frontends-${{ matrix.frontend }}-API${{ matrix.api }}-${{ github.event.pull_request.head.sha || github.sha }}
           path: ${{ runner.temp }}/charcoal-frontend*
           if-no-files-found: warn
