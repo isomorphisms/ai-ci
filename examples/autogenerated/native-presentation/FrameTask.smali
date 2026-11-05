@@ -17,7 +17,7 @@
     return-void
 .end method
 .method public run()V
-    .locals 8
+    .locals 10
     const/4 v0, 0
     iput-boolean v0, p0, Lacceptance/presentation/FrameTask;->valid:Z
     iput-object v0, p0, Lacceptance/presentation/FrameTask;->failure:Ljava/lang/String;
@@ -55,14 +55,27 @@
     move-result v6
     and-int/lit16 v6, v6, 0x2010
     if-nez v6, :charcoal_bad
+    iget v1, p0, Lacceptance/presentation/FrameTask;->identity:I
+    invoke-virtual {v0, v1}, Landroid/app/Activity;->findViewById(I)Landroid/view/View;
+    move-result-object v1
+    if-eqz v1, :done
     const v6, 0x01020002
     invoke-virtual {v0, v6}, Landroid/app/Activity;->findViewById(I)Landroid/view/View;
-    move-result-object v7
-    check-cast v7, Landroid/view/ViewGroup;
-    const/4 v6, 0
-    invoke-virtual {v7, v6}, Landroid/view/ViewGroup;->getChildAt(I)Landroid/view/View;
-    move-result-object v7
-    if-eqz v7, :done
+    move-result-object v9
+    move-object v7, v1
+    const/16 v8, 16
+  :root_ancestor
+    invoke-virtual {v7}, Landroid/view/View;->getParent()Landroid/view/ViewParent;
+    move-result-object v5
+    if-eq v5, v9, :root_found
+    instance-of v6, v5, Landroid/view/View;
+    if-eqz v6, :charcoal_bad
+    check-cast v5, Landroid/view/View;
+    move-object v7, v5
+    add-int/lit8 v8, v8, -1
+    if-gtz v8, :root_ancestor
+    goto :charcoal_bad
+  :root_found
     iget v6, p0, Lacceptance/presentation/FrameTask;->mutation:I
     const/4 v4, 4
     if-ne v6, v4, :root_ready
