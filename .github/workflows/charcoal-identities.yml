@@ -105,6 +105,8 @@ jobs:
           github-token: ${{ github.token }}
           merge-multiple: true
           path: failed-api35
+      - run: sudo apt-get update
+      - run: sudo apt-get install --no-install-recommends -y ripgrep
       - name: Read the preserved failing control boundary
         run: grease/bin/grease charcoal/read-control-failure.grease "$GITHUB_WORKSPACE/failed-api35" "$GITHUB_WORKSPACE/control-failure-readback"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
