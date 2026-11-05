@@ -1,0 +1,38 @@
+name: Vendored charcoal contract qualification
+on:
+  pull_request:
+    paths:
+      - charcoal/verify-vendored.grease
+      - charcoal/qualify-vendored.grease
+      - .github/actions/charcoal-vendor/**
+      - .github/workflows/charcoal-vendor.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  palette:
+    runs-on: ubuntu-24.04
+    env:
+      ASAN_OPTIONS: detect_leaks=0
+      CHARCOAL_GREASE: ${{ github.workspace }}/grease/bin/grease
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: ./.github/actions/charcoal-vendor
+        with:
+          header: ${{ github.workspace }}/.charcoal-owner/native/presentation/charcoal.h
+          resources: ${{ github.workspace }}/.charcoal-owner/native/presentation/res
+      - run: sudo sysctl vm.mmap_rnd_bits=28
+      - run: sudo apt-get update
+      - run: sudo apt-get install --no-install-recommends -y ripgrep
+      - name: Execute positive and white-root negative copies
+        run: '"$CHARCOAL_GREASE" charcoal/qualify-vendored.grease "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/.charcoal-owner" "$RUNNER_TEMP/charcoal-vendor"'
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: charcoal-vendor-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/charcoal-vendor
+          if-no-files-found: warn

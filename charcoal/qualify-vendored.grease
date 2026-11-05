@@ -1,0 +1,30 @@
+#!/usr/bin/env grease
+# AICI_ROOT OWNER_CHECKOUT FRESH_OUTPUT
+var root = ARGV[0]
+var owner = ARGV[1]
+var output = ARGV[2]
+test ! -e "$output"
+mkdir -p "$output"
+var grease = ENV.CHARCOAL_GREASE
+"$grease" "$root/charcoal/verify-vendored.grease" "$owner" "$owner/native/presentation/charcoal.h" "$owner/native/presentation/res" > "$output/positive.txt"
+cp -R "$owner/native/presentation/res" "$output/res"
+sed -i 's/#212121/#FFFFFF/' "$output/res/values/charcoal.xml"
+if "$grease" "$root/charcoal/verify-vendored.grease" "$owner" '-' "$output/res" > "$output/white-root.txt" 2>&1 {
+  echo 'FAIL white vendored background accepted' >&2
+  exit 1
+}
+rg -q -F 'differ' "$output/white-root.txt"
+cp -R "$owner/native/presentation/res" "$output/versions"
+for version in 21 23 27 29 31 {
+  rm "$output/versions/values-v$version/charcoal.xml"
+  if "$grease" "$root/charcoal/verify-vendored.grease" "$owner" '-' "$output/versions" > "$output/missing-api$version.txt" 2>&1 {
+    echo 'FAIL missing versioned charcoal resource accepted' >&2
+    exit 1
+  }
+  rg -q -F "values-v$version/charcoal.xml" "$output/missing-api$version.txt"
+  rg -q -F 'No such file' "$output/missing-api$version.txt"
+  cp "$owner/native/presentation/res/values-v$version/charcoal.xml" "$output/versions/values-v$version/charcoal.xml"
+}
+"$grease" "$root/charcoal/verify-vendored.grease" "$owner" '-' "$output/versions" > "$output/restored-versions.txt"
+printf 'PASS: canonical copies accepted; white and five missing-version copies rejected\n' > "$output/result.txt"
+cat "$output/result.txt"
