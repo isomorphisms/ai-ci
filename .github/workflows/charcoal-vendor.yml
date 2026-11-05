@@ -26,6 +26,8 @@ jobs:
           header: ${{ github.workspace }}/.charcoal-owner/native/presentation/charcoal.h
           resources: ${{ github.workspace }}/.charcoal-owner/native/presentation/res
       - run: sudo sysctl vm.mmap_rnd_bits=28
+      - run: sudo apt-get update
+      - run: sudo apt-get install --no-install-recommends -y ripgrep
       - name: Execute positive and white-root negative copies
         run: '"$CHARCOAL_GREASE" charcoal/qualify-vendored.grease "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/.charcoal-owner" "$RUNNER_TEMP/charcoal-vendor"'
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
