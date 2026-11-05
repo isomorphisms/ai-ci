@@ -49,7 +49,8 @@ root ∈ Path ← Path.cwd()
 output ∈ Path ← root.joinpath("current-readback")
 output.mkdir(parents=True, exist_ok=True)
 lines ∈ list[str] ← ["product_acceptance\tFAIL_UNCHANGED", "physical_C67\tNOT_RUN"]
-for name in ["before.png", "after.png", "repeated-root.png", "degree-three.png", "relaunch-evidence/moved-before-relaunch.png", "relaunch-evidence/moved-after-relaunch.png"]:
+for filename in ["before.png", "after.png", "repeated-root.png", "degree-three.png", "relaunch-evidence/moved-before-relaunch.png", "relaunch-evidence/moved-after-relaunch.png"]:
+    name ∈ str ← as_text(filename)
     path ∈ Path ← root.joinpath("retained-current", name)
     present ∈ bool ← path.exists()
     if present:
