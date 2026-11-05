@@ -1,0 +1,19 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+mkdir -p current-readback
+rg --files retained-current | sort > current-readback/files.txt
+cat current-readback/files.txt
+for relative in relaunch-evidence/change-system-mode.txt relaunch-evidence/relaunch.log relaunch-evidence/window.txt degree-three.log repeated-root.log dance.log {
+  var path = "retained-current/$relative"
+  if test -f "$path" {
+    printf '\nretained_file=%s\n' "$relative"
+    cp "$path" "current-readback/$(basename "$path")"
+    if test "$relative" = relaunch-evidence/change-system-mode.txt {
+      cat "$path"
+    } else {
+      try { rg -n -i 'CoefficientRootDance|CharcoalReplay|config changes|finishDrawing of relaunch|Night mode|mCurrentFocus|mFocusedApp|Dropping event|NO_INPUT_CHANNEL' "$path" > current-readback/filtered.txt }
+      tail -n 90 current-readback/filtered.txt
+    }
+  }
+}
+printf 'archive_readback=COMPLETE product_acceptance=FAIL_UNCHANGED physical_C67=NOT_RUN\n'
