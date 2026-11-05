@@ -40,8 +40,9 @@
     invoke-virtual {p0, v0}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
     iget-object v3, v0, Lacceptance/presentation/FrameTask;->failure:Ljava/lang/String;
     if-eqz v3, :window_valid
-    move-object v1, v3
-    goto :throw
+    new-instance v1, Ljava/lang/AssertionError;
+    invoke-direct {v1, v3}, Ljava/lang/AssertionError;-><init>(Ljava/lang/Object;)V
+    throw v1
   :window_valid
     iget-boolean v3, v0, Lacceptance/presentation/FrameTask;->valid:Z
     if-eqz v3, :wait
