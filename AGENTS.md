@@ -303,6 +303,20 @@ intent and the current owner before adding another index or coordination layer.
   migration task and must be explicit because it can require a one-time
   uninstall or supported key-rotation path.
 
+- **Default application-owned interfaces to charcoal.** All maintained apps,
+  examples, development builds and diagnostic interfaces use #212121 backgrounds,
+  #2F2F2F raised surfaces, #383838 controls, #454545 dividers, #F4F4F4 primary
+  text, #B4B4B4 secondary text and #858585 disabled text. Reuse android-NDK's `native/presentation`
+  charcoal contract and existing resource/build owners rather than creating
+  another palette or UI framework. Explicit dark launch windows and system
+  bars must use light icons regardless of the system appearance setting.
+  Preserve authored text/case, selection, focus, navigation, data and startup
+  bounds. External pages, documents, photographs and scientific color mappings
+  retain their intended colors; do not invert pixels. Terminal interfaces
+  inherit the user's configured foreground/background. Require source-bound
+  functional and visual evidence in both Android system modes; screenshot
+  darkness, emulator execution and physical-device acceptance remain distinct.
+
 - **Keep target detection separate from target acceptance.** Detecting `phone`,
   `tablet`, `x86_64`, or another target selects the path to run; it is not proof
   that the selected implementation built, installed, launched, or behaved

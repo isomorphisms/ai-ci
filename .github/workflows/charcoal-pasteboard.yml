@@ -1,4 +1,4 @@
-name: Independent charcoal Pasteboard canvas
+name: Independent charcoal native launch
 on:
   pull_request:
     paths:
@@ -19,8 +19,36 @@ jobs:
         include:
           - api: 29
             target: default
+            profile: pasteboard
+            repository: Ashtray-Archer/utilities-android-phone-user
+            producer: 41946125428
+            artifact: 13378759643
+            apk: pasteboard-x86_64.apk
+            sha256: 6c418d259ef08e4682da7e15090f35d29fcc8323ac39f346c1e7db289273c313
           - api: 34
             target: google_apis
+            profile: pasteboard
+            repository: Ashtray-Archer/utilities-android-phone-user
+            producer: 41946125428
+            artifact: 13378759643
+            apk: pasteboard-x86_64.apk
+            sha256: 6c418d259ef08e4682da7e15090f35d29fcc8323ac39f346c1e7db289273c313
+          - api: 29
+            target: default
+            profile: chord
+            repository: dilapidated-shed/tablature
+            producer: 41950607269
+            artifact: 13382136270
+            apk: android/chordreader-x86_64.apk
+            sha256: 73a56704f96fe967c623d2d73d0b5199b668ab5037ff2063328a8505d6205eb1
+          - api: 34
+            target: google_apis
+            profile: chord
+            repository: dilapidated-shed/tablature
+            producer: 41950607269
+            artifact: 13382136270
+            apk: android/chordreader-x86_64.apk
+            sha256: 73a56704f96fe967c623d2d73d0b5199b668ab5037ff2063328a8505d6205eb1
     env:
       ASAN_OPTIONS: detect_leaks=0
       CHARCOAL_GREASE: ${{ github.workspace }}/grease/_bin/cxx-asan/ysh
@@ -31,13 +59,13 @@ jobs:
           persist-credentials: false
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
-          repository: Ashtray-Archer/utilities-android-phone-user
-          run-id: 41946125428
-          artifact-ids: 13378759643
+          repository: ${{ matrix.repository }}
+          run-id: ${{ matrix.producer }}
+          artifact-ids: ${{ matrix.artifact }}
           merge-multiple: true
           github-token: ${{ github.token }}
           path: candidate
-      - run: echo '6c418d259ef08e4682da7e15090f35d29fcc8323ac39f346c1e7db289273c313  candidate/pasteboard-x86_64.apk' | sha256sum -c -
+      - run: echo '${{ matrix.sha256 }}  candidate/${{ matrix.apk }}' | sha256sum -c -
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           repository: dilapidated-shed/grease
@@ -69,11 +97,11 @@ jobs:
           script: >
             "$CHARCOAL_GREASE" charcoal/observe-pasteboard.grease
             "$ANDROID_HOME/platform-tools/adb" emulator-5554 "$ANDROID_HOME"
-            "$GITHUB_WORKSPACE/candidate/pasteboard-x86_64.apk" "$CHARCOAL_GREASE"
-            "$RUNNER_TEMP/charcoal-Pasteboard" "${{ matrix.api }}"
+            "$GITHUB_WORKSPACE/candidate/${{ matrix.apk }}" "$CHARCOAL_GREASE"
+            "$RUNNER_TEMP/charcoal-native" "${{ matrix.api }}" "${{ matrix.profile }}"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: charcoal-Pasteboard-API${{ matrix.api }}-${{ github.event.pull_request.head.sha || github.sha }}
-          path: ${{ runner.temp }}/charcoal-Pasteboard
+          name: charcoal-${{ matrix.profile }}-API${{ matrix.api }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/charcoal-native
           if-no-files-found: warn

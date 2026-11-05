@@ -26,9 +26,12 @@ they require the fixed palette and reject deliberate live palette mutations.
 The signed archive lane now requalifies the current charcoal source and retains
 its exact archive digest and native source identity on both API29 and API34.
 
-`charcoal-pasteboard.yml` separately samples the same signed candidate on API29
-and API34 with system night mode off/on. Its fresh empty-board scene checks
+`charcoal-pasteboard.yml` samples the same signed Pasteboard and Chord Changes
+candidates on API29 and API34 with system night mode off/on. Its fresh scene checks
 the resumed native Activity, coarse frame darkness and independent #212121
 root / #2F2F2F card pixel positions within the compositor's two-value tolerance.
 This complements the producer's real clipboard, migration and card interaction
 suite; it does not repeat that suite or establish rotation/transition coverage.
+Chord Changes uses its actual typed Activity and fresh framework-control
+hierarchy, with a #383838 button sample. The original seven-argument sampler
+entry remains Pasteboard; the optional profile selects the documented app.
