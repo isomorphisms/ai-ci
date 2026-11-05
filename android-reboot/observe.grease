@@ -1,0 +1,44 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 5) { echo 'requires ADB SERIAL API GREASE FRESH_OUTPUT' >&2; exit 2 }
+var adb = ARGV[0]
+var serial = ARGV[1]
+var api = ARGV[2]
+var grease = ARGV[3]
+var output = ARGV[4]
+var here = $(realpath "$(dirname "$0")")
+test ! -e "$output"
+mkdir -p "$output"
+# This acceptance helper must never reboot a physical device.
+"$adb" -s "$serial" shell getprop ro.kernel.qemu | tr -d '\r' | rg -x 1
+test "$("$adb" -s "$serial" shell getprop ro.build.version.sdk | tr -d '\r')" = "$api"
+"$adb" -s "$serial" shell cat /proc/sys/kernel/random/boot_id > "$output/before.txt"
+var before = $(tr -d '\r\n' < "$output/before.txt")
+test -n "$before"
+"$adb" -s "$serial" reboot > "$output/request.txt" 2>&1
+var ready = false
+for attempt in @(seq 1 60) {
+  try { timeout 5 "$adb" -s "$serial" wait-for-device > "$output/wait-$attempt.txt" 2>&1 }
+  if (_error.code === 0) {
+    try { timeout 5 "$adb" -s "$serial" shell cat /proc/sys/kernel/random/boot_id > "$output/identity-$attempt.txt" 2>&1 }
+    if (_error.code === 0) {
+      var after = $(tr -d '\r\n' < "$output/identity-$attempt.txt")
+      try { timeout 5 "$adb" -s "$serial" shell getprop sys.boot_completed > "$output/completed-$attempt.txt" 2>&1 }
+      if (_error.code === 0) {
+        var completed = $(tr -d '\r\n' < "$output/completed-$attempt.txt")
+        try { "$grease" "$here/validate.grease" "$before" "$after" "$completed" > "$output/check-$attempt.txt" 2>&1 }
+        if (_error.code === 0) {
+          cp "$output/identity-$attempt.txt" "$output/after.txt"
+          cp "$output/completed-$attempt.txt" "$output/completed.txt"
+          cp "$output/check-$attempt.txt" "$output/result.txt"
+          setvar ready = true
+          break
+        }
+      }
+    }
+  }
+  sleep 1
+}
+if (not ready) { echo 'FAIL emulator did not demonstrate a completed new kernel boot' >&2; exit 1 }
+cat "$output/result.txt"
+printf 'API\t%s\nfresh_kernel_and_boot_complete\tPASS\napplication_acceptance\tNOT_RUN_BY_THIS_HELPER\nphysical_device\tREFUSED\n' "$api" > "$output/receipt.tsv"

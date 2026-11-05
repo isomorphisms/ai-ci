@@ -1,0 +1,16 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 3) { echo 'requires previous boot ID, observed boot ID and completion state' >&2; exit 2 }
+var before = ARGV[0]
+var after = ARGV[1]
+var completed = ARGV[2]
+for identity in "$before" "$after" {
+  try { printf '%s\n' "$identity" | rg -q -x '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' }
+  if (_error.code !== 0) {
+    echo 'FAIL missing or malformed kernel boot identity' >&2
+    exit 1
+  }
+}
+if (before === after) { echo 'FAIL previous kernel is still answering after reboot request' >&2; exit 1 }
+if (completed !== '1') { echo 'FAIL new kernel has not completed Android boot' >&2; exit 1 }
+echo 'PASS different kernel identity and completed Android boot'
