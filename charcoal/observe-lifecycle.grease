@@ -27,6 +27,7 @@ if (package === 'org.isomorphisms.chatgptexporter.e1fixture') {
   setvar action = 'org.isomorphisms.chatgptexporter.READ_SAVED'
 }
 var suite = $(realpath "$(dirname "$0")")
+source "$suite/activity-match.grease"
 test ! -e "$output"
 mkdir -p "$output"
 "$adb" -s "$serial" shell getprop ro.kernel.qemu | tr -d '\r' | rg -x 1
@@ -84,7 +85,7 @@ proc capture(stage, orientation) {
   var ready = false
   for attempt in @(seq 1 30) {
     "$adb" -s "$serial" shell dumpsys activity activities > "$output/$stage.activity.txt"
-    try { rg '(mResumedActivity|topResumedActivity)' "$output/$stage.activity.txt" | rg -F "$component" }
+    try { charcoal_require_resumed "$output/$stage.activity.txt" "$package" "$activity" }
     if (_error.code !== 0) { sleep 0.3; continue }
     "$adb" -s "$serial" exec-out screencap -p > "$output/$stage.png"
     ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 "$output/$stage.png" > "$output/$stage.size.txt"
@@ -108,6 +109,9 @@ proc capture(stage, orientation) {
     "$adb" -s "$serial" logcat -b all -d > "$output/$stage.failure-logcat.txt"
     "$adb" -s "$serial" shell dumpsys window > "$output/$stage.failure-window.txt"
     try { "$adb" -s "$serial" pull "$remote" "$output/$stage.failed-startup.mp4" > "$output/$stage.failed-video-pull.txt" 2>&1 }
+    try { rg -n 'mResumedActivity|topResumedActivity|mLastPausedActivity|realActivity' "$output/$stage.activity.txt" | tail -n 20 }
+    try { rg -n 'mCurrentFocus|mFocusedApp|Application Error|not responding' "$output/$stage.failure-window.txt" | tail -n 20 }
+    try { rg -n 'FATAL EXCEPTION|ANR in|Fatal signal|has died|Process: ' "$output/$stage.failure-logcat.txt" | tail -n 40 }
     echo "FAIL actual app charcoal/ink/orientation did not settle: $stage" >&2
     exit 1
   }

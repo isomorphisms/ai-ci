@@ -1,0 +1,23 @@
+# Exact Android foreground-component equality, accepting Android's short spelling.
+proc charcoal_require_resumed(file, package, activity) {
+  awk -v package="$package" -v activity="$activity" '
+    BEGIN {
+      full = package "/" activity;
+      shortened = full;
+      if (index(activity, package ".") == 1)
+        shortened = package "/." substr(activity, length(package) + 2);
+      found = 0;
+    }
+    /^[[:space:]]*(mResumedActivity|topResumedActivity)[=:]/ {
+      for (i = 1; i <= NF; ++i) {
+        token = $i;
+        sub(/[},]$/, "", token);
+        if (token == full || token == shortened) {
+          print $0;
+          found = 1;
+        }
+      }
+    }
+    END { exit !found }
+  ' "$file"
+}

@@ -1,0 +1,5 @@
+# Canonical foreground Activity identity
+
+The sampler formerly required a fully spelled same-package component as a substring. Android dumpsys can spell the same manifest Activity as package/.RelativeClass. The maintained matcher now compares complete component tokens in actual resumed/top-resumed fields, accepting both canonical spellings. Wrong package, a class with a matching prefix, paused-only state and null activity are explicitly rejected. Manifest package/Activity verification, actual PID, pixel/ink/orientation checks, startup video and white-frame negative are unchanged.
+
+The matcher and seven positive/negative cases execute before emulator launch. Both existing thirteen-argument consumers and the two new explicit permission profiles use the same narrow foreground observation. Full API29/34 replay is pending. Older FastChat/API34 no-resumed failure is still a failure and receives additional retained Activity/window/crash diagnostics; spelling normalization is not claimed to repair an unrelated missing foreground process.
