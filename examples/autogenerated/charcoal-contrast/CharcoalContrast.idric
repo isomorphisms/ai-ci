@@ -1,0 +1,69 @@
+module CharcoalContrast
+
+import Data.List
+import Data.Text
+import System
+
+record Swatch where
+  constructor RGB
+  red : Integer
+  green : Integer
+  blue : Integer
+
+million : Integer
+million = 1000000
+
+power : Integer → Number → Integer
+power value Z = 1
+power value (S remaining) = value × power value remaining
+
+root_floor : Number → Integer → Integer → Integer → Integer
+root_floor Z lower upper target = lower
+root_floor (S remaining) lower upper target =
+  if upper - lower <= 1 then lower
+  else let middle = div (lower + upper) 2
+       in if power middle 5 × power 53805 12 <= target
+          then root_floor remaining middle upper target
+          else root_floor remaining lower middle target
+
+channel_lower : Integer → Integer
+channel_lower channel =
+  if channel <= 10 then div (channel × million × 100) 329460
+  else root_floor 24 0 (million + 1)
+    (power (200 × channel + 2805) 12 × power million 5)
+
+luminance_lower : Swatch → Integer
+luminance_lower color = div
+  (2126 × channel_lower color.red +
+   7152 × channel_lower color.green +
+   722 × channel_lower color.blue) 10000
+
+readable_light_text : Swatch → Swatch → Bool
+readable_light_text foreground background =
+  let lighter = luminance_lower foreground
+      darker_upper = luminance_lower background + 2
+  in lighter >= darker_upper &&
+     2 × (lighter + 50000) >= 9 × (darker_upper + 50000)
+
+gray : Integer → Swatch
+gray channel = RGB channel channel channel
+
+require : Text → Bool → IO ()
+require label True = pure ()
+require label False = do putStrLn ("FAIL " ++ label); exitFailure
+
+main : IO ()
+main = do
+  let surfaces = [gray 33, gray 47, gray 56]
+      ordinary_text = [gray 244, gray 180]
+      semantic_text = [RGB 255 180 171, RGB 232 203 139, RGB 168 213 186]
+  require "primary and secondary text on every charcoal surface"
+    (all (\text ⇒ all (readable_light_text text) surfaces) ordinary_text)
+  require "selected primary text" (readable_light_text (gray 244) (gray 89))
+  require "semantic text on every charcoal surface"
+    (all (\text ⇒ all (readable_light_text text) surfaces) semantic_text)
+  require "equal colors rejected" (not (readable_light_text (gray 244) (gray 244)))
+  require "insufficient text contrast rejected" (not (readable_light_text (gray 133) (gray 56)))
+  require "near-threshold valid gray" (readable_light_text (gray 255) (gray 118))
+  require "near-threshold invalid gray rejected" (not (readable_light_text (gray 255) (gray 119)))
+  putStrLn "PASS conservative integer WCAG AA charcoal text contrast and targeted negatives"

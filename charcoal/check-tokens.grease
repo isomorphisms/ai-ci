@@ -1,0 +1,25 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 1) { echo 'requires SHARED_PRESENTATION_DIRECTORY' >&2; exit 2 }
+var source = ARGV[0]
+proc token(name, color, resource) {
+  var native = '#define CHARCOAL_' ++ name ++ ' 0xff' ++ color ++ 'u'
+  var xml = '<color name="charcoal_' ++ resource ++ '">#' ++ color ++ '</color>'
+  try { rg -q -i -F "$native" "$source/charcoal.h" }
+  if (_error.code !== 0) { echo "FAIL charcoal native palette token: $name" >&2; exit 1 }
+  try { rg -q -i -F "$xml" "$source/res/values/charcoal.xml" }
+  if (_error.code !== 0) { echo "FAIL charcoal XML palette token: $name" >&2; exit 1 }
+}
+token BACKGROUND 212121 background
+token SURFACE 2f2f2f surface
+token INTERACTIVE 383838 interactive
+token BORDER 454545 border
+token TEXT f4f4f4 text
+token SECONDARY b4b4b4 secondary
+token DISABLED 858585 disabled
+token SELECTION 595959 selection
+token FOCUS b4b4b4 focus
+token ERROR ffb4ab error
+token WARNING e8cb8b warning
+token SUCCESS a8d5ba success
+echo 'PASS requested native and XML palette tokens match the contrast oracle'

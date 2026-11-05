@@ -2,6 +2,8 @@
 .super Landroid/app/Instrumentation;
 .field private timeline:Z
 .field private settings:Z
+.field private palette:Z
+.field private paletteBad:I
 .field private dumpBudget:I
 
 .method public constructor <init>()V
@@ -19,6 +21,18 @@
     invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
     move-result v0
     iput-boolean v0, p0, Lacceptance/presentation/FastChatUi;->timeline:Z
+    const-string v0, "palette"
+    invoke-virtual {p1, v0}, Landroid/os/Bundle;->containsKey(Ljava/lang/String;)Z
+    move-result v0
+    iput-boolean v0, p0, Lacceptance/presentation/FastChatUi;->palette:Z
+    const-string v0, "palette_bad"
+    invoke-virtual {p1, v0}, Landroid/os/Bundle;->getString(Ljava/lang/String;)Ljava/lang/String;
+    move-result-object v0
+    if-eqz v0, :palette_parsed
+    invoke-static {v0}, Ljava/lang/Integer;->parseInt(Ljava/lang/String;)I
+    move-result v0
+    iput v0, p0, Lacceptance/presentation/FastChatUi;->paletteBad:I
+  :palette_parsed
     const-string v0, "settings"
     invoke-virtual {p1, v0}, Landroid/os/Bundle;->getString(Ljava/lang/String;)Ljava/lang/String;
     move-result-object v0
@@ -217,6 +231,18 @@
 .method public onStart()V
     .locals 12
   :begin
+    iget-boolean v0, p0, Lacceptance/presentation/FastChatUi;->palette:Z
+    if-eqz v0, :settings_check
+    invoke-direct {p0}, Lacceptance/presentation/FastChatUi;->assertPalette()V
+    new-instance v0, Landroid/os/Bundle;
+    invoke-direct {v0}, Landroid/os/Bundle;-><init>()V
+    const-string v1, "stream"
+    const-string v2, "PASS fixed charcoal startup root controls bars and icons"
+    invoke-virtual {v0, v1, v2}, Landroid/os/Bundle;->putString(Ljava/lang/String;Ljava/lang/String;)V
+    const/4 v1, -1
+    invoke-virtual {p0, v1, v0}, Landroid/app/Instrumentation;->finish(ILandroid/os/Bundle;)V
+    return-void
+  :settings_check
     iget-boolean v0, p0, Lacceptance/presentation/FastChatUi;->settings:Z
     if-eqz v0, :conversation
     invoke-direct {p0}, Lacceptance/presentation/FastChatUi;->assertSettingsOwner()V
@@ -499,5 +525,32 @@
     const-string v0, "NativeSettingsAcceptance"
     const-string v1, "PASS Activity-owned settings secure window and return to composer; no provider request"
     invoke-static {v0, v1}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
+    return-void
+.end method
+
+.method private assertPalette()V
+    .locals 3
+    new-instance v0, Landroid/content/Intent;
+    invoke-direct {v0}, Landroid/content/Intent;-><init>()V
+    const-string v1, "org.isomorphisms.fastchat.diskstreaming.arena"
+    const-string v2, "android.app.NativeActivity"
+    invoke-virtual {v0, v1, v2}, Landroid/content/Intent;->setClassName(Ljava/lang/String;Ljava/lang/String;)Landroid/content/Intent;
+    const v1, 0x10000000
+    invoke-virtual {v0, v1}, Landroid/content/Intent;->addFlags(I)Landroid/content/Intent;
+    invoke-virtual {p0, v0}, Landroid/app/Instrumentation;->startActivitySync(Landroid/content/Intent;)Landroid/app/Activity;
+    move-result-object v0
+    const-wide/16 v1, 0x3e8
+    invoke-static {v1, v2}, Landroid/os/SystemClock;->sleep(J)V
+    new-instance v1, Lacceptance/presentation/FrameTask;
+    const/16 v2, 105
+    invoke-direct {v1, v0, v2}, Lacceptance/presentation/FrameTask;-><init>(Landroid/app/Activity;I)V
+    iget v2, p0, Lacceptance/presentation/FastChatUi;->paletteBad:I
+    iput v2, v1, Lacceptance/presentation/FrameTask;->mutation:I
+    invoke-virtual {p0, v1}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
+    iget-object v1, v1, Lacceptance/presentation/FrameTask;->failure:Ljava/lang/String;
+    if-eqz v1, :palette_frame
+    invoke-static {v1}, Lacceptance/presentation/FastChatUi;->fail(Ljava/lang/String;)V
+  :palette_frame
+    invoke-static {p0, v0}, Lacceptance/presentation/FrameProbe;->assertVisible(Landroid/app/Instrumentation;Landroid/app/Activity;)V
     return-void
 .end method

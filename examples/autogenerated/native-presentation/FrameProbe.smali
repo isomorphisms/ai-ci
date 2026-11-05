@@ -1,5 +1,35 @@
 .class public final Lacceptance/presentation/FrameProbe;
 .super Ljava/lang/Object;
+.method private static saveFrame(Landroid/app/Instrumentation;)V
+    .locals 6
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->getUiAutomation()Landroid/app/UiAutomation;
+    move-result-object v0
+    invoke-virtual {v0}, Landroid/app/UiAutomation;->takeScreenshot()Landroid/graphics/Bitmap;
+    move-result-object v0
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->getTargetContext()Landroid/content/Context;
+    move-result-object v1
+    const/4 v2, 0
+    invoke-virtual {v1, v2}, Landroid/content/Context;->getExternalFilesDir(Ljava/lang/String;)Ljava/io/File;
+    move-result-object v1
+    new-instance v2, Ljava/io/File;
+    const-string v3, "acceptance-charcoal-frame.png"
+    invoke-direct {v2, v1, v3}, Ljava/io/File;-><init>(Ljava/io/File;Ljava/lang/String;)V
+    new-instance v1, Ljava/io/FileOutputStream;
+    invoke-direct {v1, v2}, Ljava/io/FileOutputStream;-><init>(Ljava/io/File;)V
+    sget-object v2, Landroid/graphics/Bitmap$CompressFormat;->PNG:Landroid/graphics/Bitmap$CompressFormat;
+    const/16 v3, 100
+    invoke-virtual {v0, v2, v3, v1}, Landroid/graphics/Bitmap;->compress(Landroid/graphics/Bitmap$CompressFormat;ILjava/io/OutputStream;)Z
+    move-result v2
+    invoke-virtual {v1}, Ljava/io/FileOutputStream;->close()V
+    invoke-virtual {v0}, Landroid/graphics/Bitmap;->recycle()V
+    if-nez v2, :done
+    new-instance v0, Ljava/lang/AssertionError;
+    const-string v1, "FAIL FastChat live compositor capture"
+    invoke-direct {v0, v1}, Ljava/lang/AssertionError;-><init>(Ljava/lang/Object;)V
+    throw v0
+  :done
+    return-void
+.end method
 .method private static near(II)Z
     .locals 5
     const/4 v0, 0
@@ -38,6 +68,11 @@
     const/4 v8, 0
   :sample
     invoke-virtual {p0, v0}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
+    iget-object v3, v0, Lacceptance/presentation/FrameTask;->failure:Ljava/lang/String;
+    if-eqz v3, :window_valid
+    move-object v1, v3
+    goto :throw
+  :window_valid
     iget-boolean v3, v0, Lacceptance/presentation/FrameTask;->valid:Z
     if-eqz v3, :wait
     const/4 v8, 1
@@ -57,6 +92,14 @@
     move-result v7
     if-ge v4, v7, :recycle
     iget v5, v0, Lacceptance/presentation/FrameTask;->color:I
+    const v7, 0xff383838
+    if-eqz v9, :charcoal_expected
+    const v7, 0xff2f2f2f
+  :charcoal_expected
+    if-eq v5, v7, :charcoal_match
+    const-string v1, "FAIL fixed charcoal control palette"
+    goto :throw
+  :charcoal_match
     invoke-virtual {v2, v3, v4}, Landroid/graphics/Bitmap;->getPixel(II)I
     move-result v6
     invoke-static {v5, v6}, Lacceptance/presentation/FrameProbe;->near(II)Z
@@ -82,6 +125,7 @@
     goto :control
   :second
     if-eq v10, v5, :same
+    invoke-static {p0}, Lacceptance/presentation/FrameProbe;->saveFrame(Landroid/app/Instrumentation;)V
     const-string v0, "NativeCompositorAcceptance"
     const-string v1, "PASS compositor pixels match actual filled and neutral framework controls"
     invoke-static {v0, v1}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I

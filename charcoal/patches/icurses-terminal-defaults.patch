@@ -1,0 +1,173 @@
+diff --git a/demo/main.c b/demo/main.c
+index 49b7c2f..9619395 100644
+--- a/demo/main.c
++++ b/demo/main.c
+@@ -98,8 +98,8 @@ static int presentation_to_desired(lua_State *runtime, int application, int colu
+         int row, column, foreground, background, bold;
+         if (field_integer(runtime,"row",0,rows-1,&row) ||
+             field_integer(runtime,"column",-IC_COLS,IC_COLS,&column) ||
+-            field_integer(runtime,"foreground",0,7,&foreground) ||
+-            field_integer(runtime,"background",0,7,&background) ||
++            field_integer(runtime,"foreground",0,IC_DEFAULT_COLOR,&foreground) ||
++            field_integer(runtime,"background",0,IC_DEFAULT_COLOR,&background) ||
+             field_integer(runtime,"bold",0,1,&bold)) return -1;
+         lua_getfield(runtime,-1,"text");
+         size_t length;
+diff --git a/demo/table.ilua b/demo/table.ilua
+index 2b9ee23..d033064 100644
+--- a/demo/table.ilua
++++ b/demo/table.ilua
+@@ -81,8 +81,8 @@ function icurses_presentation(state, width, height)
+         if row >= 0 and row < height then
+             requests[#requests + 1] ← {
+                 row ← row, column ← column or 0, text ← text,
+-                foreground ← selected and 0 or 7,
+-                background ← selected and 6 or 0,
++                foreground ← 8,
++                background ← 8,
+                 bold ← selected and 1 or 0
+             }
+         end
+diff --git a/docs/CHARCOAL.md b/docs/CHARCOAL.md
+new file mode 100644
+index 0000000..a2ecc69
+--- /dev/null
++++ b/docs/CHARCOAL.md
+@@ -0,0 +1,17 @@
++# Default terminal colors
++
++The library's empty screen and the iLua table use the terminal owner's configured
++foreground and background. IC_DEFAULT_COLOR (8) emits SGR39/49; indexed ANSI
++colors 0–7 remain available to explicit consumers. The demo distinguishes the
++selected row with bold text, the existing selected-label footer and cursor.
++It no longer paints every cell black or fills selection with cyan.
++
++This preserves a configured charcoal terminal without changing its palette,
++forcing RGB support, repainting the shell globally or assuming index0 is black
++on every terminal. C owns encoding and bounds; iLua still owns presentation.
++Core tests independently decode SGR39/49 and refuse colors outside the declared
++range. Policy tests require terminal-default foreground/background on all rows.
++
++Exact-source hosted ICK/iLua and Android runtime qualification remains pending.
++This is terminal palette inheritance, not evidence of Android APK theming or
++physical MIRO C67 execution.
+diff --git a/include/icurses.h b/include/icurses.h
+index a0152c4..29c5d6d 100644
+--- a/include/icurses.h
++++ b/include/icurses.h
+@@ -8,6 +8,8 @@
+ #define IC_COLS 200
+ #define IC_TEXT_BYTES 20
+ #define IC_OUTPUT_BYTES 1048576
++/* SGR 39/49 preserve the terminal owner's configured foreground/background. */
++#define IC_DEFAULT_COLOR 8
+ enum { IC_KEY_TEXT, IC_KEY_ESCAPE, IC_KEY_UP, IC_KEY_DOWN, IC_KEY_LEFT,
+        IC_KEY_RIGHT, IC_KEY_HOME, IC_KEY_END, IC_KEY_PAGE_UP, IC_KEY_PAGE_DOWN };
+ typedef struct { unsigned kind; uint32_t codepoint; } IcEvent;
+diff --git a/src/cells.c b/src/cells.c
+index 731b6d3..24816ea 100644
+--- a/src/cells.c
++++ b/src/cells.c
+@@ -13,7 +13,7 @@ int ic_empty_screen(int rows, int columns, IcScreen *desired)
+     memset(desired, 0, sizeof(*desired));
+     desired->rows ← rows;
+     desired->columns ← columns;
+-    IcStyle ordinary ← {7, 0, 0};
++    IcStyle ordinary ← {IC_DEFAULT_COLOR, IC_DEFAULT_COLOR, 0};
+     for (int row ← 0; row < rows; ++row)
+         for (int column ← 0; column < columns; ++column)
+             desired->cells[row][column] ← blank_cell(ordinary);
+@@ -61,7 +61,7 @@ int ic_text_and_placement(const void *utf8, size_t length, int row, int column,
+                           IcStyle style, IcScreen *desired)
+ {
+     if (!ic_screen_valid(desired) || (!utf8 && length) || row < 0 || row >= desired->rows ||
+-        style.foreground > 7 || style.background > 7 || style.bold > 1)
++        style.foreground > IC_DEFAULT_COLOR || style.background > IC_DEFAULT_COLOR || style.bold > 1)
+         return -1;
+     const unsigned char *source ← utf8;
+     size_t offset ← 0;
+diff --git a/src/output.c b/src/output.c
+index bec0661..03dbc95 100644
+--- a/src/output.c
++++ b/src/output.c
+@@ -64,14 +64,16 @@ int ic_regions_and_capabilities_to_output(const IcChangedRegions *regions,
+         IcStyle emitted ← {255, 255, 255};
+         for (int column ← changed.first; column < changed.past; ++column) {
+             const IcCell *cell ← &desired->cells[changed.row][column];
+-            if (cell->length > IC_TEXT_BYTES || cell->columns > 2 || cell->foreground > 7 ||
+-                cell->background > 7 || cell->bold > 1) return -1;
++            if (cell->length > IC_TEXT_BYTES || cell->columns > 2 || cell->foreground > IC_DEFAULT_COLOR ||
++                cell->background > IC_DEFAULT_COLOR || cell->bold > 1) return -1;
+             if (!cell->columns) continue;
+             if (emitted.foreground != cell->foreground || emitted.background != cell->background ||
+                 emitted.bold != cell->bold) {
+                 char encoded[40];
+                 int count ← snprintf(encoded, sizeof(encoded), "\033[0;%d;%d;%dm",
+-                    cell->bold ? 1 : 22, 30 + cell->foreground, 40 + cell->background);
++                    cell->bold ? 1 : 22,
++                    cell->foreground == IC_DEFAULT_COLOR ? 39 : 30 + cell->foreground,
++                    cell->background == IC_DEFAULT_COLOR ? 49 : 40 + cell->background);
+                 if (count < 0 || append(output, encoded, count)) return -1;
+                 emitted.foreground ← cell->foreground;
+                 emitted.background ← cell->background;
+diff --git a/tests/observer.c b/tests/observer.c
+index eb4c7d8..1b52d82 100644
+--- a/tests/observer.c
++++ b/tests/observer.c
+@@ -26,6 +26,8 @@ int observe_output(ObservedTerminal *terminal, const unsigned char *bytes, size_
+                             if (value == 22) terminal->bold ← 0;
+                             if (value >= 30 && value <= 37) terminal->fg ← value - 30;
+                             if (value >= 40 && value <= 47) terminal->bg ← value - 40;
++                            if (value == 39) terminal->fg ← 8;
++                            if (value == 49) terminal->bg ← 8;
+                         }
+                     } else return -1;
+                     break;
+diff --git a/tests/policy.ilua b/tests/policy.ilua
+index 3a8ec39..0b671bb 100644
+--- a/tests/policy.ilua
++++ b/tests/policy.ilua
+@@ -20,6 +20,7 @@ for _, width in ipairs({1, 20, 80, 200}) do
+         for _, request in ipairs(requests) do
+             assert(request.row >= 0 and request.row < height)
+             assert(type(request.text) ≟ "string")
++            assert(request.foreground ≟ 8 and request.background ≟ 8)
+         end
+         assert(state.selected ≟ selected and state.items[2].label ≟ "Çınar")
+     end
+diff --git a/tests/test_core.c b/tests/test_core.c
+index b73e270..35a5fd3 100644
+--- a/tests/test_core.c
++++ b/tests/test_core.c
+@@ -92,9 +92,30 @@ static void rendering(void)
+     REQUIRE(regions.invalid_screen);
+     REQUIRE(ic_regions_and_capabilities_to_output(&regions,&desired,(IcTerminalCapabilities){8},&output) == -1);
+ }
++static void configured_terminal_colors(void)
++{
++    IcScreen empty ← {0};
++    REQUIRE(!ic_empty_screen(1, 8, &desired));
++    REQUIRE(desired.cells[0][0].foreground == IC_DEFAULT_COLOR &&
++            desired.cells[0][0].background == IC_DEFAULT_COLOR);
++    REQUIRE(!ic_text_and_placement("own", 3, 0, 0,
++        (IcStyle){IC_DEFAULT_COLOR, IC_DEFAULT_COLOR, 1}, &desired));
++    IcChangedRegions regions ← ic_previous_and_desired_to_regions(&empty, &desired, 0);
++    REQUIRE(!ic_regions_and_capabilities_to_output(&regions, &desired,
++        (IcTerminalCapabilities){8}, &output));
++    memset(&observed, 0, sizeof(observed));
++    REQUIRE(!observe_output(&observed, output.bytes, output.count));
++    REQUIRE(observed.cells[0][0].fg == 8 && observed.cells[0][0].bg == 8 &&
++            observed.cells[0][0].bold);
++    REQUIRE(ic_text_and_placement("x", 1, 0, 0, (IcStyle){9,8,0}, &desired) == -1);
++    REQUIRE(ic_text_and_placement("x", 1, 0, 0, (IcStyle){8,9,0}, &desired) == -1);
++    desired.cells[0][0].background ← 9;
++    REQUIRE(ic_regions_and_capabilities_to_output(&regions, &desired,
++        (IcTerminalCapabilities){8}, &output) == -1);
++}
+ int main(void)
+ {
+-    decoder(); rendering();
++    decoder(); rendering(); configured_terminal_colors();
+     puts("PASS incremental decoder, literal cells, independent terminal observer, transactional output");
+     return 0;
+ }

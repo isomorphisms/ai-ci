@@ -15,6 +15,10 @@ if (len(ARGV) === 7) {
 }
 test ! -e "$output"
 mkdir -p "$output"
+var runtime = ENV.CHARCOAL_GREASE
+var suite = $(realpath "$(dirname "$0")/../../..")
+var ffmpeg = $(command -v ffmpeg)
+"$runtime" "$suite/charcoal/self-test.grease" "$runtime" "$ffmpeg" "$output/frame-guard-test"
 var api = $("$adb" -s "$serial" shell getprop ro.build.version.sdk | tr -d '\r')
 test "$api" = "$expected_api"
 "$adb" -s "$serial" shell getprop ro.kernel.qemu | tr -d '\r' | rg -x 1
@@ -42,6 +46,32 @@ if (callback_status !== 42) { echo 'FAIL callback consumer did not reach its exa
 rg 'NoSuchMethodException:.*onClick.*\bint\b' "$output/callback-wrong-consumer.txt"
 "$adb" -s "$serial" install -r "$candidate" > "$output/install.txt"
 "$adb" -s "$serial" install -r "$observer/observer.apk" > "$output/observer-install.txt"
+for mode in no yes {
+  "$adb" -s "$serial" shell cmd uimode night "$mode" > "$output/night-$mode.txt"
+  "$adb" -s "$serial" shell am force-stop org.isomorphisms.fastchat.diskstreaming.arena
+  "$adb" -s "$serial" shell rm -f /sdcard/Android/data/org.isomorphisms.fastchat.diskstreaming.arena/files/acceptance-charcoal-frame.png
+  timeout 90 "$adb" -s "$serial" shell am instrument -w -r -e palette required \
+    org.isomorphisms.fastchat.observer/acceptance.presentation.FastChatUi > "$output/charcoal-$mode.txt" 2>&1
+  cat "$output/charcoal-$mode.txt"
+  "$adb" -s "$serial" logcat -d -v threadtime > "$output/charcoal-$mode.runtime.txt"
+  rg -x -F 'INSTRUMENTATION_CODE: -1' "$output/charcoal-$mode.txt"
+  rg -x -F 'INSTRUMENTATION_RESULT: stream=PASS fixed charcoal startup root controls bars and icons' "$output/charcoal-$mode.txt"
+  "$adb" -s "$serial" pull /sdcard/Android/data/org.isomorphisms.fastchat.diskstreaming.arena/files/acceptance-charcoal-frame.png "$output/charcoal-$mode.png"
+  "$runtime" "$suite/charcoal/check-frame.grease" "$ffmpeg" "$output/charcoal-$mode.png" "$output/charcoal-$mode.frame.txt"
+}
+"$adb" -s "$serial" shell cmd uimode night no > "$output/night-restored.txt"
+for bad in 1 2 3 4 5 {
+  "$adb" -s "$serial" shell am force-stop org.isomorphisms.fastchat.diskstreaming.arena
+  timeout 90 "$adb" -s "$serial" shell am instrument -w -r -e palette required -e palette_bad "$bad" \
+    org.isomorphisms.fastchat.observer/acceptance.presentation.FastChatUi > "$output/charcoal-negative-$bad.txt" 2>&1
+  rg -x -F 'INSTRUMENTATION_CODE: 0' "$output/charcoal-negative-$bad.txt"
+  if (bad === '5') {
+    rg -x -F 'INSTRUMENTATION_RESULT: stream=java.lang.AssertionError: FAIL fixed charcoal control palette' "$output/charcoal-negative-$bad.txt"
+  } else {
+    rg -x -F 'INSTRUMENTATION_RESULT: stream=java.lang.AssertionError: FAIL charcoal root, system bars or light icons' "$output/charcoal-negative-$bad.txt"
+  }
+}
+"$adb" -s "$serial" shell am force-stop org.isomorphisms.fastchat.diskstreaming.arena
 "$adb" -s "$serial" shell am start -W -n org.isomorphisms.fastchat.diskstreaming.arena/android.app.NativeActivity \
   --es fastchat_acceptance_store fc-m4-metrics > "$output/startup-cold.txt"
 "$adb" -s "$serial" shell am start -W -n org.isomorphisms.fastchat.diskstreaming.arena/android.app.NativeActivity \

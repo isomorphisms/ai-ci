@@ -1,0 +1,107 @@
+name: Independent charcoal native launch
+on:
+  pull_request:
+    paths:
+      - charcoal/observe-pasteboard.grease
+      - charcoal/check-frame.grease
+      - .github/workflows/charcoal-pasteboard.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  canvas:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - api: 29
+            target: default
+            profile: pasteboard
+            repository: Ashtray-Archer/utilities-android-phone-user
+            producer: 41946125428
+            artifact: 13378759643
+            apk: pasteboard-x86_64.apk
+            sha256: 6c418d259ef08e4682da7e15090f35d29fcc8323ac39f346c1e7db289273c313
+          - api: 34
+            target: google_apis
+            profile: pasteboard
+            repository: Ashtray-Archer/utilities-android-phone-user
+            producer: 41946125428
+            artifact: 13378759643
+            apk: pasteboard-x86_64.apk
+            sha256: 6c418d259ef08e4682da7e15090f35d29fcc8323ac39f346c1e7db289273c313
+          - api: 29
+            target: default
+            profile: chord
+            repository: dilapidated-shed/tablature
+            producer: 41950607269
+            artifact: 13382136270
+            apk: android/chordreader-x86_64.apk
+            sha256: 73a56704f96fe967c623d2d73d0b5199b668ab5037ff2063328a8505d6205eb1
+          - api: 34
+            target: google_apis
+            profile: chord
+            repository: dilapidated-shed/tablature
+            producer: 41950607269
+            artifact: 13382136270
+            apk: android/chordreader-x86_64.apk
+            sha256: 73a56704f96fe967c623d2d73d0b5199b668ab5037ff2063328a8505d6205eb1
+    env:
+      ASAN_OPTIONS: detect_leaks=0
+      CHARCOAL_GREASE: ${{ github.workspace }}/grease/bin/grease
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          repository: ${{ matrix.repository }}
+          run-id: ${{ matrix.producer }}
+          artifact-ids: ${{ matrix.artifact }}
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          path: candidate
+      - run: echo '${{ matrix.sha256 }}  candidate/${{ matrix.apk }}' | sha256sum -c -
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          repository: dilapidated-shed/grease
+          run-id: 41253994123
+          artifact-ids: 13062637698
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          path: grease
+      - name: Stage canonical Grease launcher and unchanged host engine
+        uses: ./.github/actions/charcoal-grease
+      - run: sudo sysctl vm.mmap_rnd_bits=28
+      - run: sudo apt-get update
+      - run: sudo apt-get install --no-install-recommends -y ripgrep ffmpeg
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd
+        with:
+          packages: 'build-tools;36.0.0 platforms;android-36'
+      - run: sudo chmod 666 /dev/kvm
+      - uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
+        with:
+          api-level: ${{ matrix.api }}
+          target: ${{ matrix.target }}
+          arch: x86_64
+          emulator-options: -no-window -no-audio -no-snapshot -no-boot-anim -memory 2048 -gpu swiftshader_indirect
+          disable-animations: true
+          script: >
+            "$CHARCOAL_GREASE" charcoal/observe-pasteboard.grease
+            "$ANDROID_HOME/platform-tools/adb" emulator-5554 "$ANDROID_HOME"
+            "$GITHUB_WORKSPACE/candidate/${{ matrix.apk }}" "$CHARCOAL_GREASE"
+            "$RUNNER_TEMP/charcoal-native" "${{ matrix.api }}" "${{ matrix.profile }}"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: charcoal-${{ matrix.profile }}-API${{ matrix.api }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/charcoal-native
+          if-no-files-found: warn

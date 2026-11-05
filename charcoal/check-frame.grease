@@ -1,0 +1,18 @@
+#!/usr/bin/env grease
+# Screenshot guard only: functional and exact-role assertions remain separate.
+set -eu -o pipefail
+if (len(ARGV) !== 3) { echo 'requires FFMPEG SCREENSHOT NEW_LOG' >&2; exit 2 }
+var ffmpeg = ARGV[0]
+var frame = ARGV[1]
+var log = ARGV[2]
+test -x "$ffmpeg"
+test -s "$frame"
+test ! -e "$log"
+"$ffmpeg" -nostdin -hide_banner -i "$frame" -vf blackframe=amount=0:threshold=80 -frames:v 1 -f null - > "$log" 2>&1
+var dark_percent = $(rg -o 'pblack:[0-9]+' "$log" | tail -n 1 | cut -d : -f 2)
+printf '%s\n' "$dark_percent" | rg -x '[0-9]{1,3}'
+if (int(dark_percent) < 80) {
+  echo 'FAIL charcoal screenshot: less than 80 percent dark pixels' >&2
+  exit 1
+}
+echo 'PASS charcoal screenshot: at least 80 percent dark pixels'

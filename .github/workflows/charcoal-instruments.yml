@@ -1,0 +1,197 @@
+name: Independent charcoal sensor launch
+on:
+  pull_request:
+    paths:
+      - charcoal/observe-instrument.grease
+      - charcoal/check-frame.grease
+      - .github/workflows/charcoal-instruments.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  canvas:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - api: 29
+            target: default
+            profile: accelerometer
+            repository: Ashtray-Archer/utilities-android-phone-user
+            producer: 41951695167
+            artifact: 13383110866
+            apk: accelerometer-x86_64.apk
+            sha256: 3928c7e998be09d4915309c5271106738b71cd644b3df3c2e08399cd49fad5e3
+            package: com.ashtrayarcher.accelerometer
+            source: 7dfacda62e5b1a7b8c28925bff437602dab7e14a
+          - api: 34
+            target: google_apis
+            profile: accelerometer
+            repository: Ashtray-Archer/utilities-android-phone-user
+            producer: 41951695167
+            artifact: 13383110866
+            apk: accelerometer-x86_64.apk
+            sha256: 3928c7e998be09d4915309c5271106738b71cd644b3df3c2e08399cd49fad5e3
+            package: com.ashtrayarcher.accelerometer
+            source: 7dfacda62e5b1a7b8c28925bff437602dab7e14a
+          - api: 29
+            target: default
+            profile: spirit
+            repository: Ashtray-Archer/utilities-android-phone-user
+            producer: 41951695175
+            artifact: 13384010251
+            apk: spirit-level-x86_64.apk
+            sha256: e883bfb2c240bbe8ca89d3990b1526494a287cff3eefb252b310b60b487e0e93
+            package: com.ashtrayarcher.spiritlevel
+            source: 7dfacda62e5b1a7b8c28925bff437602dab7e14a
+          - api: 34
+            target: google_apis
+            profile: spirit
+            repository: Ashtray-Archer/utilities-android-phone-user
+            producer: 41951695175
+            artifact: 13384010251
+            apk: spirit-level-x86_64.apk
+            sha256: e883bfb2c240bbe8ca89d3990b1526494a287cff3eefb252b310b60b487e0e93
+            package: com.ashtrayarcher.spiritlevel
+            source: 7dfacda62e5b1a7b8c28925bff437602dab7e14a
+          - api: 29
+            target: default
+            profile: gyroscope
+            repository: Ashtray-Archer/utilities-android-phone-user
+            producer: 41951695226
+            artifact: 13382842737
+            apk: gyroscope-x86_64.apk
+            sha256: 7b9d2d8d6187200b2bc841f1af282ba7e42380658a924a6bb3161f653cc07426
+            package: com.ashtrayarcher.gyroscope
+            source: 7dfacda62e5b1a7b8c28925bff437602dab7e14a
+          - api: 34
+            target: google_apis
+            profile: gyroscope
+            repository: Ashtray-Archer/utilities-android-phone-user
+            producer: 41951695226
+            artifact: 13382842737
+            apk: gyroscope-x86_64.apk
+            sha256: 7b9d2d8d6187200b2bc841f1af282ba7e42380658a924a6bb3161f653cc07426
+            package: com.ashtrayarcher.gyroscope
+            source: 7dfacda62e5b1a7b8c28925bff437602dab7e14a
+          - api: 29
+            target: default
+            profile: magnetometer
+            repository: Ashtray-Archer/utilities-android-phone-user
+            producer: 41951695226
+            artifact: 13383131848
+            apk: magnetometer-x86_64.apk
+            sha256: 97514761ed7a2154b897fdc471a3f4c739713699ff465361fd534ee9ec753f7f
+            package: com.ashtrayarcher.magnetometer
+            source: 7dfacda62e5b1a7b8c28925bff437602dab7e14a
+          - api: 34
+            target: google_apis
+            profile: magnetometer
+            repository: Ashtray-Archer/utilities-android-phone-user
+            producer: 41951695226
+            artifact: 13383131848
+            apk: magnetometer-x86_64.apk
+            sha256: 97514761ed7a2154b897fdc471a3f4c739713699ff465361fd534ee9ec753f7f
+            package: com.ashtrayarcher.magnetometer
+            source: 7dfacda62e5b1a7b8c28925bff437602dab7e14a
+          - api: 29
+            target: default
+            profile: ambient
+            repository: isomorphisms/ambient-light
+            producer: 41951906524
+            artifact: 13382326987
+            apk: ambient-light-x86_64.apk
+            sha256: 0222b083dd76d90988c141d8d04cc0be12dfd4067af829f8cd3b2f5639ff3615
+            package: com.isomorphisms.ambientlight
+            source: 590e194d8781b06b3d75a9a3cdcfec012ad646ea
+          - api: 34
+            target: google_apis
+            profile: ambient
+            repository: isomorphisms/ambient-light
+            producer: 41951906524
+            artifact: 13382326987
+            apk: ambient-light-x86_64.apk
+            sha256: 0222b083dd76d90988c141d8d04cc0be12dfd4067af829f8cd3b2f5639ff3615
+            package: com.isomorphisms.ambientlight
+            source: 590e194d8781b06b3d75a9a3cdcfec012ad646ea
+          - api: 29
+            target: default
+            profile: proximity
+            repository: isomorphisms/Android-proximity-sensor
+            producer: 41959502810
+            artifact: 13384706447
+            apk: distribution/proximity-x86_64.apk
+            sha256: 6ef3965b05077f7d9647819f5204041dcd2f17619ba73a7c61300e2229e8b5f5
+            package: org.isomorphisms.proximity
+            source: 1721c30c6c0ce82d2fa37a42344c0447a11a85dd
+          - api: 34
+            target: google_apis
+            profile: proximity
+            repository: isomorphisms/Android-proximity-sensor
+            producer: 41959502810
+            artifact: 13384706447
+            apk: distribution/proximity-x86_64.apk
+            sha256: 6ef3965b05077f7d9647819f5204041dcd2f17619ba73a7c61300e2229e8b5f5
+            package: org.isomorphisms.proximity
+            source: 1721c30c6c0ce82d2fa37a42344c0447a11a85dd
+    env:
+      ASAN_OPTIONS: detect_leaks=0
+      CHARCOAL_GREASE: ${{ github.workspace }}/grease/bin/grease
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          repository: ${{ matrix.repository }}
+          run-id: ${{ matrix.producer }}
+          artifact-ids: ${{ matrix.artifact }}
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          path: candidate
+      - run: echo '${{ matrix.sha256 }}  candidate/${{ matrix.apk }}' | sha256sum -c -
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          repository: dilapidated-shed/grease
+          run-id: 41253994123
+          artifact-ids: 13062637698
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          path: grease
+      - name: Stage canonical Grease launcher and unchanged host engine
+        uses: ./.github/actions/charcoal-grease
+      - run: sudo sysctl vm.mmap_rnd_bits=28
+      - run: sudo apt-get update
+      - run: sudo apt-get install --no-install-recommends -y ripgrep ffmpeg
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd
+        with:
+          packages: 'build-tools;36.0.0 platforms;android-36'
+      - run: sudo chmod 666 /dev/kvm
+      - uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
+        with:
+          api-level: ${{ matrix.api }}
+          target: ${{ matrix.target }}
+          arch: x86_64
+          emulator-options: -no-window -no-audio -no-snapshot -no-boot-anim -memory 2048 -gpu swiftshader_indirect
+          disable-animations: true
+          script: >
+            "$CHARCOAL_GREASE" charcoal/observe-instrument.grease
+            "$ANDROID_HOME/platform-tools/adb" emulator-5554 "$ANDROID_HOME"
+            "$GITHUB_WORKSPACE/candidate/${{ matrix.apk }}" "$CHARCOAL_GREASE"
+            "$RUNNER_TEMP/charcoal-instrument" "${{ matrix.api }}" "${{ matrix.package }}" "${{ matrix.source }}"
+            "${{ matrix.producer }}" "${{ matrix.profile }}"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: charcoal-${{ matrix.profile }}-API${{ matrix.api }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/charcoal-instrument
+          if-no-files-found: warn
+
