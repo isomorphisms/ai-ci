@@ -615,11 +615,16 @@ def gpu_audit(log_path ∈ Path, fixture_math ∈ bool, qualify ∈ bool) → in
         separate_large_q ∈ bool ← event.startswith("HOLO_GPU_LARGE_Q_")
         if separate_large_q:
             continue
+        # Native timing is separate evidence, not a numerical case observation.
+        if event == "HOLO_GPU_TIMER":
+            continue
         if event == "HOLO_GPU_NUMERIC":
             summaries.append(row)
         elif event == "HOLO_GPU_COLOR_OUTPUT":
             colour_summaries.append(row)
         else:
+            if event != "HOLO_GPU_CASE" and event != "HOLO_GPU_MEASURE" and event != "HOLO_GPU_COLOR" and event != "HOLO_GPU_INPUT" and event != "HOLO_GPU_FACTOR" and event != "HOLO_GPU_COEFFICIENT":
+                raise ValueError("GPU-UNEXPECTED-EVENT")
             name ∈ str ← row["case"]
             key ∈ str ← name
             destination ∈ dict[str, dict[str, str]] ← headers
@@ -1182,6 +1187,28 @@ def gpu_selftest(directory ∈ Path) → None:
     if gpu_audit(positive, True, False) != 0:
         raise AssertionError("GPU-PARSER-GOOD-REFERENCE-REJECTED")
     good ∈ str ← positive.read_text()
+    with_timer ∈ Path ← directory.joinpath("synthetic-gpu-with-timer.log")
+    with_timer.write_text(good + "HOLO_GPU_TIMER status=NOT_RUN reason=missing-disjoint-extension extension=EXT_disjoint_timer_query\n")
+    if gpu_audit(with_timer, True, False) != 0:
+        raise AssertionError("GPU-TIMER-METADATA-CHANGED-NUMERICAL-ACCEPTANCE")
+    timer_only_measures ∈ Path ← directory.joinpath("synthetic-gpu-timer-is-not-measurement.log")
+    timer_only_measures.write_text(good.replace("HOLO_GPU_MEASURE", "HOLO_GPU_TIMER"))
+    try:
+        gpu_audit(timer_only_measures, True, False)
+    except ValueError as error:
+        if str(error) != "GPU-MISSING-NUMERICAL-OUTPUT":
+            raise
+    else:
+        raise AssertionError("GPU-TIMER-METADATA-REPLACED-NUMERICAL-OUTPUT")
+    unknown_event ∈ Path ← directory.joinpath("synthetic-gpu-unknown-event.log")
+    unknown_event.write_text(good + "HOLO_GPU_UNKNOWN status=unexpected\n")
+    try:
+        gpu_audit(unknown_event, True, False)
+    except ValueError as error:
+        if str(error) != "GPU-UNEXPECTED-EVENT":
+            raise
+    else:
+        raise AssertionError("GPU-UNKNOWN-EVENT-PASSED")
     missing ∈ Path ← directory.joinpath("synthetic-gpu-missing.log")
     missing.write_text("HOLO_GPU_NUMERIC status=OUTPUT_READY samples=34 expected=34 reference_acceptance=NOT_RUN\n")
     try:
