@@ -300,17 +300,17 @@ if (int(api) >= 33) {
 } else { printf 'framework_auto_expiration\tNOT_APPLICABLE_API_29\n' >> "$output/result.tsv" }
 
 snapshot before-reboot
-"$adb" -s "$serial" reboot
-"$adb" -s "$serial" wait-for-device
-var booted = false
-for attempt in @(seq 1 60) {
-  var state = $("$adb" -s "$serial" shell getprop sys.boot_completed | tr -d '\r')
-  if (state === '1') { setvar booted = true; break }
-  sleep 1
-}
-if (not booted) { echo 'FAIL emulator did not reboot' >&2; exit 1 }
+var suite_root = $(realpath "$(dirname "$0")/..")
+"$grease" "$suite_root/android-reboot/observe.grease" "$adb" "$serial" "$api" "$grease" "$output/reboot"
 "$adb" -s "$serial" shell input keyevent 82
-start_app after-reboot
+try { "$adb" -s "$serial" shell pm path "$package" > "$output/after-reboot.package-paths.txt" 2>&1 }
+try { "$adb" -s "$serial" shell am start -W -n "$component" > "$output/after-reboot.launch.txt" }
+if (_error.code !== 0) {
+  diagnose after-reboot-failed
+  echo 'FAIL Pasteboard activity unavailable after verified new Android boot' >&2
+  exit 1
+}
+sleep 1
 snapshot after-reboot
 cmp "$output/before-reboot.bin" "$output/after-reboot.bin"
 printf 'device_restart_preserves_acknowledged_history\tPASS\nphysical_C67\tNOT_VERIFIED\nphysical_TAB_P10\tNOT_VERIFIED\n' >> "$output/result.tsv"

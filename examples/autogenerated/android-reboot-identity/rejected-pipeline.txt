@@ -1,0 +1,9 @@
+Initial predicate attempt:
+  if not printf '%s\n' "$identity" | rg -q -x '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' {
+
+Actual canonical Grease rejection:
+fatal: Command conditionals should only have one status, not Pipeline (strict_errexit, OILS-ERR-300)
+
+Corrected to the existing native try block plus explicit _error.code check.
+No Bash or alternate runtime is used. The first failed output directory is
+retained separately; the corrected fixture execution uses a fresh directory.
