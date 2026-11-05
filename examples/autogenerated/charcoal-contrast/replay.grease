@@ -1,0 +1,30 @@
+#!/usr/bin/env grease
+# Replay the exact Idriç numeric oracle with the retained checked frontend.
+set -eu -o pipefail
+if (len(ARGV) !== 2) { echo 'requires FRONTEND NEW_OUTPUT' >&2; exit 2 }
+var frontend = ARGV[0]
+var output = ARGV[1]
+var source = $(realpath "$(dirname "$0")")
+test ! -e "$output"
+test -x "$frontend/_/build/exec/idris2"
+mkdir -p "$output"
+var prefix = "$frontend/_/bootstrap-build"
+setglobal ENV.IDRIS2_PREFIX = prefix
+setglobal ENV.IDRIS2_PACKAGE_PATH = "$prefix/idris2-0.8.0"
+setglobal ENV.IDRIS2_DATA = "$frontend/_/support"
+setglobal ENV.IDRIS2_LIBS = "$frontend/_/build/exec/idris2_app"
+setglobal ENV.CHEZ = "$frontend/_/.tools/bin/scheme"
+setglobal ENV.IDRIS2_CG = 'chez'
+setglobal ENV.LD_LIBRARY_PATH = "$frontend/_/build/exec/idris2_app"
+setglobal ENV.IDRIS2_INC_SRC = "$frontend/_/build/exec/idris2_app"
+try {
+  # A retained Chez program has its producer host in its executable shebang.
+  # Invoke the same retained Chez explicitly when replaying at another path.
+  "$frontend/_/.tools/bin/scheme" --program "$frontend/_/build/exec/idris2_app/idris2.so" --source-dir "$source" \
+    --build-dir "$output/build" --output-dir "$output" \
+    "$source/CharcoalContrast.idric" -o contrast > "$output/compiler.txt" 2>&1
+}
+if (_error.code !== 0) { cat "$output/compiler.txt"; exit 1 }
+"$output/contrast" > "$output/actual.txt"
+cat "$output/actual.txt"
+rg -x -F 'PASS conservative integer WCAG AA charcoal text contrast and targeted negatives' "$output/actual.txt"

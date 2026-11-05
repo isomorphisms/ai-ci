@@ -26,6 +26,12 @@ values. This is not actual Android pixel, dialog, lifecycle or device evidence.
 
 Compiler target: the existing IB producer's pinned checked Idriç frontend,
 canonical Chez host runtime. No generated-C/RefC or language fallback.
-Execution: PENDING; the first hosted compiler/run result must replace this
-status. Local compiler is unavailable. Preserve this attempt if checking fails;
-the exact diagnostic will identify the first language work required.
+Execution: PASS in a local replay of the retained checked frontend
+`isomorphisms/Idric@740bbf2b1d9e811fd00c719c3473eede17ceea3b`.
+The four frontend parts from IB run41943979892 matched their retained SHA256
+values. The source compiled without diagnostics using that frontend and its
+retained Chez10.4.1 runtime; all assertions passed. No RefC, numeric or language
+fallback was used. `replay.grease` invokes the retained Chez program explicitly
+because its executable shebang names the original producer host. An initial
+launcher attempt at the new filesystem path failed for that relocation reason.
+The ordinary IB producer compile/run remains a distinct hosted check.
