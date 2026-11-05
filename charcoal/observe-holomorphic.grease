@@ -1,0 +1,110 @@
+#!/usr/bin/env grease
+# Inspect real checked-shader controls; the scientific canvas is not recolored.
+set -eu -o pipefail
+if (len(ARGV) !== 8) { echo 'requires ADB SERIAL SDK APK GREASE NEW_OUTPUT API SOURCE' >&2; exit 2 }
+var adb = ARGV[0]
+var serial = ARGV[1]
+var sdk = ARGV[2]
+var apk = ARGV[3]
+var runtime = ARGV[4]
+var suite = $(realpath "$(dirname "$0")")
+var output = ARGV[5]
+var api = ARGV[6]
+var source = ARGV[7]
+var package = 'org.isomorphisms.analyticcontinuation.lasso.dev'
+var component = "$package/org.isomorphisms.analyticcontinuation.ExplorerActivity"
+test ! -e "$output"
+mkdir -p "$output"
+"$adb" -s "$serial" shell getprop ro.kernel.qemu | tr -d '\r' | rg -x 1
+test "$("$adb" -s "$serial" shell getprop ro.build.version.sdk | tr -d '\r')" = "$api"
+"$adb" -s "$serial" shell getprop ro.product.cpu.abi | tr -d '\r' | rg -x x86_64
+"$sdk/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$apk" > "$output/signer.txt"
+rg -x -F 'Signer #1 certificate SHA-256 digest: 27eee69b1cbeebc30eab35fe7eb5459c542784b4ccc68453a372cb6802ccf7cf' "$output/signer.txt"
+"$adb" -s "$serial" shell pm list packages "$package" > "$output/namespace-before.txt"
+try { rg -x -F "package:$package" "$output/namespace-before.txt" }
+if (_error.code !== 1) { echo 'FAIL independent scientific chrome test requires a fresh namespace' >&2; exit 1 }
+unzip -p "$apk" assets/continuation.frag > "$output/continuation.frag"
+var fragment_digest = $(sha256sum "$output/continuation.frag" | cut -d ' ' -f 1)
+"$adb" -s "$serial" install "$apk" > "$output/install.txt"
+"$adb" -s "$serial" shell wm size 480x960
+"$adb" -s "$serial" shell wm density 160
+"$adb" -s "$serial" shell settings put secure immersive_mode_confirmations confirmed
+for mode in no yes {
+  "$runtime" "$suite/admit-system-mode.grease" "$adb" "$serial" "$api" "$mode" "$output/$mode.system-mode"
+  cp "$output/$mode.system-mode/night.txt" "$output/night-$mode.txt"
+  "$adb" -s "$serial" shell am force-stop "$package"
+  "$adb" -s "$serial" logcat -c
+  "$adb" -s "$serial" shell am start -W -n "$component" > "$output/start-$mode.txt"
+  var process = $("$adb" -s "$serial" shell pidof -s "$package" | tr -d '\r')
+  printf '%s\n' "$process" | rg -x '[1-9][0-9]*'
+  var ready = false
+  for attempt in @(seq 1 35) {
+    "$adb" -s "$serial" logcat -d --pid="$process" > "$output/runtime-$mode.txt"
+    try { rg -F 'holomorphic field first frame:' "$output/runtime-$mode.txt" }
+    if (_error.code === 0) { setvar ready = true; break }
+    sleep 1
+  }
+  if (not ready) { echo 'FAIL actual scientific renderer did not present its first frame' >&2; exit 1 }
+  rg -F 'holomorphic field GLSL backend selected: compiler=idris2-glsles fallback=none' "$output/runtime-$mode.txt"
+  rg -F "submission=glShaderSource fallback=none driver_readback_sha256=$fragment_digest" "$output/runtime-$mode.txt"
+  var width = int($(sed -n 's/.*holomorphic field ready: surface=\([0-9][0-9]*\)x[0-9][0-9]*.*/\1/p' "$output/runtime-$mode.txt" | tail -n 1))
+  var height = int($(sed -n 's/.*holomorphic field ready: surface=[0-9][0-9]*x\([0-9][0-9]*\).*/\1/p' "$output/runtime-$mode.txt" | tail -n 1))
+  var shorter = width
+  if (height < shorter) { setvar shorter = height }
+  var radius = shorter * 48 // 1000
+  if (radius < 26) { setvar radius = 26 }
+  if (radius > 38) { setvar radius = 38 }
+  var zero_x = radius + 16
+  var sample_y = height - radius - 17
+  var pole_x = zero_x + 2 * radius + 14
+  var inactive_x = pole_x + radius * 3 // 4
+  # Midway between the ring's .25R and .40R boundaries, away from antialiasing.
+  var primary_x = zero_x + radius * 13 // 40
+  test "$("$adb" -s "$serial" shell pidof -s "$package" | tr -d '\r')" = "$process"
+  "$adb" -s "$serial" shell dumpsys activity activities > "$output/activity-$mode.txt"
+  rg '(mResumedActivity|topResumedActivity)' "$output/activity-$mode.txt" | rg -F "$component"
+  # The native first-frame log precedes eglSwapBuffers. Require a presented
+  # control in the compositor instead of treating that log as presentation.
+  # Retain every attempt; this settled-frame check does not qualify startup.
+  var presented = false
+  for attempt in @(seq 1 15) {
+    "$adb" -s "$serial" exec-out screencap -p > "$output/presentation-$mode-$attempt.png"
+    ffmpeg -nostdin -hide_banner -i "$output/presentation-$mode-$attempt.png" \
+      -vf "crop=1:1:$[zero_x]:$[sample_y],format=rgb24" -frames:v 1 -f rawvideo \
+      "$output/presentation-$mode-$attempt.rgb" > "$output/presentation-$mode-$attempt.decode.txt" 2>&1
+    od -An -tu1 "$output/presentation-$mode-$attempt.rgb" > "$output/presentation-$mode-$attempt.txt"
+    try { rg -x ' *5[4-8] +5[4-8] +5[4-8] *' "$output/presentation-$mode-$attempt.txt" }
+    if (_error.code === 0) {
+      cp "$output/presentation-$mode-$attempt.png" "$output/controls-$mode.png"
+      setvar presented = true
+      break
+    }
+    sleep 1
+  }
+  if (not presented) { echo 'FAIL actual scientific control never reached the compositor' >&2; exit 1 }
+  for role in selected surface primary secondary {
+    var sample_x = zero_x
+    var expected = ' *5[4-8] +5[4-8] +5[4-8] *'
+    if (role === 'surface') { setvar sample_x = inactive_x; setvar expected = ' *4[5-9] +4[5-9] +4[5-9] *' }
+    if (role === 'primary') { setvar sample_x = primary_x; setvar expected = ' *24[2-6] +24[2-6] +24[2-6] *' }
+    if (role === 'secondary') { setvar sample_x = pole_x; setvar expected = ' *(17[8-9]|18[0-2]) +(17[8-9]|18[0-2]) +(17[8-9]|18[0-2]) *' }
+    ffmpeg -nostdin -hide_banner -i "$output/controls-$mode.png" \
+      -vf "crop=1:1:$[sample_x]:$[sample_y],format=rgb24" -frames:v 1 -f rawvideo "$output/$role-$mode.rgb" > "$output/$role-$mode.decode.txt" 2>&1
+    od -An -tu1 "$output/$role-$mode.rgb" > "$output/$role-$mode.txt"
+    rg -x "$expected" "$output/$role-$mode.txt"
+    # Targeted screenshot-oracle negative; preserve the actual source frame.
+    ffmpeg -nostdin -hide_banner -i "$output/controls-$mode.png" \
+      -vf "drawbox=x=$[sample_x]:y=$[sample_y]:w=1:h=1:color=white:t=fill" -frames:v 1 \
+      "$output/$role-$mode-white.png" > "$output/$role-$mode-white.encode.txt" 2>&1
+    ffmpeg -nostdin -hide_banner -i "$output/$role-$mode-white.png" \
+      -vf "crop=1:1:$[sample_x]:$[sample_y],format=rgb24" -frames:v 1 -f rawvideo \
+      "$output/$role-$mode-white.rgb" > "$output/$role-$mode-white.decode.txt" 2>&1
+    od -An -tu1 "$output/$role-$mode-white.rgb" > "$output/$role-$mode-white.txt"
+    try { rg -x "$expected" "$output/$role-$mode-white.txt" }
+    if (_error.code !== 1) { echo "FAIL $role white pixel oracle mutant accepted" >&2; exit 1 }
+  }
+}
+"$runtime" "$suite/admit-system-mode.grease" "$adb" "$serial" "$api" no "$output/restored.system-mode"
+cp "$output/restored.system-mode/night.txt" "$output/night-restored.txt"
+sha256sum "$apk" > "$output/apk.sha256"
+printf 'source\t%s\nAPI\t%s\nboth_system_modes\tPASS\nchecked_shader_source_binding\tPASS\nreal_control_surface_and_mark_pixels\tPASS\nscientific_color_parity\tNOT_REPEATED\nstartup_transition_sequence\tNOT_RUN\nrotation\tNOT_RUN\nphysical_C67\tNOT_RUN\n' "$source" "$api" > "$output/receipt.tsv"

@@ -1,0 +1,4 @@
+# Retained unsuccessful syntax probe; this must not become a consumer path.
+var height = 480
+var radius = $((48 * height / 1000))
+echo "$[radius]"
