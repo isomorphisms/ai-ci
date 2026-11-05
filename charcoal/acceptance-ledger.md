@@ -22,249 +22,111 @@ continues. An UNINSPECTED row is outstanding work, not an exclusion.
 candidate plus the implemented active-branch applications. A `tree` identity is
 discovery evidence, not a source commit or accepted build.
 
-## Current shared-widget adoption
+## Current versioned shared contract
 
-Shared owner [android-NDK #43](https://github.com/isomorphisms/android-NDK/pull/43)
-is `e8b67dfc67776c2b8da919785d15f38d68c91db0`. Compared with the preceding
-shared source3e682fb1, only seven XML lines change: default TextViews and dialogs
-use the explicit stateful F4/disabled85 foreground. Actual API34 framework
-observation at [fixture #44](https://github.com/isomorphisms/android-NDK/pull/44)
-passes and rejects a missing-theme candidate. All five current fixture workflows
-pass. Color roles and application mathematics are unchanged.
+Shared owner [android-NDK #43](https://github.com/isomorphisms/android-NDK/pull/43) is `38d6899706d855201239d86e1629e2620c0e8821`. Seven canonical resource files preserve the API19 floor and place API21, 23, 27, 29 and 31 attributes in their proper qualified definitions. Default TextViews retain F4/stateful disabled85 text. No palette, scientific mapping, compiler, ABI, package identity or signer is changed by this propagation.
 
-The following application heads now adopt that correction. **A prior accepted
-APK does not qualify a newer source head.** The five current priority APKs now pass the sampled lifecycle on both APIs
-and both system modes; full state coverage and remaining applications are
-being reconciled below. The TSV always records current
-source identities; historical proofs are identified separately.
+The missing-version controls and exact vendor copies pass [42001000863](https://github.com/isomorphisms/ai-ci/actions/runs/42001000863) at contract [#342](https://github.com/isomorphisms/ai-ci/pull/342), `ff34c4100bc7063aab245f8088b4abee77df3e3a`. Each omitted API-qualified file is rejected. Actual SDK lint exposed the earlier E8 resource error; no lint baseline, suppressed warning or increased minimum SDK hides it. Porthole and WiFi Scanner now pass build, test and lint with the versioned owner. Their existing foreground-service and paired-location permission declarations were corrected without adding a service or location API.
 
-| Project / implementation PR | Exact current source | Current acceptance | Build / acceptance runs |
-|---|---|---|---|
-| [FastChat #23](https://github.com/isomorphisms/fastchat/pull/23) | `215ef98c09e667cdb4335d19a7041a49c7d6e5e1` | PASS CURRENT FIVE APP LIFECYCLE AND VIDEO NEGATIVE; PASS CURRENT PRODUCER SUITES | [41990448769](https://github.com/isomorphisms/fastchat/actions/runs/41990448769), [41990448464](https://github.com/isomorphisms/fastchat/actions/runs/41990448464), [41990448869](https://github.com/isomorphisms/fastchat/actions/runs/41990448869), [41990448481](https://github.com/isomorphisms/fastchat/actions/runs/41990448481) |
-| [IB #170](https://github.com/isomorphisms/ib/pull/170) | `336c17c5bc3975f7e113c4ffec4de69687ebd2aa` | PASS CURRENT FIVE APP LIFECYCLE AND VIDEO NEGATIVE; PASS NATIVE API29 API34 BROWSER FOUNDATION FAIL | [41990454619](https://github.com/isomorphisms/ib/actions/runs/41990454619), [41990454629](https://github.com/isomorphisms/ib/actions/runs/41990454629), [41990454666](https://github.com/isomorphisms/ib/actions/runs/41990454666) |
-| [ChatGPTExporter #18](https://github.com/dilapidated-shed/ChatGPTExporter/pull/18) | `e682e0c865ba87d4793e3a4e62ebf6864db2b188` | PASS CURRENT FIVE APP LIFECYCLE AND VIDEO NEGATIVE; PASS CURRENT PRODUCER SUITES | [41990459633](https://github.com/dilapidated-shed/ChatGPTExporter/actions/runs/41990459633), [41990459664](https://github.com/dilapidated-shed/ChatGPTExporter/actions/runs/41990459664), [41990459996](https://github.com/dilapidated-shed/ChatGPTExporter/actions/runs/41990459996), [41990459787](https://github.com/dilapidated-shed/ChatGPTExporter/actions/runs/41990459787) |
-| [Chord Changes #10](https://github.com/dilapidated-shed/tablature/pull/10) | `bd7d6be5b09b77f371bd97302002ddc8966d543c` | PASS CURRENT FIVE APP LIFECYCLE AND VIDEO NEGATIVE; PASS CURRENT PRODUCER SUITES | [41990465047](https://github.com/dilapidated-shed/tablature/actions/runs/41990465047) |
-| [Pasteboard #91](https://github.com/Ashtray-Archer/utilities-android-phone-user/pull/91) | `df2df8f18840c98a175b958f07749bb423e80ff0` | PASS CURRENT FIVE APP LIFECYCLE AND VIDEO NEGATIVE; PASS CURRENT PRODUCER SUITES | [41990472327](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990472327), [41990472269](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990472269), [41990472262](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990472262), [41990472333](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990472333), [41990472251](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990472251), [41990472306](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990472306) |
-| [Sensor instruments #92](https://github.com/Ashtray-Archer/utilities-android-phone-user/pull/92) | `4c7fcfcdd22468e8abaa368eb863c012784909df` | API29 API34 INDEPENDENT VISUAL PENDING; PASS CURRENT PRODUCER SUITES | [41990334727](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990334727), [41990334761](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990334761), [41990334852](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990334852), [41990334839](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990334839) |
-| [ambient-light #2](https://github.com/isomorphisms/ambient-light/pull/2) | `2c93d0deeaacde5e1b43297648fc26afcd9935dd` | API29 API34 INDEPENDENT VISUAL PENDING; PASS CURRENT PRODUCER SUITES | [41990477641](https://github.com/isomorphisms/ambient-light/actions/runs/41990477641) |
-| [Android-proximity-sensor #4](https://github.com/isomorphisms/Android-proximity-sensor/pull/4) | `26cf4cc9d13818658d91d09b909d7cf92f5ccb86` | API29 API34 INDEPENDENT VISUAL PENDING; PASS CURRENT PRODUCER SUITES | [41990482008](https://github.com/isomorphisms/Android-proximity-sensor/actions/runs/41990482008) |
-| [wegert #76](https://github.com/isomorphismes/wegert/pull/76) | `e2fdb7939352bd0ccc9e8a49b54657bee562f5a5` | PASS API34 API35 EXECUTION API29 BOTH MODE PENDING; PASS NATIVE DEX ICK FDROID RECIPE FAIL | [41990641613](https://github.com/isomorphismes/wegert/actions/runs/41990641613), [41990641677](https://github.com/isomorphismes/wegert/actions/runs/41990641677), [41990641633](https://github.com/isomorphismes/wegert/actions/runs/41990641633), [41990641679](https://github.com/isomorphismes/wegert/actions/runs/41990641679), [41990641573](https://github.com/isomorphismes/wegert/actions/runs/41990641573), [41990641638](https://github.com/isomorphismes/wegert/actions/runs/41990641638) |
-| [billiard #21](https://github.com/isomorphismes/billiard/pull/21) | `327150bdd3f48e4b78d9d29ebc8c6ac6ec6f25bd` | API29 API34 INDEPENDENT VISUAL PENDING; PASS CURRENT PRODUCER SUITES | [41990486719](https://github.com/isomorphismes/billiard/actions/runs/41990486719), [41990486799](https://github.com/isomorphismes/billiard/actions/runs/41990486799), [41990487024](https://github.com/isomorphismes/billiard/actions/runs/41990487024) |
-| [holomorphic #67](https://github.com/isomorphismes/holomorphic/pull/67) | `83acc7a7d5e73f2efdb79425e35c6f54f67a91f2` | CURRENT API29 API34 REPLAY PENDING; PASS STRICT GPU API34 AUXILIARY FIRST FRAME OBSERVER FAIL | [41990492896](https://github.com/isomorphismes/holomorphic/actions/runs/41990492896), [41990493281](https://github.com/isomorphismes/holomorphic/actions/runs/41990493281), [41990493268](https://github.com/isomorphismes/holomorphic/actions/runs/41990493268), [41990493311](https://github.com/isomorphismes/holomorphic/actions/runs/41990493311), [41990493341](https://github.com/isomorphismes/holomorphic/actions/runs/41990493341), [41990493402](https://github.com/isomorphismes/holomorphic/actions/runs/41990493402) |
-| [pauli #30](https://github.com/isomorphismes/pauli/pull/30) | `83470a9991263f5a2b4fc5a6ff4ef3216c877f8e` | API29 API34 INDEPENDENT VISUAL PENDING; PASS CURRENT PRODUCER SUITES | [41990500303](https://github.com/isomorphismes/pauli/actions/runs/41990500303), [41990500243](https://github.com/isomorphismes/pauli/actions/runs/41990500243), [41990500319](https://github.com/isomorphismes/pauli/actions/runs/41990500319), [41990500288](https://github.com/isomorphismes/pauli/actions/runs/41990500288), [41990500373](https://github.com/isomorphismes/pauli/actions/runs/41990500373) |
-| [mathieu #4](https://github.com/isomorphismes/mathieu/pull/4) | `41da46d2ab718e7c780c7fc1afdc187f7781af64` | PASS CURRENT HOST AND API29 API34 CONTROLS; PASS CURRENT PRODUCER SUITES | [41990504391](https://github.com/isomorphismes/mathieu/actions/runs/41990504391) |
-| [mostow #9](https://github.com/isomorphismes/mostow/pull/9) | `4a0fb0fb32bde11b1552b32eb2b1e49db7e7aceb` | API29 API34 INDEPENDENT VISUAL PENDING; PASS CURRENT PRODUCER SUITES | [41990509715](https://github.com/isomorphismes/mostow/actions/runs/41990509715), [41990509695](https://github.com/isomorphismes/mostow/actions/runs/41990509695) |
-| [seifert #10](https://github.com/isomorphismes/seifert/pull/10) | `f522c7232952ae881d0cf91ab6e975434866bbca` | API29 API34 INDEPENDENT VISUAL PENDING; PASS CURRENT PRODUCER SUITES | [41990515554](https://github.com/isomorphismes/seifert/actions/runs/41990515554), [41990515526](https://github.com/isomorphismes/seifert/actions/runs/41990515526), [41990515436](https://github.com/isomorphismes/seifert/actions/runs/41990515436) |
-| [spinor #10](https://github.com/isomorphismes/spinor/pull/10) | `d9ecb67c139e56510b9f5654cd8866f1e6d53ca0` | API29 API34 INDEPENDENT VISUAL PENDING; PASS CURRENT PRODUCER SUITES | [41990518397](https://github.com/isomorphismes/spinor/actions/runs/41990518397), [41990518481](https://github.com/isomorphismes/spinor/actions/runs/41990518481), [41990518471](https://github.com/isomorphismes/spinor/actions/runs/41990518471), [41990518722](https://github.com/isomorphismes/spinor/actions/runs/41990518722) |
-| [Fourier-sound #35](https://github.com/isomorphismes/Fourier-sound/pull/35) | `d126017664ca8b2cfe31e10e2903d1b3fe24e212` | API29 API34 INDEPENDENT VISUAL PENDING; PASS CURRENT PRODUCER SUITES | [41990523256](https://github.com/isomorphismes/Fourier-sound/actions/runs/41990523256), [41990523195](https://github.com/isomorphismes/Fourier-sound/actions/runs/41990523195), [41990523176](https://github.com/isomorphismes/Fourier-sound/actions/runs/41990523176), [41990523298](https://github.com/isomorphismes/Fourier-sound/actions/runs/41990523298), [41990523164](https://github.com/isomorphismes/Fourier-sound/actions/runs/41990523164), [41990523152](https://github.com/isomorphismes/Fourier-sound/actions/runs/41990523152) |
-| [Conway #12](https://github.com/isomorphismes/Conway/pull/12) | `2121ab622fe5637cced421a1fcef453a1a0d1c44` | API29 API34 INDEPENDENT VISUAL PENDING; PASS CURRENT PRODUCER SUITES | [41990530880](https://github.com/isomorphismes/Conway/actions/runs/41990530880), [41990530795](https://github.com/isomorphismes/Conway/actions/runs/41990530795), [41990530738](https://github.com/isomorphismes/Conway/actions/runs/41990530738) |
-| [algebraic-variety-explorer-mobile #34](https://github.com/isomorphismes/algebraic-variety-explorer-mobile/pull/34) | `ecb721f62237ef7f2b97060e0bfd6b050a62c859` | PASS API35 NATIVE PARITY BOTH MODE PALETTE PENDING; PASS NATIVE AND CI FDROID RECIPE FAIL | [41990537536](https://github.com/isomorphismes/algebraic-variety-explorer-mobile/actions/runs/41990537536), [41990537425](https://github.com/isomorphismes/algebraic-variety-explorer-mobile/actions/runs/41990537425), [41990537451](https://github.com/isomorphismes/algebraic-variety-explorer-mobile/actions/runs/41990537451), [41990537527](https://github.com/isomorphismes/algebraic-variety-explorer-mobile/actions/runs/41990537527) |
+Fixture [android-NDK #44](https://github.com/isomorphisms/android-NDK/pull/44), `9ecd0d05c3cb91f12140648b2109aab3c02ba4da`, passes all five current workflows: [42001014523](https://github.com/isomorphisms/android-NDK/actions/runs/42001014523), [42001014625](https://github.com/isomorphisms/android-NDK/actions/runs/42001014625), [42001014605](https://github.com/isomorphisms/android-NDK/actions/runs/42001014605), [42001014694](https://github.com/isomorphisms/android-NDK/actions/runs/42001014694), [42001014531](https://github.com/isomorphisms/android-NDK/actions/runs/42001014531). This includes actual API34 framework/DEX execution and the missing-theme negative; full API29 fixture coverage remains pending.
 
-## Current priority replay and delivery
+## Current application sources
 
-Observer `fb0d0602f5550a0f30f77ef94e343bcebfe7f822` passes both VM jobs in
-[41996501618](https://github.com/isomorphisms/ai-ci/actions/runs/41996501618).
-It binds all five current sources above, immutable producer artifacts and
-downloaded APK SHA256 values. The unchanged observer captures 100 settled PNG
-stages and20 actual videos, checks both system night modes, replacement,
-cold start, rotation policy, Home/resume and force-stop reopen, and rejects the
-encoded single-white-frame control. Evidence:
-[API29](https://github.com/isomorphisms/ai-ci/actions/runs/41996501618/artifacts/13401086000),
-[API34](https://github.com/isomorphisms/ai-ci/actions/runs/41996501618/artifacts/13400677386).
+The following are current commit identities, not extrapolated acceptance from older APKs. Versioned adoption is implemented in 31 existing implementation branches; Porthole, WiFi Scanner and Indra's Pearls already adopted the owner separately. Fresh producer and visual results are pending unless explicitly identified. There are multiple programs in the sensor and utility rows, so this is not an application count. Signed artifacts from previous source heads appear only under historical evidence below.
 
-| Current candidate | Signed ARM64-containing artifact |
-|---|---|
-| fastchat | [Producer41990448769, artifact13397841839](https://github.com/isomorphisms/fastchat/actions/runs/41990448769/artifacts/13397841839) |
-| ib | [Producer41990454666, artifact13400366625](https://github.com/isomorphisms/ib/actions/runs/41990454666/artifacts/13400366625) |
-| ChatGPTExporter | [Producer41990459787, artifact13398432041](https://github.com/dilapidated-shed/ChatGPTExporter/actions/runs/41990459787/artifacts/13398432041) |
-| tablature | [Producer41990465047, artifact13398119356](https://github.com/dilapidated-shed/tablature/actions/runs/41990465047/artifacts/13398119356) |
-| Pasteboard | [Producer41990472251, artifact13398546503](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990472251/artifacts/13398546503) |
-
-These are review/test candidates. Partial dialogs, IME behavior, every document
-state and physical C67 acceptance are outside the sampled lifecycle claim.
-
-## Additional utility and Android frontends
-
-| Project | Current source | PR | Validation / limitation |
-|---|---|---|---|
-| isomorphismes/sprott | `cafbfe7ddbd741ff86efa8955a75dc2471e04b44` | [#4](https://github.com/isomorphismes/sprott/pull/4) | PASS PRIOR HOST ARMV7 CURRENT QUALIFIED PRODUCER PENDING; API29 API34 NOT RUN |
-| isomorphismes/mock-theta | `df571df0e191f038223b04a5058f026482346d73` | [#4](https://github.com/isomorphismes/mock-theta/pull/4) | PASS HOST TYPES AND ARMV7 APK; API29 API34 NOT RUN |
-| isomorphismes/p-adic | `3893329bc604eda45ebee1fecb616c3ab9d7dc00` | [#2](https://github.com/isomorphismes/p-adic/pull/2) | PASS CURRENT SIGNED ARMV7 AND SHARED COPY; API29 API34 BROWSER NOT RUN |
-| Ashtray-Archer/az | `9a26f501d95a672bf39e58954560200daf256073` | [#30](https://github.com/Ashtray-Archer/az/pull/30) | PASS HOST AND UNSIGNED ANDROID BUILD; API29 API34 NOT RUN |
-| Ashtray-Archer/zoneedit | `dad535acd65381f2f95c3b4a01df65b4ccbca3f0` | [#3](https://github.com/Ashtray-Archer/zoneedit/pull/3) | PASS SHARED COPY CURRENT NATIVE BUILD PENDING; CURRENT API34 RUNTIME PENDING |
-| Ashtray-Archer/porthole | `7b108e1cbdf2082c135b3c9aaee08d07b45bbe07` | [#1](https://github.com/Ashtray-Archer/porthole/pull/1) | PASS KTLINT COMPILE FAIL DETEKT LITERAL AND SHARED NEWAPI; API29 API34 NOT RUN |
-| Ashtray-Archer/WifiScanner | `1ad0a8fbcb6847b98e46c9699dcd8a4626e7c93f` | [#1](https://github.com/Ashtray-Archer/WifiScanner/pull/1) | PASS SHARED COPY CURRENT BUILD LINT PENDING; API29 API34 NOT RUN |
-| Unicode Picker / Compact IME / Clipboard smoke | `44221b2c3fd00778b39dbbab13d1b4b997607e7b` | [#93](https://github.com/Ashtray-Archer/utilities-android-phone-user/pull/93) | All current producer suites PASS, including actual API29 native picker, real IME typing and clipboard receipt. Both-mode/API34 palette lifecycle remains pending. |
-
-Porthole's actual Android lint reports four NewApi errors in the shared E8
-base resource: newer navigation-icon and force-dark attributes need proper
-version-qualified definitions for the retained older API floor. This is an
-outstanding shared-contract repair, with lint retained. Its new Compose
-sources compile and ktlint passes; Detekt additionally requires named resources
-for four literal colors in the added styling expressions. The existing
-API29/API34 appearance passes remain tied to their exact accepted APKs.
-
-## Other implemented applications
-
-| Project | Source / PR | Dark default | Visual test | Regression tests | Artifact |
+| Project / PR | Exact current source | Dark default | Visual test | Regression tests / current runs | Artifact |
 |---|---|---|---|---|---|
-| coefficient-root-dance | [#8](https://github.com/isomorphismes/coefficient-root-dance/pull/8), `f9314060db59b7d6641f3033a78053cf02fb5ff3` | IMPLEMENTED SIGNING CONTINUITY BLOCKED | NATIVE EMULATOR EXECUTED BOTH MODE PALETTE PENDING | PASS NATIVE ANDROID AND FDROID | - |
-| L | [#5](https://github.com/isomorphismes/L/pull/5), `295683b5b600699c0ac8132f20c29a1f0ac750fd` | IMPLEMENTED NATIVE BROWSER SIGNING BLOCKED | PRIOR APK EMULATOR PASS CURRENT BUILD PENDING | PENDING IDRIC MAKE LAYOUT REPAIR | - |
-| hopf_fibration | [#6](https://github.com/isomorphismes/hopf_fibration/pull/6), `4ffe8bc03417b79c4a919d0ca1bb23c94487b999` | IMPLEMENTED SIGNING CONTINUITY BLOCKED | BOTH MODE PALETTE LIFECYCLE PENDING | PASS ANDROID NATIVE PROTOTYPE | - |
-| ortho | [#5](https://github.com/isomorphismes/ortho/pull/5), `403cabed581849e612790f0ce0166f8098665b6f` | IMPLEMENTED SIGNING CONTINUITY BLOCKED | BOTH MODE PALETTE LIFECYCLE PENDING | PASS ANDROID NATIVE PROTOTYPE | - |
-| theta | [#4](https://github.com/isomorphismes/theta/pull/4), `cb0d21adb6883b02b3cab586486c210d40e29604` | IMPLEMENTED SHARED E8 SIGNING BLOCKED | SIX RENDERER ANDROID PALETTE PENDING | PASS RENDERER BAKEOFF AND SHARED COPIES | - |
-| young-tableaux | [#23](https://github.com/isomorphismes/young-tableaux/pull/23), `0f200b000bc4de41e0469d1fe65c7dbbad3db5d8` | IMPLEMENTED RUNTIME ADMISSION BLOCKED | OBSERVABLE JDT PASS ANDROID NOT RUN | PASS INDEPENDENT MATH EXPIRED TYPED COMPILER AND ADMISSION BLOCKED | - |
-| mock-theta | [#4](https://github.com/isomorphismes/mock-theta/pull/4), `df571df0e191f038223b04a5058f026482346d73` | IMPLEMENTED SHARED E8 ARMV7 ONLY | API29 API34 NOT RUN | PASS SHARED AND TYPES NATIVE BUILD PENDING | - |
-| sprott | [#4](https://github.com/isomorphismes/sprott/pull/4), `23c9a678c58fd1192e52c1e3d50996ed4ef66500` | IMPLEMENTED SHARED E8 SIGNING BLOCKED | API29 API34 NOT RUN | PASS LOCAL COPY PARSE CURRENT NATIVE CI PENDING | - |
-| p-adic | [#2](https://github.com/isomorphismes/p-adic/pull/2), `3893329bc604eda45ebee1fecb616c3ab9d7dc00` | IMPLEMENTED SHARED E8 ARMV7 ONLY | API29 API34 BROWSER NOT RUN | PASS LOCAL COPY PARSE CURRENT ANDROID CI PENDING | - |
-| indras-pearls | [#16](https://github.com/isomorphismes/indras-pearls/pull/16), `cffa79aa7e142cd6f2296078515e3b6296840a03` | IMPLEMENTED SHARED E8 SCIENTIFIC RASTER PRESERVED | API29 API34 NOT RUN | PASS LOCAL COPY CURRENT HOST NATIVE CI PENDING | - |
+| [fastchat #23](https://github.com/isomorphisms/fastchat/pull/23) | `07b609e3c30c54d361149f739785a57a51514efb` | IMPLEMENTED | PENDING current API29/34 | PENDING; [42005246241](https://github.com/isomorphisms/fastchat/actions/runs/42005246241), [42005246255](https://github.com/isomorphisms/fastchat/actions/runs/42005246255), [42005246196](https://github.com/isomorphisms/fastchat/actions/runs/42005246196), [42005246209](https://github.com/isomorphisms/fastchat/actions/runs/42005246209) | PENDING current head |
+| [ib #170](https://github.com/isomorphisms/ib/pull/170) | `5804675143eb96f839b35b9bbc462cc8088bbda2` | IMPLEMENTED | PENDING current API29/34 | PENDING; [42005259942](https://github.com/isomorphisms/ib/actions/runs/42005259942), [42005259972](https://github.com/isomorphisms/ib/actions/runs/42005259972), [42005259943](https://github.com/isomorphisms/ib/actions/runs/42005259943) | PENDING current head |
+| [ChatGPTExporter #18](https://github.com/dilapidated-shed/ChatGPTExporter/pull/18) | `95b22de048f1d9496a456f67cd4b81c9f3f92dd1` | IMPLEMENTED | PENDING current API29/34 | PENDING; [42005266498](https://github.com/dilapidated-shed/ChatGPTExporter/actions/runs/42005266498), [42005266500](https://github.com/dilapidated-shed/ChatGPTExporter/actions/runs/42005266500), [42005266596](https://github.com/dilapidated-shed/ChatGPTExporter/actions/runs/42005266596), [42005266523](https://github.com/dilapidated-shed/ChatGPTExporter/actions/runs/42005266523) | PENDING current head |
+| [tablature #10](https://github.com/dilapidated-shed/tablature/pull/10) | `fa5419214fcb9b8f1e90893734391aa655f9b9a3` | IMPLEMENTED | PENDING current API29/34 | PENDING; [42005268924](https://github.com/dilapidated-shed/tablature/actions/runs/42005268924) | PENDING current head |
+| [Pasteboard #91](https://github.com/Ashtray-Archer/utilities-android-phone-user/pull/91) | `ae857b6178c1a8e3a7887574122fa3d9661eeb0e` | IMPLEMENTED | PENDING current API29/34 | PENDING; [42005277456](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/42005277456), [42005277418](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/42005277418), [42005277408](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/42005277408), [42005277463](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/42005277463), [42005277421](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/42005277421), [42005277353](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/42005277353) | PENDING current head |
+| [utilities-instruments #92](https://github.com/Ashtray-Archer/utilities-android-phone-user/pull/92) | `44a5bc5eea8ec34689603f5f4bc58df0dac1208a` | IMPLEMENTED | PENDING current API29/34 | PENDING; [42005211442](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/42005211442), [42005211373](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/42005211373), [42005211469](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/42005211469), [42005211452](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/42005211452) | PENDING current head |
+| [ambient-light #2](https://github.com/isomorphisms/ambient-light/pull/2) | `bf23d212d695f4fd62d7280d5301748de9fbfcf8` | IMPLEMENTED | PENDING current API29/34 | PENDING; [42005280862](https://github.com/isomorphisms/ambient-light/actions/runs/42005280862) | PENDING current head |
+| [proximity #4](https://github.com/isomorphisms/Android-proximity-sensor/pull/4) | `80b5d09e9c1e1aa6f9904a381299f8919be0b8e9` | IMPLEMENTED | PENDING current API29/34 | PENDING; [42005287843](https://github.com/isomorphisms/Android-proximity-sensor/actions/runs/42005287843) | PENDING current head |
+| [wegert #76](https://github.com/isomorphismes/wegert/pull/76) | `c5a1b5cb2816936f4a54a2a6bd3adfb4ef07622c` | IMPLEMENTED | PENDING current API29/34 | PENDING; [42005294059](https://github.com/isomorphismes/wegert/actions/runs/42005294059), [42005293956](https://github.com/isomorphismes/wegert/actions/runs/42005293956), [42005293905](https://github.com/isomorphismes/wegert/actions/runs/42005293905), [42005293911](https://github.com/isomorphismes/wegert/actions/runs/42005293911), [42005293939](https://github.com/isomorphismes/wegert/actions/runs/42005293939), [42005293952](https://github.com/isomorphismes/wegert/actions/runs/42005293952) | PENDING current head |
+| [billiard #21](https://github.com/isomorphismes/billiard/pull/21) | `e8f12a42df148e27f7fb64bf1afd95ed902c2268` | IMPLEMENTED | PENDING current API29/34 | PENDING; [42005299971](https://github.com/isomorphismes/billiard/actions/runs/42005299971), [42005299847](https://github.com/isomorphismes/billiard/actions/runs/42005299847), [42005299831](https://github.com/isomorphismes/billiard/actions/runs/42005299831) | PENDING current head |
+| [holomorphic #67](https://github.com/isomorphismes/holomorphic/pull/67) | `6259d7f07dc6aa2c255d2514c8529f13805b2f0f` | IMPLEMENTED | PENDING current API29/34 | PENDING; [42005307850](https://github.com/isomorphismes/holomorphic/actions/runs/42005307850), [42005307959](https://github.com/isomorphismes/holomorphic/actions/runs/42005307959), [42005307665](https://github.com/isomorphismes/holomorphic/actions/runs/42005307665), [42005307900](https://github.com/isomorphismes/holomorphic/actions/runs/42005307900), [42005307815](https://github.com/isomorphismes/holomorphic/actions/runs/42005307815), [42005306893](https://github.com/isomorphismes/holomorphic/actions/runs/42005306893) | PENDING current head |
+| [pauli #30](https://github.com/isomorphismes/pauli/pull/30) | `2eaf6f5e50cb2cf9d96c6f2dfadcc13e50d93a2d` | IMPLEMENTED | PENDING current API29/34 | PENDING; [42005314229](https://github.com/isomorphismes/pauli/actions/runs/42005314229), [42005314275](https://github.com/isomorphismes/pauli/actions/runs/42005314275), [42005314388](https://github.com/isomorphismes/pauli/actions/runs/42005314388), [42005314627](https://github.com/isomorphismes/pauli/actions/runs/42005314627), [42005314293](https://github.com/isomorphismes/pauli/actions/runs/42005314293) | PENDING current head |
+| [mathieu #4](https://github.com/isomorphismes/mathieu/pull/4) | `ad3335975f3750bcc62e543ba4c264b7af461edd` | IMPLEMENTED | PENDING current API29/34 | PENDING; [42005321201](https://github.com/isomorphismes/mathieu/actions/runs/42005321201) | PENDING current head |
+| [mostow #9](https://github.com/isomorphismes/mostow/pull/9) | `40bb093eba64808ba6dc1699516b6f20b8f06dec` | IMPLEMENTED | PENDING current API29/34 | PENDING; [42005325273](https://github.com/isomorphismes/mostow/actions/runs/42005325273), [42005325258](https://github.com/isomorphismes/mostow/actions/runs/42005325258) | PENDING current head |
+| [seifert #10](https://github.com/isomorphismes/seifert/pull/10) | `5f70e942699c6a04580b14f957c7f981d4f59064` | IMPLEMENTED | PENDING current API29/34 | PENDING; [42005332640](https://github.com/isomorphismes/seifert/actions/runs/42005332640), [42005332795](https://github.com/isomorphismes/seifert/actions/runs/42005332795), [42005332642](https://github.com/isomorphismes/seifert/actions/runs/42005332642) | PENDING current head |
+| [spinor #10](https://github.com/isomorphismes/spinor/pull/10) | `ab8ca940a71627cba1d858ed90dab56904f4bb4d` | IMPLEMENTED | PENDING current API29/34 | PENDING; [42005337329](https://github.com/isomorphismes/spinor/actions/runs/42005337329), [42005337397](https://github.com/isomorphismes/spinor/actions/runs/42005337397), [42005337293](https://github.com/isomorphismes/spinor/actions/runs/42005337293), [42005337298](https://github.com/isomorphismes/spinor/actions/runs/42005337298) | PENDING current head |
+| [Fourier-sound #35](https://github.com/isomorphismes/Fourier-sound/pull/35) | `8315bf41dcf97cf7b0e5795034b5090cfafc4ed5` | IMPLEMENTED | PENDING current API29/34 | PENDING; [42005343090](https://github.com/isomorphismes/Fourier-sound/actions/runs/42005343090), [42005343051](https://github.com/isomorphismes/Fourier-sound/actions/runs/42005343051), [42005343087](https://github.com/isomorphismes/Fourier-sound/actions/runs/42005343087), [42005343148](https://github.com/isomorphismes/Fourier-sound/actions/runs/42005343148), [42005343121](https://github.com/isomorphismes/Fourier-sound/actions/runs/42005343121), [42005343061](https://github.com/isomorphismes/Fourier-sound/actions/runs/42005343061) | PENDING current head |
+| [Conway #12](https://github.com/isomorphismes/Conway/pull/12) | `6adced4076c732bc932b868b4c48bd53644e9c1f` | IMPLEMENTED | PENDING current API29/34 | PENDING; [42005349028](https://github.com/isomorphismes/Conway/actions/runs/42005349028), [42005349022](https://github.com/isomorphismes/Conway/actions/runs/42005349022), [42005348969](https://github.com/isomorphismes/Conway/actions/runs/42005348969) | PENDING current head |
+| [algebraic-variety-explorer-mobile #34](https://github.com/isomorphismes/algebraic-variety-explorer-mobile/pull/34) | `3df3a0639812453e49283fa399e0860871261766` | IMPLEMENTED; signing blocked | PENDING current API29/34 | PENDING; [42005353811](https://github.com/isomorphismes/algebraic-variety-explorer-mobile/actions/runs/42005353811), [42005353844](https://github.com/isomorphismes/algebraic-variety-explorer-mobile/actions/runs/42005353844), [42005353657](https://github.com/isomorphismes/algebraic-variety-explorer-mobile/actions/runs/42005353657), [42005353623](https://github.com/isomorphismes/algebraic-variety-explorer-mobile/actions/runs/42005353623) | PENDING current head |
+| [coefficient-root-dance #8](https://github.com/isomorphismes/coefficient-root-dance/pull/8) | `7b3c5c5de5b83f302da1f746ad2bd0640f71364d` | IMPLEMENTED; signing blocked | PENDING current API29/34 | PENDING; [42005361678](https://github.com/isomorphismes/coefficient-root-dance/actions/runs/42005361678), [42005361550](https://github.com/isomorphismes/coefficient-root-dance/actions/runs/42005361550), [42005361547](https://github.com/isomorphismes/coefficient-root-dance/actions/runs/42005361547) | PENDING current head |
+| [hopf_fibration #6](https://github.com/isomorphismes/hopf_fibration/pull/6) | `be9d51e38154751edac8bf580866443bb6a5968a` | IMPLEMENTED; signing blocked | PENDING current API29/34 | PENDING; [42005368081](https://github.com/isomorphismes/hopf_fibration/actions/runs/42005368081), [42005368154](https://github.com/isomorphismes/hopf_fibration/actions/runs/42005368154), [42005368019](https://github.com/isomorphismes/hopf_fibration/actions/runs/42005368019) | PENDING current head |
+| [ortho #5](https://github.com/isomorphismes/ortho/pull/5) | `b3fac7754843c87711efce1a40e99b86798fa51b` | IMPLEMENTED; signing blocked | PENDING current API29/34 | PENDING; [42005375588](https://github.com/isomorphismes/ortho/actions/runs/42005375588), [42005375340](https://github.com/isomorphismes/ortho/actions/runs/42005375340), [42005375480](https://github.com/isomorphismes/ortho/actions/runs/42005375480) | PENDING current head |
+| [L #5](https://github.com/isomorphismes/L/pull/5) | `af79110aabadf481dfa647b1fbf810138dd93a88` | IMPLEMENTED; signing blocked | PENDING current API29/34 | PENDING; [42005382392](https://github.com/isomorphismes/L/actions/runs/42005382392), [42005382440](https://github.com/isomorphismes/L/actions/runs/42005382440), [42005382388](https://github.com/isomorphismes/L/actions/runs/42005382388) | PENDING current head |
+| [theta #4](https://github.com/isomorphismes/theta/pull/4) | `4842eadcec37f3fe44dc9ef746b5b3bb5e3f46ba` | IMPLEMENTED; signing blocked | PENDING current API29/34 | PENDING; [42005393394](https://github.com/isomorphismes/theta/actions/runs/42005393394), [42005393391](https://github.com/isomorphismes/theta/actions/runs/42005393391) | PENDING current head |
+| [young-tableaux #23](https://github.com/isomorphismes/young-tableaux/pull/23) | `24f7829a1cbf245d51a79a89afffb2f2cbdb324d` | IMPLEMENTED | PENDING current API29/34 | PENDING; [42005397226](https://github.com/isomorphismes/young-tableaux/actions/runs/42005397226), [42005397224](https://github.com/isomorphismes/young-tableaux/actions/runs/42005397224), [42005397270](https://github.com/isomorphismes/young-tableaux/actions/runs/42005397270), [42005397181](https://github.com/isomorphismes/young-tableaux/actions/runs/42005397181) | PENDING current head |
+| [mock-theta #4](https://github.com/isomorphismes/mock-theta/pull/4) | `7f1745ddb908d599228f4dab0c882dde4fb95341` | IMPLEMENTED | PENDING current API29/34 | PENDING; [42005403240](https://github.com/isomorphismes/mock-theta/actions/runs/42005403240), [42005403183](https://github.com/isomorphismes/mock-theta/actions/runs/42005403183), [42005403198](https://github.com/isomorphismes/mock-theta/actions/runs/42005403198) | PENDING current head |
+| [sprott #4](https://github.com/isomorphismes/sprott/pull/4) | `c234459b819f54ce34f4fdf0dedfb12639d56485` | IMPLEMENTED; signing blocked | PENDING current API29/34 | PENDING; [42005413011](https://github.com/isomorphismes/sprott/actions/runs/42005413011), [42005413053](https://github.com/isomorphismes/sprott/actions/runs/42005413053) | PENDING current head |
+| [p-adic #2](https://github.com/isomorphismes/p-adic/pull/2) | `3023db1776e90d7dd408f0ca4a02060d8c2e99b2` | IMPLEMENTED | PENDING current API29/34 | PENDING; [42005420448](https://github.com/isomorphismes/p-adic/actions/runs/42005420448), [42005420834](https://github.com/isomorphismes/p-adic/actions/runs/42005420834) | PENDING current head |
+| [ui-az #30](https://github.com/Ashtray-Archer/az/pull/30) | `7e07e3975338145e85a251fedef56f22d75abb89` | IMPLEMENTED; signing blocked | PENDING current API29/34 | PENDING; [42005426189](https://github.com/Ashtray-Archer/az/actions/runs/42005426189), [42005426205](https://github.com/Ashtray-Archer/az/actions/runs/42005426205), [42005426190](https://github.com/Ashtray-Archer/az/actions/runs/42005426190) | PENDING current head |
+| [ui-zoneedit #3](https://github.com/Ashtray-Archer/zoneedit/pull/3) | `9e66f0cacdee5bcfad0e3f2be31f479bd40bb24e` | IMPLEMENTED | PENDING current API29/34 | PENDING; [42005430751](https://github.com/Ashtray-Archer/zoneedit/actions/runs/42005430751), [42005430768](https://github.com/Ashtray-Archer/zoneedit/actions/runs/42005430768) | PENDING current head |
+| [utilities-charcoal #93](https://github.com/Ashtray-Archer/utilities-android-phone-user/pull/93) | `1fbc2df7653c0d06aa6c4fbcf446c33664fea92d` | IMPLEMENTED | PENDING current API29/34 | PENDING; [42005440459](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/42005440459), [42005440510](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/42005440510), [42005440398](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/42005440398), [42005440485](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/42005440485), [42005440464](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/42005440464) | PENDING current head |
+| [porthole #1](https://github.com/Ashtray-Archer/porthole/pull/1) | `6995e71de244d113428f9c7c0b0755eb5d7ac3c0` | IMPLEMENTED; signing blocked | PENDING API29/34 | PASS build/test/lint/copies; [42002138345](https://github.com/Ashtray-Archer/porthole/actions/runs/42002138345), [42002138231](https://github.com/Ashtray-Archer/porthole/actions/runs/42002138231), [42002138267](https://github.com/Ashtray-Archer/porthole/actions/runs/42002138267) | Fixture only, no C67 upgrade claim |
+| [wifi #1](https://github.com/Ashtray-Archer/WifiScanner/pull/1) | `cba330d298a66b156daad4cbd33a99423feed189` | IMPLEMENTED; signing blocked | PENDING API29/34 | PASS build/test/lint/copies; [42002148575](https://github.com/Ashtray-Archer/WifiScanner/actions/runs/42002148575), [42002148615](https://github.com/Ashtray-Archer/WifiScanner/actions/runs/42002148615) | Fixture only, no C67 upgrade claim |
+| [indras-pearls #16](https://github.com/isomorphismes/indras-pearls/pull/16) | `ca3870349994b2fa617c55a1879fb956b8f17711` | IMPLEMENTED | PENDING API29/34 | PASS copies; native PENDING; [42002586391](https://github.com/isomorphismes/indras-pearls/actions/runs/42002586391), [42002586445](https://github.com/isomorphismes/indras-pearls/actions/runs/42002586445) | Fixture only, no C67 upgrade claim |
 
-Dirichlet [#27](https://github.com/isomorphismes/dirichlet/pull/27) remains at
-`17546b28412a32300e34d623acd9d29cd3203a66`: computed browser palette, white-root
-negative and four WebGL portraits pass
-[41969073935](https://github.com/isomorphismes/dirichlet/actions/runs/41969073935).
-The independent JavaScript checks pass; the inherited host C oracle also fails
-on the unchanged base. Its mathematical threshold was not weakened.
+The Compact IME additionally versions its InputMethodService navigation and force-dark attributes at API27/29. Its existing window semantics and real native keyboard remain. Sensor packaging is advanced first; Ambient Light pins that exact new shared-instrument commit `44a5bc5eea8ec34689603f5f4bc58df0dac1208a` in its build and dependencies receipt. Proximity's separate existing packaging/compiler dependency is retained.
 
-iCurses uses terminal default foreground/background, including its iLua demo.
-The retained product patch is `dac8aa64292a54248b1c6804b9e9e60e5d296ce0`;
-publication into the product repository remains blocked by repository ref
-errors. [Independent #339](https://github.com/isomorphisms/ai-ci/pull/339)
-executes the actual patch: host C/iLua, actual Android34 terminal and the
-[ARM64 checkpoint](https://github.com/isomorphisms/ai-ci/actions/runs/41961330436/artifacts/13386685529)
-pass. API29 and formal shared-runtime admission remain outstanding. No terminal
-palette is overwritten.
+## Qualified preceding priority APKs
 
-## Qualified preceding sources
+The following sources use the preceding E8 widget owner. All five pass independent observer `fb0d0602f5550a0f30f77ef94e343bcebfe7f822`, [#343](https://github.com/isomorphisms/ai-ci/pull/343), run [41996501618](https://github.com/isomorphisms/ai-ci/actions/runs/41996501618) on actual API29 and API34 and both system night modes. These results do not qualify the newer versioned sources above. The observer retains 100 settled screenshots and 20 actual cold-start videos, replacement installation, rotation policy, Home/resume and force-stop reopen. Every decoded frame passes the broad-white-canvas guard and the encoded single-white-frame negative fails. Partial dialogs, IME, scientific content, every document state and physical C67 are outside that sampled claim.
 
-These proofs apply to the exact older source and bytes shown here, before the
-default-widget correction was propagated. They remain useful regression
-evidence, not green results for the current heads.
+Evidence: [API29 artifact13401086000](https://github.com/isomorphisms/ai-ci/actions/runs/41996501618/artifacts/13401086000), [API34 artifact13400677386](https://github.com/isomorphisms/ai-ci/actions/runs/41996501618/artifacts/13400677386).
 
-| Project | Exact preceding source | Visual evidence | Candidate / retained evidence |
-|---|---|---|---|
-| Accelerometer | `7dfacda62e5b1a7b8c28925bff437602dab7e14a` | PASS API29 API34 LAUNCH ROOT INK | [Artifact](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41951695167/artifacts/13383110866) |
-| dilapidated-shed/ChatGPTExporter | `51bace2e9b026f0f5219d49fdf5ccaac89cb2321` | PASS API29 API34 BOTH MODES LIFECYCLE VIDEO GUARD | [Artifact](https://github.com/dilapidated-shed/ChatGPTExporter/actions/runs/41947436588/artifacts/13380610037) |
-| dilapidated-shed/tablature | `7255ad083a1c183c42f9766ca3548c256e090daa` | PASS API29 API34 BOTH MODES LIFECYCLE VIDEO GUARD | [Artifact](https://github.com/dilapidated-shed/tablature/actions/runs/41950607269/artifacts/13382136270) |
-| Gyroscope | `7dfacda62e5b1a7b8c28925bff437602dab7e14a` | PASS API29 API34 LAUNCH ROOT INK | [Artifact](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41951695226/artifacts/13382842737) |
-| isomorphismes/algebraic-variety-explorer-mobile | `669a94fd8e89ff467e371f5b21cf14327e4ee408` | API35 EXECUTED PALETTE SAMPLES PENDING | [Artifact](https://github.com/isomorphismes/algebraic-variety-explorer-mobile/actions/runs/41970098694/artifacts/13391340281) |
-| isomorphismes/billiard | `baac0eb107dcaabec48f993789abb9e12e1056f0` | PASS HOST ROUGH PIXELS ANDROID PENDING | [Artifact](https://github.com/isomorphismes/billiard/actions/runs/41958097962/artifacts/13385701997) |
-| isomorphismes/Conway | `8835d5400451c12f394a9e1b2d9a67d72f419bf8` | API34 PAN REPLACEMENT BOTH MODE SAMPLES PENDING | [Artifact](https://github.com/isomorphismes/Conway/actions/runs/41976915076/artifacts/13392563447) |
-| isomorphismes/Fourier-sound | `d16beea60d7b3ece9853a8705edd641bbc7ec1b0` | ANDROID BOTH MODE PENDING | [Artifact](https://github.com/isomorphismes/Fourier-sound/actions/runs/41970938009/artifacts/13391745072) |
-| isomorphismes/holomorphic | `463584e2e8dd6de9114701f49ca9d78baf8710a4` | PRECEDING 5025B41 PASS API29 API34 BOTH MODES | [Artifact](https://github.com/isomorphismes/holomorphic/actions/runs/41967292308/artifacts/13389803940) |
-| isomorphismes/mathieu | `dc2171acebe20035f102db3a0b2b522d4fdd0a3b` | PASS HOST API29 API34 ACTUAL CONTROLS | [Artifact](https://github.com/isomorphismes/mathieu/actions/runs/41969966507/artifacts/13389514461) |
-| isomorphismes/mostow | `de1bd5f51cb22179ac0c9876227b347b1c8e0650` | PASS REAL HOST GLES ANDROID PENDING | [Artifact](https://github.com/isomorphismes/mostow/actions/runs/41970908432/artifacts/13390457737) |
-| isomorphismes/pauli | `18a7e62ce30252a3fbe0f2746b3ca00cb561a796` | API34 FRAME INSPECTED CHROME PAGES PENDING | [Artifact](https://github.com/isomorphismes/pauli/actions/runs/41960123808/artifacts/13387950058) |
-| isomorphismes/seifert | `3352f024a709201594d16e1dbbe2ffcf3fe3099c` | PASS REAL HOST GLES ANDROID PENDING | [Artifact](https://github.com/isomorphismes/seifert/actions/runs/41970435239/artifacts/13389803751) |
-| isomorphismes/spinor | `3b8a8f130f59c4b2e3c658769e7cd7766b074a64` | ANDROID UI PENDING SCIENTIFIC COLORS PRESERVED | [Artifact](https://github.com/isomorphismes/spinor/actions/runs/41968051439/artifacts/13390355625) |
-| isomorphismes/wegert | `62bd3fcb0ba9f0ff935efe57dd6292203afa066d` | CHROME NIGHT API29 PENDING | [Artifact](https://github.com/isomorphismes/wegert/actions/runs/41950617535/artifacts/13381460123) |
-| isomorphisms/ambient-light | `590e194d8781b06b3d75a9a3cdcfec012ad646ea` | PASS API29 API34 LAUNCH ROOT INK | [Artifact](https://github.com/isomorphisms/ambient-light/actions/runs/41951906524/artifacts/13382326987) |
-| isomorphisms/Android-proximity-sensor | `1721c30c6c0ce82d2fa37a42344c0447a11a85dd` | PASS API29 API34 LAUNCH ROOT INK | [Artifact](https://github.com/isomorphisms/Android-proximity-sensor/actions/runs/41959502810/artifacts/13384706447) |
-| isomorphisms/fastchat | `8fda332e45dc96c16b4aae9955f180d475800b9c` | PASS API29 API34 BOTH MODES LIFECYCLE VIDEO GUARD | [Artifact](https://github.com/isomorphisms/fastchat/actions/runs/41947171842/artifacts/13379696620) |
-| isomorphisms/ib | `f2b16841e4be8d51a4b4a88cc4264fc6681bce13` | PASS API29 API34 BOTH MODES LIFECYCLE VIDEO GUARD | [Artifact](https://github.com/isomorphisms/ib/actions/runs/41947425729/artifacts/13380884545) |
-| Magnetometer | `7dfacda62e5b1a7b8c28925bff437602dab7e14a` | PASS API29 API34 LAUNCH ROOT INK | [Artifact](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41951695226/artifacts/13383131848) |
-| Pasteboard | `29d6a7a1dbad2dea7d577a710869757d8f8b9752` | PASS API29 API34 BOTH MODES LIFECYCLE VIDEO GUARD | [Artifact](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41978032646/artifacts/13393570513) |
-| Spirit Level | `7dfacda62e5b1a7b8c28925bff437602dab7e14a` | PASS API29 API34 LAUNCH ROOT INK | [Artifact](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41951695175/artifacts/13384010251) |
+| Project | Exact preceding source | Signed ARM64-containing candidate |
+|---|---|---|
+| fastchat | `215ef98c09e667cdb4335d19a7041a49c7d6e5e1` | [Artifact](https://github.com/isomorphisms/fastchat/actions/runs/41990448769/artifacts/13397841839) |
+| ib | `336c17c5bc3975f7e113c4ffec4de69687ebd2aa` | [Artifact](https://github.com/isomorphisms/ib/actions/runs/41990454666/artifacts/13400366625) |
+| ChatGPTExporter | `e682e0c865ba87d4793e3a4e62ebf6864db2b188` | [Artifact](https://github.com/dilapidated-shed/ChatGPTExporter/actions/runs/41990459787/artifacts/13398432041) |
+| tablature | `bd7d6be5b09b77f371bd97302002ddc8966d543c` | [Artifact](https://github.com/dilapidated-shed/tablature/actions/runs/41990465047/artifacts/13398119356) |
+| Pasteboard | `df2df8f18840c98a175b958f07749bb423e80ff0` | [Artifact](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990472251/artifacts/13398546503) |
 
-The priority lifecycle observer `90e216fecfe9e958d0fc55c807cb778e81e75ff8`
-passes [41980041161](https://github.com/isomorphisms/ai-ci/actions/runs/41980041161):
-five exact priority APKs on API29 and API34, both system night modes,
-replacement installation, cold start, rotation policy, Home/resume and
-force-stop reopening. It retains 100 settled PNG stages and 20 actual videos:
-[API29](https://github.com/isomorphisms/ai-ci/actions/runs/41980041161/artifacts/13393263783),
-[API34](https://github.com/isomorphisms/ai-ci/actions/runs/41980041161/artifacts/13394050679).
-Every decoded video frame passes the broad-white-canvas predicate; an encoded
-single-white-frame negative fails. Small icons, partial dialogs, documents and
-scientific fields are outside that whole-canvas claim. Exporter uses its
-READ_SAVED native empty/error entry, and Pasteboard's portrait lock is preserved.
+All corresponding preceding native producers pass, including IB's three native jobs in [41990454666](https://github.com/isomorphisms/ib/actions/runs/41990454666). The older browser-foundation live-arXiv failure is separate; the newest versioned source's browser-foundation [42005259943](https://github.com/isomorphisms/ib/actions/runs/42005259943) passes. Exporter uses its READ_SAVED native empty/error entry; external ChatGPT pages remain untouched. Pasteboard's portrait lock remains intentional.
 
-## Pasteboard lifecycle and reboot repair
+## Holomorphic mathematical, visual and startup evidence
 
-The actual API29 Surface resume crash was repaired in product source29d6a7a:
-retain one Java Surface per native-window lifetime, release it on window loss
-and destruction, and clear lockCanvas exceptions even after a null return.
-The exact repaired candidate passes the priority lifecycle replay on both APIs.
+Preceding product `83acc7a7d5e73f2efdb79425e35c6f54f67a91f2` passes strict producer [41990493268](https://github.com/isomorphismes/holomorphic/actions/runs/41990493268), artifact [13400870523](https://github.com/isomorphismes/holomorphic/actions/runs/41990493268/artifacts/13400870523). APK SHA256 is `caa072a271b096bf340ca9dacd34e133020cf02ae316592b2c15f2c1fca8b976`; checked fragment SHA256 is `dba7bae73e6fd68c0572233d516b303b9174c4b170bc3ffdca76e239bae3105b`. Actual API34 GPU execution passes all34 numerical and all34 same-program RGBA8 observations plus separate large-q evidence. Raw large-q remains RANGE_REJECTED_UNQUALIFIED.
 
-Its full regression workflow later exposed a reboot-observer race: an old
-boot-complete property could be read before a new kernel had booted.
-[Observer #345](https://github.com/isomorphisms/ai-ci/pull/345),
-`3c17121c5622af712dbb32e53c4cdb9b76b64232`, requires a different valid boot UUID,
-boot_complete1, bounded ADB operations and an emulator identity. Positive and
-stale/incomplete/malformed controls pass on actual API29/34/35 in
-[41984253543](https://github.com/isomorphisms/ai-ci/actions/runs/41984253543).
-No app reinstall or history reset is used to hide the post-reboot failure.
+Independent visual observer `f14ad339b7ea55de8c87a2f7088875223699c726`, [#340](https://github.com/isomorphisms/ai-ci/pull/340), passes those exact bytes on both APIs and both system modes in [41999341164](https://github.com/isomorphisms/ai-ci/actions/runs/41999341164): [API29 artifact13402740820](https://github.com/isomorphisms/ai-ci/actions/runs/41999341164/artifacts/13402740820), [API34 artifact13402715916](https://github.com/isomorphisms/ai-ci/actions/runs/41999341164/artifacts/13402715916). Selected/inactive controls, F4/B4 marks, actual Activity/PID and checked shader identity are observed; per-role white mutants fail. Scientific fields remain exempt from neutral-surface area tests.
 
-Product source `eaa8393578ac978dfc45e24a37407f840577f37a` adopts that separate
-observer while retaining its compiler pin. **All build, migration and retained
-history workflow jobs pass on API29, API34 and API35** in
-[41984355192](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41984355192):
-[API29](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41984355192/artifacts/13396266194),
-[API34](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41984355192/artifacts/13395214849),
-[API35](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41984355192/artifacts/13395544591).
-The newer E8 theme source df2df8f1 passes the complete producer41990472251
-and the current priority replay41996501618 on both APIs and both system modes.
+An auxiliary smoke workflow froze logcat before that product's first-frame marker. Current product `6259d7f07dc6aa2c255d2514c8529f13805b2f0f` retains the same compiler/renderer/shader and replaces fixed capture delays in three owning smoke lanes with the bounded Grease observer. A threadtime stream starts before launch, records are bound to the actual PID, missing first-frame markers and process replacement fail, and the entire bounded stream is retained. Existing editing, motion, crash and provenance assertions remain. Current execution is pending; the independent preceding strict/visual passes are not promoted to the new head.
 
-## Holomorphic strict and visual acceptance
+Independent GPU oracle [#344](https://github.com/isomorphisms/ai-ci/pull/344), `336214f6ac0e9f4acfb332fa8d60130ca8f5b885`, passes [41983868021](https://github.com/isomorphisms/ai-ci/actions/runs/41983868021) and complete retained-log replay. Exact timer metadata are classified separately; missing or unknown mathematical observations still fail.
 
-Preceding product source `463584e2e8dd6de9114701f49ca9d78baf8710a4`
-passes [41977273427](https://github.com/isomorphismes/holomorphic/actions/runs/41977273427):
-actual generated-fragment provenance, three ICK compilers, signed APK, and
-API34 GPU execution with all34 mathematical observations, all34 same-program
-RGBA8 observations and separate large-q evidence. The raw large-q range remains
-RANGE_REJECTED_UNQUALIFIED. Its [signed APK](https://github.com/isomorphismes/holomorphic/actions/runs/41977273427/artifacts/13394618740)
-has SHA256 `9818cfe24da9038a3aab961a31c8af23b0954d7077752f8aa1be04a1e9f2f308`.
+## Other preceding proofs and open blockers
 
-The independent visual observer `ad111f3dde1e4336d8cbc724a9190fcf493a7cb2`
-passes the same exact APK on both APIs and both system modes in
-[41985101859](https://github.com/isomorphisms/ai-ci/actions/runs/41985101859):
-[API29](https://github.com/isomorphisms/ai-ci/actions/runs/41985101859/artifacts/13396085819),
-[API34](https://github.com/isomorphisms/ai-ci/actions/runs/41985101859/artifacts/13394734850).
-Selected/inactive controls, light marks, actual process and shader provenance
-are observed; per-role white mutants fail. The scientific field is preserved.
+The complete [preceding checkpoint](https://github.com/isomorphisms/ai-ci/blob/e9e38dcc9b08b94b117437f98766c8edb3e799d9/charcoal/acceptance-ledger.md) retains earlier source/run/artifact receipts. The following corrections supersede its pending descriptions, only for the exact preceding heads named here.
 
-Current product83acc7a7 also promotes independent owner
-`336214f6ac0e9f4acfb332fa8d60130ca8f5b885`
-([#344](https://github.com/isomorphisms/ai-ci/pull/344)).
-Only exact GPU_TIMER and GPU_QUERY_WINDOW metadata are classified separately.
-Missing measurements and unknown observations still fail. Dedicated
-[41983868021](https://github.com/isomorphisms/ai-ci/actions/runs/41983868021)
-and replay of the retained complete product log pass. The current E8 product83acc7a7 passes strict producer41990493268, including
-actual API34 GPU acceptance. Its APK is artifact13400870523, SHA256
-`caa072a271b096bf340ca9dacd34e133020cf02ae316592b2c15f2c1fca8b976`.
-The independent visual observer now binds those exact bytes at
-`f14ad339b7ea55de8c87a2f7088875223699c726`; its fresh run is pending.
-A separate older native-explorer smoke lane captures logs before its first-frame
-marker and remains failed; a bounded presented-frame observer repair is pending.
+| Project | Exact preceding source | Validation / limitation |
+|---|---|---|
+| Sprott | `cafbfe7ddbd741ff86efa8955a75dc2471e04b44` | [41996936541](https://github.com/isomorphismes/sprott/actions/runs/41996936541) PASS host and three ICK Android ABIs; signer unavailable, no signed C67 APK |
+| Mock Theta | `df571df0e191f038223b04a5058f026482346d73` | [41988155135](https://github.com/isomorphismes/mock-theta/actions/runs/41988155135) PASS host/types/ARMv7 APK; [artifact13399470273](https://github.com/isomorphismes/mock-theta/actions/runs/41988155135/artifacts/13399470273); ARMv7-only builder |
+| Witt/p-adic | `3893329bc604eda45ebee1fecb616c3ab9d7dc00` | [41991839271](https://github.com/isomorphismes/p-adic/actions/runs/41991839271) PASS signed ARMv7; [artifact13400276415](https://github.com/isomorphismes/p-adic/actions/runs/41991839271/artifacts/13400276415); no ARM64 claim |
+| L | `295683b5b600699c0ac8132f20c29a1f0ac750fd` | [41990829640](https://github.com/isomorphismes/L/actions/runs/41990829640) APK and actual API34 navigation PASS; separate shader source compiler FAIL at actual ANF/ANFDef/resolveVar API mismatch after correcting real `_/` build layout; no old-compiler fallback |
+| ZoneEdit | `dad535acd65381f2f95c3b4a01df65b4ccbca3f0` | [41996338951](https://github.com/Ashtray-Archer/zoneedit/actions/runs/41996338951) PASS native Android and actual API34 unauthenticated navigation, callbacks, rotation, reopen and replacement; external site preserved |
+| AZ Search | `9a26f501d95a672bf39e58954560200daf256073` | [41996310397](https://github.com/Ashtray-Archer/az/actions/runs/41996310397) and [41996310308](https://github.com/Ashtray-Archer/az/actions/runs/41996310308) PASS unsigned Android and host tests; canonical private signer unavailable |
+| Picker / Compact IME / Clipboard | `44221b2c3fd00778b39dbbab13d1b4b997607e7b` | [41994401205](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41994401205), [41994401287](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41994401287), [41994401208](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41994401208) PASS actual API29 picker, real IME typing and native clipboard receipt; both-mode/API34 palette coverage pending |
 
-## Remaining acceptance and delivery boundaries
+Young Tableaux's explicit C++-free Grease admission gate remains closed. Its preceding source `0f200b000bc4de41e0469d1fe65c7dbbad3db5d8` passes independent mathematical and observable-JDT checks but cannot produce an admitted APK. Typed JDT additionally references expired Cat Food artifact11684276190/run38090627721. Formal FP admission [#52](https://github.com/isomorphisms/flexible-pipes/pull/52), current `68c53d0daa64ec998701060abaaf225752ea1e93`, remains blocked. An available C++ runtime is not substituted.
 
-All physical MIRO C67, Android14 ARM64 checks are **NOT_RUN**. Current emulator
-evidence never substitutes for physical performance, GPU, IME or cross-build
-upgrade acceptance. Some partial-dialog, loading/error/offline and retained
-selection/scroll-state cases still lack palette-specific observation.
+Dirichlet [#27](https://github.com/isomorphismes/dirichlet/pull/27), `17546b28412a32300e34d623acd9d29cd3203a66`, passes computed browser palette, white-root negative and four WebGL portraits in [41969073935](https://github.com/isomorphismes/dirichlet/actions/runs/41969073935), plus independent JavaScript checks. The inherited host C oracle fails on the unchanged base as well; its threshold is unchanged.
 
-SURFER, Hopf, Ortho, L, Coefficient Root Dance and Theta do not have preserved
-signing keys available to this job. Their runner-local debug fixtures are not
-approved C67 upgrades. Sprott's expected-signer inputs are likewise unavailable.
-Mock Theta and Witt currently have maintained ARMv7-only builders; no ARM64
-artifact is inferred from them. Young Tableaux's explicit C++-free permitted
-Grease admission gate remains closed. Its typed JDT test additionally references
-expired Cat Food compiler artifact11684276190/run38090627721; the independent
-mathematical audit and observable JDT check pass, but that does not qualify
-the blocked typed test or APK. F-Droid buildserver container retrieval is a
-separate known blocker for Wegert and SURFER.
+iCurses preserves terminal defaults rather than forcing a terminal palette. Product patch `dac8aa64292a54248b1c6804b9e9e60e5d296ce0` remains blocked by repository-ref publication errors. Independent [#339](https://github.com/isomorphisms/ai-ci/pull/339), `137f59c557b6db5854aac0c46129d21926118d20`, passes host C/iLua and actual Android34 terminal in [41961330436](https://github.com/isomorphisms/ai-ci/actions/runs/41961330436); [ARM64 checkpoint13386685529](https://github.com/isomorphisms/ai-ci/actions/runs/41961330436/artifacts/13386685529) is not formal Grease/Icky Lua admission. API29 remains pending.
 
-Wardriving and Cat Food are CLI programs in the inspected sources; graphical
-test interfaces belong to the application/example owners. Further terminal
-palette and UI-bearing branch classification remains open. The hardware
-Programmer's Keyboard source is not the software Unicode picker/IME: those
-utility screens now have their own implementation in PR93 and actual API29
-functional passes, with remaining palette/state coverage recorded separately.
+Pasteboard's real API29 resume crash was repaired by retaining one Java Surface per native-window lifetime and clearing null-return lockCanvas exceptions. Separate reboot observer [#345](https://github.com/isomorphisms/ai-ci/pull/345), `3c17121c5622af712dbb32e53c4cdb9b76b64232`, requires a different valid kernel boot UUID plus boot_complete1 and emulator identity. Positive, stale, incomplete and malformed controls pass actual API29/34/35 in [41984253543](https://github.com/isomorphisms/ai-ci/actions/runs/41984253543). Preceding productdf2df8f1 passes all six retained-history/migration cases and build in [41990472251](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990472251). No reinstall/history reset hides a reboot failure.
 
-The default-tree UI-marker census is not exhausted by the implemented list.
-Further source/branch review, supported UI integration and unavailable-tree
-follow-up remain open in [project-status.tsv](project-status.tsv).
-Headless libraries are not cosmetically changed. External authentication,
-websites, user documents, photographs and mathematical color mappings are not
-inverted. The previous checkpoint and its detailed historical receipts remain
-in [source00c21cad](https://github.com/isomorphisms/ai-ci/blob/00c21cadca31b0d18412b7d7866bc0cd432ffb16/charcoal/acceptance-ledger.md).
+## Completion boundaries
+
+Every physical MIRO C67 Android14 ARM64 check remains **NOT_RUN**. No emulator result establishes physical performance, GPU, IME or cross-build upgrade behavior. Full loading, error, empty, offline, dialogs, selection/copy/scroll and accessibility coverage is still open for several applications. New-head screenshots, lifecycle video and signed package receipts are reconciled only after their own workflows pass.
+
+SURFER, Hopf, Ortho, L, Coefficient Root Dance, Theta, Porthole and WiFi Scanner lack preserved signing keys available to this job. Their debug fixtures are not C67 upgrades. AZ's canonical private signer and Sprott's expected signing inputs are unavailable. No package is uninstalled or key borrowed to conceal that limitation. Wegert and SURFER have separate F-Droid buildserver container retrieval blockers.
+
+Wardriving and Cat Food are CLI programs in the inspected sources; their graphical examples/tests belong to the relevant application owners. Further terminal, active-branch and UI rendering-authority classification is open. The hardware Programmer's Keyboard repository is fabrication/firmware, distinct from the software picker and IME in utility PR93.
+
+The default-tree census remains broader than the implemented set. Uninspected UI examples, further user-owned applications, unavailable trees and branch review remain explicit pending rows in [project-status.tsv](project-status.tsv). Headless libraries receive no cosmetic changes. External authentication, external websites, user documents, photographs and mathematical color mappings are not inverted. No implementation branch was merged, release published, public site deployed or installed application replaced.
