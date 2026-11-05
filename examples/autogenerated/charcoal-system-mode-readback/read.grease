@@ -1,0 +1,23 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+mkdir -p system-mode-readback
+rg --files retained-modes | rg '/(no|yes)\.night\.txt$' | sort > system-mode-readback/files.txt
+cat system-mode-readback/files.txt
+test "$(wc -l < system-mode-readback/files.txt)" -eq 16
+rg -n -H --glob '**/no.night.txt' --glob '**/yes.night.txt' '^Night mode:' retained-modes > system-mode-readback/observed.txt
+cat system-mode-readback/observed.txt
+try {
+  awk '
+    /\/no\.night\.txt:[0-9]+:Night mode: no$/ { no++; next }
+    /\/yes\.night\.txt:[0-9]+:Night mode: yes$/ { yes++; next }
+    { bad++ }
+    END {
+      printf "observed_no_admitted\t%d\nobserved_yes_admitted\t%d\nmismatched_getters\t%d\n", no, yes, bad
+      if(no!=8 || yes!=8 || bad) exit 1
+    }
+  ' system-mode-readback/observed.txt > system-mode-readback/result.tsv
+}
+var admission_status = _error.code
+cat system-mode-readback/result.tsv
+printf 'retained_resource_qualifiers\tNOT_RETAINED\nphysical_C67\tNOT_RUN\n'
+exit "$admission_status"

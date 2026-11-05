@@ -1,0 +1,5 @@
+# Audit actual retained system-mode admission
+
+A successful shell setter can report an unchanged system mode on an unprovisioned Android29 emulator. Root Dance's actual retained failure exposed this, and the primary Android10 UiModeManagerService confirms the USER_SETUP_COMPLETE gate. Original priority/frontend lifecycle observers retain setter/getter text but do not assert it. This lane reads both exact immutable API archives from priority run42014570840 and frontend run42018946230.
+
+Each API must contain exactly16 getter files: eight no/yes pairs for five priority apps plus three extra frontends. Every retained no.night.txt must report actual Night mode:no and every yes counterpart actual yes. A mismatch/missing count fails; lifecycle images are not used to manufacture a system-mode value. The observer reads only artifacts, never rebuilds/runs/installs a product or changes its theme. Old archives did not retain am-get-config qualifiers; that boundary remains NOT_RETAINED even if the public getter pairs pass. Physical C67 stays NOT_RUN. Current results are pending. No merge, release, deployment or user installation.
