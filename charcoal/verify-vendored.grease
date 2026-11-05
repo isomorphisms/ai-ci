@@ -1,0 +1,12 @@
+#!/usr/bin/env grease
+# OWNER_CHECKOUT PRODUCT_HEADER_OR_DASH PRODUCT_RESOURCE_ROOT
+if (len(ARGV) !== 3) { echo 'usage: verify-vendored.grease OWNER HEADER_OR_DASH RESOURCES' >&2; exit 2 }
+var owner = ARGV[0]
+var header = ARGV[1]
+var resources = ARGV[2]
+test $(git -C "$owner" rev-parse HEAD) = 3e682fb1175beef5625dbd2418730220e49fc9bd
+if (header !== '-') { cmp "$owner/native/presentation/charcoal.h" "$header" }
+for relative in values/charcoal.xml values-v21/charcoal.xml values-v31/charcoal.xml color/charcoal_text_states.xml {
+  cmp "$owner/native/presentation/res/$relative" "$resources/$relative"
+}
+printf 'PASS: vendored native/XML charcoal resources match the fixed shared owner\n'
