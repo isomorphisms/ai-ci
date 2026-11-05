@@ -71,6 +71,16 @@ for mode in no yes {
       -vf "crop=1:1:$[sample_x]:$[sample_y],format=rgb24" -frames:v 1 -f rawvideo "$output/$role-$mode.rgb" > "$output/$role-$mode.decode.txt" 2>&1
     od -An -tu1 "$output/$role-$mode.rgb" > "$output/$role-$mode.txt"
     rg -x "$expected" "$output/$role-$mode.txt"
+    # Targeted screenshot-oracle negative; preserve the actual source frame.
+    ffmpeg -nostdin -hide_banner -i "$output/controls-$mode.png" \
+      -vf "drawbox=x=$[sample_x]:y=$[sample_y]:w=1:h=1:color=white:t=fill" -frames:v 1 \
+      "$output/$role-$mode-white.png" > "$output/$role-$mode-white.encode.txt" 2>&1
+    ffmpeg -nostdin -hide_banner -i "$output/$role-$mode-white.png" \
+      -vf "crop=1:1:$[sample_x]:$[sample_y],format=rgb24" -frames:v 1 -f rawvideo \
+      "$output/$role-$mode-white.rgb" > "$output/$role-$mode-white.decode.txt" 2>&1
+    od -An -tu1 "$output/$role-$mode-white.rgb" > "$output/$role-$mode-white.txt"
+    try { rg -x "$expected" "$output/$role-$mode-white.txt" }
+    if (_error.code !== 1) { echo "FAIL $role white pixel oracle mutant accepted" >&2; exit 1 }
   }
 }
 "$adb" -s "$serial" shell cmd uimode night no > "$output/night-restored.txt"
