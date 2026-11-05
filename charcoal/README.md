@@ -19,7 +19,9 @@ document or photograph as a failure. No global pixel inversion is used.
 negative. Consumers keep exact signed artifact identity and screenshot names;
 physical MIRO C67 acceptance remains separate from hosted x86_64 emulators.
 
-The historical signed-input workflows retain the pre-charcoal observer paired
-with those immutable historical APKs. They do not qualify the charcoal theme.
+Historical FastChat and IB signed-input lanes retain the pre-charcoal observer
+paired with those immutable historical APKs. They do not qualify the charcoal theme.
 `charcoal-fastchat.yml` and the current producer branches use the new observer;
 they require the fixed palette and reject deliberate live palette mutations.
+The signed archive lane now requalifies the current charcoal source and retains
+its exact archive digest and native source identity on both API29 and API34.
