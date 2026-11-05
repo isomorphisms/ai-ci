@@ -32,12 +32,12 @@ jobs:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           repository: isomorphismes/holomorphic
-          run-id: 41990493268
-          artifact-ids: 13400870523
+          run-id: 42005307665
+          artifact-ids: 13407886054
           merge-multiple: true
           github-token: ${{ github.token }}
           path: candidate
-      - run: echo 'caa072a271b096bf340ca9dacd34e133020cf02ae316592b2c15f2c1fca8b976  candidate/android/app/build/outputs/apk/debug/app-debug.apk' | sha256sum -c -
+      - run: echo '7023afebd6fb159e5d0c4aaee0e34a5b896812263d47a43e073c608246f40155  candidate/android/app/build/outputs/apk/debug/app-debug.apk' | sha256sum -c -
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           repository: dilapidated-shed/grease
@@ -69,7 +69,7 @@ jobs:
             "$CHARCOAL_GREASE" charcoal/observe-holomorphic.grease "$ANDROID_HOME/platform-tools/adb"
             emulator-5554 "$ANDROID_HOME" "$GITHUB_WORKSPACE/candidate/android/app/build/outputs/apk/debug/app-debug.apk"
             "$CHARCOAL_GREASE" "$RUNNER_TEMP/holomorphic-charcoal" "${{ matrix.api }}"
-            83acc7a7d5e73f2efdb79425e35c6f54f67a91f2
+            6259d7f07dc6aa2c255d2514c8529f13805b2f0f
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
