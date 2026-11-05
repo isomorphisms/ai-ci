@@ -42,3 +42,11 @@ images. Accept only that help-specific status (or zero), require its actual
 header/declared command, then use the observed API29 set-user-rotation versus
 API34 user-rotation names. Mutation commands must still succeed, and actual
 compositor orientation remains the acceptance condition.
+
+Run41974063891 passes all lifecycle stages for FastChat, current IB and the
+Exporter native reader on both APIs. Its empty Pasteboard frame is correctly
+charcoal, but the slot captions are secondary #B4B4B4 (decoded Y=171), below the
+primary-text-only Y=180 predicate. Use a Pasteboard-specific Y>=170 ink check;
+blank charcoal still fails, and all other candidates retain Y>=180. Preserve the
+real failed frame and existing portrait lock. The failure-video path now lives
+in the outer Grease scope so the capture procedure can retain it on failure.

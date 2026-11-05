@@ -49,6 +49,13 @@ if (api === '29') { setvar rotation_command = 'set-user-rotation' }
 if (api === '34') { setvar rotation_command = 'user-rotation' }
 if (rotation_command === '') { echo 'FAIL undeclared Android rotation profile' >&2; exit 1 }
 rg -q -F "  $rotation_command [" "$output/window-manager-help.txt"
+var remote = ''
+var ink_pattern = 'lavfi.signalstats.YMAX=(1[89][0-9]|2[0-9][0-9])([.]0+)?$'
+# Empty Pasteboard uses secondary #B4B4B4 slot numbers (limited-range Y about 171).
+# Require that actual caption ink; the 180 threshold is for primary text.
+if (package === 'com.isomorphisms.pasteboard') {
+  setvar ink_pattern = 'lavfi.signalstats.YMAX=(17[0-9]|1[89][0-9]|2[0-9][0-9])([.]0+)?$'
+}
 
 proc capture(stage, orientation) {
   var ready = false
@@ -70,7 +77,7 @@ proc capture(stage, orientation) {
     try { rg -x ' *3[1-5] +3[1-5] +3[1-5] *' "$output/$stage.root.txt" }
     if (_error.code !== 0) { sleep 0.3; continue }
     ffmpeg -nostdin -hide_banner -i "$output/$stage.png" -vf 'crop=iw-40:ih-140:20:70,signalstats,metadata=print' -frames:v 1 -f null - > "$output/$stage.ink.txt" 2>&1
-    try { rg 'lavfi.signalstats.YMAX=(1[89][0-9]|2[0-9][0-9])([.]0+)?$' "$output/$stage.ink.txt" }
+    try { rg "$ink_pattern" "$output/$stage.ink.txt" }
     if (_error.code === 0) { setvar ready = true; break }
     sleep 0.3
   }
@@ -90,7 +97,7 @@ for mode in no yes {
   "$adb" -s "$serial" shell wm "$rotation_command" lock 0 > "$output/$mode.rotation-initial.txt"
   "$adb" -s "$serial" shell cmd uimode night "$mode" > "$output/$mode.night.txt"
   "$adb" -s "$serial" shell am force-stop "$package"
-  var remote = "/sdcard/aici-charcoal-$package-$api-$mode.mp4"
+  setvar remote = "/sdcard/aici-charcoal-$package-$api-$mode.mp4"
   "$adb" -s "$serial" shell rm -f "$remote"
   fork { "$adb" -s "$serial" shell screenrecord --time-limit 8 --bit-rate 1000000 "$remote" > "$output/$mode.record.txt" 2>&1 }
   sleep 1
