@@ -3,9 +3,27 @@ set -eu -o pipefail
 test "$#" -eq 1
 var root = ARGV[0]
 var input = "$root/producer/build/pasteboard-independent"
+var output = "$root/producer/build/runtime-restoration"
+mkdir -p "$output"
 tar -C "$input" -xzf "$input/oracle-runtime.tar.gz"
+var executable = "$input/oracle/pasteboard-oracle_app/pasteboard-oracle.so"
 test -x "$input/oracle/pasteboard-oracle"
-test -x "$input/oracle/pasteboard-oracle_app/pasteboard-oracle.so"
-"$input/oracle/pasteboard-oracle" selftest "$input/fixtures"
+test -x "$executable"
+file "$executable" > "$output/oracle-format.txt"
+od -An -tx1 -N192 "$executable" > "$output/oracle-header.hex"
+head -c 4096 "$executable" | strings | sed -n '1,6p' > "$output/oracle-prefix.txt"
+cat "$output/oracle-format.txt" "$output/oracle-prefix.txt"
+var original_prefix = '/home/runner/work/utilities-android-phone-user/utilities-android-phone-user'
+# Admit only the exact producer-owned prefix actually recorded in the oracle.
+rg -q -F "$original_prefix/.tools/Idric/_/.tools/" "$output/oracle-prefix.txt"
+tar -C "$root/producer" -xzf "$root/retained-runtime/pasteboard-grease.tar.gz" .tools/Idric/_/.tools
+test -d "$root/producer/.tools/Idric/_/.tools"
+test ! -e "$original_prefix"
+mkdir -p "$(dirname "$original_prefix")"
+ln -s "$root/producer" "$original_prefix"
+readlink -f "$original_prefix/.tools/Idric/_/.tools" > "$output/resolved-runtime.txt"
+sha256sum "$root/retained-runtime/pasteboard-grease.tar.gz" "$executable" > "$output/retained-digests.txt"
+"$input/oracle/pasteboard-oracle" selftest "$input/fixtures" > "$output/oracle-selftest.txt"
+cat "$output/oracle-selftest.txt"
 test ! -e "$root/producer/.ai-ci-independent"
 ln -s "$root" "$root/producer/.ai-ci-independent"

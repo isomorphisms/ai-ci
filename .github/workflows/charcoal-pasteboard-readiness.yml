@@ -57,6 +57,15 @@ jobs:
           merge-multiple: true
           github-token: ${{ github.token }}
           path: producer/downloaded-evidence
+      - name: Retrieve the oracle's exact retained producer runtime
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          repository: Ashtray-Archer/utilities-android-phone-user
+          run-id: 42005277456
+          artifact-ids: 13404144364
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          path: retained-runtime
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           repository: dilapidated-shed/grease
@@ -94,4 +103,5 @@ jobs:
             producer/build/clipboard-evidence/
             producer/build/control-evidence/
             producer/build/ui-evidence/
+            producer/build/runtime-restoration/
           if-no-files-found: warn
