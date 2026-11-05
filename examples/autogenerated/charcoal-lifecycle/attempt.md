@@ -37,3 +37,8 @@ the actual compositor orientation. A setting value alone is not rotation proof.
 On future failures, retain logcat, window state and any actual startup video
 before the disposable emulator is destroyed. The original failed artifacts
 13390826443/API29 and13390711212/API34 are preserved, not relabeled as passes.
+The next run41973243071 observes valid WindowManager help with exit255 on both
+images. Accept only that help-specific status (or zero), require its actual
+header/declared command, then use the observed API29 set-user-rotation versus
+API34 user-rotation names. Mutation commands must still succeed, and actual
+compositor orientation remains the acceptance condition.

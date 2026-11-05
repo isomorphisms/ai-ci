@@ -41,8 +41,14 @@ rg -x -F Success "$output/replacement.txt"
 "$adb" -s "$serial" shell wm size 480x960
 "$adb" -s "$serial" shell wm density 160
 "$adb" -s "$serial" shell settings put system accelerometer_rotation 0
-"$adb" -s "$serial" shell wm help > "$output/window-manager-help.txt"
-rg -q -F 'user-rotation' "$output/window-manager-help.txt"
+try { "$adb" -s "$serial" shell wm help > "$output/window-manager-help.txt" }
+if (_error.code !== 0 and _error.code !== 255) { echo 'FAIL window-manager help command failed' >&2; exit 1 }
+rg -q -F 'Window manager (window) commands:' "$output/window-manager-help.txt"
+var rotation_command = ''
+if (api === '29') { setvar rotation_command = 'set-user-rotation' }
+if (api === '34') { setvar rotation_command = 'user-rotation' }
+if (rotation_command === '') { echo 'FAIL undeclared Android rotation profile' >&2; exit 1 }
+rg -q -F "  $rotation_command [" "$output/window-manager-help.txt"
 
 proc capture(stage, orientation) {
   var ready = false
@@ -81,7 +87,7 @@ proc capture(stage, orientation) {
   "$adb" -s "$serial" shell dumpsys window windows > "$output/$stage.window.txt"
 }
 for mode in no yes {
-  "$adb" -s "$serial" shell wm user-rotation lock 0 > "$output/$mode.rotation-initial.txt"
+  "$adb" -s "$serial" shell wm "$rotation_command" lock 0 > "$output/$mode.rotation-initial.txt"
   "$adb" -s "$serial" shell cmd uimode night "$mode" > "$output/$mode.night.txt"
   "$adb" -s "$serial" shell am force-stop "$package"
   var remote = "/sdcard/aici-charcoal-$package-$api-$mode.mp4"
@@ -90,9 +96,9 @@ for mode in no yes {
   sleep 1
   "$adb" -s "$serial" shell am start -W -a "$action" -n "$component" > "$output/$mode.start.txt"
   capture "$mode-cold" portrait
-  "$adb" -s "$serial" shell wm user-rotation lock 1 > "$output/$mode.rotation-request.txt"
+  "$adb" -s "$serial" shell wm "$rotation_command" lock 1 > "$output/$mode.rotation-request.txt"
   capture "$mode-rotated" "$rotated_orientation"
-  "$adb" -s "$serial" shell wm user-rotation lock 0 > "$output/$mode.rotation-return.txt"
+  "$adb" -s "$serial" shell wm "$rotation_command" lock 0 > "$output/$mode.rotation-return.txt"
   capture "$mode-portrait" portrait
   "$adb" -s "$serial" shell input keyevent KEYCODE_HOME
   "$adb" -s "$serial" shell am start -W -a "$action" -n "$component" > "$output/$mode.resume.txt"
@@ -105,7 +111,7 @@ for mode in no yes {
   test -s "$output/$mode-startup.mp4"
   ffmpeg -nostdin -hide_banner -v error -i "$output/$mode-startup.mp4" -f null - > "$output/$mode.video-decode.txt" 2>&1
 }
-"$adb" -s "$serial" shell wm user-rotation lock 0
+"$adb" -s "$serial" shell wm "$rotation_command" lock 0
 "$adb" -s "$serial" shell cmd uimode night no
 sha256sum "$apk" > "$output/apk.sha256"
 printf 'entry_action\t%s\n' "$action" > "$output/entry.tsv"
