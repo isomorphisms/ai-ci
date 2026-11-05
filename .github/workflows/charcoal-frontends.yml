@@ -22,7 +22,7 @@ jobs:
       fail-fast: false
       matrix:
         frontend: [porthole, wifi, wifi-analyzer]
-        include:
+        android:
           - api: 29
             target: default
           - api: 34
@@ -87,16 +87,16 @@ jobs:
       - run: sudo chmod 666 /dev/kvm
       - uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
         with:
-          api-level: ${{ matrix.api }}
-          target: ${{ matrix.target }}
+          api-level: ${{ matrix.android.api }}
+          target: ${{ matrix.android.target }}
           arch: x86_64
           disk-size: 2048M
           disable-animations: true
           emulator-options: -no-window -no-audio -no-snapshot -no-boot-anim -memory 2048 -gpu swiftshader_indirect
-          script: '"$CHARCOAL_GREASE" charcoal/replay-frontend.grease "$GITHUB_WORKSPACE" "$ANDROID_HOME" "$RUNNER_TEMP" "${{ matrix.api }}" "${{ matrix.frontend }}"'
+          script: '"$CHARCOAL_GREASE" charcoal/replay-frontend.grease "$GITHUB_WORKSPACE" "$ANDROID_HOME" "$RUNNER_TEMP" "${{ matrix.android.api }}" "${{ matrix.frontend }}"'
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: charcoal-frontends-${{ matrix.frontend }}-API${{ matrix.api }}-${{ github.event.pull_request.head.sha || github.sha }}
+          name: charcoal-frontends-${{ matrix.frontend }}-API${{ matrix.android.api }}-${{ github.event.pull_request.head.sha || github.sha }}
           path: ${{ runner.temp }}/charcoal-frontend*
           if-no-files-found: warn
