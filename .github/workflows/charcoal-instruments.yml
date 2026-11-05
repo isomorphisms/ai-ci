@@ -117,9 +117,29 @@ jobs:
             sha256: 0222b083dd76d90988c141d8d04cc0be12dfd4067af829f8cd3b2f5639ff3615
             package: com.isomorphisms.ambientlight
             source: 590e194d8781b06b3d75a9a3cdcfec012ad646ea
+          - api: 29
+            target: default
+            profile: proximity
+            repository: isomorphisms/Android-proximity-sensor
+            producer: 41959502810
+            artifact: 13384706447
+            apk: distribution/proximity-x86_64.apk
+            sha256: 6ef3965b05077f7d9647819f5204041dcd2f17619ba73a7c61300e2229e8b5f5
+            package: org.isomorphisms.proximity
+            source: 1721c30c6c0ce82d2fa37a42344c0447a11a85dd
+          - api: 34
+            target: google_apis
+            profile: proximity
+            repository: isomorphisms/Android-proximity-sensor
+            producer: 41959502810
+            artifact: 13384706447
+            apk: distribution/proximity-x86_64.apk
+            sha256: 6ef3965b05077f7d9647819f5204041dcd2f17619ba73a7c61300e2229e8b5f5
+            package: org.isomorphisms.proximity
+            source: 1721c30c6c0ce82d2fa37a42344c0447a11a85dd
     env:
       ASAN_OPTIONS: detect_leaks=0
-      CHARCOAL_GREASE: ${{ github.workspace }}/grease/_bin/cxx-asan/ysh
+      CHARCOAL_GREASE: ${{ github.workspace }}/grease/bin/grease
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -142,8 +162,8 @@ jobs:
           merge-multiple: true
           github-token: ${{ github.token }}
           path: grease
-      - run: chmod +x grease/_bin/cxx-asan/ysh
-      - run: echo '7e31cd05b7a9d8fb2a4a9e003a7f3fcb0159138506d17f0fb28da8cbe22aa85c  grease/_bin/cxx-asan/ysh' | sha256sum -c -
+      - name: Stage canonical Grease launcher and unchanged host engine
+        uses: ./.github/actions/charcoal-grease
       - run: sudo sysctl vm.mmap_rnd_bits=28
       - run: sudo apt-get update
       - run: sudo apt-get install --no-install-recommends -y ripgrep ffmpeg

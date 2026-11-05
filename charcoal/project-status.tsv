@@ -1,5 +1,5 @@
 project	repository	source_kind	source_identity	pull_request	dark_default	visual_test	regression_tests	artifact
-Accelerometer	Ashtray-Archer/utilities-android-phone-user	commit	7dfacda62e5b1a7b8c28925bff437602dab7e14a	https://github.com/Ashtray-Archer/utilities-android-phone-user/pull/92	IMPLEMENTED	NOT_RUN_REQUIRED_MATRIX	RUNNING	-
+Accelerometer	Ashtray-Archer/utilities-android-phone-user	commit	7dfacda62e5b1a7b8c28925bff437602dab7e14a	https://github.com/Ashtray-Archer/utilities-android-phone-user/pull/92	PASS_SAMPLED_BOTH_MODES	PASS_API29_API34_LAUNCH_ROOT_INK	PASS_EXISTING_PRODUCER	https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41951695167/artifacts/13383110866
 Ashtray-Archer/az	Ashtray-Archer/az	tree	249c02b5669c1f6c9682fa5848b1b946e147a7ce	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
 Ashtray-Archer/dumbstore	Ashtray-Archer/dumbstore	tree	6cd9a5bd9db0ed6087f6991dfbd79e751deefc65	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
 Ashtray-Archer/porthole	Ashtray-Archer/porthole	tree	b4771c63838e08348b3f49b30c7d84abb45ba032	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
@@ -31,7 +31,7 @@ dilapidated-shed/ncurses	dilapidated-shed/ncurses	tree	a8815eb841ded0d6139021e2c
 dilapidated-shed/omweather	dilapidated-shed/omweather	tree	a1539c59f81a331a1033160fd4cba6133b8de655	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
 dilapidated-shed/openai-cookbook	dilapidated-shed/openai-cookbook	tree	0eac1447d4e24d06e47c459ca5e98f248b9413cf	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
 dilapidated-shed/PaintsChainer	dilapidated-shed/PaintsChainer	tree	a680bcc734415bc70bd4c3b9782992cb44e9caf1	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
-dilapidated-shed/tablature	dilapidated-shed/tablature	commit	7255ad083a1c183c42f9766ca3548c256e090daa	https://github.com/dilapidated-shed/tablature/pull/10	PASS_SAMPLED_API29_API34	PASS_PRODUCER_SCENES_BOTH_MODES_PENDING	PASS_API29_API34	https://github.com/dilapidated-shed/tablature/actions/runs/41950607269/artifacts/13382136270
+dilapidated-shed/tablature	dilapidated-shed/tablature	commit	7255ad083a1c183c42f9766ca3548c256e090daa	https://github.com/dilapidated-shed/tablature/pull/10	PASS_SAMPLED_API29_API34	PASS_PRODUCER_SCENES_AND_INDEPENDENT_BOTH_MODES	PASS_API29_API34	https://github.com/dilapidated-shed/tablature/actions/runs/41950607269/artifacts/13382136270
 dilapidated-shed/termux-api	dilapidated-shed/termux-api	tree	44dff8932c23c37531bcc930d8a916f81bf8d43a	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
 dilapidated-shed/termux-app	dilapidated-shed/termux-app	tree	7644f7c0e0b00f33951be20eb14fb81148f17463	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
 dilapidated-shed/termux-boot	dilapidated-shed/termux-boot	tree	a8493bd6ba016bc370af34aa65fcbe065cc00ced	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
@@ -59,11 +59,11 @@ functorial-games/anime	functorial-games/anime	tree	01b81be1df6843ccfe0a71c0699a7
 functorial-games/defold	functorial-games/defold	tree	df6696f1892052f7301b1a5d3948e342454d2cfd	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
 functorial-games/pixijs	functorial-games/pixijs	tree	65552017d23255c1442a7d4ac7f0d49e3225fb1d	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
 functorial-games/playwright	functorial-games/playwright	tree	a3401cfe0dcf317101572d025fa46248d0779b42	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
-Gyroscope	Ashtray-Archer/utilities-android-phone-user	commit	7dfacda62e5b1a7b8c28925bff437602dab7e14a	https://github.com/Ashtray-Archer/utilities-android-phone-user/pull/92	IMPLEMENTED	NOT_RUN_REQUIRED_MATRIX	RUNNING	-
+Gyroscope	Ashtray-Archer/utilities-android-phone-user	commit	7dfacda62e5b1a7b8c28925bff437602dab7e14a	https://github.com/Ashtray-Archer/utilities-android-phone-user/pull/92	PASS_SAMPLED_BOTH_MODES	PASS_API29_API34_LAUNCH_ROOT_INK	PASS_EXISTING_PRODUCER	https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41951695226/artifacts/13382842737
 house-of-government/hyperswitch-prism	house-of-government/hyperswitch-prism	tree	c0587d3534b759d41bcdf01f9c94ce2b673b6a4e	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
 ib-pensieve/Mendeley	ib-pensieve/Mendeley	tree	db41b99fddcc52d38897c59c161b6adaca036afb	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
 isomorphismes/algebraic-variety-explorer-mobile	isomorphismes/algebraic-variety-explorer-mobile	tree	74cef6df685dbd823c3901697cceb671d49009fa	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
-isomorphismes/billiard	isomorphismes/billiard	tree	16ab046caaf5573b83cb71d8a3b6fb664f0d3ad9	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
+isomorphismes/billiard	isomorphismes/billiard	commit	baac0eb107dcaabec48f993789abb9e12e1056f0	https://github.com/isomorphismes/billiard/pull/21	IMPLEMENTED	HOST_PIXELS_RUNNING_ANDROID_PENDING	PASS_ANDROID_ABI_LINK_OTHER_RUNNING	-
 isomorphismes/Bulatov-Goodman-Strauss	isomorphismes/Bulatov-Goodman-Strauss	tree	a21649ed447e209c816e94b6693bea78eddf4be2	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
 isomorphismes/Cayley	isomorphismes/Cayley	tree	eab521b2d860e896a3fbecec6460633202551c5d	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
 isomorphismes/coefficient-root-dance	isomorphismes/coefficient-root-dance	tree	849433a047de462e47636147eedefe56a6eb5c56	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
@@ -72,18 +72,19 @@ isomorphismes/dirichlet	isomorphismes/dirichlet	tree	9a11463d040aba314726da0ce3a
 isomorphismes/Fourier-sound	isomorphismes/Fourier-sound	tree	a71c9d37f47154ba7b66d7c0d5c912477c71f23c	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
 isomorphismes/FragM	isomorphismes/FragM	tree	af85d351eb115a74072505328fdd486f24524328	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
 isomorphismes/geogebra	isomorphismes/geogebra	tree	4873cd881d12dd11736826e4c5c5ede162a33deb	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
-isomorphismes/holomorphic	isomorphismes/holomorphic	tree	fcba8faa96f09efcd3db1f23039cee7feb00777e	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
+isomorphismes/holomorphic	isomorphismes/holomorphic	commit	ceb65badb2409addb2f66c3926ce7ae3b5950c57	https://github.com/isomorphismes/holomorphic/pull/67	IMPLEMENTED_CHROME_SCIENTIFIC_CANVAS_PRESERVED	PENDING	RUNNING	-
 isomorphismes/hopf_fibration	isomorphismes/hopf_fibration	tree	df12b04d62715427e2c466853b021791056c76b0	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
 isomorphismes/indras-pearls	isomorphismes/indras-pearls	tree	e6c80fb390209a848308041cc643b2d73c21d9ca	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
 isomorphismes/jacobian-counterexample	isomorphismes/jacobian-counterexample	tree	a9c1695581b270bd73fc47a5ed917cac5bff8d76	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
 isomorphismes/kaleidoscope	isomorphismes/kaleidoscope	tree	26bf5fa8003afd45a9687938b9accf1b06e7fd98	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
 isomorphismes/kleinian-groups	isomorphismes/kleinian-groups	tree	a58b94c0eac82be95af9e9decbf51e21f287d891	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
 isomorphismes/L	isomorphismes/L	tree	799a3b8c4a33095c2e00fa4e5097568f0e81ecb2	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
+isomorphismes/mathieu	isomorphismes/mathieu	commit	eaecd86fb62b1e80177602873ea8b046cbb57e00	https://github.com/isomorphismes/mathieu/pull/3	PENDING_PAPER_CANVAS_AND_CONTROL_INK_CHANGE	NOT_RUN	NO_THEME_CHANGE_YET	-
 isomorphismes/mock-theta	isomorphismes/mock-theta	tree	fa30b9a240838dfee3255f5003417901d5f94513	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
 isomorphismes/mostow	isomorphismes/mostow	tree	b9abebf346a33ea46584d50ccc215e5f1ab5b725	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
 isomorphismes/ortho	isomorphismes/ortho	tree	852af1ba6b8cae9961c8883e73b55510e6bb895a	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
 isomorphismes/p-adic	isomorphismes/p-adic	tree	5fe710f864569f2b2ce8a07e8c5612939b20f645	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
-isomorphismes/pauli	isomorphismes/pauli	tree	8b8fa6614efd80dd48cfe8787e800fd0446592e5	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
+isomorphismes/pauli	isomorphismes/pauli	commit	18a7e62ce30252a3fbe0f2746b3ca00cb561a796	https://github.com/isomorphismes/pauli/pull/30	IMPLEMENTED_CHROME_AND_PAGES_SCIENTIFIC_IMAGE_PRESERVED	PENDING	RUNNING	-
 isomorphismes/pyggb	isomorphismes/pyggb	tree	c6628a8d11538a0d3142513d85a0a2edfb595686	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
 isomorphismes/seifert	isomorphismes/seifert	tree	dfbffe3670c2ca2e9e067d23893fc4a7b78ad6ce	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
 isomorphismes/solver-engine	isomorphismes/solver-engine	tree	a16c3e0b7519913d728f33299739c003fbb588e0	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
@@ -93,16 +94,16 @@ isomorphismes/theta	isomorphismes/theta	tree	a10b0213ac1feaae1d5393b3a3ccf1c3c84
 isomorphismes/wegert	isomorphismes/wegert	commit	62bd3fcb0ba9f0ff935efe57dd6292203afa066d	https://github.com/isomorphismes/wegert/pull/76	IMPLEMENTED_API34_API35_EXECUTED	CHROME_NIGHT_API29_PENDING	PASS_NATIVE_DEX_ICK_FDROID_CONTAINER_BLOCKED	https://github.com/isomorphismes/wegert/actions/runs/41950617535/artifacts/13381460123
 isomorphismes/young-tableaux	isomorphismes/young-tableaux	tree	d1fb04677bfd0e09269497ab8576e03a25d7a2cd	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
 isomorphisms/ai-ci	isomorphisms/ai-ci	tree	a66e3a9bb1070a338f8c4a67f9b4b4ac39dfb5ec	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
-isomorphisms/ambient-light	isomorphisms/ambient-light	commit	590e194d8781b06b3d75a9a3cdcfec012ad646ea	https://github.com/isomorphisms/ambient-light/pull/2	IMPLEMENTED_API35_POSTED_FRAME	API29_API34_NIGHT_PENDING	PASS_ABI_BUILD_API35_REPLACEMENT_FRAME	https://github.com/isomorphisms/ambient-light/actions/runs/41951906524/artifacts/13382326987
+isomorphisms/ambient-light	isomorphisms/ambient-light	commit	590e194d8781b06b3d75a9a3cdcfec012ad646ea	https://github.com/isomorphisms/ambient-light/pull/2	PASS_SAMPLED_BOTH_MODES	PASS_API29_API34_LAUNCH_ROOT_INK	PASS_ABI_BUILD_API35_REPLACEMENT_FRAME	https://github.com/isomorphisms/ambient-light/actions/runs/41951906524/artifacts/13382326987
 isomorphisms/android-NDK	isomorphisms/android-NDK	tree	6ab4818219efa7ea5eda137ca6b76976eb2a4d42	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
-isomorphisms/Android-proximity-sensor	isomorphisms/Android-proximity-sensor	tree	34ab89c1b4e3ca6d1ae4966b5c55b42340529b8b	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
+isomorphisms/Android-proximity-sensor	isomorphisms/Android-proximity-sensor	commit	1721c30c6c0ce82d2fa37a42344c0447a11a85dd	https://github.com/isomorphisms/Android-proximity-sensor/pull/4	IMPLEMENTED	PENDING_API29_API34_NIGHT	PASS_MODEL_ABI_APK_AAB	https://github.com/isomorphisms/Android-proximity-sensor/actions/runs/41959502810/artifacts/13384706447
 isomorphisms/fastchat	isomorphisms/fastchat	commit	8fda332e45dc96c16b4aae9955f180d475800b9c	https://github.com/isomorphisms/fastchat/pull/23	PASS_SAMPLED_API29_API34_BOTH_MODES	PASS_SELECTED_STATES	PASS_API29_API34	https://github.com/isomorphisms/fastchat/actions/runs/41947171842/artifacts/13379696620
 isomorphisms/ib	isomorphisms/ib	commit	f2b16841e4be8d51a4b4a88cc4264fc6681bce13	https://github.com/isomorphisms/ib/pull/170	PASS_SAMPLED_API29_API34_BOTH_MODES	PASS_SELECTED_STATES	PASS_NATIVE_API29_API34_BROWSER_FOUNDATION_FAIL	https://github.com/isomorphisms/ib/actions/runs/41947425729/artifacts/13380884545
 isomorphisms/Idric	isomorphisms/Idric	tree	0e8cfdd1106ebdeffd01b6c519880ea3afc7dc35	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
 isomorphisms/ir	isomorphisms/ir	tree	7829f310ce505109fc4bfd0e1d151b2c92b4b29f	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
-isomorphisms/programmers-keyboard	isomorphisms/programmers-keyboard	tree	8666a750724d26c78f4299aec5d2232c7d6c8f1c	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
+isomorphisms/programmers-keyboard	isomorphisms/programmers-keyboard	commit	8666a750724d26c78f4299aec5d2232c7d6c8f1c	-	NO_APPLICATION_GUI_AT_INSPECTED_MAIN	PAPER_LAYOUT_AND_FABRICATION_EXPORTS_PRESERVED	NO_COSMETIC_CHANGE	-
 isomorphisms/rough.framebuffer	isomorphisms/rough.framebuffer	tree	ba093e1f7f8dc426cdffafd79334f67001245fc4	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
-Magnetometer	Ashtray-Archer/utilities-android-phone-user	commit	7dfacda62e5b1a7b8c28925bff437602dab7e14a	https://github.com/Ashtray-Archer/utilities-android-phone-user/pull/92	IMPLEMENTED	NOT_RUN_REQUIRED_MATRIX	RUNNING	-
+Magnetometer	Ashtray-Archer/utilities-android-phone-user	commit	7dfacda62e5b1a7b8c28925bff437602dab7e14a	https://github.com/Ashtray-Archer/utilities-android-phone-user/pull/92	PASS_SAMPLED_BOTH_MODES	PASS_API29_API34_LAUNCH_ROOT_INK	PASS_EXISTING_PRODUCER	https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41951695226/artifacts/13383131848
 one-room-schoolhouse/crantastic	one-room-schoolhouse/crantastic	tree	4e5a74f3d15c1ee75896e0041880f22eab654f74	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
 one-room-schoolhouse/git-reference	one-room-schoolhouse/git-reference	tree	64707c0f60e5cb1627bd9701cdb51b7c9f53b972	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
 one-room-schoolhouse/gnu-parallel	one-room-schoolhouse/gnu-parallel	tree	338ea44e27c8314e1e388dd430f5897fac15cf93	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
@@ -126,4 +127,4 @@ one-room-schoolhouse/stephendiehl.com	one-room-schoolhouse/stephendiehl.com	tree
 one-room-schoolhouse/webextensions-examples	one-room-schoolhouse/webextensions-examples	tree	af38e5d3a21405ddbc399605aa91f98a70828718	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
 Pasteboard	Ashtray-Archer/utilities-android-phone-user	commit	e3b018bfa12cd1d33cfd8ee4934ef3ce688c2a66	https://github.com/Ashtray-Archer/utilities-android-phone-user/pull/91	PASS_SAMPLED_API29_API34_BOTH_MODES	PASS_SELECTED_STATES	PASS_API29_API34_API35	https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41946125428/artifacts/13378759643
 place-of-honor/learn-toki-pona	place-of-honor/learn-toki-pona	tree	ef55a23acd94cc501e7a0d5e44ab01296b881c30	-	PENDING_CLASSIFICATION	NOT_RUN	NOT_RUN	-
-Spirit Level	Ashtray-Archer/utilities-android-phone-user	commit	7dfacda62e5b1a7b8c28925bff437602dab7e14a	https://github.com/Ashtray-Archer/utilities-android-phone-user/pull/92	IMPLEMENTED	NOT_RUN_REQUIRED_MATRIX	RUNNING	-
+Spirit Level	Ashtray-Archer/utilities-android-phone-user	commit	7dfacda62e5b1a7b8c28925bff437602dab7e14a	https://github.com/Ashtray-Archer/utilities-android-phone-user/pull/92	PASS_SAMPLED_BOTH_MODES	PASS_API29_API34_LAUNCH_ROOT_INK	PASS_EXISTING_PRODUCER	https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41951695175/artifacts/13384010251

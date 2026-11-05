@@ -1,0 +1,23 @@
+name: Canonical Grease entrypoint
+description: Bind the published portable launcher to the unchanged qualified host engine.
+runs:
+  using: composite
+  steps:
+    # GitHub fixes the interpreter for composite run steps. These fixed staging
+    # commands form the package bootstrap; maintained checks execute bin/grease.
+    - shell: sh
+      run: echo '7e31cd05b7a9d8fb2a4a9e003a7f3fcb0159138506d17f0fb28da8cbe22aa85c  grease/_bin/cxx-asan/ysh' | sha256sum -c -
+    - shell: sh
+      run: mkdir -p grease/bin
+    - shell: sh
+      run: cp grease/_bin/cxx-asan/ysh grease/bin/ysh
+    - shell: sh
+      run: curl --fail --location --silent --show-error --retry 3 https://github.com/isomorphisms/grease/releases/download/tablet-aarch64-9b3dc8904891/grease-aarch64-termux.tar.gz --output grease/portable.tar.gz
+    - shell: sh
+      run: echo '3ddb962ef313e528e525fa03518f494577e921c2201ecb49f7a11f2fbf4e82b2  grease/portable.tar.gz' | sha256sum -c -
+    - shell: sh
+      run: tar -xzf grease/portable.tar.gz -C grease ./bin/grease
+    - shell: sh
+      run: echo '37088097c36a2f82cf45aaea9392e4a4cf16155fecb9da87d08a9c7fb4d92e4a  grease/bin/grease' | sha256sum -c -
+    - shell: sh
+      run: chmod 755 grease/bin/grease grease/bin/ysh

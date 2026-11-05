@@ -35,3 +35,18 @@ suite; it does not repeat that suite or establish rotation/transition coverage.
 Chord Changes uses its actual typed Activity and fresh framework-control
 hierarchy, with a #383838 button sample. The original seven-argument sampler
 entry remains Pasteboard; the optional profile selects the documented app.
+
+`charcoal-instruments.yml` checks unchanged signed Accelerometer, Spirit Level,
+Gyroscope, Magnetometer, Ambient Light and Proximity candidates in both system
+night settings on API29/API34. It verifies candidate digests/signers, fresh
+namespaces, actual resumed Activities, a charcoal root pixel and light ink
+inside the application canvas, excluding system-bar icons. This rejects a blank
+launch window without pretending to read sensor values or establish accuracy.
+
+The shared bootstrap stages the published portable `bin/grease` launcher with
+SHA256 `37088097c36a2f82cf45aaea9392e4a4cf16155fecb9da87d08a9c7fb4d92e4a`
+beside the unchanged qualified host engine. Consumer checks invoke that canonical
+entrypoint; the underlying engine name remains package material. GitHub's fixed
+composite-step interpreter is used only for these fixed bootstrap commands.
+The canonical entrypoint locally passes frame positive/white rejection,
+native/XML token mutations and the exact integer Idriç contrast replay.
