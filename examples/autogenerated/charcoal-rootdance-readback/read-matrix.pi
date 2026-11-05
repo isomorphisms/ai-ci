@@ -1,0 +1,69 @@
+"""Read immutable matrix pixels; no product assertion is waived or supplied."""
+from pathlib import Path
+from builtins import bool, str, int, object, list, tuple
+from PIL import Image, ImageChops
+
+def as_text(value ∈ object) → str:
+    return str(value)
+
+def color_bands(path ∈ Path, red ∈ int, green ∈ int, blue ∈ int) → list[object]:
+    image ∈ object ← Image.open(as_text(path)).convert("RGB")
+    size ∈ tuple[int, int] ← image.size
+    width ∈ int ← size[0]
+    height ∈ int ← size[1]
+    pixels ∈ list[tuple[int, int, int]] ← list(image.getdata())
+    bands ∈ list[object] ← []
+    active ∈ bool ← False
+    left ∈ int ← width
+    right ∈ int ← 0
+    top ∈ int ← 0
+    bottom ∈ int ← 0
+    count ∈ int ← 0
+    for y in range(height):
+        row_has_color ∈ bool ← False
+        for x in range(width):
+            pixel ∈ tuple[int, int, int] ← pixels[y * width + x]
+            if pixel[0] >= red - 1 and pixel[0] <= red + 1 and pixel[1] >= green - 1 and pixel[1] <= green + 1 and pixel[2] >= blue - 1 and pixel[2] <= blue + 1:
+                if not active:
+                    active = True
+                    top = y
+                row_has_color = True
+                bottom = y
+                if x < left:
+                    left = x
+                if x > right:
+                    right = x
+                count = count + 1
+        if active and not row_has_color:
+            bands.append({"left":left, "right":right, "top":top, "bottom":bottom, "twice_center_x":left + right, "twice_center_y":top + bottom, "matching_pixels":count})
+            active = False
+            left = width
+            right = 0
+            count = 0
+    if active:
+        bands.append({"left":left, "right":right, "top":top, "bottom":bottom, "twice_center_x":left + right, "twice_center_y":top + bottom, "matching_pixels":count})
+    return bands
+
+
+root ∈ Path ← Path.cwd()
+output ∈ Path ← root.joinpath("current-readback")
+output.mkdir(parents=True, exist_ok=True)
+lines ∈ list[str] ← ["product_acceptance\tFAIL_UNCHANGED", "physical_C67\tNOT_RUN"]
+for name in ["before.png", "after.png", "repeated-root.png", "degree-three.png", "relaunch-evidence/moved-before-relaunch.png", "relaunch-evidence/moved-after-relaunch.png"]:
+    path ∈ Path ← root.joinpath("retained-current", name)
+    present ∈ bool ← path.exists()
+    if present:
+        image ∈ object ← Image.open(as_text(path)).convert("RGB")
+        size ∈ tuple[int, int] ← image.size
+        root_pixel ∈ tuple[int, int, int] ← image.getpixel((892, 299))
+        coefficient_pixel ∈ tuple[int, int, int] ← image.getpixel((315, 300))
+        lines.append(name + "\tsize\t" + as_text(size) + "\troot892299\t" + as_text(root_pixel) + "\tcoefficient315300\t" + as_text(coefficient_pixel))
+        lines.append(name + "\troot_bands\t" + as_text(color_bands(path, 145, 183, 227)))
+        lines.append(name + "\tcoefficient_bands\t" + as_text(color_bands(path, 232, 203, 139)))
+before ∈ object ← Image.open(as_text(root.joinpath("retained-current/relaunch-evidence/moved-before-relaunch.png"))).convert("RGB")
+after ∈ object ← Image.open(as_text(root.joinpath("retained-current/relaunch-evidence/moved-after-relaunch.png"))).convert("RGB")
+difference ∈ object ← ImageChops.difference(before.crop((0, 0, 1200, 700)), after.crop((0, 0, 1200, 700)))
+lines.append("owned_viewport_difference_bounds\t" + as_text(difference.getbbox()))
+report ∈ str ← "\n".join(lines) + "\n"
+output.joinpath("actual-pixel-readback.tsv").write_text(report, encoding="utf-8")
+print(report)
