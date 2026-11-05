@@ -25,3 +25,15 @@ content color, ARM execution or physical C67 acceptance. External launcher/keybo
 frames in startup videos are not application-owned backgrounds. The Exporter
 x86_64 package is its existing production-reader fixture with the same native
 presentation source; its ARM64 development package stays separately identified.
+
+First run41972388595 passes all ten lifecycle frames and both actual videos for
+FastChat and IB on API29. It then samples Exporter's default external ChatGPT
+page, whose intentionally light content is outside the application theme scope.
+The repaired replay uses the app's existing READ_SAVED action and checks its
+owned empty/error native reader entry. It does not invert or restyle ChatGPT.
+API34 keeps the display portrait after the raw settings write; use the window
+manager's declared user-rotation command, retain its output and still require
+the actual compositor orientation. A setting value alone is not rotation proof.
+On future failures, retain logcat, window state and any actual startup video
+before the disposable emulator is destroyed. The original failed artifacts
+13390826443/API29 and13390711212/API34 are preserved, not relabeled as passes.
