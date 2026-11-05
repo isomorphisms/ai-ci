@@ -25,3 +25,10 @@ paired with those immutable historical APKs. They do not qualify the charcoal th
 they require the fixed palette and reject deliberate live palette mutations.
 The signed archive lane now requalifies the current charcoal source and retains
 its exact archive digest and native source identity on both API29 and API34.
+
+`charcoal-pasteboard.yml` separately samples the same signed candidate on API29
+and API34 with system night mode off/on. Its fresh empty-board scene checks
+the resumed native Activity, coarse frame darkness and independent #212121
+root / #2F2F2F card pixel positions within the compositor's two-value tolerance.
+This complements the producer's real clipboard, migration and card interaction
+suite; it does not repeat that suite or establish rotation/transition coverage.
