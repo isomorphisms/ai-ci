@@ -35,48 +35,48 @@ jobs:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           repository: isomorphisms/fastchat
-          run-id: 41947171842
-          artifact-ids: 13378669150
+          run-id: 41990448769
+          artifact-ids: 13398146684
           merge-multiple: true
           github-token: ${{ github.token }}
           path: candidate/fastchat
-      - run: echo '6cffa8b16a8ae5a8d221f135d5939bd3d346298cd5b166ef4af9c4c23b8f9ca1  candidate/fastchat/fastchat.apk' | sha256sum -c -
+      - run: echo '73433b02e5de5287a16f49ff8c1ef75b02d18c11e6539513e16cfd5e8307163c  candidate/fastchat/fastchat.apk' | sha256sum -c -
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           repository: isomorphisms/ib
-          run-id: 41947425729
-          artifact-ids: 13380884545
+          run-id: 41990454666
+          artifact-ids: 13400366625
           merge-multiple: true
           github-token: ${{ github.token }}
           path: candidate/ib
-      - run: echo '6c32c502a41c99d71f937c5d6b362139ed8f396d3966993db80d2599dad9062f  candidate/ib/native-client/ib-native-boundary.apk' | sha256sum -c -
+      - run: echo 'abd32edc04efc2451db6bb14085ff446bddc6156657d333ac2f148fce7357d1d  candidate/ib/native-client/ib-native-boundary.apk' | sha256sum -c -
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           repository: dilapidated-shed/ChatGPTExporter
-          run-id: 41947436588
-          artifact-ids: 13380610037
+          run-id: 41990459787
+          artifact-ids: 13398432041
           merge-multiple: true
           github-token: ${{ github.token }}
           path: candidate/exporter
-      - run: echo '01133a05d9d5b1ecd32781dd76140a65f94930488ce2c6e7d9b027ac34823261  candidate/exporter/production-reader.apk' | sha256sum -c -
+      - run: echo '0720fcfb7f83a00c3f8117dba0b1e6f15b5fad54369dc169e5d50c9fea5fa980  candidate/exporter/production-reader.apk' | sha256sum -c -
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           repository: Ashtray-Archer/utilities-android-phone-user
-          run-id: 41978032646
-          artifact-ids: 13393570513
+          run-id: 41990472251
+          artifact-ids: 13398546503
           merge-multiple: true
           github-token: ${{ github.token }}
           path: candidate/pasteboard
-      - run: echo 'ed738db11b4600a741a2b73e0dbee9bf75b197e6fbbd2ab59e244b736cbfb512  candidate/pasteboard/pasteboard-x86_64.apk' | sha256sum -c -
+      - run: echo 'eff26c34ed6dc400ae916038616ed32a45ba83be864ee4ae3f574c9f56f9abef  candidate/pasteboard/pasteboard-x86_64.apk' | sha256sum -c -
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           repository: dilapidated-shed/tablature
-          run-id: 41950607269
-          artifact-ids: 13382136270
+          run-id: 41990465047
+          artifact-ids: 13398119356
           merge-multiple: true
           github-token: ${{ github.token }}
           path: candidate/chord
-      - run: echo '73a56704f96fe967c623d2d73d0b5199b668ab5037ff2063328a8505d6205eb1  candidate/chord/android/chordreader-x86_64.apk' | sha256sum -c -
+      - run: echo '000985a42cc2931b3e1efe546f40194bde383415d2ffedbfbd53ba3927767b53  candidate/chord/android/chordreader-x86_64.apk' | sha256sum -c -
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           repository: dilapidated-shed/grease
@@ -108,11 +108,11 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -no-audio -no-snapshot -no-boot-anim -memory 2048 -gpu swiftshader_indirect
           script: |
-            "$CHARCOAL_GREASE" charcoal/observe-lifecycle.grease "$ANDROID_HOME/platform-tools/adb" emulator-5554 "$ANDROID_HOME" "$GITHUB_WORKSPACE/candidate/fastchat/fastchat.apk" "$CHARCOAL_GREASE" "$RUNNER_TEMP/charcoal-lifecycle-fastchat" "${{ matrix.api }}" org.isomorphisms.fastchat.diskstreaming.arena android.app.NativeActivity aa9151e3922fa4795987c3655bc7aa4712620f1d94c24a2075acd7b29d8ac86e 8fda332e45dc96c16b4aae9955f180d475800b9c 41947171842 landscape
-            "$CHARCOAL_GREASE" charcoal/observe-lifecycle.grease "$ANDROID_HOME/platform-tools/adb" emulator-5554 "$ANDROID_HOME" "$GITHUB_WORKSPACE/candidate/ib/native-client/ib-native-boundary.apk" "$CHARCOAL_GREASE" "$RUNNER_TEMP/charcoal-lifecycle-ib" "${{ matrix.api }}" org.isomorphisms.ib.prepaint Idric.Generated de9b1d47c5a65e6d46a204b79dd9ee566b9d3c9832ba81ebc4213d3392e92ff9 f2b16841e4be8d51a4b4a88cc4264fc6681bce13 41947425729 landscape
-            "$CHARCOAL_GREASE" charcoal/observe-lifecycle.grease "$ANDROID_HOME/platform-tools/adb" emulator-5554 "$ANDROID_HOME" "$GITHUB_WORKSPACE/candidate/exporter/production-reader.apk" "$CHARCOAL_GREASE" "$RUNNER_TEMP/charcoal-lifecycle-exporter" "${{ matrix.api }}" org.isomorphisms.chatgptexporter.e1fixture org.isomorphisms.webview.BridgeActivity de9b1d47c5a65e6d46a204b79dd9ee566b9d3c9832ba81ebc4213d3392e92ff9 51bace2e9b026f0f5219d49fdf5ccaac89cb2321 41947436588 landscape
-            "$CHARCOAL_GREASE" charcoal/observe-lifecycle.grease "$ANDROID_HOME/platform-tools/adb" emulator-5554 "$ANDROID_HOME" "$GITHUB_WORKSPACE/candidate/pasteboard/pasteboard-x86_64.apk" "$CHARCOAL_GREASE" "$RUNNER_TEMP/charcoal-lifecycle-pasteboard" "${{ matrix.api }}" com.isomorphisms.pasteboard android.app.NativeActivity de9b1d47c5a65e6d46a204b79dd9ee566b9d3c9832ba81ebc4213d3392e92ff9 29d6a7a1dbad2dea7d577a710869757d8f8b9752 41978032646 portrait
-            "$CHARCOAL_GREASE" charcoal/observe-lifecycle.grease "$ANDROID_HOME/platform-tools/adb" emulator-5554 "$ANDROID_HOME" "$GITHUB_WORKSPACE/candidate/chord/android/chordreader-x86_64.apk" "$CHARCOAL_GREASE" "$RUNNER_TEMP/charcoal-lifecycle-chord" "${{ matrix.api }}" org.isomorphisms.chordreader.dev org.isomorphisms.NativeViewActivity de9b1d47c5a65e6d46a204b79dd9ee566b9d3c9832ba81ebc4213d3392e92ff9 7255ad083a1c183c42f9766ca3548c256e090daa 41950607269 landscape
+            "$CHARCOAL_GREASE" charcoal/observe-lifecycle.grease "$ANDROID_HOME/platform-tools/adb" emulator-5554 "$ANDROID_HOME" "$GITHUB_WORKSPACE/candidate/fastchat/fastchat.apk" "$CHARCOAL_GREASE" "$RUNNER_TEMP/charcoal-lifecycle-fastchat" "${{ matrix.api }}" org.isomorphisms.fastchat.diskstreaming.arena android.app.NativeActivity aa9151e3922fa4795987c3655bc7aa4712620f1d94c24a2075acd7b29d8ac86e 215ef98c09e667cdb4335d19a7041a49c7d6e5e1 41990448769 landscape
+            "$CHARCOAL_GREASE" charcoal/observe-lifecycle.grease "$ANDROID_HOME/platform-tools/adb" emulator-5554 "$ANDROID_HOME" "$GITHUB_WORKSPACE/candidate/ib/native-client/ib-native-boundary.apk" "$CHARCOAL_GREASE" "$RUNNER_TEMP/charcoal-lifecycle-ib" "${{ matrix.api }}" org.isomorphisms.ib.prepaint Idric.Generated de9b1d47c5a65e6d46a204b79dd9ee566b9d3c9832ba81ebc4213d3392e92ff9 336c17c5bc3975f7e113c4ffec4de69687ebd2aa 41990454666 landscape
+            "$CHARCOAL_GREASE" charcoal/observe-lifecycle.grease "$ANDROID_HOME/platform-tools/adb" emulator-5554 "$ANDROID_HOME" "$GITHUB_WORKSPACE/candidate/exporter/production-reader.apk" "$CHARCOAL_GREASE" "$RUNNER_TEMP/charcoal-lifecycle-exporter" "${{ matrix.api }}" org.isomorphisms.chatgptexporter.e1fixture org.isomorphisms.webview.BridgeActivity de9b1d47c5a65e6d46a204b79dd9ee566b9d3c9832ba81ebc4213d3392e92ff9 e682e0c865ba87d4793e3a4e62ebf6864db2b188 41990459787 landscape
+            "$CHARCOAL_GREASE" charcoal/observe-lifecycle.grease "$ANDROID_HOME/platform-tools/adb" emulator-5554 "$ANDROID_HOME" "$GITHUB_WORKSPACE/candidate/pasteboard/pasteboard-x86_64.apk" "$CHARCOAL_GREASE" "$RUNNER_TEMP/charcoal-lifecycle-pasteboard" "${{ matrix.api }}" com.isomorphisms.pasteboard android.app.NativeActivity de9b1d47c5a65e6d46a204b79dd9ee566b9d3c9832ba81ebc4213d3392e92ff9 df2df8f18840c98a175b958f07749bb423e80ff0 41990472251 portrait
+            "$CHARCOAL_GREASE" charcoal/observe-lifecycle.grease "$ANDROID_HOME/platform-tools/adb" emulator-5554 "$ANDROID_HOME" "$GITHUB_WORKSPACE/candidate/chord/android/chordreader-x86_64.apk" "$CHARCOAL_GREASE" "$RUNNER_TEMP/charcoal-lifecycle-chord" "${{ matrix.api }}" org.isomorphisms.chordreader.dev org.isomorphisms.NativeViewActivity de9b1d47c5a65e6d46a204b79dd9ee566b9d3c9832ba81ebc4213d3392e92ff9 bd7d6be5b09b77f371bd97302002ddc8966d543c 41990465047 landscape
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
