@@ -96,9 +96,22 @@ jobs:
           packages: 'build-tools;36.0.0 platforms;android-36'
       - name: Observe actual APK digests, signer and package identity
         run: grease/bin/grease charcoal/identify-apks.grease "$GITHUB_WORKSPACE/candidate" "$GITHUB_WORKSPACE/charcoal/candidate-identities.tsv" "$ANDROID_HOME" "$GITHUB_WORKSPACE/identity-receipts"
+      - name: Acquire actual API35 failed control evidence without rerunning or weakening it
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          repository: Ashtray-Archer/utilities-android-phone-user
+          run-id: 42005277456
+          artifact-ids: 13406493088
+          github-token: ${{ github.token }}
+          merge-multiple: true
+          path: failed-api35
+      - name: Read the preserved failing control boundary
+        run: grease/bin/grease charcoal/read-control-failure.grease "$GITHUB_WORKSPACE/failed-api35" "$GITHUB_WORKSPACE/control-failure-readback"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
           name: charcoal-candidate-identity-receipts
-          path: identity-receipts/
+          path: |
+            identity-receipts/
+            control-failure-readback/
           if-no-files-found: warn
