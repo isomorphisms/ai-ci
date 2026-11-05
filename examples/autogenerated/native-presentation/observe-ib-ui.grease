@@ -80,6 +80,17 @@ rg -x -F 'INSTRUMENTATION_CODE: -1' "$output/ui.txt"
 rg -x -F 'INSTRUMENTATION_RESULT: stream=PASS actual IB History Reader preserves View text selection scroll and selects retained source' "$output/ui.txt"
 rg -F 'PASS actual IB source and history controls match the shared neutral surface' "$output/runtime.txt"
 "$adb" -s "$serial" pull /sdcard/Android/data/org.isomorphisms.ib.prepaint/files/acceptance-reader-frame.png "$output/actual-reader-frame.png"
+var ffmpeg = $(command -v ffmpeg)
+for mode in no yes {
+  "$adb" -s "$serial" shell cmd uimode night "$mode" > "$output/night-$mode.txt"
+  "$adb" -s "$serial" shell am force-stop "$package"
+  timeout 90 "$adb" -s "$serial" shell am instrument -w -r \
+    org.isomorphisms.ib.presentation.observer/acceptance.presentation.IbUi > "$output/charcoal-$mode.txt" 2>&1
+  rg -x -F 'INSTRUMENTATION_CODE: -1' "$output/charcoal-$mode.txt"
+  "$adb" -s "$serial" pull /sdcard/Android/data/org.isomorphisms.ib.prepaint/files/acceptance-reader-frame.png "$output/charcoal-$mode.png"
+  "$CHARCOAL_GREASE" "$aici/charcoal/check-frame.grease" "$ffmpeg" "$output/charcoal-$mode.png" "$output/charcoal-$mode.frame.txt"
+}
+"$adb" -s "$serial" shell cmd uimode night no > "$output/night-restored.txt"
 # Reproduce the real old XML tint as an actual inflated-control mutation.
 # It must fail the precise compositor assertion, not a generic process error.
 "$adb" -s "$serial" shell am force-stop "$package"

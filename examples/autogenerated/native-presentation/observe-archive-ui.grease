@@ -93,8 +93,15 @@ proc observe(label) {
   if (_error.code !== 1) { echo 'FAIL read-only entry initialized acquisition shell' >&2; exit 1 }
   "$adb" pull "/sdcard/Android/data/$package/files/acceptance-reader-frame.png" "$output/$label.frame.png"
 }
+"$adb" shell cmd uimode night no > "$output/night-no.txt"
 observe first
+"$adb" shell cmd uimode night yes > "$output/night-yes.txt"
 observe reopened
+var ffmpeg = $(command -v ffmpeg)
+for name in first reopened {
+  "$CHARCOAL_GREASE" "$aici/charcoal/check-frame.grease" "$ffmpeg" "$output/$name.frame.png" "$output/$name.frame.txt"
+}
+"$adb" shell cmd uimode night no > "$output/night-restored.txt"
 snapshot after
 cmp "$output/before.sha256" "$output/after.sha256"
 # Compile-time deletion in the actual producer, not an oracle pretending to

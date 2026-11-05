@@ -1,0 +1,16 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 3) { echo 'requires GREASE FFMPEG NEW_OUTPUT' >&2; exit 2 }
+var grease = ARGV[0]
+var ffmpeg = ARGV[1]
+var output = ARGV[2]
+var directory = $(dirname "$0")
+test ! -e "$output"
+mkdir -p "$output"
+"$ffmpeg" -nostdin -hide_banner -f lavfi -i color=c=0x212121:s=128x128 -frames:v 1 "$output/good.png" > "$output/generate-good.txt" 2>&1
+"$ffmpeg" -nostdin -hide_banner -f lavfi -i color=c=white:s=128x128 -frames:v 1 "$output/light.png" > "$output/generate-light.txt" 2>&1
+"$grease" "$directory/check-frame.grease" "$ffmpeg" "$output/good.png" "$output/good.txt"
+try { "$grease" "$directory/check-frame.grease" "$ffmpeg" "$output/light.png" "$output/light.txt" > "$output/refused.txt" 2>&1 }
+if (_error.code !== 1) { echo 'FAIL screenshot guard did not reject white frame' >&2; exit 1 }
+rg -x -F 'FAIL charcoal screenshot: less than 80 percent dark pixels' "$output/refused.txt"
+echo 'PASS dark screenshot and targeted white-background rejection'

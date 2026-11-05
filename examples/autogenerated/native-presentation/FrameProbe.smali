@@ -38,6 +38,11 @@
     const/4 v8, 0
   :sample
     invoke-virtual {p0, v0}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
+    iget-object v3, v0, Lacceptance/presentation/FrameTask;->failure:Ljava/lang/String;
+    if-eqz v3, :window_valid
+    move-object v1, v3
+    goto :throw
+  :window_valid
     iget-boolean v3, v0, Lacceptance/presentation/FrameTask;->valid:Z
     if-eqz v3, :wait
     const/4 v8, 1
@@ -57,6 +62,14 @@
     move-result v7
     if-ge v4, v7, :recycle
     iget v5, v0, Lacceptance/presentation/FrameTask;->color:I
+    const v7, 0xff383838
+    if-eqz v9, :charcoal_expected
+    const v7, 0xff2f2f2f
+  :charcoal_expected
+    if-eq v5, v7, :charcoal_match
+    const-string v1, "FAIL fixed charcoal control palette"
+    goto :throw
+  :charcoal_match
     invoke-virtual {v2, v3, v4}, Landroid/graphics/Bitmap;->getPixel(II)I
     move-result v6
     invoke-static {v5, v6}, Lacceptance/presentation/FrameProbe;->near(II)Z
