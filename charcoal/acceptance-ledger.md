@@ -22,175 +22,197 @@ continues. An UNINSPECTED row is outstanding work, not an exclusion.
 candidate plus the implemented active-branch applications. A `tree` identity is
 discovery evidence, not a source commit or accepted build.
 
-| Project | Dark default | Visual test | Regression tests | Artifact |
-|---|---|---|---|---|
-| FastChat | PASS, sampled own surfaces/bars on both APIs and system modes | PASS API29/API34 rotation, resume, reopen; all retained startup-video frames pass broad-white guard locally | PASS paging, Stop, Unicode, copying, history, settings | [Signed C67 ARM64](https://github.com/isomorphisms/fastchat/actions/runs/41947171842/artifacts/13379696620) |
-| IB native reader/workbench | PASS, sampled native reader/history/root/bars in both modes | PASS current-source API29/API34 lifecycle; broad-white video guard PASS locally | PASS native/ART suites; separate browser-foundation live arXiv prepaint remains red | [Signed C67 candidate](https://github.com/isomorphisms/ib/actions/runs/41947425729/artifacts/13380884545) |
-| ChatGPTExporter native reader | PASS owned native reader; external ChatGPT is preserved | PASS API29/API34 lifecycle via READ_SAVED; broad-white video guard PASS locally | PASS archive/capture/copy/offline/refusals and browser checks | [Signed ARM64 and evidence](https://github.com/dilapidated-shed/ChatGPTExporter/actions/runs/41947436588/artifacts/13380610037) |
-| Chord Changes | PASS reader/controls/fingering on both APIs/modes | PASS API29/API34 lifecycle and all-frame broad-white startup guard | PASS existing music/storage/interaction | [Signed candidates](https://github.com/dilapidated-shed/tablature/actions/runs/41950607269/artifacts/13382136270) |
-| Pasteboard | PASS sampled current repaired candidate on both APIs/modes | PASS API29/API34 full lifecycle and all-frame broad-white startup guard | PASS build, all migration suites and API29 workflow; API35 workflow fails after reboot, investigation open | [Current signed C67 repair candidate](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41978032646/artifacts/13393570513) |
-| Wegert / zero & infinity | IMPLEMENTED; API34/35 emulator execution PASS | Full independent chrome/night-mode/API29 samples pending; scientific colors preserved | PASS native, direct DEX/JNI and ICK boundaries; reproducible signed build PASS; F-Droid buildserver container unavailable | [Device candidate APK ZIP](https://github.com/isomorphismes/wegert/actions/runs/41950617535/artifacts/13381460123) |
-| iCurses and iLua demo | Terminal defaults inherited; exact RGB belongs to terminal configuration | PASS real terminal execution on host/API34; API29 NOT_RUN | PASS C/iLua host and API34; product branch publication and formal shared admission remain BLOCKED | [ARM64 runtime checkpoint](https://github.com/isomorphisms/ai-ci/actions/runs/41961330436/artifacts/13386685529) |
-| Shared android-NDK presentation | Adopted by applications; newer default TextView correction qualified | Real API34 framework color observation and missing-theme rejection PASS | All five current DEX/JNI/native/WebView/framework suites PASS | Consumed by applications; no standalone upgrade APK |
-| Other utility applications | PENDING implementation | PENDING | Existing tests do not qualify new palette | PENDING |
-| Wardriving | Terminal inheritance; no graphical app in inspected source | Not applicable to current CLI | No theme changes required for terminal inheritance | No APK exists at inspected source |
-| Cat Food | Terminal inheritance; no graphical source found in inspected main | GUI testing interfaces belong to app/example repositories | Existing receipts do not qualify the new app builds | Delivery registration pending qualification |
-| Grease | Terminal policy audit pending | No forced terminal palette | No cosmetic changes made | Not applicable |
-| Accelerometer | PASS, sampled launch root and native ink in both system modes | PASS API29/API34 independent same-byte launch; state/rotation coverage pending | PASS all existing ABI/package producer checks | [Signed candidates](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41951695167/artifacts/13383110866) |
-| Spirit Level | PASS, sampled launch root and native ink in both system modes | PASS API29/API34 independent same-byte launch; state/rotation coverage pending | PASS source-built packages, host renderer and existing API35 frame/replacement checks | [Signed candidates](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41951695175/artifacts/13384010251) |
-| Gyroscope | PASS, sampled launch root and native ink in both system modes | PASS API29/API34 independent same-byte launch; state/rotation coverage pending | PASS existing ABI and API35 posted-frame/replacement checks | [Signed candidates](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41951695226/artifacts/13382842737) |
-| Magnetometer | PASS, sampled launch root and native ink in both system modes | PASS API29/API34 independent same-byte launch; state/rotation coverage pending | PASS existing ABI and API35 posted-frame/replacement checks | [Signed candidates](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41951695226/artifacts/13383131848) |
-| Ambient Light | PASS, sampled launch root and native ink in both system modes | PASS API29/API34 independent same-byte launch; state/rotation coverage pending | PASS existing source-built package/API35 frame checks | [Signed per-ABI APK ZIP](https://github.com/isomorphisms/ambient-light/actions/runs/41951906524/artifacts/13382326987) |
-| Proximity | PASS sampled root and native ink in both system modes | PASS independent API29/API34 live launch | PASS host model, ABI packages and signed bundle; prior header-path failure repaired | [Signed candidates](https://github.com/isomorphisms/Android-proximity-sensor/actions/runs/41959502810/artifacts/13384706447) |
-| Billiard | IMPLEMENTED native canvas/chrome and shared launch theme | PASS actual Rough host pixel checks; Android execution pending | PASS host mathematics/paper exports, ICK Android linking and signed packages | [Signed paired candidates](https://github.com/isomorphismes/billiard/actions/runs/41958097962/artifacts/13385701997) |
-| Holomorphic | Shared launch and shader controls implemented | Preceding source5025b41 passes actual control pixels on API29/API34 in both modes | Current463584e strict capture requalification running; previous log incomplete and rejected | [Preceding signed APK/evidence](https://github.com/isomorphismes/holomorphic/actions/runs/41967292308/artifacts/13389803940) |
-| Pauli | IMPLEMENTED shared launch theme and local explanation-page stylesheet | Actual API34 orbital frame inspected; independent chrome/page samples pending | PASS all five mathematical, ABI, Android and signed-package producers | [Signed C67 ARM64 candidate](https://github.com/isomorphismes/pauli/actions/runs/41960123808/artifacts/13387950058) |
-| Mathieu | PASS actual charcoal canvas/control roles | PASS host renderer and API29/API34 both-mode interaction; API34 PNG inspected | PASS exact math/session, all three ABI builds and signed packages | [Signed C67 candidate](https://github.com/isomorphismes/mathieu/actions/runs/41969966507/artifacts/13389514461) |
-| Mostow | Implemented shared default; optional paper artwork retained | PASS actual host GLES roles; inspected quotient PNG; Android pending | PASS math/GLES, ICK links, paired signed producer and real FP preflight | [Signed C67/ARM32 pair](https://github.com/isomorphismes/mostow/actions/runs/41970908432/artifacts/13390457737) |
-| Seifert | Implemented shared scene/readout/launch roles | PASS real host GLES background/readout assertions; Android pending | PASS math/GLES and all three signed ABI packages | [Signed C67 candidate](https://github.com/isomorphismes/seifert/actions/runs/41970435239/artifacts/13389803751) |
-| Spinor | Implemented shared neutral void/launch windows | Scientific geometry/colors preserved; Android UI samples pending | PASS host semantics, native ABI links, movie and signed three-ABI packages | [Signed C67 candidate](https://github.com/isomorphismes/spinor/actions/runs/41968051439/artifacts/13390355625) |
-| Current DEX constructor/source-observer fixtures | Explicit shared theme and default widget correction | PASS actual API34 default F4 TextView; missing declared theme is rejected | PASS constructor/text/selection/reflow mutants, recovery and all five workflows | Test fixtures; no C67 upgrade package |
-| Programmer's Keyboard | No application GUI in inspected main | Paper keypad/fabrication previews intentionally retain their export colors | Hardware/firmware and document-export project; no cosmetic changes made | Not applicable |
-| Conway | Shared launch resources implemented; shader preserved | PASS existing API34 pan/replacement execution; both-mode API29/chrome samples pending | PASS ICK compilers, signed debug and unsigned F-Droid release build | [Signed three-ABI C67-compatible APK](https://github.com/isomorphismes/Conway/actions/runs/41976915076/artifacts/13392563447) |
-| Fourier Voice and audio diagnostics | Implemented shared windows; microphone/speaker blank canvases explicitly cleared | Android both-mode visual/lifecycle checks pending; audio/scientific pixels preserved | PASS all six current workflows, including three-ABI signed packages and numeric/host/GPU references | [Signed ARM64 application set](https://github.com/isomorphismes/Fourier-sound/actions/runs/41970938009/artifacts/13391745072) |
-| SURFER | Implemented shared windows and charcoal native editor/keypad/reference chrome | PASS existing API35 preset/parity execution; independent API29/API34 pending | PASS host CI and all native ICK packages; F-Droid fixed container unavailable; signer continuity BLOCKED | [Test fixture only](https://github.com/isomorphismes/algebraic-variety-explorer-mobile/actions/runs/41970098694/artifacts/13391340281) |
-| Dirichlet | Implemented browser controls/readouts; scientific field unchanged | PASS actual browser computed palette, white mutation and four WebGL portraits | PASS 17 JS tests/243 numeric comparisons; inherited C character assertion FAIL on unchanged base too | [Browser evidence](https://github.com/isomorphismes/dirichlet/actions/runs/41969073935/artifacts/13388712573) |
-| Coefficient Root Dance | Implemented charcoal planes/controls and fixed launch theme | Shared owner copies PASS; actual Android acceptance running | Existing renderer/math/gesture suites retained; signing continuity BLOCKED | Pending; future debug outputs are fixtures |
-| Hopf | Implemented shared neutral canvas and launch theme | Actual Android UI checks pending | Existing generated-math/gesture suites retained; signing continuity BLOCKED | Pending; future debug outputs are fixtures |
-| Ortho | Implemented shared neutral canvas and launch theme | Shared owner copies PASS; actual Android UI checks pending | Generated geometry/touch unchanged; signing continuity BLOCKED | Pending; future debug outputs are fixtures |
-| L | Implemented native navigation and browser charcoal; scientific fields preserved | Shared owner copies PASS; actual browser/Android visual checks pending | Existing mathematical seam retained; signing continuity BLOCKED | Pending; future debug outputs are fixtures |
-| Theta renderer bakeoff | Implemented shared launch/WebView/control chrome and neutral renderer clears | Shared-copy and actual six-renderer/Android visual checks pending | Five local adapter syntax checks PASS; inherited signer continuity BLOCKED | Build fixture pending |
-| Remaining repository census | UNINSPECTED | PENDING | PENDING | PENDING |
+## Current shared-widget adoption
 
-## Exact implementation sources
+Shared owner [android-NDK #43](https://github.com/isomorphisms/android-NDK/pull/43)
+is `e8b67dfc67776c2b8da919785d15f38d68c91db0`. Compared with the preceding
+shared source3e682fb1, only seven XML lines change: default TextViews and dialogs
+use the explicit stateful F4/disabled85 foreground. Actual API34 framework
+observation at [fixture #44](https://github.com/isomorphisms/android-NDK/pull/44)
+passes and rejects a missing-theme candidate. All five current fixture workflows
+pass. Color roles and application mathematics are unchanged.
 
-| Repository / PR | Source commit | Build / acceptance |
-|---|---|---|
-| [android-NDK #43 — "Default native presentation and launch windows to charcoal"](https://github.com/isomorphisms/android-NDK/pull/43) | Current `e8b67dfc67776c2b8da919785d15f38d68c91db0`; established app pins `3e682fb1175beef5625dbd2418730220e49fc9bd` | New default widget correction qualified by fixture6243cab and all five workflows; older explicit-view app candidates remain separately bound |
-| [FastChat #23 — Make FastChat launch, conversation and provider settings charcoal](https://github.com/isomorphisms/fastchat/pull/23) | Current `8fda332e45dc96c16b4aae9955f180d475800b9c`; independently qualified preceding APK source `1a810df430b41ea52a372e7bba1c01dc1df81512` | [Current producer 41947171842](https://github.com/isomorphisms/fastchat/actions/runs/41947171842): all signed builds and API29/API34 PASS. First API34 guest ran out of memory before app launch; exact retry passed. [Independent 41945734444](https://github.com/isomorphisms/ai-ci/actions/runs/41945734444): API29 and API34 PASS on unchanged preceding APK bytes. New source differs only in the observer pin |
-| [IB #170 — Keep the native reader and retained history charcoal in every system mode](https://github.com/isomorphisms/ib/pull/170) | `f2b16841e4be8d51a4b4a88cc4264fc6681bce13` | [Producer 41947425729](https://github.com/isomorphisms/ib/actions/runs/41947425729) PASS: signed build and API29/API34 actual ART suites. Browser foundation 41947425696 remains red at the separate live arXiv prepaint step |
-| [ChatGPTExporter #18 — Default native archive reader and capture shell chrome to charcoal](https://github.com/dilapidated-shed/ChatGPTExporter/pull/18) | `51bace2e9b026f0f5219d49fdf5ccaac89cb2321` | [Producer 41947436588](https://github.com/dilapidated-shed/ChatGPTExporter/actions/runs/41947436588) PASS. [Independent 41950267065](https://github.com/isomorphisms/ai-ci/actions/runs/41950267065) PASS on API29/API34 with exact signed bytes and both system modes. Browser E2E, host check and native presentation PASS |
-| [Tablature #10 — Make Chord Changes launch, controls and fingering canvas charcoal](https://github.com/dilapidated-shed/tablature/pull/10) | `7255ad083a1c183c42f9766ca3548c256e090daa` | [Producer 41950607269](https://github.com/dilapidated-shed/tablature/actions/runs/41950607269) PASS on API29/API34, including reader/fingering screenshot guards. [Independent launch 41956413784](https://github.com/isomorphisms/ai-ci/actions/runs/41956413784) PASS both system modes on both APIs. The original case-sensitive setlist test is retained and passes with authored button case preserved |
-| [Utilities #91 — "Use shared charcoal canvas and launch theme for Fixed Pasteboard"](https://github.com/Ashtray-Archer/utilities-android-phone-user/pull/91) | Current `29d6a7a1dbad2dea7d577a710869757d8f8b9752`; previous `e3b018bfa12cd1d33cfd8ee4934ef3ce688c2a66` | Current producer41978032646 builds/signs all ABIs and passes API29/34/35 migration. Workflow API35 fails later control launch. Previous41946125428 passed its existing suites but lifecycle41976766131 proves an API29 Home/resume crash. Current repair caches/releases the Canvas producer; exact-byte lifecycle follow-up41980041161 running |
-| [Wegert #76 — Use charcoal application chrome while preserving phase portrait colors](https://github.com/isomorphismes/wegert/pull/76) | `62bd3fcb0ba9f0ff935efe57dd6292203afa066d` | [Native/API34/35 41950617392](https://github.com/isomorphismes/wegert/actions/runs/41950617392), direct DEX/JNI41950617528 and ICK41950617449 PASS. [F-Droid 41950617535](https://github.com/isomorphismes/wegert/actions/runs/41950617535) direct reproducible/signing job PASS; buildserver container lookup fails |
-| [Utilities #92 — Use the shared charcoal palette in native sensor instruments](https://github.com/Ashtray-Archer/utilities-android-phone-user/pull/92) | `7dfacda62e5b1a7b8c28925bff437602dab7e14a` | Accelerometer41951695167, Spirit Level41951695175 and Gyroscope/Magnetometer41951695226 all PASS; separate from Pasteboard branch. [Independent appearance41957592533](https://github.com/isomorphisms/ai-ci/actions/runs/41957592533) PASS all ten app/API cases, both system modes |
-| [Ambient Light #2 — Default Ambient Light's native instrument and launch window to charcoal](https://github.com/isomorphisms/ambient-light/pull/2) | `590e194d8781b06b3d75a9a3cdcfec012ad646ea` | [Producer41951906524](https://github.com/isomorphisms/ambient-light/actions/runs/41951906524) PASS source-built ABI packages, API35 same-candidate replacement and actual posted frame. [Independent appearance41957592533](https://github.com/isomorphisms/ai-ci/actions/runs/41957592533) PASS both system modes on API29/API34 |
-| [Proximity #4 — Use fixed charcoal launch and native sensor presentation](https://github.com/isomorphisms/Android-proximity-sensor/pull/4) | `1721c30c6c0ce82d2fa37a42344c0447a11a85dd` | [Producer41959502810](https://github.com/isomorphisms/Android-proximity-sensor/actions/runs/41959502810) PASS model, qualified ABI builds and signed APK/AAB. Initial7287f source had an incorrect relative include depth; preserved failed run41957239974 |
-| [Billiard #21 — Default native Billiard chrome and framebuffer to shared charcoal](https://github.com/isomorphismes/billiard/pull/21) | `baac0eb107dcaabec48f993789abb9e12e1056f0` | ICK native41958098108, actual Rough pixels/host mathematics41958098011 and signed APK41958097962 all PASS. Android execution pending |
-| [Holomorphic #67 — "Use charcoal launch resources and checked shader control surfaces"](https://github.com/isomorphismes/holomorphic/pull/67) | Current `463584e2e8dd6de9114701f49ca9d78baf8710a4`; visually sampled product `5025b41cea08b2f173eb54b9344819be7c82fc55` | Previous41967292308 signs all three ABIs but strict math fails: timer metadata crashed old checker and retained observations are incomplete. Scientific appearance41976395534 PASS both APIs/modes on exact5025b41 APK. Current41977273427 streams actual logs before launch and uses strict timer-aware owner; numeric acceptance remains pending. No PR release publication |
-| [Pauli #30 — Use charcoal launch windows and explanation pages](https://github.com/isomorphismes/pauli/pull/30) | `18a7e62ce30252a3fbe0f2746b3ca00cb561a796` | Android41960123808, phone41960123840, hydrogen41960123820, Idriç41960123846 and shell41960123866 all PASS. Actual API34 frame artifact13386654737 inspected; ARM64 APK artifact13387950058 verified against signer receipt |
-| [Mathieu #4 — "Default Mathieu to shared charcoal while preserving exact choreography"](https://github.com/isomorphismes/mathieu/pull/4) | `dc2171acebe20035f102db3a0b2b522d4fdd0a3b` | All41969966507 jobs PASS: exact mathematics/session, actual host pixels, three ABI compilers/signing and API29/API34 both-mode UI. Visual artifacts13390686883/API29 and13391035324/API34; actual API34 scene inspected. Permanent signer f997a30170a967e073ab47e1212a71b3967ffe2e1e88d78d659c77bf085cb3fe retained |
-| [Mostow #9 — "Use shared charcoal launch windows and native Mostow controls"](https://github.com/isomorphismes/mostow/pull/9) | `de1bd5f51cb22179ac0c9876227b347b1c8e0650` | Shared41970908437 and all math/GLES/ICK/signed-pair jobs41970908432 PASS. Host PNG artifact13389924380 inspected; paired artifact13390457737 includes real FP preflight and stable de9b signer. Android execution pending |
-| [Seifert #10 — "Use shared charcoal launch, scene and readout surfaces in Seifert"](https://github.com/isomorphismes/seifert/pull/10) | `3352f024a709201594d16e1dbbe2ffcf3fe3099c` | Shared41970435238, actual host math/GLES41970435361 and all three signed ABI packages41970435239 PASS. Android execution pending; previous crop-coordinate observer failure is retained in source documentation |
-| [Spinor #10 — "Use shared charcoal launch windows and native Spinor background"](https://github.com/isomorphismes/spinor/pull/10) | `3b8a8f130f59c4b2e3c658769e7cd7766b074a64` | Shared41968051523, native41968051467, signed three-ABI41968051439 and movie41968051500 all PASS. Android UI execution pending |
-| [android-NDK #44 — "Make current DEX construction and source-observer fixtures charcoal"](https://github.com/isomorphisms/android-NDK/pull/44) | `6243cab2cdcfe2cde7f04ee155051bb4ff3bb263` | All five current workflows PASS: WebView41972785703, NativeActivity41972785329, audio41972785323, DEX/JNI41972785452 and framework-effects/API34 41972785503. Real default F4 text, missing-theme rejection, prior semantic mutants and recovery PASS. API29/both-mode startup/rotation remain pending |
-| [Flexible Pipes #265 — Restore the exact Holomorphic Grease engine from an available archive](https://github.com/isomorphisms/flexible-pipes/pull/265) | `9531b31de8a3f5dd41f8083dd2ecdd1293e31628` | Exact engine/launcher verified; actual checked-fragment consumer41959704963 job127022888126 PASS. Later native timer error is separate |
-| [ai-ci #339 — Execute retained iCurses source through its real acceptance commands](https://github.com/isomorphisms/ai-ci/pull/339) | Checkpoint `137f59c557b6db5854aac0c46129d21926118d20`; product `dac8aa64292a54248b1c6804b9e9e60e5d296ce0` | Run41961330436 PASS host C/iLua, actual API34 x86_64 terminal execution and ARM64 bundle. Product branch creation returns HTTP422; existing-ref publication returned server error and retained its old head. No product implementation PR is claimed. Formal shared executable admission remains BLOCKED |
-| [ai-ci #338 — "Require fixed charcoal roots, controls and bars in native UI acceptance"](https://github.com/isomorphisms/ai-ci/pull/338) | `ebfb667b64009f0c0bdf9dcfafb7884196786ef5` | Shared41960531762, FastChat41960531676, sensor41960531734, Pasteboard/Chord41960531755 and Exporter41960531599 PASS. Historical IB41960531639 is not current-source IB acceptance |
+The following application heads now adopt that correction. **A prior accepted
+APK does not qualify a newer source head.** Current APKs, observers and full
+state coverage are being reconciled below. The TSV always records current
+source identities; historical proofs are identified separately.
 
-| [Conway #12 — "Use shared charcoal launch windows for the native Conway wallpaper"](https://github.com/isomorphismes/Conway/pull/12) | `8835d5400451c12f394a9e1b2d9a67d72f419bf8` | Shared41976914920, Android41976915076 and unsigned release41976914841 PASS. API34 real pan and replacement; stable de9b signer. Old .base64 compiler failure repaired through existing qualified provider |
-| [Fourier-sound #35 — "Default Fourier Voice and audio diagnostics to shared charcoal windows"](https://github.com/isomorphismes/Fourier-sound/pull/35) | `d16beea60d7b3ece9853a8705edd641bbc7ec1b0` | All six workflows PASS: native41970938009, stripped41970938088, ICK voice41970938043, numeric41970938121, GPU reference41970938428 and copies41970938149. ARM64 set includes six signed app/diagnostic APKs |
-| [SURFER #34 — "Make SURFER native controls and reference application chrome charcoal"](https://github.com/isomorphismes/algebraic-variety-explorer-mobile/pull/34) | `669a94fd8e89ff467e371f5b21cf14327e4ee408` | CI41970098560, native packages/API35 41970098694 and shared41970098642 PASS. Unsigned release job41970098630 PASS; immutable F-Droid container unavailable. Inherited ephemeral signer blocks upgrade delivery |
-| [Dirichlet #27 — "Use shared charcoal roles in Dirichlet viewer controls and readouts"](https://github.com/isomorphismes/dirichlet/pull/27) | `17546b28412a32300e34d623acd9d29cd3203a66` | Browser41969073935 PASS, actual four portraits and computed-style white negative. Host C41969073887 repeats unchanged base265442 failure from39349613589; generated C41969073768 cancelled. No numerical predicate weakened |
-| [coefficient-root-dance #8 — "Make coefficient and root planes, controls and launch windows charcoal"](https://github.com/isomorphismes/coefficient-root-dance/pull/8) | `a47c074ac58613d34fcc907cafa460291d16cd78` | Current exact-source build/visual checks pending; shared copy checks available from the linked PR. Preserved signing identity unavailable; debug builds remain fixtures |
-| [hopf_fibration #6 — "Use shared charcoal launch windows and neutral Hopf canvas"](https://github.com/isomorphismes/hopf_fibration/pull/6) | `4ffe8bc03417b79c4a919d0ca1bb23c94487b999` | Current exact-source build/visual checks pending; shared copy checks available from the linked PR. Preserved signing identity unavailable; debug builds remain fixtures |
-| [ortho #5 — "Use shared charcoal launch windows and neutral orthant canvas"](https://github.com/isomorphismes/ortho/pull/5) | `403cabed581849e612790f0ce0166f8098665b6f` | Current exact-source build/visual checks pending; shared copy checks available from the linked PR. Preserved signing identity unavailable; debug builds remain fixtures |
-| [L #5 — "Make L navigation, browser controls and launch windows charcoal"](https://github.com/isomorphismes/L/pull/5) | `61a19d59381ba240236647663602213fbdabe470` | Current exact-source build/visual checks pending; shared copy checks available from the linked PR. Preserved signing identity unavailable; debug builds remain fixtures |
-| [ai-ci #340 — "Prepare independent checked-shader charcoal control acceptance"](https://github.com/isomorphisms/ai-ci/pull/340) | `69ebba2e2499a391d53b75b0326df5f8b770a8ad` | Run41976395534 PASS API29/API34 both modes; exact signed source5025b41 and checked-fragment driver digest. Evidence13392246564/API29 and13392287073/API34. Actual API34 controls inspected; mathematical parity not inferred |
-| [ai-ci #342 — "Share canonical charcoal copy verification across native applications"](https://github.com/isomorphisms/ai-ci/pull/342) | `876a843dd7c5c635adaba854a53fd6f2c2139210` | New shared e8b67 owner and white-root copy negative PASS41978238512. Earlier immutable consumers still bind their qualified3e682 owner/action versions |
-| [ai-ci #343 — "Replay priority charcoal APKs through rotation and reopening on both APIs"](https://github.com/isomorphisms/ai-ci/pull/343) | `90e216fecfe9e958d0fc55c807cb778e81e75ff8` | Run41980041161 PASS both APIs: all five exact candidates, both system modes, replacement, rotation policy, Home/resume and force-stop reopening;100 settled PNG stages and20 decoded startup videos. Broad-white-frame positive/one-frame negative controls PASS. API29 artifact13393263783; API34 artifact13394050679 |
-| [ai-ci #344 — "Keep GPU timer metadata separate from mathematical observations"](https://github.com/isomorphisms/ai-ci/pull/344) | `61c8c914acb2586b72b8a948a723e7f8579baaa6` | Actual Ithon self-tests41977411156 PASS. Shader consumer pins ancestorf3caae8 with identical checker bytes. Timer rows cannot substitute for missing measurements; current retained incomplete logs remain rejected |
+| Project / implementation PR | Exact current source | Current acceptance | Build / acceptance runs |
+|---|---|---|---|
+| [FastChat #23](https://github.com/isomorphisms/fastchat/pull/23) | `215ef98c09e667cdb4335d19a7041a49c7d6e5e1` | PASS producer suites; current independent visual replay pending | [41990448769](https://github.com/isomorphisms/fastchat/actions/runs/41990448769), [41990448464](https://github.com/isomorphisms/fastchat/actions/runs/41990448464), [41990448869](https://github.com/isomorphisms/fastchat/actions/runs/41990448869), [41990448481](https://github.com/isomorphisms/fastchat/actions/runs/41990448481) |
+| [IB #170](https://github.com/isomorphisms/ib/pull/170) | `336c17c5bc3975f7e113c4ffec4de69687ebd2aa` | Current producer/visual qualification pending | [41990454619](https://github.com/isomorphisms/ib/actions/runs/41990454619), [41990454666](https://github.com/isomorphisms/ib/actions/runs/41990454666), [41990454629](https://github.com/isomorphisms/ib/actions/runs/41990454629) |
+| [ChatGPTExporter #18](https://github.com/dilapidated-shed/ChatGPTExporter/pull/18) | `e682e0c865ba87d4793e3a4e62ebf6864db2b188` | PASS producer suites; current independent visual replay pending | [41990459633](https://github.com/dilapidated-shed/ChatGPTExporter/actions/runs/41990459633), [41990459664](https://github.com/dilapidated-shed/ChatGPTExporter/actions/runs/41990459664), [41990459996](https://github.com/dilapidated-shed/ChatGPTExporter/actions/runs/41990459996), [41990459787](https://github.com/dilapidated-shed/ChatGPTExporter/actions/runs/41990459787) |
+| [Chord Changes #10](https://github.com/dilapidated-shed/tablature/pull/10) | `bd7d6be5b09b77f371bd97302002ddc8966d543c` | Current producer/visual qualification pending | [41990465047](https://github.com/dilapidated-shed/tablature/actions/runs/41990465047) |
+| [Pasteboard #91](https://github.com/Ashtray-Archer/utilities-android-phone-user/pull/91) | `df2df8f18840c98a175b958f07749bb423e80ff0` | Current producer/visual qualification pending | [41990472327](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990472327), [41990472269](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990472269), [41990472262](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990472262), [41990472333](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990472333), [41990472251](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990472251), [41990472306](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990472306) |
+| [Accelerometer / Spirit Level / Gyroscope / Magnetometer #92](https://github.com/Ashtray-Archer/utilities-android-phone-user/pull/92) | `4c7fcfcdd22468e8abaa368eb863c012784909df` | Current producer/visual qualification pending | [41990334727](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990334727), [41990334839](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990334839), [41990334761](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990334761), [41990334852](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990334852) |
+| [Ambient Light #2](https://github.com/isomorphisms/ambient-light/pull/2) | `2c93d0deeaacde5e1b43297648fc26afcd9935dd` | Current producer/visual qualification pending | [41990477641](https://github.com/isomorphisms/ambient-light/actions/runs/41990477641) |
+| [Proximity #4](https://github.com/isomorphisms/Android-proximity-sensor/pull/4) | `26cf4cc9d13818658d91d09b909d7cf92f5ccb86` | Current producer/visual qualification pending | [41990482008](https://github.com/isomorphisms/Android-proximity-sensor/actions/runs/41990482008) |
+| [Wegert / zero & infinity #76](https://github.com/isomorphismes/wegert/pull/76) | `e2fdb7939352bd0ccc9e8a49b54657bee562f5a5` | Current producer/visual qualification pending | [41990641613](https://github.com/isomorphismes/wegert/actions/runs/41990641613), [41990641679](https://github.com/isomorphismes/wegert/actions/runs/41990641679), [41990641573](https://github.com/isomorphismes/wegert/actions/runs/41990641573), [41990641633](https://github.com/isomorphismes/wegert/actions/runs/41990641633), [41990641638](https://github.com/isomorphismes/wegert/actions/runs/41990641638), [41990641677](https://github.com/isomorphismes/wegert/actions/runs/41990641677) |
+| [Billiard #21](https://github.com/isomorphismes/billiard/pull/21) | `327150bdd3f48e4b78d9d29ebc8c6ac6ec6f25bd` | Current producer/visual qualification pending | [41990487024](https://github.com/isomorphismes/billiard/actions/runs/41990487024), [41990486719](https://github.com/isomorphismes/billiard/actions/runs/41990486719), [41990486799](https://github.com/isomorphismes/billiard/actions/runs/41990486799) |
+| [Holomorphic #67](https://github.com/isomorphismes/holomorphic/pull/67) | `83acc7a7d5e73f2efdb79425e35c6f54f67a91f2` | Current producer/visual qualification pending | [41990493402](https://github.com/isomorphismes/holomorphic/actions/runs/41990493402), [41990493341](https://github.com/isomorphismes/holomorphic/actions/runs/41990493341), [41990492896](https://github.com/isomorphismes/holomorphic/actions/runs/41990492896), [41990493281](https://github.com/isomorphismes/holomorphic/actions/runs/41990493281), [41990493311](https://github.com/isomorphismes/holomorphic/actions/runs/41990493311), [41990493268](https://github.com/isomorphismes/holomorphic/actions/runs/41990493268) |
+| [Pauli #30](https://github.com/isomorphismes/pauli/pull/30) | `83470a9991263f5a2b4fc5a6ff4ef3216c877f8e` | Current producer/visual qualification pending | [41990500319](https://github.com/isomorphismes/pauli/actions/runs/41990500319), [41990500303](https://github.com/isomorphismes/pauli/actions/runs/41990500303), [41990500288](https://github.com/isomorphismes/pauli/actions/runs/41990500288), [41990500243](https://github.com/isomorphismes/pauli/actions/runs/41990500243), [41990500373](https://github.com/isomorphismes/pauli/actions/runs/41990500373) |
+| [Mathieu #4](https://github.com/isomorphismes/mathieu/pull/4) | `41da46d2ab718e7c780c7fc1afdc187f7781af64` | Current producer/visual qualification pending | [41990504391](https://github.com/isomorphismes/mathieu/actions/runs/41990504391) |
+| [Mostow #9](https://github.com/isomorphismes/mostow/pull/9) | `4a0fb0fb32bde11b1552b32eb2b1e49db7e7aceb` | Current producer/visual qualification pending | [41990509695](https://github.com/isomorphismes/mostow/actions/runs/41990509695), [41990509715](https://github.com/isomorphismes/mostow/actions/runs/41990509715) |
+| [Seifert #10](https://github.com/isomorphismes/seifert/pull/10) | `f522c7232952ae881d0cf91ab6e975434866bbca` | Current producer/visual qualification pending | [41990515554](https://github.com/isomorphismes/seifert/actions/runs/41990515554), [41990515436](https://github.com/isomorphismes/seifert/actions/runs/41990515436), [41990515526](https://github.com/isomorphismes/seifert/actions/runs/41990515526) |
+| [Spinor #10](https://github.com/isomorphismes/spinor/pull/10) | `d9ecb67c139e56510b9f5654cd8866f1e6d53ca0` | Current producer/visual qualification pending | [41990518722](https://github.com/isomorphismes/spinor/actions/runs/41990518722), [41990518471](https://github.com/isomorphismes/spinor/actions/runs/41990518471), [41990518481](https://github.com/isomorphismes/spinor/actions/runs/41990518481), [41990518397](https://github.com/isomorphismes/spinor/actions/runs/41990518397) |
+| [Fourier Sound #35](https://github.com/isomorphismes/Fourier-sound/pull/35) | `d126017664ca8b2cfe31e10e2903d1b3fe24e212` | Current producer/visual qualification pending | [41990523298](https://github.com/isomorphismes/Fourier-sound/actions/runs/41990523298), [41990523164](https://github.com/isomorphismes/Fourier-sound/actions/runs/41990523164), [41990523152](https://github.com/isomorphismes/Fourier-sound/actions/runs/41990523152), [41990523176](https://github.com/isomorphismes/Fourier-sound/actions/runs/41990523176), [41990523195](https://github.com/isomorphismes/Fourier-sound/actions/runs/41990523195), [41990523256](https://github.com/isomorphismes/Fourier-sound/actions/runs/41990523256) |
+| [Conway #12](https://github.com/isomorphismes/Conway/pull/12) | `2121ab622fe5637cced421a1fcef453a1a0d1c44` | Current producer/visual qualification pending | [41990530795](https://github.com/isomorphismes/Conway/actions/runs/41990530795), [41990530880](https://github.com/isomorphismes/Conway/actions/runs/41990530880), [41990530738](https://github.com/isomorphismes/Conway/actions/runs/41990530738) |
+| [SURFER #34](https://github.com/isomorphismes/algebraic-variety-explorer-mobile/pull/34) | `ecb721f62237ef7f2b97060e0bfd6b050a62c859` | Current producer/visual qualification pending | [41990537451](https://github.com/isomorphismes/algebraic-variety-explorer-mobile/actions/runs/41990537451), [41990537425](https://github.com/isomorphismes/algebraic-variety-explorer-mobile/actions/runs/41990537425), [41990537527](https://github.com/isomorphismes/algebraic-variety-explorer-mobile/actions/runs/41990537527), [41990537536](https://github.com/isomorphismes/algebraic-variety-explorer-mobile/actions/runs/41990537536) |
 
-| [Theta #4 — "Use shared charcoal launch windows and theta renderer controls"](https://github.com/isomorphismes/theta/pull/4) | `cb0d21adb6883b02b3cab586486c210d40e29604` | Shared resources and existing Kotlin colour expressions only; no new framework. Actual source/Idriç/asset/APK and six-renderer qualification pending. Inherited debug key unavailable for C67 continuity |
+## Other implemented applications
 
-## Evidence boundaries and remaining work
+| Project | Source / PR | Dark default | Visual test | Regression tests | Artifact |
+|---|---|---|---|---|---|
+| coefficient-root-dance | [#8](https://github.com/isomorphismes/coefficient-root-dance/pull/8), `f9314060db59b7d6641f3033a78053cf02fb5ff3` | IMPLEMENTED SIGNING CONTINUITY BLOCKED | NATIVE EMULATOR EXECUTED BOTH MODE PALETTE PENDING | PASS NATIVE ANDROID AND FDROID | - |
+| L | [#5](https://github.com/isomorphismes/L/pull/5), `295683b5b600699c0ac8132f20c29a1f0ac750fd` | IMPLEMENTED NATIVE BROWSER SIGNING BLOCKED | PRIOR APK EMULATOR PASS CURRENT BUILD PENDING | PENDING IDRIC MAKE LAYOUT REPAIR | - |
+| hopf_fibration | [#6](https://github.com/isomorphismes/hopf_fibration/pull/6), `4ffe8bc03417b79c4a919d0ca1bb23c94487b999` | IMPLEMENTED SIGNING CONTINUITY BLOCKED | BOTH MODE PALETTE LIFECYCLE PENDING | PASS ANDROID NATIVE PROTOTYPE | - |
+| ortho | [#5](https://github.com/isomorphismes/ortho/pull/5), `403cabed581849e612790f0ce0166f8098665b6f` | IMPLEMENTED SIGNING CONTINUITY BLOCKED | BOTH MODE PALETTE LIFECYCLE PENDING | PASS ANDROID NATIVE PROTOTYPE | - |
+| theta | [#4](https://github.com/isomorphismes/theta/pull/4), `cb0d21adb6883b02b3cab586486c210d40e29604` | IMPLEMENTED SHARED E8 SIGNING BLOCKED | SIX RENDERER ANDROID PALETTE PENDING | PASS RENDERER BAKEOFF AND SHARED COPIES | - |
+| young-tableaux | [#23](https://github.com/isomorphismes/young-tableaux/pull/23), `0f200b000bc4de41e0469d1fe65c7dbbad3db5d8` | IMPLEMENTED RUNTIME ADMISSION BLOCKED | OBSERVABLE JDT PASS ANDROID NOT RUN | PASS INDEPENDENT MATH EXPIRED TYPED COMPILER AND ADMISSION BLOCKED | - |
+| mock-theta | [#4](https://github.com/isomorphismes/mock-theta/pull/4), `df571df0e191f038223b04a5058f026482346d73` | IMPLEMENTED SHARED E8 ARMV7 ONLY | API29 API34 NOT RUN | PASS SHARED AND TYPES NATIVE BUILD PENDING | - |
+| sprott | [#4](https://github.com/isomorphismes/sprott/pull/4), `23c9a678c58fd1192e52c1e3d50996ed4ef66500` | IMPLEMENTED SHARED E8 SIGNING BLOCKED | API29 API34 NOT RUN | PASS LOCAL COPY PARSE CURRENT NATIVE CI PENDING | - |
+| p-adic | [#2](https://github.com/isomorphismes/p-adic/pull/2), `3893329bc604eda45ebee1fecb616c3ab9d7dc00` | IMPLEMENTED SHARED E8 ARMV7 ONLY | API29 API34 BROWSER NOT RUN | PASS LOCAL COPY PARSE CURRENT ANDROID CI PENDING | - |
+| indras-pearls | [#16](https://github.com/isomorphismes/indras-pearls/pull/16), `cffa79aa7e142cd6f2296078515e3b6296840a03` | IMPLEMENTED SHARED E8 SCIENTIFIC RASTER PRESERVED | API29 API34 NOT RUN | PASS LOCAL COPY CURRENT HOST NATIVE CI PENDING | - |
 
-FastChat's independent observer checks exact application root, button surfaces,
-status/navigation bar colors and light icon flags with Android system night
-mode enabled and disabled. Five deliberate live mutations must fail: white
-status bar, white navigation bar, dark icons, white root and white control.
-The screenshot is captured while the application remains visible. Functional
-acceptance still exercises the real framework callbacks, paging, Stop,
-multiline Unicode, exact clipboard text, prior turns and secure settings.
+Dirichlet [#27](https://github.com/isomorphismes/dirichlet/pull/27) remains at
+`17546b28412a32300e34d623acd9d29cd3203a66`: computed browser palette, white-root
+negative and four WebGL portraits pass
+[41969073935](https://github.com/isomorphismes/dirichlet/actions/runs/41969073935).
+The independent JavaScript checks pass; the inherited host C oracle also fails
+on the unchanged base. Its mathematical threshold was not weakened.
 
-The coarse frame guard independently accepts a generated charcoal frame and
-rejects a generated white frame. This does not prove every dialog or startup
-transition. The fixed palette checker rejects separate native-header and XML
-text-color mutations. These self-tests also passed locally using verified
-Grease runtime SHA256 `7e31cd05b7a9d8fb2a4a9e003a7f3fcb0159138506d17f0fb28da8cbe22aa85c`.
-The exact-integer Idriç contrast oracle is preserved under
-`examples/autogenerated/charcoal-contrast`; local retained-compiler replay PASS
-is recorded in [contrast-host-replay.txt](contrast-host-replay.txt).
-The dedicated [contract run41948679548](https://github.com/isomorphisms/ai-ci/actions/runs/41948679548)
-also passed with independently pinned native/XML palette and white-frame
-mutations. [Hosted contract evidence](https://github.com/isomorphisms/ai-ci/actions/runs/41948679548/artifacts/13379028563).
-The later exact-head contract41956413795 passed after retrying a socket hang-up
-while acquiring the unchanged runtime archive. The new canonical `bin/grease`
-entrypoint also passes local native/XML mutations, frame positive/white
-rejection and exact-integer Idriç replay; the launcher SHA is
-`37088097c36a2f82cf45aaea9392e4a4cf16155fecb9da87d08a9c7fb4d92e4a`.
+iCurses uses terminal default foreground/background, including its iLua demo.
+The retained product patch is `dac8aa64292a54248b1c6804b9e9e60e5d296ce0`;
+publication into the product repository remains blocked by repository ref
+errors. [Independent #339](https://github.com/isomorphisms/ai-ci/pull/339)
+executes the actual patch: host C/iLua, actual Android34 terminal and the
+[ARM64 checkpoint](https://github.com/isomorphisms/ai-ci/actions/runs/41961330436/artifacts/13386685529)
+pass. API29 and formal shared-runtime admission remain outstanding. No terminal
+palette is overwritten.
 
-The twelve-case independent instrument appearance run41960531734 uses exact signed
-candidate bytes and captures the actual resumed Activity in both system modes.
-It independently samples a charcoal root and light ink inside the application
-canvas. These checks do not establish sensor accuracy or full state/rotation
-coverage. Six apps, including Proximity, pass both API levels and both modes.
-At ai-ci source ebfb667b64009f0c0bdf9dcfafb7884196786ef5, canonical Grease
-contract41960531762, FastChat41960531676, Exporter41960531599 and
-Pasteboard/Chord41960531755 also pass. Historical IB41960531639 retains its older
-fixture source and does not qualify the current charcoal IB APK.
+## Qualified preceding sources
 
-Application-owned dashboard surfaces now use the same neutral palette.
-External sign-in pages, captured documents, photographs, scientific phase
-portraits and user-configured terminal colors are not inverted or recolored.
-iCurses changes use terminal default foreground/background rather than
-overwriting the user's terminal palette; this is not a promise of exact RGB
-charcoal inside every terminal emulator.
+These proofs apply to the exact older source and bytes shown here, before the
+default-widget correction was propagated. They remain useful regression
+evidence, not green results for the current heads.
 
-Physical MIRO C67, Android14 ARM64 acceptance is **NOT_RUN** for every candidate.
-The per-app rows distinguish the lifecycle cases already executed from remaining
-IME, partial-dialog, loading/error/offline, full startup and state-retention
-coverage. Broad-white video guards do not prove every partial surface or dialog.
-Package IDs, maintained development signers, data formats and installation
-authority are preserved. The separately identified SURFER, Hopf, Ortho, L and
-Coefficient Root Dance lanes lack preserved keys; their fixtures are not approved
-C67 upgrades. Artifact availability does not authorize installation.
+| Project | Exact preceding source | Visual evidence | Candidate / retained evidence |
+|---|---|---|---|
+| Accelerometer | `7dfacda62e5b1a7b8c28925bff437602dab7e14a` | PASS API29 API34 LAUNCH ROOT INK | [Artifact](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41951695167/artifacts/13383110866) |
+| dilapidated-shed/ChatGPTExporter | `51bace2e9b026f0f5219d49fdf5ccaac89cb2321` | PASS API29 API34 BOTH MODES LIFECYCLE VIDEO GUARD | [Artifact](https://github.com/dilapidated-shed/ChatGPTExporter/actions/runs/41947436588/artifacts/13380610037) |
+| dilapidated-shed/tablature | `7255ad083a1c183c42f9766ca3548c256e090daa` | PASS API29 API34 BOTH MODES LIFECYCLE VIDEO GUARD | [Artifact](https://github.com/dilapidated-shed/tablature/actions/runs/41950607269/artifacts/13382136270) |
+| Gyroscope | `7dfacda62e5b1a7b8c28925bff437602dab7e14a` | PASS API29 API34 LAUNCH ROOT INK | [Artifact](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41951695226/artifacts/13382842737) |
+| isomorphismes/algebraic-variety-explorer-mobile | `669a94fd8e89ff467e371f5b21cf14327e4ee408` | API35 EXECUTED PALETTE SAMPLES PENDING | [Artifact](https://github.com/isomorphismes/algebraic-variety-explorer-mobile/actions/runs/41970098694/artifacts/13391340281) |
+| isomorphismes/billiard | `baac0eb107dcaabec48f993789abb9e12e1056f0` | PASS HOST ROUGH PIXELS ANDROID PENDING | [Artifact](https://github.com/isomorphismes/billiard/actions/runs/41958097962/artifacts/13385701997) |
+| isomorphismes/Conway | `8835d5400451c12f394a9e1b2d9a67d72f419bf8` | API34 PAN REPLACEMENT BOTH MODE SAMPLES PENDING | [Artifact](https://github.com/isomorphismes/Conway/actions/runs/41976915076/artifacts/13392563447) |
+| isomorphismes/Fourier-sound | `d16beea60d7b3ece9853a8705edd641bbc7ec1b0` | ANDROID BOTH MODE PENDING | [Artifact](https://github.com/isomorphismes/Fourier-sound/actions/runs/41970938009/artifacts/13391745072) |
+| isomorphismes/holomorphic | `463584e2e8dd6de9114701f49ca9d78baf8710a4` | PRECEDING 5025B41 PASS API29 API34 BOTH MODES | [Artifact](https://github.com/isomorphismes/holomorphic/actions/runs/41967292308/artifacts/13389803940) |
+| isomorphismes/mathieu | `dc2171acebe20035f102db3a0b2b522d4fdd0a3b` | PASS HOST API29 API34 ACTUAL CONTROLS | [Artifact](https://github.com/isomorphismes/mathieu/actions/runs/41969966507/artifacts/13389514461) |
+| isomorphismes/mostow | `de1bd5f51cb22179ac0c9876227b347b1c8e0650` | PASS REAL HOST GLES ANDROID PENDING | [Artifact](https://github.com/isomorphismes/mostow/actions/runs/41970908432/artifacts/13390457737) |
+| isomorphismes/pauli | `18a7e62ce30252a3fbe0f2746b3ca00cb561a796` | API34 FRAME INSPECTED CHROME PAGES PENDING | [Artifact](https://github.com/isomorphismes/pauli/actions/runs/41960123808/artifacts/13387950058) |
+| isomorphismes/seifert | `3352f024a709201594d16e1dbbe2ffcf3fe3099c` | PASS REAL HOST GLES ANDROID PENDING | [Artifact](https://github.com/isomorphismes/seifert/actions/runs/41970435239/artifacts/13389803751) |
+| isomorphismes/spinor | `3b8a8f130f59c4b2e3c658769e7cd7766b074a64` | ANDROID UI PENDING SCIENTIFIC COLORS PRESERVED | [Artifact](https://github.com/isomorphismes/spinor/actions/runs/41968051439/artifacts/13390355625) |
+| isomorphismes/wegert | `62bd3fcb0ba9f0ff935efe57dd6292203afa066d` | CHROME NIGHT API29 PENDING | [Artifact](https://github.com/isomorphismes/wegert/actions/runs/41950617535/artifacts/13381460123) |
+| isomorphisms/ambient-light | `590e194d8781b06b3d75a9a3cdcfec012ad646ea` | PASS API29 API34 LAUNCH ROOT INK | [Artifact](https://github.com/isomorphisms/ambient-light/actions/runs/41951906524/artifacts/13382326987) |
+| isomorphisms/Android-proximity-sensor | `1721c30c6c0ce82d2fa37a42344c0447a11a85dd` | PASS API29 API34 LAUNCH ROOT INK | [Artifact](https://github.com/isomorphisms/Android-proximity-sensor/actions/runs/41959502810/artifacts/13384706447) |
+| isomorphisms/fastchat | `8fda332e45dc96c16b4aae9955f180d475800b9c` | PASS API29 API34 BOTH MODES LIFECYCLE VIDEO GUARD | [Artifact](https://github.com/isomorphisms/fastchat/actions/runs/41947171842/artifacts/13379696620) |
+| isomorphisms/ib | `f2b16841e4be8d51a4b4a88cc4264fc6681bce13` | PASS API29 API34 BOTH MODES LIFECYCLE VIDEO GUARD | [Artifact](https://github.com/isomorphisms/ib/actions/runs/41947425729/artifacts/13380884545) |
+| Magnetometer | `7dfacda62e5b1a7b8c28925bff437602dab7e14a` | PASS API29 API34 LAUNCH ROOT INK | [Artifact](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41951695226/artifacts/13383131848) |
+| Pasteboard | `29d6a7a1dbad2dea7d577a710869757d8f8b9752` | PASS API29 API34 BOTH MODES LIFECYCLE VIDEO GUARD | [Artifact](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41978032646/artifacts/13393570513) |
+| Spirit Level | `7dfacda62e5b1a7b8c28925bff437602dab7e14a` | PASS API29 API34 LAUNCH ROOT INK | [Artifact](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41951695175/artifacts/13384010251) |
 
-The old android-NDK direct-DEX demonstration builders still generate temporary
-debug signers and omit the shared theme resources. They are not approved C67
-upgrade artifacts. Their resource/builder integration remains outstanding;
-this job has not silently migrated their package or signing identity.
-
-
-## Recent lifecycle and compositor evidence
-
-At sourcef1f47992, run41976766131 retains current-source FastChat, IB and Exporter
-lifecycle PASS on both APIs and old Pasteboard/Chord PASS on API34. Artifacts
-[API29](https://github.com/isomorphisms/ai-ci/actions/runs/41976766131/artifacts/13391369878)
-and [API34](https://github.com/isomorphisms/ai-ci/actions/runs/41976766131/artifacts/13391893355)
-contain actual videos, ten settled stages per passing app/API and receipts.
-Exporter uses its existing READ_SAVED native empty/error entry; its external
-ChatGPT default page is intentionally not restyled. Pasteboard's portrait lock
-is retained. Its real API29 resume crash is a product failure, not a palette
-failure; the current candidate repairs Surface lifetime rather than bypassing
-resume.
-
-Local canonical Grease decoded all16 videos from the eight passing app/API
-cases, examined every frame and rejected no broad light canvas. An encoded
-single-white-frame mutant is rejected. This guard is now in the current hosted
-replay; small icons, launcher artwork and partial dialogs are outside that
-whole-canvas predicate. The selected Chord startup contact sheet and real
-Holomorphic API34 control screenshot were visually inspected. Scientific fields
-are never judged by a global dark-coverage threshold.
-
-
-The repaired priority replay [41980041161](https://github.com/isomorphisms/ai-ci/actions/runs/41980041161)
-now passes all ten app/API cases, both modes, at observer90e216fec. It replaces
-the pending follow-up obligation above, while retaining the historical failure.
-The exact signed Pasteboard source29d6a7a now passes Home/resume on both APIs.
-All20 actual videos pass the hosted broad-white-canvas frame predicate and its
-single-white-frame negative control. Current evidence:
+The priority lifecycle observer `90e216fecfe9e958d0fc55c807cb778e81e75ff8`
+passes [41980041161](https://github.com/isomorphisms/ai-ci/actions/runs/41980041161):
+five exact priority APKs on API29 and API34, both system night modes,
+replacement installation, cold start, rotation policy, Home/resume and
+force-stop reopening. It retains 100 settled PNG stages and 20 actual videos:
 [API29](https://github.com/isomorphisms/ai-ci/actions/runs/41980041161/artifacts/13393263783),
 [API34](https://github.com/isomorphisms/ai-ci/actions/runs/41980041161/artifacts/13394050679).
-The separate Pasteboard API35 workflow reaches its post-reboot launch and gets
-Activity-not-found; no app reinstall or test weakening is used to hide it.
+Every decoded video frame passes the broad-white-canvas predicate; an encoded
+single-white-frame negative fails. Small icons, partial dialogs, documents and
+scientific fields are outside that whole-canvas claim. Exporter uses its
+READ_SAVED native empty/error entry, and Pasteboard's portrait lock is preserved.
+
+## Pasteboard lifecycle and reboot repair
+
+The actual API29 Surface resume crash was repaired in product source29d6a7a:
+retain one Java Surface per native-window lifetime, release it on window loss
+and destruction, and clear lockCanvas exceptions even after a null return.
+The exact repaired candidate passes the priority lifecycle replay on both APIs.
+
+Its full regression workflow later exposed a reboot-observer race: an old
+boot-complete property could be read before a new kernel had booted.
+[Observer #345](https://github.com/isomorphisms/ai-ci/pull/345),
+`3c17121c5622af712dbb32e53c4cdb9b76b64232`, requires a different valid boot UUID,
+boot_complete1, bounded ADB operations and an emulator identity. Positive and
+stale/incomplete/malformed controls pass on actual API29/34/35 in
+[41984253543](https://github.com/isomorphisms/ai-ci/actions/runs/41984253543).
+No app reinstall or history reset is used to hide the post-reboot failure.
+
+Product source `eaa8393578ac978dfc45e24a37407f840577f37a` adopts that separate
+observer while retaining its compiler pin. **All build, migration and retained
+history workflow jobs pass on API29, API34 and API35** in
+[41984355192](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41984355192):
+[API29](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41984355192/artifacts/13396266194),
+[API34](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41984355192/artifacts/13395214849),
+[API35](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41984355192/artifacts/13395544591).
+The newer E8 theme source df2df8f1 is being requalified separately.
+
+## Holomorphic strict and visual acceptance
+
+Preceding product source `463584e2e8dd6de9114701f49ca9d78baf8710a4`
+passes [41977273427](https://github.com/isomorphismes/holomorphic/actions/runs/41977273427):
+actual generated-fragment provenance, three ICK compilers, signed APK, and
+API34 GPU execution with all34 mathematical observations, all34 same-program
+RGBA8 observations and separate large-q evidence. The raw large-q range remains
+RANGE_REJECTED_UNQUALIFIED. Its [signed APK](https://github.com/isomorphismes/holomorphic/actions/runs/41977273427/artifacts/13394618740)
+has SHA256 `9818cfe24da9038a3aab961a31c8af23b0954d7077752f8aa1be04a1e9f2f308`.
+
+The independent visual observer `ad111f3dde1e4336d8cbc724a9190fcf493a7cb2`
+passes the same exact APK on both APIs and both system modes in
+[41985101859](https://github.com/isomorphisms/ai-ci/actions/runs/41985101859):
+[API29](https://github.com/isomorphisms/ai-ci/actions/runs/41985101859/artifacts/13396085819),
+[API34](https://github.com/isomorphisms/ai-ci/actions/runs/41985101859/artifacts/13394734850).
+Selected/inactive controls, light marks, actual process and shader provenance
+are observed; per-role white mutants fail. The scientific field is preserved.
+
+Current product83acc7a7 also promotes independent owner
+`336214f6ac0e9f4acfb332fa8d60130ca8f5b885`
+([#344](https://github.com/isomorphisms/ai-ci/pull/344)).
+Only exact GPU_TIMER and GPU_QUERY_WINDOW metadata are classified separately.
+Missing measurements and unknown observations still fail. Dedicated
+[41983868021](https://github.com/isomorphisms/ai-ci/actions/runs/41983868021)
+and replay of the retained complete product log pass. The newer product's
+actual capture and APK replay remain separate current-head obligations.
+
+## Remaining acceptance and delivery boundaries
+
+All physical MIRO C67, Android14 ARM64 checks are **NOT_RUN**. Current emulator
+evidence never substitutes for physical performance, GPU, IME or cross-build
+upgrade acceptance. Some partial-dialog, loading/error/offline and retained
+selection/scroll-state cases still lack palette-specific observation.
+
+SURFER, Hopf, Ortho, L, Coefficient Root Dance and Theta do not have preserved
+signing keys available to this job. Their runner-local debug fixtures are not
+approved C67 upgrades. Sprott's expected-signer inputs are likewise unavailable.
+Mock Theta and Witt currently have maintained ARMv7-only builders; no ARM64
+artifact is inferred from them. Young Tableaux's explicit C++-free permitted
+Grease admission gate remains closed. Its typed JDT test additionally references
+expired Cat Food compiler artifact11684276190/run38090627721; the independent
+mathematical audit and observable JDT check pass, but that does not qualify
+the blocked typed test or APK. F-Droid buildserver container retrieval is a
+separate known blocker for Wegert and SURFER.
+
+Wardriving and Cat Food are CLI programs in the inspected sources; graphical
+test interfaces belong to the application/example owners. Further terminal
+palette and UI-bearing branch classification remains open. The hardware
+Programmer's Keyboard source is not the software Unicode picker/IME: those
+utility screens still require their own implementation and acceptance.
+
+The default-tree UI-marker census is not exhausted by the implemented list.
+Further source/branch review, supported UI integration and unavailable-tree
+follow-up remain open in [project-status.tsv](project-status.tsv).
+Headless libraries are not cosmetically changed. External authentication,
+websites, user documents, photographs and mathematical color mappings are not
+inverted. The previous checkpoint and its detailed historical receipts remain
+in [source00c21cad](https://github.com/isomorphisms/ai-ci/blob/00c21cadca31b0d18412b7d7866bc0cd432ffb16/charcoal/acceptance-ledger.md).
