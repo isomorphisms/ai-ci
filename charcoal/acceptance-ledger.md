@@ -33,31 +33,76 @@ passes and rejects a missing-theme candidate. All five current fixture workflows
 pass. Color roles and application mathematics are unchanged.
 
 The following application heads now adopt that correction. **A prior accepted
-APK does not qualify a newer source head.** Current APKs, observers and full
-state coverage are being reconciled below. The TSV always records current
+APK does not qualify a newer source head.** The five current priority APKs now pass the sampled lifecycle on both APIs
+and both system modes; full state coverage and remaining applications are
+being reconciled below. The TSV always records current
 source identities; historical proofs are identified separately.
 
 | Project / implementation PR | Exact current source | Current acceptance | Build / acceptance runs |
 |---|---|---|---|
-| [FastChat #23](https://github.com/isomorphisms/fastchat/pull/23) | `215ef98c09e667cdb4335d19a7041a49c7d6e5e1` | PASS producer suites; current independent visual replay pending | [41990448769](https://github.com/isomorphisms/fastchat/actions/runs/41990448769), [41990448464](https://github.com/isomorphisms/fastchat/actions/runs/41990448464), [41990448869](https://github.com/isomorphisms/fastchat/actions/runs/41990448869), [41990448481](https://github.com/isomorphisms/fastchat/actions/runs/41990448481) |
-| [IB #170](https://github.com/isomorphisms/ib/pull/170) | `336c17c5bc3975f7e113c4ffec4de69687ebd2aa` | Current producer/visual qualification pending | [41990454619](https://github.com/isomorphisms/ib/actions/runs/41990454619), [41990454666](https://github.com/isomorphisms/ib/actions/runs/41990454666), [41990454629](https://github.com/isomorphisms/ib/actions/runs/41990454629) |
-| [ChatGPTExporter #18](https://github.com/dilapidated-shed/ChatGPTExporter/pull/18) | `e682e0c865ba87d4793e3a4e62ebf6864db2b188` | PASS producer suites; current independent visual replay pending | [41990459633](https://github.com/dilapidated-shed/ChatGPTExporter/actions/runs/41990459633), [41990459664](https://github.com/dilapidated-shed/ChatGPTExporter/actions/runs/41990459664), [41990459996](https://github.com/dilapidated-shed/ChatGPTExporter/actions/runs/41990459996), [41990459787](https://github.com/dilapidated-shed/ChatGPTExporter/actions/runs/41990459787) |
-| [Chord Changes #10](https://github.com/dilapidated-shed/tablature/pull/10) | `bd7d6be5b09b77f371bd97302002ddc8966d543c` | Current producer/visual qualification pending | [41990465047](https://github.com/dilapidated-shed/tablature/actions/runs/41990465047) |
-| [Pasteboard #91](https://github.com/Ashtray-Archer/utilities-android-phone-user/pull/91) | `df2df8f18840c98a175b958f07749bb423e80ff0` | Current producer/visual qualification pending | [41990472327](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990472327), [41990472269](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990472269), [41990472262](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990472262), [41990472333](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990472333), [41990472251](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990472251), [41990472306](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990472306) |
-| [Accelerometer / Spirit Level / Gyroscope / Magnetometer #92](https://github.com/Ashtray-Archer/utilities-android-phone-user/pull/92) | `4c7fcfcdd22468e8abaa368eb863c012784909df` | Current producer/visual qualification pending | [41990334727](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990334727), [41990334839](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990334839), [41990334761](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990334761), [41990334852](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990334852) |
-| [Ambient Light #2](https://github.com/isomorphisms/ambient-light/pull/2) | `2c93d0deeaacde5e1b43297648fc26afcd9935dd` | Current producer/visual qualification pending | [41990477641](https://github.com/isomorphisms/ambient-light/actions/runs/41990477641) |
-| [Proximity #4](https://github.com/isomorphisms/Android-proximity-sensor/pull/4) | `26cf4cc9d13818658d91d09b909d7cf92f5ccb86` | Current producer/visual qualification pending | [41990482008](https://github.com/isomorphisms/Android-proximity-sensor/actions/runs/41990482008) |
-| [Wegert / zero & infinity #76](https://github.com/isomorphismes/wegert/pull/76) | `e2fdb7939352bd0ccc9e8a49b54657bee562f5a5` | Current producer/visual qualification pending | [41990641613](https://github.com/isomorphismes/wegert/actions/runs/41990641613), [41990641679](https://github.com/isomorphismes/wegert/actions/runs/41990641679), [41990641573](https://github.com/isomorphismes/wegert/actions/runs/41990641573), [41990641633](https://github.com/isomorphismes/wegert/actions/runs/41990641633), [41990641638](https://github.com/isomorphismes/wegert/actions/runs/41990641638), [41990641677](https://github.com/isomorphismes/wegert/actions/runs/41990641677) |
-| [Billiard #21](https://github.com/isomorphismes/billiard/pull/21) | `327150bdd3f48e4b78d9d29ebc8c6ac6ec6f25bd` | Current producer/visual qualification pending | [41990487024](https://github.com/isomorphismes/billiard/actions/runs/41990487024), [41990486719](https://github.com/isomorphismes/billiard/actions/runs/41990486719), [41990486799](https://github.com/isomorphismes/billiard/actions/runs/41990486799) |
-| [Holomorphic #67](https://github.com/isomorphismes/holomorphic/pull/67) | `83acc7a7d5e73f2efdb79425e35c6f54f67a91f2` | Current producer/visual qualification pending | [41990493402](https://github.com/isomorphismes/holomorphic/actions/runs/41990493402), [41990493341](https://github.com/isomorphismes/holomorphic/actions/runs/41990493341), [41990492896](https://github.com/isomorphismes/holomorphic/actions/runs/41990492896), [41990493281](https://github.com/isomorphismes/holomorphic/actions/runs/41990493281), [41990493311](https://github.com/isomorphismes/holomorphic/actions/runs/41990493311), [41990493268](https://github.com/isomorphismes/holomorphic/actions/runs/41990493268) |
-| [Pauli #30](https://github.com/isomorphismes/pauli/pull/30) | `83470a9991263f5a2b4fc5a6ff4ef3216c877f8e` | Current producer/visual qualification pending | [41990500319](https://github.com/isomorphismes/pauli/actions/runs/41990500319), [41990500303](https://github.com/isomorphismes/pauli/actions/runs/41990500303), [41990500288](https://github.com/isomorphismes/pauli/actions/runs/41990500288), [41990500243](https://github.com/isomorphismes/pauli/actions/runs/41990500243), [41990500373](https://github.com/isomorphismes/pauli/actions/runs/41990500373) |
-| [Mathieu #4](https://github.com/isomorphismes/mathieu/pull/4) | `41da46d2ab718e7c780c7fc1afdc187f7781af64` | Current producer/visual qualification pending | [41990504391](https://github.com/isomorphismes/mathieu/actions/runs/41990504391) |
-| [Mostow #9](https://github.com/isomorphismes/mostow/pull/9) | `4a0fb0fb32bde11b1552b32eb2b1e49db7e7aceb` | Current producer/visual qualification pending | [41990509695](https://github.com/isomorphismes/mostow/actions/runs/41990509695), [41990509715](https://github.com/isomorphismes/mostow/actions/runs/41990509715) |
-| [Seifert #10](https://github.com/isomorphismes/seifert/pull/10) | `f522c7232952ae881d0cf91ab6e975434866bbca` | Current producer/visual qualification pending | [41990515554](https://github.com/isomorphismes/seifert/actions/runs/41990515554), [41990515436](https://github.com/isomorphismes/seifert/actions/runs/41990515436), [41990515526](https://github.com/isomorphismes/seifert/actions/runs/41990515526) |
-| [Spinor #10](https://github.com/isomorphismes/spinor/pull/10) | `d9ecb67c139e56510b9f5654cd8866f1e6d53ca0` | Current producer/visual qualification pending | [41990518722](https://github.com/isomorphismes/spinor/actions/runs/41990518722), [41990518471](https://github.com/isomorphismes/spinor/actions/runs/41990518471), [41990518481](https://github.com/isomorphismes/spinor/actions/runs/41990518481), [41990518397](https://github.com/isomorphismes/spinor/actions/runs/41990518397) |
-| [Fourier Sound #35](https://github.com/isomorphismes/Fourier-sound/pull/35) | `d126017664ca8b2cfe31e10e2903d1b3fe24e212` | Current producer/visual qualification pending | [41990523298](https://github.com/isomorphismes/Fourier-sound/actions/runs/41990523298), [41990523164](https://github.com/isomorphismes/Fourier-sound/actions/runs/41990523164), [41990523152](https://github.com/isomorphismes/Fourier-sound/actions/runs/41990523152), [41990523176](https://github.com/isomorphismes/Fourier-sound/actions/runs/41990523176), [41990523195](https://github.com/isomorphismes/Fourier-sound/actions/runs/41990523195), [41990523256](https://github.com/isomorphismes/Fourier-sound/actions/runs/41990523256) |
-| [Conway #12](https://github.com/isomorphismes/Conway/pull/12) | `2121ab622fe5637cced421a1fcef453a1a0d1c44` | Current producer/visual qualification pending | [41990530795](https://github.com/isomorphismes/Conway/actions/runs/41990530795), [41990530880](https://github.com/isomorphismes/Conway/actions/runs/41990530880), [41990530738](https://github.com/isomorphismes/Conway/actions/runs/41990530738) |
-| [SURFER #34](https://github.com/isomorphismes/algebraic-variety-explorer-mobile/pull/34) | `ecb721f62237ef7f2b97060e0bfd6b050a62c859` | Current producer/visual qualification pending | [41990537451](https://github.com/isomorphismes/algebraic-variety-explorer-mobile/actions/runs/41990537451), [41990537425](https://github.com/isomorphismes/algebraic-variety-explorer-mobile/actions/runs/41990537425), [41990537527](https://github.com/isomorphismes/algebraic-variety-explorer-mobile/actions/runs/41990537527), [41990537536](https://github.com/isomorphismes/algebraic-variety-explorer-mobile/actions/runs/41990537536) |
+| [FastChat #23](https://github.com/isomorphisms/fastchat/pull/23) | `215ef98c09e667cdb4335d19a7041a49c7d6e5e1` | PASS CURRENT FIVE APP LIFECYCLE AND VIDEO NEGATIVE; PASS CURRENT PRODUCER SUITES | [41990448769](https://github.com/isomorphisms/fastchat/actions/runs/41990448769), [41990448464](https://github.com/isomorphisms/fastchat/actions/runs/41990448464), [41990448869](https://github.com/isomorphisms/fastchat/actions/runs/41990448869), [41990448481](https://github.com/isomorphisms/fastchat/actions/runs/41990448481) |
+| [IB #170](https://github.com/isomorphisms/ib/pull/170) | `336c17c5bc3975f7e113c4ffec4de69687ebd2aa` | PASS CURRENT FIVE APP LIFECYCLE AND VIDEO NEGATIVE; PASS NATIVE API29 API34 BROWSER FOUNDATION FAIL | [41990454619](https://github.com/isomorphisms/ib/actions/runs/41990454619), [41990454629](https://github.com/isomorphisms/ib/actions/runs/41990454629), [41990454666](https://github.com/isomorphisms/ib/actions/runs/41990454666) |
+| [ChatGPTExporter #18](https://github.com/dilapidated-shed/ChatGPTExporter/pull/18) | `e682e0c865ba87d4793e3a4e62ebf6864db2b188` | PASS CURRENT FIVE APP LIFECYCLE AND VIDEO NEGATIVE; PASS CURRENT PRODUCER SUITES | [41990459633](https://github.com/dilapidated-shed/ChatGPTExporter/actions/runs/41990459633), [41990459664](https://github.com/dilapidated-shed/ChatGPTExporter/actions/runs/41990459664), [41990459996](https://github.com/dilapidated-shed/ChatGPTExporter/actions/runs/41990459996), [41990459787](https://github.com/dilapidated-shed/ChatGPTExporter/actions/runs/41990459787) |
+| [Chord Changes #10](https://github.com/dilapidated-shed/tablature/pull/10) | `bd7d6be5b09b77f371bd97302002ddc8966d543c` | PASS CURRENT FIVE APP LIFECYCLE AND VIDEO NEGATIVE; PASS CURRENT PRODUCER SUITES | [41990465047](https://github.com/dilapidated-shed/tablature/actions/runs/41990465047) |
+| [Pasteboard #91](https://github.com/Ashtray-Archer/utilities-android-phone-user/pull/91) | `df2df8f18840c98a175b958f07749bb423e80ff0` | PASS CURRENT FIVE APP LIFECYCLE AND VIDEO NEGATIVE; PASS CURRENT PRODUCER SUITES | [41990472327](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990472327), [41990472269](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990472269), [41990472262](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990472262), [41990472333](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990472333), [41990472251](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990472251), [41990472306](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990472306) |
+| [Sensor instruments #92](https://github.com/Ashtray-Archer/utilities-android-phone-user/pull/92) | `4c7fcfcdd22468e8abaa368eb863c012784909df` | API29 API34 INDEPENDENT VISUAL PENDING; PASS CURRENT PRODUCER SUITES | [41990334727](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990334727), [41990334761](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990334761), [41990334852](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990334852), [41990334839](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990334839) |
+| [ambient-light #2](https://github.com/isomorphisms/ambient-light/pull/2) | `2c93d0deeaacde5e1b43297648fc26afcd9935dd` | API29 API34 INDEPENDENT VISUAL PENDING; PASS CURRENT PRODUCER SUITES | [41990477641](https://github.com/isomorphisms/ambient-light/actions/runs/41990477641) |
+| [Android-proximity-sensor #4](https://github.com/isomorphisms/Android-proximity-sensor/pull/4) | `26cf4cc9d13818658d91d09b909d7cf92f5ccb86` | API29 API34 INDEPENDENT VISUAL PENDING; PASS CURRENT PRODUCER SUITES | [41990482008](https://github.com/isomorphisms/Android-proximity-sensor/actions/runs/41990482008) |
+| [wegert #76](https://github.com/isomorphismes/wegert/pull/76) | `e2fdb7939352bd0ccc9e8a49b54657bee562f5a5` | PASS API34 API35 EXECUTION API29 BOTH MODE PENDING; PASS NATIVE DEX ICK FDROID RECIPE FAIL | [41990641613](https://github.com/isomorphismes/wegert/actions/runs/41990641613), [41990641677](https://github.com/isomorphismes/wegert/actions/runs/41990641677), [41990641633](https://github.com/isomorphismes/wegert/actions/runs/41990641633), [41990641679](https://github.com/isomorphismes/wegert/actions/runs/41990641679), [41990641573](https://github.com/isomorphismes/wegert/actions/runs/41990641573), [41990641638](https://github.com/isomorphismes/wegert/actions/runs/41990641638) |
+| [billiard #21](https://github.com/isomorphismes/billiard/pull/21) | `327150bdd3f48e4b78d9d29ebc8c6ac6ec6f25bd` | API29 API34 INDEPENDENT VISUAL PENDING; PASS CURRENT PRODUCER SUITES | [41990486719](https://github.com/isomorphismes/billiard/actions/runs/41990486719), [41990486799](https://github.com/isomorphismes/billiard/actions/runs/41990486799), [41990487024](https://github.com/isomorphismes/billiard/actions/runs/41990487024) |
+| [holomorphic #67](https://github.com/isomorphismes/holomorphic/pull/67) | `83acc7a7d5e73f2efdb79425e35c6f54f67a91f2` | CURRENT API29 API34 REPLAY PENDING; PASS STRICT GPU API34 AUXILIARY FIRST FRAME OBSERVER FAIL | [41990492896](https://github.com/isomorphismes/holomorphic/actions/runs/41990492896), [41990493281](https://github.com/isomorphismes/holomorphic/actions/runs/41990493281), [41990493268](https://github.com/isomorphismes/holomorphic/actions/runs/41990493268), [41990493311](https://github.com/isomorphismes/holomorphic/actions/runs/41990493311), [41990493341](https://github.com/isomorphismes/holomorphic/actions/runs/41990493341), [41990493402](https://github.com/isomorphismes/holomorphic/actions/runs/41990493402) |
+| [pauli #30](https://github.com/isomorphismes/pauli/pull/30) | `83470a9991263f5a2b4fc5a6ff4ef3216c877f8e` | API29 API34 INDEPENDENT VISUAL PENDING; PASS CURRENT PRODUCER SUITES | [41990500303](https://github.com/isomorphismes/pauli/actions/runs/41990500303), [41990500243](https://github.com/isomorphismes/pauli/actions/runs/41990500243), [41990500319](https://github.com/isomorphismes/pauli/actions/runs/41990500319), [41990500288](https://github.com/isomorphismes/pauli/actions/runs/41990500288), [41990500373](https://github.com/isomorphismes/pauli/actions/runs/41990500373) |
+| [mathieu #4](https://github.com/isomorphismes/mathieu/pull/4) | `41da46d2ab718e7c780c7fc1afdc187f7781af64` | PASS CURRENT HOST AND API29 API34 CONTROLS; PASS CURRENT PRODUCER SUITES | [41990504391](https://github.com/isomorphismes/mathieu/actions/runs/41990504391) |
+| [mostow #9](https://github.com/isomorphismes/mostow/pull/9) | `4a0fb0fb32bde11b1552b32eb2b1e49db7e7aceb` | API29 API34 INDEPENDENT VISUAL PENDING; PASS CURRENT PRODUCER SUITES | [41990509715](https://github.com/isomorphismes/mostow/actions/runs/41990509715), [41990509695](https://github.com/isomorphismes/mostow/actions/runs/41990509695) |
+| [seifert #10](https://github.com/isomorphismes/seifert/pull/10) | `f522c7232952ae881d0cf91ab6e975434866bbca` | API29 API34 INDEPENDENT VISUAL PENDING; PASS CURRENT PRODUCER SUITES | [41990515554](https://github.com/isomorphismes/seifert/actions/runs/41990515554), [41990515526](https://github.com/isomorphismes/seifert/actions/runs/41990515526), [41990515436](https://github.com/isomorphismes/seifert/actions/runs/41990515436) |
+| [spinor #10](https://github.com/isomorphismes/spinor/pull/10) | `d9ecb67c139e56510b9f5654cd8866f1e6d53ca0` | API29 API34 INDEPENDENT VISUAL PENDING; PASS CURRENT PRODUCER SUITES | [41990518397](https://github.com/isomorphismes/spinor/actions/runs/41990518397), [41990518481](https://github.com/isomorphismes/spinor/actions/runs/41990518481), [41990518471](https://github.com/isomorphismes/spinor/actions/runs/41990518471), [41990518722](https://github.com/isomorphismes/spinor/actions/runs/41990518722) |
+| [Fourier-sound #35](https://github.com/isomorphismes/Fourier-sound/pull/35) | `d126017664ca8b2cfe31e10e2903d1b3fe24e212` | API29 API34 INDEPENDENT VISUAL PENDING; PASS CURRENT PRODUCER SUITES | [41990523256](https://github.com/isomorphismes/Fourier-sound/actions/runs/41990523256), [41990523195](https://github.com/isomorphismes/Fourier-sound/actions/runs/41990523195), [41990523176](https://github.com/isomorphismes/Fourier-sound/actions/runs/41990523176), [41990523298](https://github.com/isomorphismes/Fourier-sound/actions/runs/41990523298), [41990523164](https://github.com/isomorphismes/Fourier-sound/actions/runs/41990523164), [41990523152](https://github.com/isomorphismes/Fourier-sound/actions/runs/41990523152) |
+| [Conway #12](https://github.com/isomorphismes/Conway/pull/12) | `2121ab622fe5637cced421a1fcef453a1a0d1c44` | API29 API34 INDEPENDENT VISUAL PENDING; PASS CURRENT PRODUCER SUITES | [41990530880](https://github.com/isomorphismes/Conway/actions/runs/41990530880), [41990530795](https://github.com/isomorphismes/Conway/actions/runs/41990530795), [41990530738](https://github.com/isomorphismes/Conway/actions/runs/41990530738) |
+| [algebraic-variety-explorer-mobile #34](https://github.com/isomorphismes/algebraic-variety-explorer-mobile/pull/34) | `ecb721f62237ef7f2b97060e0bfd6b050a62c859` | PASS API35 NATIVE PARITY BOTH MODE PALETTE PENDING; PASS NATIVE AND CI FDROID RECIPE FAIL | [41990537536](https://github.com/isomorphismes/algebraic-variety-explorer-mobile/actions/runs/41990537536), [41990537425](https://github.com/isomorphismes/algebraic-variety-explorer-mobile/actions/runs/41990537425), [41990537451](https://github.com/isomorphismes/algebraic-variety-explorer-mobile/actions/runs/41990537451), [41990537527](https://github.com/isomorphismes/algebraic-variety-explorer-mobile/actions/runs/41990537527) |
+
+## Current priority replay and delivery
+
+Observer `fb0d0602f5550a0f30f77ef94e343bcebfe7f822` passes both VM jobs in
+[41996501618](https://github.com/isomorphisms/ai-ci/actions/runs/41996501618).
+It binds all five current sources above, immutable producer artifacts and
+downloaded APK SHA256 values. The unchanged observer captures 100 settled PNG
+stages and20 actual videos, checks both system night modes, replacement,
+cold start, rotation policy, Home/resume and force-stop reopen, and rejects the
+encoded single-white-frame control. Evidence:
+[API29](https://github.com/isomorphisms/ai-ci/actions/runs/41996501618/artifacts/13401086000),
+[API34](https://github.com/isomorphisms/ai-ci/actions/runs/41996501618/artifacts/13400677386).
+
+| Current candidate | Signed ARM64-containing artifact |
+|---|---|
+| fastchat | [Producer41990448769, artifact13397841839](https://github.com/isomorphisms/fastchat/actions/runs/41990448769/artifacts/13397841839) |
+| ib | [Producer41990454666, artifact13400366625](https://github.com/isomorphisms/ib/actions/runs/41990454666/artifacts/13400366625) |
+| ChatGPTExporter | [Producer41990459787, artifact13398432041](https://github.com/dilapidated-shed/ChatGPTExporter/actions/runs/41990459787/artifacts/13398432041) |
+| tablature | [Producer41990465047, artifact13398119356](https://github.com/dilapidated-shed/tablature/actions/runs/41990465047/artifacts/13398119356) |
+| Pasteboard | [Producer41990472251, artifact13398546503](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41990472251/artifacts/13398546503) |
+
+These are review/test candidates. Partial dialogs, IME behavior, every document
+state and physical C67 acceptance are outside the sampled lifecycle claim.
+
+## Additional utility and Android frontends
+
+| Project | Current source | PR | Validation / limitation |
+|---|---|---|---|
+| isomorphismes/sprott | `cafbfe7ddbd741ff86efa8955a75dc2471e04b44` | [#4](https://github.com/isomorphismes/sprott/pull/4) | PASS PRIOR HOST ARMV7 CURRENT QUALIFIED PRODUCER PENDING; API29 API34 NOT RUN |
+| isomorphismes/mock-theta | `df571df0e191f038223b04a5058f026482346d73` | [#4](https://github.com/isomorphismes/mock-theta/pull/4) | PASS HOST TYPES AND ARMV7 APK; API29 API34 NOT RUN |
+| isomorphismes/p-adic | `3893329bc604eda45ebee1fecb616c3ab9d7dc00` | [#2](https://github.com/isomorphismes/p-adic/pull/2) | PASS CURRENT SIGNED ARMV7 AND SHARED COPY; API29 API34 BROWSER NOT RUN |
+| Ashtray-Archer/az | `9a26f501d95a672bf39e58954560200daf256073` | [#30](https://github.com/Ashtray-Archer/az/pull/30) | PASS HOST AND UNSIGNED ANDROID BUILD; API29 API34 NOT RUN |
+| Ashtray-Archer/zoneedit | `dad535acd65381f2f95c3b4a01df65b4ccbca3f0` | [#3](https://github.com/Ashtray-Archer/zoneedit/pull/3) | PASS SHARED COPY CURRENT NATIVE BUILD PENDING; CURRENT API34 RUNTIME PENDING |
+| Ashtray-Archer/porthole | `7b108e1cbdf2082c135b3c9aaee08d07b45bbe07` | [#1](https://github.com/Ashtray-Archer/porthole/pull/1) | PASS KTLINT COMPILE FAIL DETEKT LITERAL AND SHARED NEWAPI; API29 API34 NOT RUN |
+| Ashtray-Archer/WifiScanner | `1ad0a8fbcb6847b98e46c9699dcd8a4626e7c93f` | [#1](https://github.com/Ashtray-Archer/WifiScanner/pull/1) | PASS SHARED COPY CURRENT BUILD LINT PENDING; API29 API34 NOT RUN |
+| Unicode Picker / Compact IME / Clipboard smoke | `44221b2c3fd00778b39dbbab13d1b4b997607e7b` | [#93](https://github.com/Ashtray-Archer/utilities-android-phone-user/pull/93) | All current producer suites PASS, including actual API29 native picker, real IME typing and clipboard receipt. Both-mode/API34 palette lifecycle remains pending. |
+
+Porthole's actual Android lint reports four NewApi errors in the shared E8
+base resource: newer navigation-icon and force-dark attributes need proper
+version-qualified definitions for the retained older API floor. This is an
+outstanding shared-contract repair, with lint retained. Its new Compose
+sources compile and ktlint passes; Detekt additionally requires named resources
+for four literal colors in the added styling expressions. The existing
+API29/API34 appearance passes remain tied to their exact accepted APKs.
 
 ## Other implemented applications
 
@@ -156,7 +201,8 @@ history workflow jobs pass on API29, API34 and API35** in
 [API29](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41984355192/artifacts/13396266194),
 [API34](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41984355192/artifacts/13395214849),
 [API35](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41984355192/artifacts/13395544591).
-The newer E8 theme source df2df8f1 is being requalified separately.
+The newer E8 theme source df2df8f1 passes the complete producer41990472251
+and the current priority replay41996501618 on both APIs and both system modes.
 
 ## Holomorphic strict and visual acceptance
 
@@ -182,8 +228,13 @@ Current product83acc7a7 also promotes independent owner
 Only exact GPU_TIMER and GPU_QUERY_WINDOW metadata are classified separately.
 Missing measurements and unknown observations still fail. Dedicated
 [41983868021](https://github.com/isomorphisms/ai-ci/actions/runs/41983868021)
-and replay of the retained complete product log pass. The newer product's
-actual capture and APK replay remain separate current-head obligations.
+and replay of the retained complete product log pass. The current E8 product83acc7a7 passes strict producer41990493268, including
+actual API34 GPU acceptance. Its APK is artifact13400870523, SHA256
+`caa072a271b096bf340ca9dacd34e133020cf02ae316592b2c15f2c1fca8b976`.
+The independent visual observer now binds those exact bytes at
+`f14ad339b7ea55de8c87a2f7088875223699c726`; its fresh run is pending.
+A separate older native-explorer smoke lane captures logs before its first-frame
+marker and remains failed; a bounded presented-frame observer repair is pending.
 
 ## Remaining acceptance and delivery boundaries
 
@@ -207,7 +258,8 @@ Wardriving and Cat Food are CLI programs in the inspected sources; graphical
 test interfaces belong to the application/example owners. Further terminal
 palette and UI-bearing branch classification remains open. The hardware
 Programmer's Keyboard source is not the software Unicode picker/IME: those
-utility screens still require their own implementation and acceptance.
+utility screens now have their own implementation in PR93 and actual API29
+functional passes, with remaining palette/state coverage recorded separately.
 
 The default-tree UI-marker census is not exhausted by the implemented list.
 Further source/branch review, supported UI integration and unavailable-tree
