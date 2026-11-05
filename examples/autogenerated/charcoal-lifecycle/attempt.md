@@ -50,3 +50,19 @@ primary-text-only Y=180 predicate. Use a Pasteboard-specific Y>=170 ink check;
 blank charcoal still fails, and all other candidates retain Y>=180. Preserve the
 real failed frame and existing portrait lock. The failure-video path now lives
 in the outer Grease scope so the capture procedure can retain it on failure.
+
+The next replay41976766131 passes all five candidates on API34 and FastChat,
+current IB and Exporter on API29. API29 Pasteboard actually crashes on Home/resume:
+Surface.lockCanvas reconnects an existing CPU producer and throws. The product
+repair retains one Surface per native window and releases it at window loss;
+its new signed source29d6a7a1dbad2dea7d577a710869757d8f8b9752 is now bound into
+the follow-up matrix. The failed original candidate is not relabeled as passed.
+
+Add a decoded-frame guard for nearly solid light canvases to the real startup
+videos. The guard examines every decoded frame's interior low-luma quantile;
+it does not invert imagery, reject light text/icons, or certify partial dialogs
+and scientific/document content. A real encoded single-white-frame mutation
+must fail while the charcoal video passes. Local execution through canonical
+Grease passes that positive/negative pair. Eight already successful app/API
+cases retain their original videos; follow-up execution still qualifies the
+new Pasteboard product and API29 Chord lifecycle.

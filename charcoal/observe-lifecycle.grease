@@ -117,9 +117,10 @@ for mode in no yes {
   "$adb" -s "$serial" pull "$remote" "$output/$mode-startup.mp4" > "$output/$mode.video-pull.txt"
   test -s "$output/$mode-startup.mp4"
   ffmpeg -nostdin -hide_banner -v error -i "$output/$mode-startup.mp4" -f null - > "$output/$mode.video-decode.txt" 2>&1
+  "$grease" "$suite/check-startup-video.grease" "$(command -v ffmpeg)" "$output/$mode-startup.mp4" "$output/$mode.sequence"
 }
 "$adb" -s "$serial" shell wm "$rotation_command" lock 0
 "$adb" -s "$serial" shell cmd uimode night no
 sha256sum "$apk" > "$output/apk.sha256"
 printf 'entry_action\t%s\n' "$action" > "$output/entry.tsv"
-printf 'source\t%s\nproducer\t%s\nAPI\t%s\nboth_system_modes\tPASS\nsame_candidate_replacement\tPASS\nactual_charcoal_canvas_and_ink\tPASS\nrotation_request_and_return\tPASS\nrotation_policy\t%s\nbackground_resume\tPASS\nforce_stop_reopen\tPASS\nstartup_videos\tCAPTURED_DECODED\nwhite_flash_sequence_review\tPENDING\nscroll_selection_retention\tNOT_TESTED_BY_THIS_SAMPLER\nphysical_C67\tNOT_RUN\n' "$source" "$producer" "$api" "$rotated_orientation" > "$output/receipt.tsv"
+printf 'source\t%s\nproducer\t%s\nAPI\t%s\nboth_system_modes\tPASS\nsame_candidate_replacement\tPASS\nactual_charcoal_canvas_and_ink\tPASS\nrotation_request_and_return\tPASS\nrotation_policy\t%s\nbackground_resume\tPASS\nforce_stop_reopen\tPASS\nstartup_videos\tCAPTURED_DECODED\nbroad_white_canvas_frame_guard\tPASS\npartial_surfaces_dialogs\tNOT_QUALIFIED_BY_VIDEO_GUARD\nscroll_selection_retention\tNOT_TESTED_BY_THIS_SAMPLER\nphysical_C67\tNOT_RUN\n' "$source" "$producer" "$api" "$rotated_orientation" > "$output/receipt.tsv"

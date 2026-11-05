@@ -1,0 +1,21 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 3) { exit 2 }
+var root = ARGV[0]
+var ffmpeg = ARGV[1]
+var output = ARGV[2]
+var grease = ENV.CHARCOAL_GREASE
+test ! -e "$output"
+mkdir -p "$output"
+"$ffmpeg" -nostdin -hide_banner -loglevel error -f lavfi -i 'color=c=#212121:s=480x960:r=30:d=1' \
+  -c:v libx264 -pix_fmt yuv420p "$output/charcoal.mp4"
+"$grease" "$root/charcoal/check-startup-video.grease" "$ffmpeg" "$output/charcoal.mp4" "$output/positive"
+"$ffmpeg" -nostdin -hide_banner -loglevel error -i "$output/charcoal.mp4" \
+  -vf 'drawbox=x=0:y=0:w=iw:h=ih:color=white:t=fill:enable=eq(n\,15)' \
+  -c:v libx264 -pix_fmt yuv420p "$output/one-white-frame.mp4"
+if "$grease" "$root/charcoal/check-startup-video.grease" "$ffmpeg" "$output/one-white-frame.mp4" "$output/negative" {
+  echo 'FAIL injected single white frame accepted' >&2
+  exit 1
+}
+rg -F 'lavfi.signalstats.YLOW=235' "$output/negative.light-frames.txt"
+echo 'PASS decoded charcoal video; single actual encoded white-frame mutant rejected'
