@@ -1,0 +1,23 @@
+#!/usr/bin/env grease
+set -o errexit -o nounset -o pipefail
+test "$#" -eq 2
+var root = ARGV[0]
+var output = ARGV[1]
+mkdir -p "$output"
+source "$root/charcoal/activity-match.grease"
+printf '    topResumedActivity=ActivityRecord{64808fd u0 org.isomorphisms.fastchat.diskstreaming.arena/android.app.NativeActivity t8}\n' > "$output/full.txt"
+charcoal_require_resumed "$output/full.txt" org.isomorphisms.fastchat.diskstreaming.arena android.app.NativeActivity
+printf '    mResumedActivity: ActivityRecord{123 u0 com.stevenfoerster.porthole/.ui.MainActivity t8}\n' > "$output/short.txt"
+charcoal_require_resumed "$output/short.txt" com.stevenfoerster.porthole com.stevenfoerster.porthole.ui.MainActivity
+printf '    topResumedActivity=ActivityRecord{123 u0 com.stevenfoerster.porthole/com.stevenfoerster.porthole.ui.MainActivity t8}\n' > "$output/long.txt"
+charcoal_require_resumed "$output/long.txt" com.stevenfoerster.porthole com.stevenfoerster.porthole.ui.MainActivity
+printf '    topResumedActivity=ActivityRecord{123 u0 com.other/.ui.MainActivity t8}\n' > "$output/wrong-package.txt"
+printf '    topResumedActivity=ActivityRecord{123 u0 com.stevenfoerster.porthole/.ui.MainActivityOther t8}\n' > "$output/wrong-class.txt"
+printf '    mLastPausedActivity: ActivityRecord{123 u0 com.stevenfoerster.porthole/.ui.MainActivity t8}\n' > "$output/stale.txt"
+printf '    topResumedActivity=null\n' > "$output/null.txt"
+for label in wrong-package wrong-class stale null {
+  try { charcoal_require_resumed "$output/$label.txt" com.stevenfoerster.porthole com.stevenfoerster.porthole.ui.MainActivity > "$output/$label.observed.txt" }
+  test "$[_error.code]" -eq 1
+}
+printf 'activity_identity=PASS full_and_short=PASS wrong_package=REJECTED wrong_class=REJECTED stale=REJECTED null=REJECTED\n' > "$output/receipt.tsv"
+cat "$output/receipt.tsv"

@@ -1,0 +1,5 @@
+# Immutable candidate identity receipts
+
+The local execution environment became unavailable, so finished GitHub artifacts are read independently in hosted CI before new visual replays bind their inner APK digests. Exact artifact IDs/run/source bindings are recorded in candidate-identities.tsv. The canonical Grease entrypoint verifies actual APK signatures, checks preserved expected signers where available, prints SHA256 and Android package/version metadata, and retains those receipts. Porthole and WiFi Scanner are explicitly ephemeral-signer fixtures, never C67 upgrades. No APK is installed by this workflow; no visual, functional or physical acceptance is inferred from an identity receipt.
+
+Type sketch: immutable source/run/artifact identities select an actual APK path; observed byte digests, certificates and Android package metadata remain separate facts. Grease is the existing bounded artifact/package orchestration language. No compiler, rendering architecture, runtime engine or signer is replaced. Hosted qualification is pending at initial publication; rejected authored attempts must be retained before repair.

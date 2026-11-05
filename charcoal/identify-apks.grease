@@ -1,0 +1,34 @@
+#!/usr/bin/env grease
+# Read finished immutable candidate artifacts, without installing applications.
+set -o errexit -o nounset -o pipefail
+test "$#" -eq 4
+var root = ARGV[0]
+var manifest = ARGV[1]
+var sdk = ARGV[2]
+var output = ARGV[3]
+mkdir -p "$output"
+var bucket = ''
+var relative = ''
+var source = ''
+var run = ''
+var artifact = ''
+var signer = ''
+var count = 0
+while read -r bucket relative source run artifact signer {
+  if test "$bucket" = bucket { continue }
+  var apk = "$root/$bucket/$relative"
+  test -s "$apk"
+  setvar count += 1
+  var stem = "$output/$[count]"
+  printf 'candidate_bucket=%s source=%s run=%s artifact=%s relative=%s\n' "$bucket" "$source" "$run" "$artifact" "$relative" | tee "$stem.identity"
+  sha256sum "$apk" | tee "$stem.sha256"
+  "$sdk/build-tools/36.0.0/apksigner" verify --print-certs "$apk" > "$stem.signer"
+  cat "$stem.signer"
+  if test "$signer" != - {
+    grep -Fq "Signer #1 certificate SHA-256 digest: $signer" "$stem.signer"
+  }
+  "$sdk/build-tools/36.0.0/aapt2" dump badging "$apk" > "$stem.badging"
+  sed -n '1p' "$stem.badging"
+} < "$manifest"
+test "$[count]" -gt 0
+printf 'identity_receipts=PASS apk_count=%s physical_C67=NOT_RUN\n' "$[count]"

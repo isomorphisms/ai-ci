@@ -1,0 +1,161 @@
+#!/usr/bin/env grease
+# ADB SERIAL SDK APK GREASE FRESH_OUTPUT API PACKAGE ACTIVITY CERT SOURCE PRODUCER ROTATED_ORIENTATION
+set -eu -o pipefail
+if (len(ARGV) !== 13 and len(ARGV) !== 14) { echo 'requires 13 lifecycle inputs and optional permission profile' >&2; exit 2 }
+var adb = ARGV[0]
+var serial = ARGV[1]
+var sdk = ARGV[2]
+var apk = ARGV[3]
+var grease = ARGV[4]
+var output = ARGV[5]
+var api = ARGV[6]
+var package = ARGV[7]
+var activity = ARGV[8]
+var certificate = ARGV[9]
+var source = ARGV[10]
+var producer = ARGV[11]
+var rotated_orientation = ARGV[12]
+var permission_profile = 'none'
+if (len(ARGV) === 14) { setvar permission_profile = ARGV[13] }
+if (permission_profile !== 'none' and permission_profile !== 'wifi' and permission_profile !== 'porthole' and permission_profile !== 'wifi-analyzer') {
+  echo 'FAIL unknown explicit fixture permission profile' >&2
+  exit 2
+}
+var component = "$package/$activity"
+var action = 'android.intent.action.MAIN'
+if (package === 'org.isomorphisms.chatgptexporter.e1fixture') {
+  setvar action = 'org.isomorphisms.chatgptexporter.READ_SAVED'
+}
+var suite = $(realpath "$(dirname "$0")")
+source "$suite/activity-match.grease"
+test ! -e "$output"
+mkdir -p "$output"
+"$adb" -s "$serial" shell getprop ro.kernel.qemu | tr -d '\r' | rg -x 1
+test "$("$adb" -s "$serial" shell getprop ro.build.version.sdk | tr -d '\r')" = "$api"
+"$adb" -s "$serial" shell getprop ro.product.cpu.abi | tr -d '\r' | rg -x x86_64
+"$sdk/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$apk" > "$output/signer.txt"
+rg -x -F "Signer #1 certificate SHA-256 digest: $certificate" "$output/signer.txt"
+"$sdk/build-tools/36.0.0/aapt2" dump badging "$apk" > "$output/manifest.txt"
+rg -F "package: name='$package'" "$output/manifest.txt"
+rg -F "launchable-activity: name='$activity'" "$output/manifest.txt"
+"$adb" -s "$serial" shell pm list packages "$package" > "$output/prior.txt"
+try { rg -x -F "package:$package" "$output/prior.txt" }
+if (_error.code !== 1) { echo 'FAIL lifecycle replay requires a fresh emulator namespace' >&2; exit 1 }
+"$adb" -s "$serial" install "$apk" > "$output/install.txt"
+"$adb" -s "$serial" install -r "$apk" > "$output/replacement.txt"
+rg -x -F Success "$output/install.txt"
+rg -x -F Success "$output/replacement.txt"
+# These grants apply only after the existing qemu/API/ABI/fresh-namespace guards.
+# They isolate app-owned appearance from external Android permission dialogs.
+if (permission_profile === 'wifi') {
+  test "$package" = com.wifiscanner.app
+  "$adb" -s "$serial" shell pm grant "$package" android.permission.ACCESS_COARSE_LOCATION
+  "$adb" -s "$serial" shell pm grant "$package" android.permission.ACCESS_FINE_LOCATION
+  if (int(api) >= 33) {
+    "$adb" -s "$serial" shell pm grant "$package" android.permission.NEARBY_WIFI_DEVICES
+  }
+}
+if (permission_profile === 'wifi-analyzer') {
+  test "$package" = com.vrem.wifianalyzer.BETA
+  "$adb" -s "$serial" shell pm grant "$package" android.permission.ACCESS_COARSE_LOCATION
+  "$adb" -s "$serial" shell pm grant "$package" android.permission.ACCESS_FINE_LOCATION
+  if (int(api) >= 33) {
+    "$adb" -s "$serial" shell pm grant "$package" android.permission.NEARBY_WIFI_DEVICES
+  }
+}
+if (permission_profile === 'porthole') {
+  test "$package" = com.stevenfoerster.porthole
+  if (int(api) >= 33) {
+    "$adb" -s "$serial" shell pm grant "$package" android.permission.POST_NOTIFICATIONS
+  }
+}
+printf 'fixture_permission_profile\t%s\n' "$permission_profile" > "$output/permission-profile.tsv"
+"$adb" -s "$serial" shell wm size 480x960
+"$adb" -s "$serial" shell wm density 160
+"$adb" -s "$serial" shell settings put system accelerometer_rotation 0
+try { "$adb" -s "$serial" shell wm help > "$output/window-manager-help.txt" }
+if (_error.code !== 0 and _error.code !== 255) { echo 'FAIL window-manager help command failed' >&2; exit 1 }
+rg -q -F 'Window manager (window) commands:' "$output/window-manager-help.txt"
+var rotation_command = ''
+if (api === '29') { setvar rotation_command = 'set-user-rotation' }
+if (api === '34') { setvar rotation_command = 'user-rotation' }
+if (rotation_command === '') { echo 'FAIL undeclared Android rotation profile' >&2; exit 1 }
+rg -q -F "  $rotation_command [" "$output/window-manager-help.txt"
+var remote = ''
+var ink_pattern = 'lavfi.signalstats.YMAX=(1[89][0-9]|2[0-9][0-9])([.]0+)?$'
+# Empty Pasteboard uses secondary #B4B4B4 slot numbers (limited-range Y about 171).
+# Require that actual caption ink; the 180 threshold is for primary text.
+if (package === 'com.isomorphisms.pasteboard') {
+  setvar ink_pattern = 'lavfi.signalstats.YMAX=(17[0-9]|1[89][0-9]|2[0-9][0-9])([.]0+)?$'
+}
+
+proc capture(stage, orientation) {
+  var ready = false
+  for attempt in @(seq 1 30) {
+    "$adb" -s "$serial" shell dumpsys activity activities > "$output/$stage.activity.txt"
+    try { charcoal_require_resumed "$output/$stage.activity.txt" "$package" "$activity" }
+    if (_error.code !== 0) { sleep 0.3; continue }
+    "$adb" -s "$serial" exec-out screencap -p > "$output/$stage.png"
+    ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 "$output/$stage.png" > "$output/$stage.size.txt"
+    var width = $(cut -d, -f1 "$output/$stage.size.txt")
+    var height = $(cut -d, -f2 "$output/$stage.size.txt")
+    if (orientation === 'landscape') {
+      if test "$width" -le "$height" { sleep 0.3; continue }
+    } else {
+      if test "$width" -ge "$height" { sleep 0.3; continue }
+    }
+    ffmpeg -nostdin -hide_banner -loglevel error -y -i "$output/$stage.png" -vf 'crop=1:1:2:200,format=rgb24' -frames:v 1 -f rawvideo "$output/$stage.root.rgb"
+    od -An -tu1 "$output/$stage.root.rgb" > "$output/$stage.root.txt"
+    try { rg -x ' *3[1-5] +3[1-5] +3[1-5] *' "$output/$stage.root.txt" }
+    if (_error.code !== 0) { sleep 0.3; continue }
+    ffmpeg -nostdin -hide_banner -i "$output/$stage.png" -vf 'crop=iw-40:ih-140:20:70,signalstats,metadata=print' -frames:v 1 -f null - > "$output/$stage.ink.txt" 2>&1
+    try { rg "$ink_pattern" "$output/$stage.ink.txt" }
+    if (_error.code === 0) { setvar ready = true; break }
+    sleep 0.3
+  }
+  if (not ready) {
+    "$adb" -s "$serial" logcat -b all -d > "$output/$stage.failure-logcat.txt"
+    "$adb" -s "$serial" shell dumpsys window > "$output/$stage.failure-window.txt"
+    try { "$adb" -s "$serial" pull "$remote" "$output/$stage.failed-startup.mp4" > "$output/$stage.failed-video-pull.txt" 2>&1 }
+    try { rg -n 'mResumedActivity|topResumedActivity|mLastPausedActivity|realActivity' "$output/$stage.activity.txt" | tail -n 20 }
+    try { rg -n 'mCurrentFocus|mFocusedApp|Application Error|not responding' "$output/$stage.failure-window.txt" | tail -n 20 }
+    try { rg -n 'FATAL EXCEPTION|ANR in|Fatal signal|has died|Process: ' "$output/$stage.failure-logcat.txt" | tail -n 40 }
+    echo "FAIL actual app charcoal/ink/orientation did not settle: $stage" >&2
+    exit 1
+  }
+  "$grease" "$suite/check-frame.grease" "$(command -v ffmpeg)" "$output/$stage.png" "$output/$stage.frame.txt"
+  "$adb" -s "$serial" shell pidof "$package" > "$output/$stage.pid.txt"
+  rg -x '[1-9][0-9]*' "$output/$stage.pid.txt"
+  "$adb" -s "$serial" shell dumpsys window windows > "$output/$stage.window.txt"
+}
+for mode in no yes {
+  "$adb" -s "$serial" shell wm "$rotation_command" lock 0 > "$output/$mode.rotation-initial.txt"
+  "$adb" -s "$serial" shell cmd uimode night "$mode" > "$output/$mode.night.txt"
+  "$adb" -s "$serial" shell am force-stop "$package"
+  setvar remote = "/sdcard/aici-charcoal-$package-$api-$mode.mp4"
+  "$adb" -s "$serial" shell rm -f "$remote"
+  fork { "$adb" -s "$serial" shell screenrecord --time-limit 8 --bit-rate 1000000 "$remote" > "$output/$mode.record.txt" 2>&1 }
+  sleep 1
+  "$adb" -s "$serial" shell am start -W -a "$action" -n "$component" > "$output/$mode.start.txt"
+  capture "$mode-cold" portrait
+  "$adb" -s "$serial" shell wm "$rotation_command" lock 1 > "$output/$mode.rotation-request.txt"
+  capture "$mode-rotated" "$rotated_orientation"
+  "$adb" -s "$serial" shell wm "$rotation_command" lock 0 > "$output/$mode.rotation-return.txt"
+  capture "$mode-portrait" portrait
+  "$adb" -s "$serial" shell input keyevent KEYCODE_HOME
+  "$adb" -s "$serial" shell am start -W -a "$action" -n "$component" > "$output/$mode.resume.txt"
+  capture "$mode-resumed" portrait
+  "$adb" -s "$serial" shell am force-stop "$package"
+  "$adb" -s "$serial" shell am start -W -a "$action" -n "$component" > "$output/$mode.reopen.txt"
+  capture "$mode-reopened" portrait
+  wait
+  "$adb" -s "$serial" pull "$remote" "$output/$mode-startup.mp4" > "$output/$mode.video-pull.txt"
+  test -s "$output/$mode-startup.mp4"
+  ffmpeg -nostdin -hide_banner -v error -i "$output/$mode-startup.mp4" -f null - > "$output/$mode.video-decode.txt" 2>&1
+  "$grease" "$suite/check-startup-video.grease" "$(command -v ffmpeg)" "$output/$mode-startup.mp4" "$output/$mode.sequence"
+}
+"$adb" -s "$serial" shell wm "$rotation_command" lock 0
+"$adb" -s "$serial" shell cmd uimode night no
+sha256sum "$apk" > "$output/apk.sha256"
+printf 'entry_action\t%s\n' "$action" > "$output/entry.tsv"
+printf 'source\t%s\nproducer\t%s\nAPI\t%s\nboth_system_modes\tPASS\nsame_candidate_replacement\tPASS\nactual_charcoal_canvas_and_ink\tPASS\nrotation_request_and_return\tPASS\nrotation_policy\t%s\nbackground_resume\tPASS\nforce_stop_reopen\tPASS\nstartup_videos\tCAPTURED_DECODED\nbroad_white_canvas_frame_guard\tPASS\npartial_surfaces_dialogs\tNOT_QUALIFIED_BY_VIDEO_GUARD\nscroll_selection_retention\tNOT_TESTED_BY_THIS_SAMPLER\nphysical_C67\tNOT_RUN\n' "$source" "$producer" "$api" "$rotated_orientation" > "$output/receipt.tsv"
