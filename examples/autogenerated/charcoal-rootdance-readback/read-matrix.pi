@@ -58,13 +58,13 @@ for filename in ["before.png", "after.png", "repeated-root.png", "degree-three.p
         size ∈ tuple[int, int] ← image.size
         root_pixel ∈ tuple[int, int, int] ← image.getpixel((892, 299))
         coefficient_pixel ∈ tuple[int, int, int] ← image.getpixel((315, 300))
-        lines.append(name + "\tsize\t" + as_text(size) + "\troot892299\t" + as_text(root_pixel) + "\tcoefficient315300\t" + as_text(coefficient_pixel))
-        lines.append(name + "\troot_bands\t" + as_text(color_bands(path, 145, 183, 227)))
-        lines.append(name + "\tcoefficient_bands\t" + as_text(color_bands(path, 232, 203, 139)))
+        lines.append("\t".join([as_text(name), "size", as_text(size), "root892299", as_text(root_pixel), "coefficient315300", as_text(coefficient_pixel)]))
+        lines.append("\t".join([as_text(name), "root_bands", as_text(color_bands(path, 145, 183, 227))]))
+        lines.append("\t".join([as_text(name), "coefficient_bands", as_text(color_bands(path, 232, 203, 139))]))
 before ∈ object ← Image.open(as_text(root.joinpath("retained-current/relaunch-evidence/moved-before-relaunch.png"))).convert("RGB")
 after ∈ object ← Image.open(as_text(root.joinpath("retained-current/relaunch-evidence/moved-after-relaunch.png"))).convert("RGB")
 difference ∈ object ← ImageChops.difference(before.crop((0, 0, 1200, 700)), after.crop((0, 0, 1200, 700)))
-lines.append("owned_viewport_difference_bounds\t" + as_text(difference.getbbox()))
-report ∈ str ← "\n".join(lines) + "\n"
+lines.append("\t".join(["owned_viewport_difference_bounds", as_text(difference.getbbox())]))
+report ∈ str ← "\n".join(lines)
 output.joinpath("actual-pixel-readback.tsv").write_text(report, encoding="utf-8")
 print(report)
