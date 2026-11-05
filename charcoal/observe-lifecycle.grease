@@ -17,7 +17,7 @@ var producer = ARGV[11]
 var rotated_orientation = ARGV[12]
 var permission_profile = 'none'
 if (len(ARGV) === 14) { setvar permission_profile = ARGV[13] }
-if (permission_profile !== 'none' and permission_profile !== 'wifi' and permission_profile !== 'porthole') {
+if (permission_profile !== 'none' and permission_profile !== 'wifi' and permission_profile !== 'porthole' and permission_profile !== 'wifi-analyzer') {
   echo 'FAIL unknown explicit fixture permission profile' >&2
   exit 2
 }
@@ -49,6 +49,14 @@ rg -x -F Success "$output/replacement.txt"
 # They isolate app-owned appearance from external Android permission dialogs.
 if (permission_profile === 'wifi') {
   test "$package" = com.wifiscanner.app
+  "$adb" -s "$serial" shell pm grant "$package" android.permission.ACCESS_COARSE_LOCATION
+  "$adb" -s "$serial" shell pm grant "$package" android.permission.ACCESS_FINE_LOCATION
+  if (int(api) >= 33) {
+    "$adb" -s "$serial" shell pm grant "$package" android.permission.NEARBY_WIFI_DEVICES
+  }
+}
+if (permission_profile === 'wifi-analyzer') {
+  test "$package" = com.vrem.wifianalyzer.BETA
   "$adb" -s "$serial" shell pm grant "$package" android.permission.ACCESS_COARSE_LOCATION
   "$adb" -s "$serial" shell pm grant "$package" android.permission.ACCESS_FINE_LOCATION
   if (int(api) >= 33) {
