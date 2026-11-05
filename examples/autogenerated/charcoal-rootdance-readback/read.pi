@@ -1,6 +1,6 @@
 """Read actual archived diagnostic PNGs without changing or accepting the app."""
 from pathlib import Path
-from builtins import ValueError, bool, str, int, object, list, tuple, abs
+from builtins import ValueError, bool, str, int, object, list, tuple
 import json
 from PIL import Image
 
@@ -24,14 +24,16 @@ def color_bands(path ∈ Path, red ∈ int, green ∈ int, blue ∈ int) → lis
         row_has_color ∈ bool ← False
         for x in range(width):
             pixel ∈ tuple[int, int, int] ← pixels[y * width + x]
-            if abs(pixel[0] - red) <= 1 and abs(pixel[1] - green) <= 1 and abs(pixel[2] - blue) <= 1:
+            if pixel[0] >= red - 1 and pixel[0] <= red + 1 and pixel[1] >= green - 1 and pixel[1] <= green + 1 and pixel[2] >= blue - 1 and pixel[2] <= blue + 1:
                 if not active:
                     active = True
                     top = y
                 row_has_color = True
                 bottom = y
-                left = min(left, x)
-                right = max(right, x)
+                if x < left:
+                    left = x
+                if x > right:
+                    right = x
                 count = count + 1
         if active and not row_has_color:
             bands.append({"left":left, "right":right, "top":top, "bottom":bottom, "twice_center_x":left + right, "twice_center_y":top + bottom, "matching_pixels":count})

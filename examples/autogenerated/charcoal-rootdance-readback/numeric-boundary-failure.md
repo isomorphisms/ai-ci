@@ -1,0 +1,3 @@
+# Retained Ithon numeric-boundary rejection
+
+Run42033739539 rejected abs(...) comparison because the maintained frontend does not assign that builtin a statically known return type. Equivalent inclusive integer channel bounds now express the exact same RGB±1 predicate using admitted integer comparisons. Bounding extrema likewise use integer comparisons/assignments instead of untyped min/max return values. The complete rejected program is preserved. The pixel tolerance, input bytes, source/producer binding and FAIL_UNCHANGED outcome remain identical. This exposes abs/min/max numeric-result elaboration for future Ithon work; no ordinary Python fallback or unchecked execution is used.
