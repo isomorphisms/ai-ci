@@ -1,0 +1,52 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+test "$#" -eq 6
+var adb = ARGV[0]
+var serial = ARGV[1]
+var apk = ARGV[2]
+var observer = ARGV[3]
+var output = ARGV[4]
+var api = ARGV[5]
+var root = $(realpath "$(dirname "$0")/../../..")
+var grease = "$root/grease/bin/grease"
+test ! -e "$output"
+mkdir -p "$output"
+"$adb" -s "$serial" shell getprop ro.kernel.qemu | tr -d '\r' | rg -x 1
+test "$("$adb" -s "$serial" shell getprop ro.build.version.sdk | tr -d '\r')" = "$api"
+if (api !== '29' and api !== '34') { echo 'FAIL undeclared API' >&2; exit 2 }
+"$adb" -s "$serial" shell getprop ro.product.cpu.abi | tr -d '\r' | rg -x x86_64
+"$adb" -s "$serial" shell pm list packages org.isomorphisms.fastchat.diskstreaming.arena > "$output/prior.txt"
+try { rg -x -F package:org.isomorphisms.fastchat.diskstreaming.arena "$output/prior.txt" }
+if (_error.code !== 1) { echo 'FAIL requires fresh fixture namespace' >&2; exit 1 }
+"$adb" -s "$serial" install "$apk" > "$output/install.txt"
+"$adb" -s "$serial" install "$observer/observer.apk" > "$output/observer-install.txt"
+rg -x -F Success "$output/install.txt"
+rg -x -F Success "$output/observer-install.txt"
+for mode in no yes {
+  "$grease" "$root/charcoal/admit-system-mode.grease" "$adb" "$serial" "$api" "$mode" "$output/$mode.system-mode"
+  cp "$output/$mode.system-mode/night.txt" "$output/$mode.night.txt"
+  "$adb" -s "$serial" shell am force-stop org.isomorphisms.fastchat.diskstreaming.arena
+  "$adb" -s "$serial" logcat -c
+  timeout 120 "$adb" -s "$serial" shell am instrument -w -r -e settings required org.isomorphisms.fastchat.observer/acceptance.presentation.FastChatUi > "$output/$mode.positive.txt" 2>&1
+  cat "$output/$mode.positive.txt"
+  rg -x -F 'INSTRUMENTATION_CODE: -1' "$output/$mode.positive.txt"
+  rg -x -F 'INSTRUMENTATION_RESULT: stream=PASS actual Activity-owned secure provider settings and return to composer; no provider request' "$output/$mode.positive.txt"
+  "$adb" -s "$serial" logcat -d -v threadtime > "$output/$mode.positive.logcat.txt"
+  rg -F NativeSettingsPaletteAcceptance "$output/$mode.positive.logcat.txt" | rg -F 'PASS actual secure settings root bars icons text hints selection six enabled inputs password semantics; no credential values captured'
+  for bad in 1 2 3 4 5 {
+    "$adb" -s "$serial" shell am force-stop org.isomorphisms.fastchat.diskstreaming.arena
+    timeout 120 "$adb" -s "$serial" shell am instrument -w -r -e settings required -e palette_bad "$bad" org.isomorphisms.fastchat.observer/acceptance.presentation.FastChatUi > "$output/$mode.negative-$bad.txt" 2>&1
+    cat "$output/$mode.negative-$bad.txt"
+    rg -x -F 'INSTRUMENTATION_CODE: 0' "$output/$mode.negative-$bad.txt"
+    var role = 'window'
+    if (bad === '1') { setvar role = 'root' }
+    if (bad === '2') { setvar role = 'text' }
+    if (bad === '3') { setvar role = 'input' }
+    rg -x -F "INSTRUMENTATION_RESULT: stream=java.lang.AssertionError: FAIL settings palette $role" "$output/$mode.negative-$bad.txt"
+  }
+}
+"$grease" "$root/charcoal/admit-system-mode.grease" "$adb" "$serial" "$api" no "$output/restored.system-mode"
+cp "$output/restored.system-mode/night.txt" "$output/restored-night.txt"
+"$adb" -s "$serial" shell am force-stop org.isomorphisms.fastchat.diskstreaming.arena
+sha256sum "$apk" "$observer/observer.apk" > "$output/apk-identities.txt"
+printf 'api\t%s\nboth_system_modes\tPASS\nsecure_settings_native_ARGB\tPASS\nsix_enabled_inputs_hints_selection_password\tPASS\nsettings_hierarchy_and_return\tPASS\nwhite_root_black_ink_white_input_white_bar_dark_icons_mutants\tREJECTED\nsecure_window_flag\tPRESERVED\ncredential_values\tNOT_CAPTURED\nprovider_request\tNOT_SENT\nphysical_C67\tNOT_RUN\n' "$api" > "$output/receipt.tsv"
