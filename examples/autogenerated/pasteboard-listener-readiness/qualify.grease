@@ -17,7 +17,8 @@ cat > "$output/native.log" <<'EOF'
 11-05 12:00:00.100 654 655 I PasteboardObserver: clipboard listener registration accepted=1 caller_uid=10209
 EOF
 var helper = "$root/pasteboard/require-listener-ready.grease"
-"$grease" "$helper" "$output/processes.txt" "$output/uid.txt" "$output/native.log" > "$output/positive.txt"
+try { "$grease" "$helper" "$output/processes.txt" "$output/uid.txt" "$output/native.log" > "$output/positive.txt" }
+if (_error.code !== 0) { cat "$output/processes.txt" "$output/uid.txt" "$output/native.log" >&2; echo 'FAIL generated positive readiness fixture' >&2; exit 1 }
 sed 's/clipboard listener registration accepted=1/clipboard listener configuration retained=1/' "$output/native.log" > "$output/retained.log"
 "$grease" "$helper" "$output/processes.txt" "$output/uid.txt" "$output/retained.log" > "$output/retained.txt"
 sed 's/caller_uid=10209/caller_uid=10208/' "$output/native.log" > "$output/wrong-owner.log"

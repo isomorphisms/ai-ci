@@ -13,7 +13,7 @@ FILENAME == ARGV[1] {
 }
 FILENAME == ARGV[2] {
   if ($1 == "package:com.isomorphisms.pasteboard" && $2 ~ /^uid:[0-9]+$/) {
-    uid = $2; sub(/^uid:/, "", uid); owners++
+    uid = $2; sub(/^uid:/, "", uid); uid += 0; owners++
   }
   next
 }
