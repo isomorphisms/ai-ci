@@ -27,8 +27,8 @@ discovery evidence, not a source commit or accepted build.
 | FastChat | PASS, sampled own surfaces/bars on both APIs and system modes | PASS API29/API34 rotation, resume, reopen; all retained startup-video frames pass broad-white guard locally | PASS paging, Stop, Unicode, copying, history, settings | [Signed C67 ARM64](https://github.com/isomorphisms/fastchat/actions/runs/41947171842/artifacts/13379696620) |
 | IB native reader/workbench | PASS, sampled native reader/history/root/bars in both modes | PASS current-source API29/API34 lifecycle; broad-white video guard PASS locally | PASS native/ART suites; separate browser-foundation live arXiv prepaint remains red | [Signed C67 candidate](https://github.com/isomorphisms/ib/actions/runs/41947425729/artifacts/13380884545) |
 | ChatGPTExporter native reader | PASS owned native reader; external ChatGPT is preserved | PASS API29/API34 lifecycle via READ_SAVED; broad-white video guard PASS locally | PASS archive/capture/copy/offline/refusals and browser checks | [Signed ARM64 and evidence](https://github.com/dilapidated-shed/ChatGPTExporter/actions/runs/41947436588/artifacts/13380610037) |
-| Chord Changes | PASS reader/controls/fingering on both APIs/modes | PASS five scenes; API34 lifecycle/video guard; API29 lifecycle follow-up running | PASS API29/API34 music/storage/interaction | [Signed candidates](https://github.com/dilapidated-shed/tablature/actions/runs/41950607269/artifacts/13382136270) |
-| Pasteboard | Charcoal samples PASS; current lifecycle repair requalifying | Previous API34 lifecycle PASS; real previous API29 Home/resume crash; repaired both-API replay running | Current build and all three migration suites PASS; workflow API35 FAIL at control launch, investigation pending | [Current signed repair candidate](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41978032646/artifacts/13393570513) |
+| Chord Changes | PASS reader/controls/fingering on both APIs/modes | PASS API29/API34 lifecycle and all-frame broad-white startup guard | PASS existing music/storage/interaction | [Signed candidates](https://github.com/dilapidated-shed/tablature/actions/runs/41950607269/artifacts/13382136270) |
+| Pasteboard | PASS sampled current repaired candidate on both APIs/modes | PASS API29/API34 full lifecycle and all-frame broad-white startup guard | PASS build, all migration suites and API29 workflow; API35 workflow fails after reboot, investigation open | [Current signed C67 repair candidate](https://github.com/Ashtray-Archer/utilities-android-phone-user/actions/runs/41978032646/artifacts/13393570513) |
 | Wegert / zero & infinity | IMPLEMENTED; API34/35 emulator execution PASS | Full independent chrome/night-mode/API29 samples pending; scientific colors preserved | PASS native, direct DEX/JNI and ICK boundaries; reproducible signed build PASS; F-Droid buildserver container unavailable | [Device candidate APK ZIP](https://github.com/isomorphismes/wegert/actions/runs/41950617535/artifacts/13381460123) |
 | iCurses and iLua demo | Terminal defaults inherited; exact RGB belongs to terminal configuration | PASS real terminal execution on host/API34; API29 NOT_RUN | PASS C/iLua host and API34; product branch publication and formal shared admission remain BLOCKED | [ARM64 runtime checkpoint](https://github.com/isomorphisms/ai-ci/actions/runs/41961330436/artifacts/13386685529) |
 | Shared android-NDK presentation | Adopted by applications; newer default TextView correction qualified | Real API34 framework color observation and missing-theme rejection PASS | All five current DEX/JNI/native/WebView/framework suites PASS | Consumed by applications; no standalone upgrade APK |
@@ -59,6 +59,7 @@ discovery evidence, not a source commit or accepted build.
 | Hopf | Implemented shared neutral canvas and launch theme | Actual Android UI checks pending | Existing generated-math/gesture suites retained; signing continuity BLOCKED | Pending; future debug outputs are fixtures |
 | Ortho | Implemented shared neutral canvas and launch theme | Shared owner copies PASS; actual Android UI checks pending | Generated geometry/touch unchanged; signing continuity BLOCKED | Pending; future debug outputs are fixtures |
 | L | Implemented native navigation and browser charcoal; scientific fields preserved | Shared owner copies PASS; actual browser/Android visual checks pending | Existing mathematical seam retained; signing continuity BLOCKED | Pending; future debug outputs are fixtures |
+| Theta renderer bakeoff | Implemented shared launch/WebView/control chrome and neutral renderer clears | Shared-copy and actual six-renderer/Android visual checks pending | Five local adapter syntax checks PASS; inherited signer continuity BLOCKED | Build fixture pending |
 | Remaining repository census | UNINSPECTED | PENDING | PENDING | PENDING |
 
 ## Exact implementation sources
@@ -97,8 +98,10 @@ discovery evidence, not a source commit or accepted build.
 | [L #5 — "Make L navigation, browser controls and launch windows charcoal"](https://github.com/isomorphismes/L/pull/5) | `61a19d59381ba240236647663602213fbdabe470` | Current exact-source build/visual checks pending; shared copy checks available from the linked PR. Preserved signing identity unavailable; debug builds remain fixtures |
 | [ai-ci #340 — "Prepare independent checked-shader charcoal control acceptance"](https://github.com/isomorphisms/ai-ci/pull/340) | `69ebba2e2499a391d53b75b0326df5f8b770a8ad` | Run41976395534 PASS API29/API34 both modes; exact signed source5025b41 and checked-fragment driver digest. Evidence13392246564/API29 and13392287073/API34. Actual API34 controls inspected; mathematical parity not inferred |
 | [ai-ci #342 — "Share canonical charcoal copy verification across native applications"](https://github.com/isomorphisms/ai-ci/pull/342) | `876a843dd7c5c635adaba854a53fd6f2c2139210` | New shared e8b67 owner and white-root copy negative PASS41978238512. Earlier immutable consumers still bind their qualified3e682 owner/action versions |
-| [ai-ci #343 — "Replay priority charcoal APKs through rotation and reopening on both APIs"](https://github.com/isomorphisms/ai-ci/pull/343) | `90e216fecfe9e958d0fc55c807cb778e81e75ff8` | Previous41976766131 PASS all five API34 cases and three API29 cases; Pasteboard API29 crash retained. Current41980041161 replays repaired signed source and all-frame broad-white guard. Current results pending |
+| [ai-ci #343 — "Replay priority charcoal APKs through rotation and reopening on both APIs"](https://github.com/isomorphisms/ai-ci/pull/343) | `90e216fecfe9e958d0fc55c807cb778e81e75ff8` | Run41980041161 PASS both APIs: all five exact candidates, both system modes, replacement, rotation policy, Home/resume and force-stop reopening;100 settled PNG stages and20 decoded startup videos. Broad-white-frame positive/one-frame negative controls PASS. API29 artifact13393263783; API34 artifact13394050679 |
 | [ai-ci #344 — "Keep GPU timer metadata separate from mathematical observations"](https://github.com/isomorphisms/ai-ci/pull/344) | `61c8c914acb2586b72b8a948a723e7f8579baaa6` | Actual Ithon self-tests41977411156 PASS. Shader consumer pins ancestorf3caae8 with identical checker bytes. Timer rows cannot substitute for missing measurements; current retained incomplete logs remain rejected |
+
+| [Theta #4 — "Use shared charcoal launch windows and theta renderer controls"](https://github.com/isomorphismes/theta/pull/4) | `cb0d21adb6883b02b3cab586486c210d40e29604` | Shared resources and existing Kotlin colour expressions only; no new framework. Actual source/Idriç/asset/APK and six-renderer qualification pending. Inherited debug key unavailable for C67 continuity |
 
 ## Evidence boundaries and remaining work
 
@@ -179,3 +182,15 @@ replay; small icons, launcher artwork and partial dialogs are outside that
 whole-canvas predicate. The selected Chord startup contact sheet and real
 Holomorphic API34 control screenshot were visually inspected. Scientific fields
 are never judged by a global dark-coverage threshold.
+
+
+The repaired priority replay [41980041161](https://github.com/isomorphisms/ai-ci/actions/runs/41980041161)
+now passes all ten app/API cases, both modes, at observer90e216fec. It replaces
+the pending follow-up obligation above, while retaining the historical failure.
+The exact signed Pasteboard source29d6a7a now passes Home/resume on both APIs.
+All20 actual videos pass the hosted broad-white-canvas frame predicate and its
+single-white-frame negative control. Current evidence:
+[API29](https://github.com/isomorphisms/ai-ci/actions/runs/41980041161/artifacts/13393263783),
+[API34](https://github.com/isomorphisms/ai-ci/actions/runs/41980041161/artifacts/13394050679).
+The separate Pasteboard API35 workflow reaches its post-reboot launch and gets
+Activity-not-found; no app reinstall or test weakening is used to hide it.
