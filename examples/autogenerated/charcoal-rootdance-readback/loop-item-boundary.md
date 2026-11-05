@@ -1,0 +1,1 @@
+Actual Ithon preflight42046463473 rejects unknown loop item plus string in the filename report. Preserve that attempt. Admit the fixed literal filename through explicit str before string operations; image reads, paths, color bands and failure boundaries are unchanged. No unchecked Python or product assertion change.

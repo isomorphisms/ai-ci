@@ -1,0 +1,11 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+mkdir -p rootdance-readback
+rg --files retained-rootdance | sort > rootdance-readback/files.txt
+cat rootdance-readback/files.txt
+test -s retained-rootdance/dance.log
+try { rg -n 'CoefficientRootDance|InputDispatcher|WindowManager|SurfaceView' retained-rootdance/dance.log > rootdance-readback/native-boundary.txt }
+tail -n 100 rootdance-readback/native-boundary.txt
+sha256sum retained-rootdance/before.png retained-rootdance/after.png > rootdance-readback/PNG-sha256.txt
+cat rootdance-readback/PNG-sha256.txt
+printf 'readback=COMPLETE product_acceptance=FAIL_UNCHANGED physical_C67=NOT_RUN\n'

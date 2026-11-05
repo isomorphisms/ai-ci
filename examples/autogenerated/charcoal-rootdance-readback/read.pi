@@ -1,0 +1,57 @@
+"""Read actual archived diagnostic PNGs without changing or accepting the app."""
+from pathlib import Path
+from builtins import ValueError, bool, str, int, object, list, tuple
+import json
+from PIL import Image
+
+def as_text(value ∈ object) → str:
+    return str(value)
+
+def color_bands(path ∈ Path, red ∈ int, green ∈ int, blue ∈ int) → list[object]:
+    image ∈ object ← Image.open(as_text(path)).convert("RGB")
+    size ∈ tuple[int, int] ← image.size
+    width ∈ int ← size[0]
+    height ∈ int ← size[1]
+    pixels ∈ list[tuple[int, int, int]] ← list(image.getdata())
+    bands ∈ list[object] ← []
+    active ∈ bool ← False
+    left ∈ int ← width
+    right ∈ int ← 0
+    top ∈ int ← 0
+    bottom ∈ int ← 0
+    count ∈ int ← 0
+    for y in range(height):
+        row_has_color ∈ bool ← False
+        for x in range(width):
+            pixel ∈ tuple[int, int, int] ← pixels[y * width + x]
+            if pixel[0] >= red - 1 and pixel[0] <= red + 1 and pixel[1] >= green - 1 and pixel[1] <= green + 1 and pixel[2] >= blue - 1 and pixel[2] <= blue + 1:
+                if not active:
+                    active = True
+                    top = y
+                row_has_color = True
+                bottom = y
+                if x < left:
+                    left = x
+                if x > right:
+                    right = x
+                count = count + 1
+        if active and not row_has_color:
+            bands.append({"left":left, "right":right, "top":top, "bottom":bottom, "twice_center_x":left + right, "twice_center_y":top + bottom, "matching_pixels":count})
+            active = False
+            left = width
+            right = 0
+            count = 0
+    if active:
+        bands.append({"left":left, "right":right, "top":top, "bottom":bottom, "twice_center_x":left + right, "twice_center_y":top + bottom, "matching_pixels":count})
+    return bands
+
+root ∈ Path ← Path.cwd()
+output ∈ Path ← root.joinpath("rootdance-readback")
+output.mkdir(parents=True, exist_ok=True)
+for name in ["before.png", "after.png"]:
+    path ∈ Path ← root.joinpath("retained-rootdance", name)
+    image ∈ object ← Image.open(as_text(path))
+    size ∈ tuple[int, int] ← image.size
+    report ∈ str ← json.dumps({"artifact":13405419199, "producer_run":42005361547, "source":"7b3c5c5de5b83f302da1f746ad2bd0640f71364d", "image":name, "width":size[0], "height":size[1], "root_color_RGB":[145,183,227], "root_color_bands":color_bands(path,145,183,227), "coefficient_color_bands":color_bands(path,232,203,139), "product_acceptance":"FAIL_UNCHANGED", "physical_C67":"NOT_RUN"}, sort_keys=True, indent=2)
+    output.joinpath(name + ".json").write_text(report + "\n", encoding="utf-8")
+    print(report)
