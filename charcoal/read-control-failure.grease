@@ -10,13 +10,15 @@ for relative in control-evidence/result.tsv control-evidence/after-server-restor
   var path = "$root/$relative"
   if test -f "$path" {
     printf '\nretained_file=%s\n' "$relative"
-    cat "$path"
+    if test "$relative" = control-evidence/after-server-restored.ps.txt {
+      try { rg "pasteboard|shizuku|clipboardfixture" "$path" }
+    } else { cat "$path" }
     cp "$path" "$output/$(basename "$path")"
   }
 }
 var log = "$root/control-evidence/after-server-restored.logcat.txt"
 if test -f "$log" {
-  try { rg -n 'PasteboardObserver|PasteboardHistory|PasteboardDiagnostic|AndroidRuntime|FATAL EXCEPTION|Fatal signal|Exception|SecurityException|denied|DeadObject|shizuku' "$log" > "$output/boundary.txt" }
+  try { rg -n -i 'pasteboard|shizuku|user.?service| 7053 ' "$log" > "$output/boundary.txt" }
   tail -n 180 "$output/boundary.txt"
 }
 printf 'archive_readback=COMPLETE product_acceptance=FAIL_UNCHANGED physical_C67=NOT_RUN\n'

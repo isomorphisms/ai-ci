@@ -79,6 +79,22 @@ jobs:
           path: candidate/wifi
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
+          repository: isomorphisms/ib
+          run-id: 42005259942
+          artifact-ids: 13406667414
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          path: candidate/ib
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          repository: Ashtray-Archer/WiFiAnalyzer
+          run-id: 42009723843
+          artifact-ids: 13406972582
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          path: candidate/wifi-analyzer
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
           repository: dilapidated-shed/grease
           run-id: 41253994123
           artifact-ids: 13062637698
