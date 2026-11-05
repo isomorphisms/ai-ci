@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: dilapidated-shed/icurses
-          ref: dac8aa64292a54248b1c6804b9e9e60e5d296ce0
+          ref: 6253a63499a4c3a95735b1ac0169850f387b4dbc
           persist-credentials: false
       - uses: isomorphisms/ai-ci/ick-host@618223d47315a180851c1539197cdcdb761a4b0d
         id: ick
@@ -50,7 +50,7 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: icurses-host-dac8aa64292a54248b1c6804b9e9e60e5d296ce0
+          name: icurses-host-6253a63499a4c3a95735b1ac0169850f387b4dbc
           path: |
             out/host/icurses-runtime.tar.gz
             out/host/icurses-runtime.tar.gz.sha256
@@ -70,7 +70,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: dilapidated-shed/icurses
-          ref: dac8aa64292a54248b1c6804b9e9e60e5d296ce0
+          ref: 6253a63499a4c3a95735b1ac0169850f387b4dbc
           persist-credentials: false
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -106,7 +106,7 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: icurses-android-${{ matrix.abi }}-dac8aa64292a54248b1c6804b9e9e60e5d296ce0
+          name: icurses-android-${{ matrix.abi }}-6253a63499a4c3a95735b1ac0169850f387b4dbc
           path: |
             out/${{ matrix.abi }}/icurses-runtime.tar.gz
             out/${{ matrix.abi }}/icurses-runtime.tar.gz.sha256
