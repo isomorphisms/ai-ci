@@ -1,0 +1,9 @@
+# Secure settings palette boundary
+
+This extends the existing hand-encoded direct-DEX instrumentation observer, leaving the application APK immutable at source07b609e3/run42005246209/artifact13404806762. The five-app lifecycle proof does not cover credential settings; this lane observes that actual Activity hierarchy independently on API29/34 under both system modes.
+
+Typed-boundary sketch: the existing main-thread Runnable owns an Activity, obtains its actual Window and attached ScrollView, and recursively inspects ViewGroup/TextView/EditText values. It requires charcoal root and bars, light-icon flags, enabled/focusable six fields, F4/B4 text, B4 hints,59 selection and the original password input type. The normal content-owner checks are retained. This is a bounded extension of the existing Smali observer architecture, not a new application implementation or alternative UI framework. Idriç application/compiler paths and the exact signed APK are untouched; a future typed framework-observer emitter would need these same Android descriptor and main-thread effects.
+
+The actual secure-window flag remains set. No screenshot bypass, credential values, saved provider configuration or network request is used. Equivalent native ARGB/control-state evidence is appropriate for this protected screen. Five mutations alter transient fixture Views/window flags only and must be rejected for their exact root/text/input/window reason. Every launch restores the unmodified application behavior; no installed user application or data is touched. The declared public FastChat development test signer is used only to authorize the existing observer, and its exact certificate is verified.
+
+Current assembly/ART results are pending. A failed generated attempt must be preserved here before correction. The observer does not qualify full IME behavior, every application dialog, physical C67 or a producer build with different bytes.

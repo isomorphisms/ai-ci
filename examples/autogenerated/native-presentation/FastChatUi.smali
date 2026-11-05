@@ -513,7 +513,13 @@
     invoke-direct {v0, v4}, Lacceptance/presentation/ContentOwnerTask;-><init>(Landroid/app/Activity;)V
     const/4 v1, 1
     iput-boolean v1, v0, Lacceptance/presentation/ContentOwnerTask;->settings:Z
+    iget v1, p0, Lacceptance/presentation/FastChatUi;->paletteBad:I
+    iput v1, v0, Lacceptance/presentation/ContentOwnerTask;->mutation:I
     invoke-virtual {p0, v0}, Landroid/app/Instrumentation;->runOnMainSync(Ljava/lang/Runnable;)V
+    iget-object v1, v0, Lacceptance/presentation/ContentOwnerTask;->failure:Ljava/lang/String;
+    if-eqz v1, :palette_valid
+    invoke-static {v1}, Lacceptance/presentation/FastChatUi;->fail(Ljava/lang/String;)V
+  :palette_valid
     iget-boolean v1, v0, Lacceptance/presentation/ContentOwnerTask;->attached:Z
     if-nez v1, :secure
     const-string v0, "FAIL provider settings Activity hierarchy and secure window"
