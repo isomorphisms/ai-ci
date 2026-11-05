@@ -10,12 +10,12 @@ var here = $(realpath "$(dirname "$0")")
 test ! -e "$output"
 mkdir -p "$output"
 # This acceptance helper must never reboot a physical device.
-"$adb" -s "$serial" shell getprop ro.kernel.qemu | tr -d '\r' | rg -x 1
-test "$("$adb" -s "$serial" shell getprop ro.build.version.sdk | tr -d '\r')" = "$api"
-"$adb" -s "$serial" shell cat /proc/sys/kernel/random/boot_id > "$output/before.txt"
+timeout 5 "$adb" -s "$serial" shell getprop ro.kernel.qemu | tr -d '\r' | rg -x 1
+test "$(timeout 5 "$adb" -s "$serial" shell getprop ro.build.version.sdk | tr -d '\r')" = "$api"
+timeout 5 "$adb" -s "$serial" shell cat /proc/sys/kernel/random/boot_id > "$output/before.txt"
 var before = $(tr -d '\r\n' < "$output/before.txt")
 test -n "$before"
-"$adb" -s "$serial" reboot > "$output/request.txt" 2>&1
+timeout 15 "$adb" -s "$serial" reboot > "$output/request.txt" 2>&1
 var ready = false
 for attempt in @(seq 1 60) {
   try { timeout 5 "$adb" -s "$serial" wait-for-device > "$output/wait-$attempt.txt" 2>&1 }
