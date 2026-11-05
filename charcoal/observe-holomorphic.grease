@@ -56,11 +56,30 @@ for mode in no yes {
   var sample_y = height - radius - 17
   var pole_x = zero_x + 2 * radius + 14
   var inactive_x = pole_x + radius * 3 // 4
-  var primary_x = zero_x + radius * 2 // 5
+  # Midway between the ring's .25R and .40R boundaries, away from antialiasing.
+  var primary_x = zero_x + radius * 13 // 40
   test "$("$adb" -s "$serial" shell pidof -s "$package" | tr -d '\r')" = "$process"
   "$adb" -s "$serial" shell dumpsys activity activities > "$output/activity-$mode.txt"
   rg '(mResumedActivity|topResumedActivity)' "$output/activity-$mode.txt" | rg -F "$component"
-  "$adb" -s "$serial" exec-out screencap -p > "$output/controls-$mode.png"
+  # The native first-frame log precedes eglSwapBuffers. Require a presented
+  # control in the compositor instead of treating that log as presentation.
+  # Retain every attempt; this settled-frame check does not qualify startup.
+  var presented = false
+  for attempt in @(seq 1 15) {
+    "$adb" -s "$serial" exec-out screencap -p > "$output/presentation-$mode-$attempt.png"
+    ffmpeg -nostdin -hide_banner -i "$output/presentation-$mode-$attempt.png" \
+      -vf "crop=1:1:$[zero_x]:$[sample_y],format=rgb24" -frames:v 1 -f rawvideo \
+      "$output/presentation-$mode-$attempt.rgb" > "$output/presentation-$mode-$attempt.decode.txt" 2>&1
+    od -An -tu1 "$output/presentation-$mode-$attempt.rgb" > "$output/presentation-$mode-$attempt.txt"
+    try { rg -x ' *5[4-8] +5[4-8] +5[4-8] *' "$output/presentation-$mode-$attempt.txt" }
+    if (_error.code === 0) {
+      cp "$output/presentation-$mode-$attempt.png" "$output/controls-$mode.png"
+      setvar presented = true
+      break
+    }
+    sleep 1
+  }
+  if (not presented) { echo 'FAIL actual scientific control never reached the compositor' >&2; exit 1 }
   for role in selected surface primary secondary {
     var sample_x = zero_x
     var expected = ' *5[4-8] +5[4-8] +5[4-8] *'

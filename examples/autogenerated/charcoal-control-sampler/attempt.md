@@ -17,7 +17,16 @@ The native Grease integer expression `height * 48 // 1000` and explicit
 `int("480")` conversion both execute successfully through the published portable
 launcher and unchanged pinned host engine. No Bash or substitute runtime is used.
 The sampler uses those native expressions. Its parser check is separate from
-actual Android execution, which remains pending until a candidate is available.
+actual Android execution.
+
+The first actual candidate was source 5025b41cea08b2f173eb54b9344819be7c82fc55.
+Run 41973691296 retained two observer failures. API 29 sampled the .40R outer
+antialiased ring edge (137), while both opaque control backgrounds passed. The
+correct primary sample is the midband .325R, preserving the #F4F4F4 predicate.
+API 34 captured an entirely black compositor frame: the application's native
+first-frame log occurs before eglSwapBuffers. A bounded presented-control poll
+now retains every attempted screenshot and still fails if the actual selected
+control never appears. It does not certify the startup transition sequence.
 
 The scientific field is excluded from dark coverage because its intended colors
 are data. The checks sample selected #383838 and inactive #2F2F2F control interiors,
