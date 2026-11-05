@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - charcoal/observe-lifecycle.grease
+      - charcoal/admit-system-mode.grease
       - charcoal/activity-match.grease
       - charcoal/qualify-activity-match.grease
       - charcoal/check-frame.grease
