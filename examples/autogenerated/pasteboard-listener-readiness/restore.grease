@@ -1,0 +1,11 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+test "$#" -eq 1
+var root = ARGV[0]
+var input = "$root/producer/build/pasteboard-independent"
+tar -C "$input" -xzf "$input/oracle-runtime.tar.gz"
+test -x "$input/oracle/pasteboard-oracle"
+test -x "$input/oracle/pasteboard-oracle_app/pasteboard-oracle.so"
+"$input/oracle/pasteboard-oracle" selftest "$input/fixtures"
+test ! -e "$root/producer/.ai-ci-independent"
+ln -s "$root" "$root/producer/.ai-ci-independent"
