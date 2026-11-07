@@ -40,17 +40,54 @@ runs:
       ref: ${{ inputs.aici_ref }}
       path: ai-ci
       persist-credentials: false
-  - name: Acquire verified native host runtime and published ARM payloads
-    shell: sh
+  # The historical 12192502970 ASAN artifact expired after seven days.
+  # Rebuild the same *reference* implementation instead of trusting an artifact ID.
+  - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+    with:
+      repository: dilapidated-shed/grease
+      ref: ba869518c7d850de6c47d8c6234654575e264e6c
+      path: reference-grease
+      persist-credentials: false
+  - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+    with:
+      repository: dilapidated-shed/oils
+      ref: 5651cf97a1b5042f24f14112a7ade9a1518eb0bc
+      path: reference-oils
+      persist-credentials: false
+  - name: Build and verify pinned legacy YSH reference (not production Grease)
+    shell: bash
     env:
-      GH_TOKEN: ${{ github.token }}
+      REFERENCE_GREASE_SHA: ba869518c7d850de6c47d8c6234654575e264e6c
+      REFERENCE_OILS_SHA: 5651cf97a1b5042f24f14112a7ade9a1518eb0bc
+      ASAN_OPTIONS: detect_leaks=0
+    run: |
+      set -euo pipefail
+      test "$(git -C reference-grease rev-parse HEAD)" = "$REFERENCE_GREASE_SHA"
+      test "$(git -C reference-grease rev-parse HEAD:source)" = "$REFERENCE_OILS_SHA"
+      test "$(git -C reference-oils rev-parse HEAD)" = "$REFERENCE_OILS_SHA"
+      sudo sysctl vm.mmap_rnd_bits=28
+      cd reference-oils
+      REPO_ROOT="$PWD" bash soil/github-actions.sh run-job cpp-spec podman
+      test "$(cat _tmp/soil/commit-hash.txt)" = "$REFERENCE_OILS_SHA"
+      soil/host-shim.sh did-all-succeed cpp-spec
+      test -x _bin/cxx-asan/ysh
+      mkdir -p "$RUNNER_TEMP/native-grease/_bin/cxx-asan" "$RUNNER_TEMP/reference-provenance"
+      source_digest=$(sha256sum _bin/cxx-asan/ysh | cut -d ' ' -f1)
+      install -m 755 _bin/cxx-asan/ysh "$RUNNER_TEMP/native-grease/_bin/cxx-asan/ysh"
+      printf '%s  %s\n' "$source_digest" "$RUNNER_TEMP/native-grease/_bin/cxx-asan/ysh" | sha256sum -c -
+      test "$("$RUNNER_TEMP/native-grease/_bin/cxx-asan/ysh" -c 'var n = 6 * 7; if (n !== 42) { exit 2 }; echo reference-only')" = reference-only
+      {
+        printf 'scope\tlegacy-cxx-ysh-reference-only\n'
+        printf 'grease_source_sha\t%s\n' "$REFERENCE_GREASE_SHA"
+        printf 'oils_source_sha\t%s\n' "$REFERENCE_OILS_SHA"
+        printf 'ysh_sha256\t%s\n' "$source_digest"
+        printf 'cpp_spec\tPASS\nproduction_grease\tNOT_ACCEPTED\n'
+      } > "$RUNNER_TEMP/reference-provenance/build.tsv"
+  - name: Acquire checksum-verified published ARM packaging fixtures (not executable host runtimes)
+    shell: sh
     run: |
       set -eu
       mkdir -p "$RUNNER_TEMP/native-grease/bin" "$RUNNER_TEMP/arm-payloads/a1" "$RUNNER_TEMP/arm-payloads/c67"
-      gh api repos/dilapidated-shed/grease/actions/artifacts/12192502970/zip > "$RUNNER_TEMP/grease.zip"
-      printf '%s  %s\n' 295329ec3bb419d90364fcb5937eafe4306b03f68b7aaa63089dadde8082ffb5 "$RUNNER_TEMP/grease.zip" | sha256sum -c -
-      unzip -q "$RUNNER_TEMP/grease.zip" '_bin/cxx-asan/ysh' -d "$RUNNER_TEMP/native-grease"
-      printf '%s  %s\n' 7e31cd05b7a9d8fb2a4a9e003a7f3fcb0159138506d17f0fb28da8cbe22aa85c "$RUNNER_TEMP/native-grease/_bin/cxx-asan/ysh" | sha256sum -c -
       curl -fsSL https://github.com/isomorphisms/grease/releases/download/phone-armv7-5ff32e220844/grease-armv7-termux.tar.gz -o "$RUNNER_TEMP/grease-a1.tar.gz"
       curl -fsSL https://github.com/isomorphisms/grease/releases/download/tablet-aarch64-9b3dc8904891/grease-aarch64-termux.tar.gz -o "$RUNNER_TEMP/grease-c67.tar.gz"
       printf '%s  %s\n' 7f2dce33f020a40156a297af38389298d2e4fb9933900379791dadb1e594b61a "$RUNNER_TEMP/grease-a1.tar.gz" | sha256sum -c -
@@ -60,7 +97,7 @@ runs:
       cp "$RUNNER_TEMP/arm-payloads/c67/bin/grease" "$RUNNER_TEMP/native-grease/bin/grease"
       printf '%s  %s\n' 37088097c36a2f82cf45aaea9392e4a4cf16155fecb9da87d08a9c7fb4d92e4a "$RUNNER_TEMP/native-grease/bin/grease" | sha256sum -c -
       ln -s ../_bin/cxx-asan/ysh "$RUNNER_TEMP/native-grease/bin/ysh"
-      chmod 755 "$RUNNER_TEMP/native-grease/bin/grease" "$RUNNER_TEMP/native-grease/_bin/cxx-asan/ysh"
+      chmod 755 "$RUNNER_TEMP/native-grease/bin/grease"
       printf '%s\n' "$RUNNER_TEMP/native-grease/bin" >> "$GITHUB_PATH"
   - name: Run independent checks through the registered FP pipeline
     shell: sh
@@ -85,5 +122,6 @@ runs:
       path: |
         ${{ runner.temp }}/transfer-evidence
         ${{ runner.temp }}/transfer-runs
+        ${{ runner.temp }}/reference-provenance
         !${{ runner.temp }}/transfer-evidence/**/bin/**
       if-no-files-found: warn

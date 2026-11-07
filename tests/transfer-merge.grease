@@ -30,4 +30,4 @@ run_check android-delivery sh "$catfood/tests/android-delivery.sh"
 run_check device-targets sh "$catfood/tests/targets.sh"
 run_check c67-delivery sh "$catfood/tests/c67-delivery.sh"
 run_check target-mutants sh "$catfood/tests/target-mutations.sh"
-printf 'PASS scoped native host and payload checks; physical and live transfer NOT_RUN\n'
+printf 'PASS scoped legacy YSH reference and published ARM packaging checks; production Grease NOT_ACCEPTED; physical and live transfer NOT_RUN\n'
