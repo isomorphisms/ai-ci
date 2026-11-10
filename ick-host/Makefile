@@ -11,12 +11,31 @@ ICK_LINK_FLAGS ?= -fno-link-libatomic
 ICK_QUALIFY_SOURCE := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))assignment-arrow.c
 ICK_QUALIFY_BUILD ?= $(ICK_STAGE)/qualification
 BUILD_JOBS ?= 2
+UBUNTU_CODENAME ?= $(shell lsb_release -cs)
+BOOTSTRAP_APT = -o Dir::Etc::sourcelist=/dev/null -o Dir::Etc::sourceparts=$(ICK_BUILD)/apt-sources -o Acquire::Retries=1 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 -o APT::Update::Error-Mode=any
 HOST_RUNTIME ?= /usr/lib/gcc/x86_64-linux-gnu/13
 RUNTIME_DEST = $(ICK_STAGE)/lib/gcc/x86_64-pc-linux-gnu/17.0.0
 RUNTIME_FILES = libgcc.a libgcc_eh.a libgcc_s.so crtbegin.o crtbeginT.o crtend.o crtbeginS.o crtendS.o libasan.a libasan.so libasan_preinit.o libubsan.a libubsan.so
 
-.PHONY: all qualify qualify-complex cache-key
+.PHONY: all dependencies extra-packages qualify qualify-complex cache-key
 all: $(ICK_COMPILER)
+
+# Hosted mirror indirection stalled for the full IB job on 2026-10-31.
+# Use Ubuntu's signed HTTPS archive directly for these bootstrap packages;
+# neither a missing repository nor an exhausted deadline can become success.
+dependencies:
+	test "$$(lsb_release -is)" = Ubuntu
+	test -n "$(UBUNTU_CODENAME)"
+	test -f /usr/share/keyrings/ubuntu-archive-keyring.gpg
+	mkdir -p "$(ICK_BUILD)/apt-sources"
+	printf '%s\n' 'Types: deb' 'URIs: https://archive.ubuntu.com/ubuntu/' 'Suites: $(UBUNTU_CODENAME) $(UBUNTU_CODENAME)-updates $(UBUNTU_CODENAME)-security' 'Components: main universe restricted multiverse' 'Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg' > "$(ICK_BUILD)/apt-sources/ubuntu.sources"
+	sudo timeout 240 apt-get $(BOOTSTRAP_APT) update
+	sudo timeout 240 apt-get $(BOOTSTRAP_APT) install -y build-essential flex bison texinfo libgmp-dev libmpfr-dev libmpc-dev
+
+extra-packages:
+	test -s "$(ICK_BUILD)/apt-sources/ubuntu.sources"
+	test -n "$(PACKAGES)"
+	sudo timeout 240 apt-get $(BOOTSTRAP_APT) install -y $(PACKAGES)
 
 qualify: qualify-complex
 	mkdir -p "$(ICK_QUALIFY_BUILD)"

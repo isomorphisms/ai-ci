@@ -1,0 +1,26 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 2) { echo 'usage: grease prepare-replay.grease AICI NEW_EVIDENCE' >&2; exit 2 }
+var repository = ARGV[0]
+var evidence = ARGV[1]
+for path in "$repository" "$evidence" {
+  if (len(path) === 0 or path[0] !== '/') { echo 'FAIL absolute path required' >&2; exit 2 }
+}
+if test -e "$evidence" { echo 'FAIL reused replay evidence' >&2; exit 2 }
+mkdir -p "$evidence"
+sudo apt-get install -y ripgrep unzip
+sudo chmod 666 /dev/kvm
+curl -fL --retry 2 https://nightly.link/isomorphisms/ib/actions/artifacts/13059301266.zip -o "$evidence/checkpoint.zip"
+var grease = "$repository/.tools/runtime/.build/grease/bin/grease"
+"$grease" "$repository/ib-source/reader/replay-input.grease" "$repository/.tools/ib-source" "$evidence/checkpoint.zip" "$evidence/input"
+cp "$evidence/checkpoint.zip" "$evidence/changed.zip"
+printf 'changed-byte-control' >> "$evidence/changed.zip"
+try {
+  "$grease" "$repository/ib-source/reader/replay-input.grease" "$repository/.tools/ib-source" "$evidence/changed.zip" "$evidence/refused" > "$evidence/archive-control.txt" 2>&1
+}
+if (_error.code === 0) { echo 'FAIL changed archive accepted' >&2; exit 1 }
+test ! -e "$evidence/refused"
+rg -F 'FAILED' "$evidence/archive-control.txt"
+printf 'candidate_ib\t513d72cb43d3097a61f6fcb821b6e4215def960f\nbackend\t0f9b6e1b867d424ac2ba0b2036a54ac74a277d7d\nartifact\t13059301266\narchive_sha256\t2ce4bf5fa14cc5f39320e835fdc1a0632f111100537d94702cf5edd5495b4bac\narchive_mutation\tREJECTED\n' > "$evidence/input-identity.tsv"
+var observer = $(git -C "$repository" rev-parse HEAD)
+printf 'observer_source\t%s\n' "$observer" >> "$evidence/input-identity.tsv"

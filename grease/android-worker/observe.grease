@@ -1,0 +1,72 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 6) { echo 'usage: grease observe.grease AICI INPUT ADB SERIAL EXPECTED_SOURCE NEW_EVIDENCE' >&2; exit 2 }
+var repository = ARGV[0]
+var input = ARGV[1]
+var adb = ARGV[2]
+var serial = ARGV[3]
+var source = ARGV[4]
+var evidence = ARGV[5]
+for path in "$repository" "$input" "$adb" "$evidence" { if (path[0] !== '/') { exit 2 } }
+if test -e "$evidence" { echo 'FAIL reused native Grease observation' >&2; exit 2 }
+if ($(cat "$input/receipts/source-commit.txt") !== source) { echo 'FAIL native Grease source pin' >&2; exit 1 }
+mkdir -p "$evidence"
+"$adb" -s "$serial" shell getprop ro.kernel.qemu | tr -d '\r' | rg -x 1
+"$adb" -s "$serial" shell getprop ro.product.cpu.abi | tr -d '\r' | rg -x x86_64
+var api = $("$adb" -s "$serial" shell getprop ro.build.version.sdk | tr -d '\r')
+if (api !== ENV.AICI_EXPECTED_ANDROID_API) { echo 'FAIL emulator API differs from lane' >&2; exit 1 }
+if (api !== '29' and api !== '34') { echo 'FAIL undeclared Android API' >&2; exit 1 }
+"$adb" -s "$serial" shell getprop ro.build.fingerprint > "$evidence/fingerprint.txt"
+var program = "$repository/grease/android-worker/pipe-probe.grease"
+cp "$program" "$evidence/probe.grease"
+sed 's@var uri = .*@var uri = "https://forged.invalid/"@' "$program" > "$evidence/source-mutant.grease"
+if cmp -s "$program" "$evidence/source-mutant.grease" { echo 'FAIL unchanged source control' >&2; exit 1 }
+cat > "$evidence/uri.txt" <<'URI'
+https://example.com/a?x='";$(printf SHOULD_NOT_EXECUTE)&q=%C3%A9
+URI
+printf 'YmluYXJ5OgD/Cg==' | base64 -d > "$evidence/payload.bin"
+printf 'file:///private/source\n' > "$evidence/invalid-uri.txt"
+{
+  printf 'IB-GREASE-PIPE1\n'
+  cat "$evidence/uri.txt" "$evidence/payload.bin"
+} > "$evidence/expected.bin"
+{
+  printf 'IB-GREASE-PIPE1\nhttps://forged.invalid/\n'
+  cat "$evidence/payload.bin"
+} > "$evidence/mutant-expected.bin"
+var runtime = "$input/libib_grease.so"
+var digest = $(sha256sum "$runtime" | cut -d ' ' -f 1)
+var remote = "/data/local/tmp/ib-grease-$digest"
+"$adb" -s "$serial" shell test ! -e "$remote"
+"$adb" -s "$serial" shell mkdir -m 700 "$remote"
+"$adb" -s "$serial" push "$runtime" "$remote/ysh"
+"$adb" -s "$serial" shell chmod 500 "$remote/ysh"
+"$adb" -s "$serial" pull "$remote/ysh" "$evidence/received-runtime"
+cmp "$runtime" "$evidence/received-runtime"
+for name in probe.grease source-mutant.grease uri.txt invalid-uri.txt payload.bin {
+  "$adb" -s "$serial" push "$evidence/$name" "$remote/$name"
+  "$adb" -s "$serial" shell chmod 400 "$remote/$name"
+}
+timeout 60 "$adb" -s "$serial" shell -T "$remote/ysh" "$remote/probe.grease" "$remote/uri.txt" "$remote/payload.bin" \
+  > "$evidence/positive.bin" 2> "$evidence/positive.stderr"
+cmp "$evidence/expected.bin" "$evidence/positive.bin"
+test ! -s "$evidence/positive.stderr"
+timeout 60 "$adb" -s "$serial" shell -T "$remote/ysh" "$remote/source-mutant.grease" "$remote/uri.txt" "$remote/payload.bin" \
+  > "$evidence/source-mutant.bin" 2> "$evidence/source-mutant.stderr"
+cmp "$evidence/mutant-expected.bin" "$evidence/source-mutant.bin"
+if cmp -s "$evidence/expected.bin" "$evidence/source-mutant.bin" { echo 'FAIL wrong-source program passed byte expectations' >&2; exit 1 }
+try {
+  timeout 60 "$adb" -s "$serial" shell -T "$remote/ysh" "$remote/probe.grease" "$remote/invalid-uri.txt" "$remote/payload.bin" \
+    > "$evidence/invalid.stdout" 2> "$evidence/invalid.stderr"
+}
+var status = _error.code
+printf '%s\n' "$status" > "$evidence/invalid.exit"
+if (status !== 42) { echo 'FAIL invalid-source refusal status' >&2; exit 1 }
+test ! -s "$evidence/invalid.stdout"
+rg -x -F 'refused:URI-scheme' "$evidence/invalid.stderr"
+"$adb" -s "$serial" shell -T "$remote/ysh" --version > "$evidence/runtime-version.txt" 2>&1
+git -C "$repository" rev-parse HEAD > "$evidence/observer-commit.txt"
+sha256sum "$runtime" "$program" "$evidence/source-mutant.grease" "$evidence/expected.bin" \
+  "$evidence/positive.bin" "$evidence/source-mutant.bin" > "$evidence/sha256.txt"
+printf 'schema\tgrease-Android-worker-observation-v1\napi\t%s\nabi\tx86_64\nsource\t%s\nactual_target_execution\tPASS\nquoted_URI_bytes\tPASS\nopaque_binary_pipe\tPASS\ninterpreted_source_mutant\tREJECTED\ninvalid_scheme\tREJECTED\nShizuku\tNOT_RUN\nICU\tNOT_RUN\nworking_reader\tNOT_RUN\nphysical_TAB_P10\tNOT_RUN\n' "$api" "$source" > "$evidence/receipt.tsv"
+cat "$evidence/receipt.tsv"

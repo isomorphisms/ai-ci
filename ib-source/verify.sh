@@ -32,19 +32,23 @@ lock="$root/responses.arena.lock"
 for file in "$receipt" "$arena" "$used" "$lock"; do
     test -f "$file" && test ! -L "$file" || fail 'missing, linked, or nonregular Arena file'
 done
-test "$(wc -c < "$receipt" | tr -d '[:space:]')" -le 8192 || fail 'oversized receipt'
+test "$(wc -c < "$receipt" | tr -d '[:space:]')" -le 16384 || fail 'oversized receipt'
 tr -cd '\011\012\040-\176' < "$receipt" | cmp -s - "$receipt" ||
     fail 'control bytes in receipt'
 awk -F '\t' '
     BEGIN {
         count=split("schema request_id source_key source_generation requested_url resolved_url http_status mime_type charset content_encoding utf8 redirect_count declared_length received_length transport arena_name arena_offset arena_end byte_count sha256 reopen_check acquisition_complete navigation_admitted", names," ")
         for (i=1;i<=count;i++) allowed[names[i]]=1
+        allowed["redirect_chain"]=1
+        allowed["transfer_decoding"]=1
     }
     NF!=2 || !allowed[$1] || $2=="" { bad=1 }
+    $1=="transfer_decoding" && $2!="identity" && $2!="chunked" { bad=1 }
     { seen[$1]++ }
     END {
-        for (key in allowed) if (seen[key]!=1) bad=1
-        if (bad || NR!=count) exit 1
+        for (i=1;i<=count;i++) if (seen[names[i]]!=1) bad=1
+        if (bad || seen["redirect_chain"]>1 || seen["transfer_decoding"]>1 ||
+            NR!=count+seen["redirect_chain"]+seen["transfer_decoding"]) exit 1
     }
 ' "$receipt" || fail 'receipt field set or duplicates invalid'
 field() { awk -F '\t' -v key="$1" '$1==key{print $2}' "$receipt"; }
@@ -74,6 +78,61 @@ canonical_number() {
 redirects=$(field redirect_count)
 canonical_number "$redirects" || fail 'bad redirect count'
 test "$redirects" -le 8 || fail 'redirect overflow'
+# Independent R1 decoding reads fields from the file itself; -v must not
+# reinterpret backslashes in observed URLs. Legacy retained v2 records remain
+# readable, while a present chain is mandatory evidence rather than decoration.
+awk -F '\t' '
+    function initial_projection(request,   scheme, authority, target, host, port, pieces, count) {
+        scheme=(request ~ /^https:\/\// ? "https://" : "http://")
+        authority=substr(request,length(scheme)+1)
+        sub(/[\/?#].*$/,"",authority)
+        target=substr(request,length(scheme)+length(authority)+1)
+        sub(/#.*/,"",target)
+        if (target=="" || substr(target,1,1)=="?") target="/" target
+        count=split(authority,pieces,":")
+        if (count>2 || pieces[1]=="" || index(authority,"@")) return ""
+        host=pieces[1]
+        port=(scheme=="https://" ? 443 : 80)
+        if (count==2) {
+            if (pieces[2] !~ /^[0-9]+$/ || pieces[2]+0<1 || pieces[2]+0>65535) return ""
+            port=pieces[2]+0
+        }
+        return scheme host ((scheme=="https://" && port==443) || (scheme=="http://" && port==80) ? "" : ":" sprintf("%d",port)) target
+    }
+    function url_part(   head, amount, value, authority) {
+        if (!match(rest,/^[1-9][0-9]* /)) { bad=1; return "" }
+        head=RLENGTH
+        if (head>5) { bad=1; return "" }
+        amount=substr(rest,1,head-1)+0
+        rest=substr(rest,head+1)
+        if (amount>2048 || length(rest)<amount) { bad=1; return "" }
+        value=substr(rest,1,amount)
+        rest=substr(rest,amount+1)
+        if (value !~ /^https?:\/\// || value ~ /[^!-~]/ || index(value,sprintf("%c",39))) { bad=1; return "" }
+        authority=value
+        sub(/^https?:\/\//,"",authority)
+        sub(/[\/?#].*$/,"",authority)
+        if (authority=="" || index(authority,"@")) { bad=1; return "" }
+        return value
+    }
+    { fields[$1]=$2 }
+    END {
+        wire=fields["redirect_chain"]
+        if (wire=="") exit 0
+        if (substr(wire,1,3)!="R1 " || length(wire)>8192) exit 1
+        rest=substr(wire,4)
+        value=url_part()
+        if (bad || value!=initial_projection(fields["requested_url"])) exit 1
+        for (hop=0;hop<fields["redirect_count"]+0;hop++) {
+            status=substr(rest,1,3)
+            if (status !~ /^(301|302|303|307|308)$/ || substr(rest,4,1)!=" ") exit 1
+            rest=substr(rest,5)
+            value=url_part()
+            if (bad) exit 1
+        }
+        if (rest!="" || value!=fields["resolved_url"]) exit 1
+    }
+' "$receipt" || fail 'redirect chain identity, count, status or URL mismatch'
 offset=$(field arena_offset)
 finish=$(field arena_end)
 length=$(field byte_count)

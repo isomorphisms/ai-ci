@@ -1,0 +1,97 @@
+#!/usr/bin/env grease
+# Original-byte verification only; no raw receipt is promoted to reader admission.
+set -eu -o pipefail
+if (len(ARGV) !== 8) { echo 'usage: grease verify-decoder-original.grease AICI ARENA ID GENERATION URL CHARSET EXPECTED_HEX NEW_EVIDENCE' >&2; exit 2 }
+var repository = ARGV[0]
+var root = ARGV[1]
+var identity = ARGV[2]
+var generation = ARGV[3]
+var requested = ARGV[4]
+var charset = ARGV[5]
+var expected_hex = ARGV[6]
+var evidence = ARGV[7]
+if (charset !== 'windows-1252' and charset !== 'iso-8859-1') { exit 2 }
+for path in "$repository" "$root" "$expected_hex" "$evidence" {
+  if (len(path) === 0 or path[0] !== '/') { exit 2 }
+}
+if test -e "$evidence" { echo 'FAIL reused original-byte evidence' >&2; exit 2 }
+mkdir -p "$evidence"
+printf '%s\n' "$identity" > "$evidence/identity"
+rg -x '[0-9a-f]{48}' "$evidence/identity"
+printf '%s\n' "$generation" > "$evidence/generation"
+rg -x '[1-9][0-9]{0,9}' "$evidence/generation"
+if (int(generation) > 2147483647) { exit 1 }
+test -d "$root"
+test ! -L "$root"
+var mode = $(stat -c %a "$root")
+if (mode !== '700') { echo 'FAIL nonprivate original-byte root' >&2; exit 1 }
+var receipt = "$root/receipts/$identity.tsv"
+for path in "$receipt" "$root/responses.arena" "$root/responses.arena.used" "$root/responses.arena.lock" {
+  test -f "$path"
+  test ! -L "$path"
+}
+var receipt_length = $(wc -c < "$receipt")
+if (int(receipt_length) > 16384) { exit 1 }
+tr -cd '\011\012\040-\176' < "$receipt" > "$evidence/ASCII-receipt"
+cmp "$receipt" "$evidence/ASCII-receipt"
+awk -F '\t' '
+  BEGIN {
+    count=split("schema request_id source_key source_generation requested_url resolved_url http_status mime_type charset content_encoding utf8 redirect_count declared_length received_length transport arena_name arena_offset arena_end byte_count sha256 reopen_check acquisition_complete navigation_admitted redirect_chain transfer_decoding", names," ")
+    for(i=1;i<=count;i++) allowed[names[i]]=1
+  }
+  NF!=2 || !allowed[$1] || $2=="" {bad=1}
+  {seen[$1]++}
+  END {for(i=1;i<=count;i++) if(seen[names[i]]!=1) bad=1; if(bad || NR!=count) exit 1}
+' "$receipt"
+proc expect(key, value) {
+  if ! rg -q -x -F "$key	$value" "$receipt" { echo "FAIL original source field $key" >&2; exit 1 }
+}
+proc field(key) { awk -F '\t' -v "key=$key" '$1==key{print $2}' "$receipt" }
+expect schema ib-icu-arena-v2
+expect request_id "$identity"
+expect source_key "arena:$identity"
+expect source_generation "$generation"
+expect requested_url "$requested"
+expect resolved_url "$requested"
+expect http_status 200
+expect mime_type text/html
+expect charset "$charset"
+expect content_encoding identity
+expect utf8 invalid
+expect redirect_count 0
+expect transport icu-app-process-via-binder-shizuku
+expect arena_name responses.arena
+expect reopen_check MATCH
+expect acquisition_complete YES
+expect navigation_admitted NO
+expect transfer_decoding identity
+expect redirect_chain "R1 $(printf %s "$requested" | wc -c) $requested"
+var offset = $(field arena_offset)
+var finish = $(field arena_end)
+var length = $(field byte_count)
+var pointer = $(cat "$root/responses.arena.used")
+for value in "$offset" "$finish" "$length" "$pointer" {
+  printf '%s\n' "$value" > "$evidence/number"
+  rg -x '0|[1-9][0-9]{0,17}' "$evidence/number"
+}
+if (int(length) < 1 or int(length) > 4194304 or int(offset) + int(length) !== int(finish) or int(finish) > int(pointer)) {
+  echo 'FAIL original source committed bounds' >&2; exit 1
+}
+var allocation = $(stat -c %s "$root/responses.arena")
+if (int(pointer) > int(allocation)) { echo 'FAIL original source commit pointer' >&2; exit 1 }
+expect received_length "$length"
+expect declared_length "$length"
+dd "if=$root/responses.arena" "of=$evidence/body" bs=65536 iflag=skip_bytes,count_bytes \
+  "skip=$offset" "count=$length" status=none
+var actual_length = $(wc -c < "$evidence/body")
+if (int(actual_length) !== int(length)) { echo 'FAIL original source short read' >&2; exit 1 }
+var digest = $(sha256sum "$evidence/body" | cut -d ' ' -f 1)
+expect sha256 "$digest"
+od -An -v -tx1 "$evidence/body" | tr -d '[:space:]' > "$evidence/actual-hex"
+tr -d '[:space:]' < "$expected_hex" > "$evidence/expected-hex"
+if ! cmp -s "$evidence/expected-hex" "$evidence/actual-hex" {
+  echo 'FAIL original source literal fixture bytes' >&2; exit 1
+}
+var after = $(cat "$root/responses.arena.used")
+if (after !== pointer) { echo 'FAIL original source changed during read' >&2; exit 1 }
+printf 'PASS\tib-decoder-source-original\t%s\t%s\t%s\t%s\n' "$identity" "$generation" "$charset" "$digest"

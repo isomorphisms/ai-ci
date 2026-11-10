@@ -13,6 +13,16 @@ source identity and navigation generation, HTTP 200, observed effective URL,
 complete acquisition, committed range, SHA-256 and positive navigation
 admission. It rejects the old body-only v1 receipt even if the body matches.
 
+An optional `redirect_chain` extends the retained 23-field v2 receipt without
+changing its source identity. When present, the oracle independently decodes
+the bounded ASCII `R1` wire: a byte-length-prefixed initial endpoint, followed
+by exactly `redirect_count` redirect status/byte-length-prefixed target pairs.
+The observed initial endpoint must match the requested URL after only default
+path/port and fragment projection; the final endpoint must match `resolved_url`.
+Only 301/302/303/307/308 are allowed. A bad chain cannot be ignored, and the
+extra field cannot hide a missing required field. Legacy retained receipts
+remain readable; this oracle does not authorize a new legacy acquisition.
+
 `sh ib-source/self-test.sh` first demonstrates a positive retained source,
 then mutates each admission field, schema shape, generation, range, digest,
 commit-pointer and private-directory permissions, requiring rejection of

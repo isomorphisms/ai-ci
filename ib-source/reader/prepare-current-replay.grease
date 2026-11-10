@@ -1,0 +1,28 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 2) { echo 'requires AICI NEW_EVIDENCE' >&2; exit 2 }
+var repository = ARGV[0]
+var evidence = ARGV[1]
+for path in "$repository" "$evidence" {
+  if (len(path) === 0 or path[0] !== '/') { exit 2 }
+}
+if test -e "$evidence" { echo 'FAIL reused current ART replay evidence' >&2; exit 2 }
+mkdir -p "$evidence/input"
+var archive = "$evidence/candidate.zip"
+var authorization = ENV.GITHUB_TOKEN
+curl --fail --location --silent --show-error --max-time 300 \
+  --header "Authorization: Bearer $authorization" \
+  https://api.github.com/repos/isomorphisms/ib/actions/artifacts/13073378636/zip \
+  --output "$archive"
+test "$(wc -c < "$archive")" = 777025265
+printf 'c4e320875a83c8f7659f58ef3ab529b17e410ba3bfe76244a4ad7fec3a8b906e  %s\n' "$archive" | sha256sum -c -
+unzip -q "$archive" -d "$evidence/input"
+test "$(cat "$evidence/input/ib-commit.txt")" = fabac08af063a923e50448b696c900b4a0f89caf
+test "$(cat "$evidence/input/native-client/ib-commit.txt")" = fabac08af063a923e50448b696c900b4a0f89caf
+printf 'schema\tib-current-art-replay-v1\nsource\tfabac08af063a923e50448b696c900b4a0f89caf\noriginal_run\t41279724988\noriginal_artifact\t13073378636\narchive_sha256\tc4e320875a83c8f7659f58ef3ab529b17e410ba3bfe76244a4ad7fec3a8b906e\nprofile\treader-v4\n' > "$evidence/input-identity.tsv"
+git -C "$repository" rev-parse HEAD > "$evidence/observer-commit.txt"
+sha256sum "$evidence/input/prepaint/reader.dex" "$evidence/input/activity/reader.dex" \
+  "$evidence/input/prepaint-decoding-gate-mutant/reader.dex" \
+  "$evidence/input/prepaint-decoding-mapping-mutant/reader.dex" \
+  "$evidence/input/prepaint-decoding-count-mutant/reader.dex" \
+  "$evidence/input/prepaint-decoding-carrier-mutant/reader.dex" > "$evidence/candidate-sha256.txt"
