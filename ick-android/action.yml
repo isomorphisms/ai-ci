@@ -75,3 +75,9 @@ runs:
         ICK_ANDROID_ABI: ${{ inputs.abi }}
         ICK_ANDROID_FORTIFY_SOURCE: ${{ inputs.fortify-source }}
       run: make -f "${{ github.action_path }}/Makefile" outputs ABI="$ICK_ANDROID_ABI" FORTIFY_SOURCE="$ICK_ANDROID_FORTIFY_SOURCE" ICK_STAGE="$RUNNER_TEMP/ick-android-$ICK_ANDROID_ABI-stage" >> "$GITHUB_OUTPUT"
+    - name: Preserve the qualified compiler before consumer work
+      if: steps.cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+      with:
+        path: ${{ runner.temp }}/ick-android-${{ inputs.abi }}-stage
+        key: ick-android-v3-gnu-property-${{ runner.os }}-${{ runner.arch }}-${{ inputs.abi }}-fbe86e23d55cfec2000c08e61deea2a407fd7175
