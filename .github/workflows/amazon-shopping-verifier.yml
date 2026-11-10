@@ -1,0 +1,26 @@
+name: Amazon shopping independent verifier syntax
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Preflight independent oracle
+        shell: sh
+        run: |
+          dash -n amazon-shopping/check-receipts.sh amazon-shopping/mutation-test.sh
+          sh -n amazon-shopping/check-receipts.sh amazon-shopping/mutation-test.sh
+          if sh amazon-shopping/check-receipts.sh /nonexistent /nonexistent >fixture.out 2>fixture.err; then
+            echo "missing receipts accepted" >&2
+            exit 1
+          fi
+          grep -F "ai-ci Amazon receipt FAIL: no retained acceptance receipts" fixture.err
