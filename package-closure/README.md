@@ -6,7 +6,9 @@ MANIFEST_GENERATOR GREASE OBSERVED_OUTPUT` recomputes that inventory read-only
 and compares it byte-for-byte. The consumer supplies independent required
 path/mode pairs. This bounded profile rejects all symlinks and special nodes;
 it does not silently follow links outside a package. Paths use ASCII letters,
-digits, `_`, `.`, `-`, `/`, and canonical nonempty components.
+digits, `_`, `.`, `+`, `-`, `/`, and canonical nonempty components. The literal
+`+` admits real GCC support headers such as `libgdiagnostics++.h`; it changes
+no node-type, traversal, runtime-eligibility or compiler-language rule.
 
 Missing/changed/extra material, duplicate/reordered/forged records, invalid
 paths, missing payloads and wrong modes fail. A producer-written manifest

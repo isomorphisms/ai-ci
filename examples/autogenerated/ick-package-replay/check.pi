@@ -1,0 +1,116 @@
+"""Synthetic archive controls; fake payloads never establish compiler execution."""
+import io
+from pathlib import Path
+import tarfile
+import tempfile
+from builtins import AssertionError, ValueError, setattr
+import package_replay
+
+def require(condition ∈ bool, message ∈ str) → None:
+    if not condition:
+        raise AssertionError(message)
+
+def add_member(archive ∈ object, name ∈ str, kind ∈ str, target ∈ str) → None:
+    member ∈ object ← tarfile.TarInfo(name)
+    setattr(member, "mode", 0o755)
+    payload ∈ bytes ← b"fixture only\n"
+    if kind == "symlink":
+        setattr(member, "type", tarfile.SYMTYPE)
+        setattr(member, "linkname", target)
+        archive.addfile(member)
+    elif kind == "hardlink":
+        setattr(member, "type", tarfile.LNKTYPE)
+        setattr(member, "linkname", target)
+        archive.addfile(member)
+    else:
+        if kind == "privileged":
+            setattr(member, "mode", 0o4755)
+        setattr(member, "size", len(payload))
+        archive.addfile(member, io.BytesIO(payload))
+
+def fixture(path ∈ object, mutation ∈ str) → None:
+    with tarfile.open(path, "w:gz") as archive:
+        add_member(archive, package_replay.DRIVER, "regular", "")
+        if mutation != "missing-frontend":
+            add_member(archive, package_replay.FRONTEND, "regular", "")
+        for header in ["stddef.h", "stdarg.h", "stdatomic.h", "libgdiagnostics++.h"]:
+            add_member(archive, str(package_replay.HEADERS) + "/" + header, "regular", "")
+        record ∈ str ← "source\t" + str(package_replay.ICK_SOURCE) + "\ngcc_reference\t" + str(package_replay.GCC_SOURCE) + "\nabi\tarmeabi-v7a\n"
+        if mutation == "wrong-source":
+            record ← "source\twrong\ngcc_reference\twrong\nabi\tarmeabi-v7a\n"
+        payload ∈ bytes ← record.encode("utf-8")
+        metadata ∈ object ← tarfile.TarInfo("qualification/receipt.tsv")
+        setattr(metadata, "mode", 0o644)
+        setattr(metadata, "size", len(payload))
+        archive.addfile(metadata, io.BytesIO(payload))
+        if mutation == "traversal":
+            add_member(archive, "../escape", "regular", "")
+        elif mutation == "absolute":
+            add_member(archive, "/escape", "regular", "")
+        elif mutation == "duplicate":
+            add_member(archive, package_replay.DRIVER, "regular", "")
+        elif mutation == "symlink":
+            add_member(archive, "redirect", "symlink", "/etc/passwd")
+        elif mutation == "hardlink-escape":
+            add_member(archive, "redirect", "hardlink", "../escape")
+        elif mutation == "hardlink-forward":
+            add_member(archive, "redirect", "hardlink", "not-yet-present")
+        elif mutation == "privileged":
+            add_member(archive, "privileged", "privileged", "")
+        elif mutation == "reserved":
+            add_member(archive, "material.tsv", "regular", "")
+        elif mutation == "good":
+            add_member(archive, "bin/driver-copy", "hardlink", package_replay.DRIVER)
+
+def refused(source ∈ object, digest ∈ str, destination ∈ object, diagnostic ∈ str) → None:
+    try:
+        package_replay.acquire_archive(source, digest, destination)
+    except ValueError as failure:
+        require(str(failure).startswith(diagnostic), "wrong rejection: " + str(failure))
+        require(not destination.exists(), "rejected archive created destination")
+        return
+    raise AssertionError("invalid archive accepted: " + diagnostic)
+
+def main() → None:
+    with tempfile.TemporaryDirectory(prefix="ick replay controls ") as directory:
+        root ∈ object ← Path(directory)
+        source ∈ object ← root.joinpath("good.tar.gz")
+        fixture(source, "good")
+        digest ∈ str ← package_replay.file_digest(source)
+        first ∈ object ← root.joinpath("first relocated stage")
+        second ∈ object ← root.joinpath("second relocated stage")
+        package_replay.acquire_archive(source, digest, first)
+        package_replay.acquire_archive(source, digest, second)
+        material ∈ bytes ← first.joinpath("material.tsv").read_bytes()
+        repeated ∈ bytes ← second.joinpath("material.tsv").read_bytes()
+        require(material == repeated, "canonical inventory changed after relocation")
+        literal_plus ∈ int ← material.find(b"libgdiagnostics++.h")
+        require(literal_plus >= 0, "literal-plus header omitted")
+        copied ∈ bytes ← first.joinpath("bin/driver-copy").read_bytes()
+        original ∈ bytes ← first.joinpath(package_replay.DRIVER).read_bytes()
+        require(copied == original, "internal hardlink bytes changed")
+        refused(source, "0000000000000000000000000000000000000000000000000000000000000000", root.joinpath("wrong-digest"), "ARCHIVE-DIGEST")
+        for mutation in ["traversal", "absolute", "duplicate", "symlink", "hardlink-escape",
+                         "hardlink-forward", "privileged", "reserved", "missing-frontend", "wrong-source"]:
+            archive ∈ object ← root.joinpath(mutation + ".tar.gz")
+            fixture(archive, mutation)
+            expected ∈ str ← package_replay.file_digest(archive)
+            diagnostic ∈ str ← "ARCHIVE-PATH"
+            if mutation == "duplicate":
+                diagnostic ← "ARCHIVE-DUPLICATE"
+            elif mutation == "symlink":
+                diagnostic ← "ARCHIVE-TYPE"
+            elif mutation == "hardlink-forward":
+                diagnostic ← "ARCHIVE-LINK"
+            elif mutation == "privileged":
+                diagnostic ← "ARCHIVE-MODE"
+            elif mutation == "reserved":
+                diagnostic ← "ARCHIVE-MANIFEST"
+            elif mutation == "missing-frontend":
+                diagnostic ← "ARCHIVE-PAYLOAD"
+            elif mutation == "wrong-source":
+                diagnostic ← "ARCHIVE-SOURCE"
+            refused(archive, expected, root.joinpath(mutation), diagnostic)
+    print("PASS archive acquisition: two relocated inventories, hardlink/plus-header positives and eleven targeted refusals; compiler execution NOT_RUN in synthetic controls")
+
+main()
