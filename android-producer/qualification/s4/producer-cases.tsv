@@ -1,0 +1,35 @@
+case	claim	expected	result
+accepted-counterpart	AUTHENTICATED_FIXTURE	PASS	PASS
+wrong-package	authenticated-fixture	field mismatch: package	PASS
+wrong-version	authenticated-fixture	field mismatch: version_code	PASS
+wrong-signer	authenticated-fixture	field mismatch: signer_cert_sha256	PASS
+wrong-plan	authenticated-fixture	field mismatch: plan_sha256	PASS
+wrong-publication	authenticated-fixture	field mismatch: publication_scope	PASS
+forged-decision	authenticated-fixture	unauthenticated producer object	PASS
+forged-witness	authenticated-fixture	unauthenticated producer object	PASS
+missing-compile	authenticated-fixture	missing, duplicate or malformed field: compile.result	PASS
+missing-link	authenticated-fixture	missing, duplicate or malformed field: link.result	PASS
+missing-strip	authenticated-fixture	missing, duplicate or malformed field: strip.result	PASS
+missing-package	authenticated-fixture	missing, duplicate or malformed field: package.result	PASS
+missing-inspect	authenticated-fixture	missing, duplicate or malformed field: inspect.result	PASS
+missing-build-toolchain	authenticated-fixture	missing, duplicate or malformed field: build-toolchain.result	PASS
+missing-signing	authenticated-fixture	missing, duplicate or malformed field: signing.result	PASS
+witness-started	authenticated-fixture	field mismatch: compile.started	PASS
+witness-exit	authenticated-fixture	field mismatch: compile.exit	PASS
+witness-executable_sha256	authenticated-fixture	field mismatch: compile.executable_sha256	PASS
+witness-argv_sha256	authenticated-fixture	field mismatch: compile.argv_sha256	PASS
+witness-output_sha256	authenticated-fixture	field mismatch: compile.output_sha256	PASS
+witness-trace_sha256	authenticated-fixture	field mismatch: compile.trace_sha256	PASS
+changed-apk	authenticated-fixture	field mismatch: apk_sha256	PASS
+sibling-apk	authenticated-fixture	field mismatch: apk_sha256	PASS
+actual-wrong-version	authenticated-fixture	actual APK inspection refused	PASS
+actual-wrong-package	authenticated-fixture	actual APK inspection refused	PASS
+actual-wrong-signer	authenticated-fixture	actual APK inspection refused	PASS
+replacement-counterpart	authenticated-identity-continuity-only	PASS	PASS
+prior-wrong-signer	authenticated-fixture	field mismatch: signer_cert_sha256	PASS
+prior-version-rollback	authenticated-fixture	versionCode rollback	PASS
+altered-verifier	authenticated-fixture	release material changed: runtime/aici	PASS
+stale-release	authenticated-fixture	field mismatch: release_sha256	PASS
+NDK-then-undeclared-packager	actual-host-execution	PTRACE_UNAVAILABLE	BLOCKED
+caller-selected-root	public-authority	caller override	PASS
+isolated-execution	isolated-supervisor	ISOLATION_UNAVAILABLE	BLOCKED

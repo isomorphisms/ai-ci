@@ -1,0 +1,35 @@
+name: Android producer artifact, execution and deployment qualification
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  candidate-qualification:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Require provisioned qualification material (no mutation claim on absence)
+        shell: sh
+        run: |
+          test -x /opt/aici/qualification/runtime/ysh || { echo '::error::DEPLOYMENT_BLOCKED: independent qualification runtime/material not provisioned'; exit 1; }
+          test -f /opt/aici/qualification/materials.env || { echo '::error::DEPLOYMENT_BLOCKED: exact NDK/SDK/packager/public-test-signer material record unavailable'; exit 1; }
+      - name: Qualify exact source through Grease
+        shell: sh
+        env:
+          AICI_SOURCE_PIN: ${{ github.event.pull_request.head.sha || github.sha }}
+        # Foreign runner interface only. Runtime, materials and limits are
+        # independently provisioned; the candidate cannot activate this release.
+        run: |
+          exec /usr/bin/env -i PATH=/usr/bin:/bin AICI_SOURCE_PIN="$AICI_SOURCE_PIN" /opt/aici/qualification/runtime/ysh /opt/aici/qualification/run-candidate.ysh "$GITHUB_WORKSPACE" "$RUNNER_TEMP/android-producer-qualification"
+  deployed-authority:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require independent active deployment
+        shell: sh
+        run: |
+          test -x /opt/aici/android-producer/current/runtime/ysh || { echo '::error::DEPLOYMENT_BLOCKED: qualified Android producer release not deployed'; exit 1; }
+          exec /usr/bin/env -i PATH=/usr/bin:/bin /opt/aici/android-producer/current/runtime/ysh /opt/aici/android-producer/current/policy/android-producer/preflight.ysh

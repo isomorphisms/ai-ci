@@ -1,0 +1,100 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+# Invoked only by the fixture harness while its disposable issuer exists.
+# Protected release and deployed execution qualification are never mutated.
+var GREASE = ENV.GREASE_BIN
+var script = $(/usr/bin/readlink -f "$0")
+var tests = $(/usr/bin/dirname "$script")
+var producer = $(/usr/bin/dirname "$tests")
+source "$producer/release.ysh"
+test "$#" = 2 || reject 'expected LIVE_FIXTURE_DIRECTORY FRESH_MUTATION_DIRECTORY'
+var fixture = "$1"
+var destination = "$2"
+var release = "$fixture/release"
+regular "$fixture/issuer.private.pem"
+/usr/bin/mkdir "$destination"
+printf 'mutant\tinvariant\tobservation\tresult\n' > "$destination/results.tsv"
+var tab = $(printf '\t')
+for kind in result started exit executable_sha256 argv_sha256 output_sha256 trace_sha256 decision-signature witness-signature inspector early-return; do
+  var root = "$destination/$kind"
+  /usr/bin/mkdir "$root"
+  /usr/bin/cp -R "$producer" "$root/producer"
+  var consumer = "$root/producer/tests/inspect.ysh"
+  var decision = "$root/decision.tsv"
+  /usr/bin/cp "$fixture/decision.tsv" "$decision"
+  /usr/bin/cp "$fixture/decision.tsv.sig" "$decision.sig"
+  /usr/bin/cp "$fixture/decision.tsv.witness.tsv" "$decision.witness.tsv"
+  /usr/bin/cp "$fixture/decision.tsv.witness.tsv.sig" "$decision.witness.tsv.sig"
+  /usr/bin/cp -R "$fixture/decision.tsv.evidence" "$decision.evidence"
+  var apk = "$fixture/payload.apk"
+  var expected = "field mismatch: compile.$kind"
+  case "$kind" in
+    result)
+      /usr/bin/sed -i '/equal_field "\$witness" "\$id.result" PASS/d' "$root/producer/decision.ysh"
+      ;;
+    started|exit|executable_sha256|argv_sha256)
+      /usr/bin/sed -i "/equal_field.*\$id.$kind/d" "$root/producer/decision.ysh"
+      ;;
+    output_sha256|trace_sha256)
+      /usr/bin/sed -i '/equal_field "\$witness" "${id}.${evidence}_sha256"/d' "$root/producer/decision.ysh"
+      ;;
+    decision-signature|witness-signature)
+      # Remove signature verification but retain regular-material checks.
+      /usr/bin/sed -i '/openssl dgst -sha256 -verify/d' "$root/producer/release.ysh"
+      setvar expected = 'unauthenticated producer object'
+      ;;
+    inspector)
+      /usr/bin/sed -i '/actual APK inspection refused/d' "$root/producer/decision.ysh"
+      setvar expected = 'actual APK inspection refused'
+      ;;
+    early-return)
+      /usr/bin/sed -i '/^proc verify_decision.*{/a\  return 0' "$root/producer/decision.ysh"
+      ;;
+  esac
+  # Every mutant must first accept the real valid counterpart. A parser, SDK,
+  # runtime or material failure cannot masquerade as corruption detection.
+  "$GREASE" "$consumer" "$release" "$fixture/anchor.public.pem" "$decision" "$apk" "$fixture/current.tsv" > "$root/positive.stdout" 2> "$root/positive.stderr"
+  if test "$kind" = early-return; then
+    test ! -s "$root/positive.stdout" || reject 'early return mutant unexpectedly emitted approval'
+    printf '%s\tmandatory-decision-execution\tvalid receipt absent after zero exit\tKILLED\n' "$kind" >> "$destination/results.tsv"
+    continue
+  fi
+  /usr/bin/grep -Fq 'PROMOTION' "$root/positive.stdout" || reject "mutant has no accepted counterpart: $kind"
+  case "$kind" in
+    decision-signature) printf 'forged signature\n' > "$decision.sig" ;;
+    witness-signature) printf 'forged signature\n' > "$decision.witness.tsv.sig" ;;
+    inspector)
+      setvar apk = "$fixture/sibling.apk"
+      var sibling_digest = $(sha "$apk")
+      var sibling_size = $(/usr/bin/stat -c %s "$apk")
+      /usr/bin/cp "$apk" "$decision.evidence/package.output"
+      /usr/bin/sed -i "s/^package.output_sha256$tab.*/package.output_sha256$tab$sibling_digest/;s/^apk_sha256$tab.*/apk_sha256$tab$sibling_digest/" "$decision.witness.tsv"
+      /usr/bin/sed -i "s/^apk_sha256$tab.*/apk_sha256$tab$sibling_digest/;s/^apk_size$tab.*/apk_size$tab$sibling_size/" "$decision"
+      ;;
+    *)
+      var wrong = '0000000000000000000000000000000000000000000000000000000000000000'
+      case "$kind" in
+        result) setvar wrong = 'SKIP'; ;;
+        started) setvar wrong = 'false'; ;;
+        exit) setvar wrong = '1'; ;;
+      esac
+      /usr/bin/sed -i "s/^compile.$kind$tab.*/compile.$kind$tab$wrong/" "$decision.witness.tsv"
+      ;;
+  esac
+  if test "$kind" != decision-signature && test "$kind" != witness-signature; then
+    /usr/bin/openssl dgst -sha256 -sign "$fixture/issuer.private.pem" -out "$decision.witness.tsv.sig" "$decision.witness.tsv"
+    var witness_digest = $(sha "$decision.witness.tsv")
+    /usr/bin/sed -i "s/^witness_sha256$tab.*/witness_sha256$tab$witness_digest/" "$decision"
+    /usr/bin/openssl dgst -sha256 -sign "$fixture/issuer.private.pem" -out "$decision.sig" "$decision"
+  fi
+  # The real candidate must refuse the corruption for the intended invariant.
+  if "$GREASE" "$tests/inspect.ysh" "$release" "$fixture/anchor.public.pem" "$decision" "$apk" "$fixture/current.tsv" > "$root/control.stdout" 2> "$root/control.stderr"; then reject "control accepted corruption: $kind"; fi
+  /usr/bin/grep -Fq "$expected" "$root/control.stderr" || reject "unrelated control failure: $kind"
+  test ! -s "$root/control.stdout" || reject 'control emitted approval on refusal'
+  # A meaningful mutant removes that refusal and accepts the corrupted input.
+  "$GREASE" "$consumer" "$release" "$fixture/anchor.public.pem" "$decision" "$apk" "$fixture/current.tsv" > "$root/mutant.stdout" 2> "$root/mutant.stderr"
+  /usr/bin/grep -Fq 'PROMOTION' "$root/mutant.stdout" || reject "invalid mutant: $kind"
+  printf '%s\t%s\tcorruption accepted by mutant; suite would fail\tKILLED\n' "$kind" "$expected" >> "$destination/results.tsv"
+done
+/usr/bin/cat "$fixture/execution-mutations.tsv" >> "$destination/results.tsv"
+/usr/bin/cat "$destination/results.tsv"

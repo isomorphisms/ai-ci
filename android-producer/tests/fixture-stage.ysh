@@ -1,0 +1,36 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+# Registered test recipe only; the production adapter/graph is release-owned.
+test "$#" = 3 || exit 2
+var release = "$1"
+var work = "$2"
+var stage = "$3"
+var ysh = "$release/runtime/ysh"
+var package = 'org.isomorphisms.pauli'
+var version = '6'
+case "$stage" in
+  package)
+    /usr/bin/env -i PATH=/usr/bin:/bin LSAN_OPTIONS=detect_leaks=0 ANDROID_NDK_ROOT="$release/tools/ndk" ANDROID_SDK_ROOT="$release/tools/sdk" ANDROID_JAVA_HOME="$release/tools/jre" AICI_ROOT="$release/inspection-policy" ANDROID_MIN_SDK=21 ANDROID_TARGET_SDK=34 ANDROID_PACKAGE_ID="$package" ANDROID_VERSION_CODE="$version" ANDROID_VERSION_NAME=qualification ANDROID_KEYSTORE="$release/materials/test-signing.p12" ANDROID_KEY_ALIAS=wegert-debug ANDROID_STORE_PASSWORD=wegert-debug ANDROID_KEY_PASSWORD=wegert-debug "$ysh" "$release/packager/apk/build-nativeactivity-apk.ysh" "$release/source/manifest.xml" "$work/libfixture.so" armeabi-v7a "$work/payload.apk" > "$work/package.log"
+    ;;
+  inspect)
+    /usr/bin/env -i PATH=/usr/bin:/bin LSAN_OPTIONS=detect_leaks=0 ANDROID_NDK_ROOT="$release/tools/ndk" ANDROID_SDK_ROOT="$release/tools/sdk" ANDROID_JAVA_HOME="$release/tools/jre" AICI_ROOT="$release/inspection-policy" "$ysh" "$release/packager/apk/inspect-nativeactivity-apk.ysh" "$work/payload.apk" armeabi-v7a libfixture.so "$package" "$version" > "$work/inspect.log"
+    ;;
+  build-toolchain)
+    "$release/runtime/aici" verify "$release/policy/contracts/build-toolchain-v0.contract.tsv" "$release/source" > "$work/build-toolchain.log"
+    ;;
+  signing)
+    "$release/runtime/aici_android_signing" verify "$release/policy/android-signing/identities.tsv" "$package" test de9b1d47c5a65e6d46a204b79dd9ee566b9d3c9832ba81ebc4213d3392e92ff9 > "$work/signing.log"
+    ;;
+  hostile-package)
+    # Actually execute an undeclared packager AFTER the real NDK compile/link.
+    # Grease itself succeeds: only the independent exec observer should refuse.
+    /usr/bin/mkdir "$work/hostile-content"
+    /usr/bin/unzip -q "$release/materials/metadata-template.apk" -d "$work/hostile-content"
+    /usr/bin/rm -rf "$work/hostile-content/META-INF"
+    /usr/bin/cp "$work/libfixture.so" "$work/hostile-content/lib/armeabi-v7a/libfixture.so"
+    cd "$work/hostile-content" { "$release/materials/undeclared-packager" -q -r "$work/hostile-unaligned.apk" AndroidManifest.xml lib }
+    "$release/tools/sdk/build-tools/35.0.0/zipalign" -f 4 "$work/hostile-unaligned.apk" "$work/hostile-aligned.apk"
+    ANDROID_STORE_PASSWORD=wegert-debug ANDROID_KEY_PASSWORD=wegert-debug "$release/tools/jre/bin/java" -jar "$release/tools/sdk/build-tools/35.0.0/lib/apksigner.jar" sign --ks "$release/materials/test-signing.p12" --ks-type PKCS12 --ks-pass env:ANDROID_STORE_PASSWORD --key-pass env:ANDROID_KEY_PASSWORD --ks-key-alias wegert-debug --out "$work/payload.apk" "$work/hostile-aligned.apk"
+    ;;
+  *) exit 2 ;;
+esac
