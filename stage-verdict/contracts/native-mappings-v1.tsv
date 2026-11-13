@@ -1,0 +1,14 @@
+owner_schema	adapter_mode	state	native_field	normalized_field	mapping
+aici-ingestion-receipt-v1	ingestion	IMPLEMENTED	meta.*	source_meta.*	exact closed-schema copy
+aici-ingestion-receipt-v1	ingestion	IMPLEMENTED	summary.*	source_summary.*	exact closed-schema copy
+aici-ingestion-receipt-v1	ingestion	IMPLEMENTED	meta.implementation_revision	source_identity	exact
+aici-ingestion-receipt-v1	ingestion	IMPLEMENTED	meta.executable_sha256	producer_digest	exact; none becomes explicit absent marker
+aici-ingestion-receipt-v1	ingestion	IMPLEMENTED	meta.producer	outer.producer	exact
+aici-ingestion-receipt-v1	ingestion	IMPLEMENTED	stage.name	stage_id	exact closed seven-stage order
+aici-ingestion-receipt-v1	ingestion	IMPLEMENTED	stage.owner	actor	exact
+aici-ingestion-receipt-v1	ingestion	IMPLEMENTED	stage.status	observation	PASS to PASS; FAIL to FAIL; not_applicable SKIP to SKIPPED; blocking SKIP to NOT_RUN
+aici-ingestion-receipt-v1	ingestion	IMPLEMENTED	stage.code	native_code	exact
+aici-ingestion-receipt-v1	ingestion	IMPLEMENTED	stage.evidence	detail	exact
+aici-ingestion-receipt-v1	ingestion	IMPLEMENTED	absent	exit;signal;command;log_digest	explicit absent marker
+kitchen-k05	-	PENDING_OWNER_SCHEMA	-	-	no inferred mapping
+flexible-pipes-attempt	-	PENDING_OWNER_SCHEMA	-	-	no inferred mapping

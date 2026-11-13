@@ -1,0 +1,2 @@
+attempt	stage_id	actor	observation	evidence_validity	exit	signal	command	source_identity	producer_digest	log_digest	native_code	detail
+1	task	application	FAIL	VALID	0	-	run-control	1111111111111111111111111111111111111111	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb	error_text	zero exit contradicts failure

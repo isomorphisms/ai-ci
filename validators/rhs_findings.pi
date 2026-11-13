@@ -153,7 +153,78 @@ def determinant(matrix ∈ list[list[Fraction]]) → Fraction:
                 work[row][position] ← subtract(work[row][position], multiply(factor, work[column][position]))
     return result
 
+
+def exact_integer_side(value ∈ Fraction) → int:
+    integer ∈ int ← int(value)
+    if not equal(value, Fraction(integer)):
+        raise ValueError("Affine classification requires an integral score")
+    if integer < 0:
+        return -1
+    if integer > 0:
+        return 1
+    return 0
+
+def affine_predicate(relation ∈ str, fields ∈ dict[str, str]) → bool:
+    point ∈ list[Fraction] ← vector(fields["point"], 1)
+    normal ∈ list[Fraction] ← vector(fields["normal"], 1)
+    if len(normal) != len(point) or equal(pairing(normal, normal), Fraction(0)):
+        raise ValueError("Invalid affine normal")
+    offset ∈ Fraction ← Fraction(int(fields["offset"]))
+    base ∈ Fraction ← add(pairing(normal, point), offset)
+    if relation == "hyperplane/affine-side":
+        return int(fields["side"]) == exact_integer_side(base)
+    if relation == "hyperplane/scale-and-side":
+        scale ∈ int ← int(fields["scale"])
+        if scale == 0:
+            raise ValueError("Nonzero affine scaling required")
+        revised_normal ∈ list[Fraction] ← vector(fields["scaled.normal"], 1)
+        if len(revised_normal) != len(normal):
+            raise ValueError("Incomplete scaled normal")
+        for index in range(len(normal)):
+            if not equal(revised_normal[index], multiply(Fraction(scale), normal[index])):
+                return False
+        if not equal(Fraction(int(fields["scaled.offset"])), multiply(Fraction(scale), offset)):
+            return False
+        return int(fields["side.before"]) == exact_integer_side(base) and int(fields["side.after"]) == exact_integer_side(multiply(Fraction(scale), base))
+    if relation == "hyperplane/orthogonal-frame":
+        dimensions ∈ int ← len(point)
+        if dimensions > 6:
+            raise ValueError("Unsupported orthogonal frame dimension")
+        denominator ∈ int ← int(fields["basis.denominator"])
+        if denominator <= 0:
+            raise ValueError("Unsupported basis denominator")
+        matrix ∈ list[list[Fraction]] ← []
+        encoded_rows ∈ list[str] ← fields["basis.numerators"].split(";")
+        for encoded_row in encoded_rows:
+            matrix.append(vector(encoded_row, denominator))
+        if len(matrix) != dimensions:
+            raise ValueError("Incomplete orthogonal frame")
+        for matrix_row in matrix:
+            if len(matrix_row) != dimensions:
+                raise ValueError("Incomplete matrix row")
+        for first in range(dimensions):
+            for second in range(dimensions):
+                column_inner ∈ Fraction ← Fraction(0)
+                for row_index in range(dimensions):
+                    column_inner ← add(column_inner, multiply(matrix[row_index][first], matrix[row_index][second]))
+                if not equal(column_inner, Fraction(int(first == second))):
+                    return False
+        rotated_point ∈ list[Fraction] ← vector(fields["point.after.numerators"], denominator)
+        rotated_normal ∈ list[Fraction] ← vector(fields["normal.after.numerators"], denominator)
+        if len(rotated_point) != dimensions or len(rotated_normal) != dimensions:
+            raise ValueError("Incomplete transformed point or normal")
+        for row_index in range(dimensions):
+            if not equal(pairing(matrix[row_index], point), rotated_point[row_index]):
+                return False
+            if not equal(pairing(matrix[row_index], normal), rotated_normal[row_index]):
+                return False
+        transformed ∈ Fraction ← add(pairing(rotated_normal, rotated_point), offset)
+        return equal(transformed, base) and int(fields["side.before"]) == exact_integer_side(base) and int(fields["side.after"]) == exact_integer_side(transformed)
+    raise ValueError("Unsupported affine relation")
+
 def predicate(relation ∈ str, fields ∈ dict[str, str]) → bool:
+    if relation == "hyperplane/affine-side" or relation == "hyperplane/scale-and-side" or relation == "hyperplane/orthogonal-frame":
+        return affine_predicate(relation, fields)
     if relation == "exchange/preserve-alias" or relation == "exchange/zero-alias":
         exchanged ∈ bool ← fields["distinct.after.left"] == fields["distinct.before.right"] and fields["distinct.after.right"] == fields["distinct.before.left"]
         if relation == "exchange/zero-alias":

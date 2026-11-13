@@ -1,0 +1,5 @@
+stage_id	actor	required	selected	depends_on	claim
+build	compiler	yes	yes	-	build
+test	test-runner	yes	yes	build	semantic_test
+package	packager	yes	yes	test	package
+publish	publisher	yes	yes	package	publication

@@ -16,6 +16,12 @@ oracle identity in candidate metadata, a non-`none` fallback field, a later
 success after the first failed or unimplemented boundary, and inaccurate
 `first_failure` / `first_incomplete` summaries.
 
+After owner-schema validation, the action maps the same receipt through the
+[lossless stage-verdict adapter](../stage-verdict/README.md). The mapping keeps
+all seven native rows and fails the action when required scope is failed or
+incomplete; a structurally valid failure receipt no longer makes the wrapper
+green. Native fields absent from this receipt version remain explicitly absent.
+
 Consumers must pin `isomorphisms/ai-ci` by a full commit SHA and record that SHA
 as `corpus_repository_revision`; `corpus_revision` comes from
 `corpus-v1/REVISION`.

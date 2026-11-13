@@ -1,0 +1,5 @@
+LARGE_Q_POLICY sha256=62876c6fd69b1bb22267d316690d15843fab9acb705a1e83a886178eb2084124 delta_abs=0.000002 raw_pair_domain=RANGE_REJECTED_UNQUALIFIED
+large_q_raw_pair_domain=RANGE_REJECTED_UNQUALIFIED
+large_q_phase_delta=-1.9966999999954105e-05 expected=-2.0000399558280618e-05 absolute_error=3.3399558326513261e-08
+large_q_log_delta=2.0027000000033546e-05 expected=1.9999999547628643e-05 absolute_error=2.7000452404903205e-08
+PASS separate large-q guard, precolour delta and same-program RGBA8; raw pair RANGE_REJECTED_UNQUALIFIED

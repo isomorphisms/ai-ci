@@ -48,6 +48,7 @@ jobs:
           path: ${{ runner.temp }}/ick-android-${{ matrix.abi }}-stage.tar.gz
           if-no-files-found: error
       - name: Retain source, compiler, NDK and ELF evidence
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: ick-android-${{ matrix.abi }}-${{ github.event.pull_request.head.sha || github.sha }}

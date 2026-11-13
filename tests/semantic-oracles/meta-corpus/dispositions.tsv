@@ -1,0 +1,27 @@
+case_id	status	evidence_or_owner	note
+M01	EXECUTED_THIS_SLICE	meta-corpus/m01-*	Independent offsets 0,1 grade correct and wrong-offset implementations.
+M02	EXECUTED_THIS_SLICE	meta-corpus/m02-*	Set membership grades missing, reordered and renamed controls while preserving bad-test disagreement.
+M03	CONDITIONAL_CANDIDATE	BC-A04-S01	Stage-verdict candidate owns wrapper-hidden failure normalization; it is not imported here.
+M04	EXECUTED_THIS_SLICE	meta-corpus/m04-circular	Candidate-produced expected output remains UNTRUSTED_PRODUCER and cannot certify itself.
+M05	RETAINED_EXISTING_CONTROL	merge-state	Existing wrong-revision control remains outside this bounded runner.
+M06	EXECUTED_THIS_SLICE	meta-corpus/m06-*	Missing, empty and never-run selections all hold for evidence.
+M07	RETAINED_EXISTING_CONTROL	evaluation-case-v0	Existing unknown-field fixture remains the structural evidence control.
+M08	RETAINED_EXISTING_CONTROL	evaluation-protocol	Existing structural-versus-semantic boundary remains explicit.
+M09	EXECUTED_THIS_SLICE	meta-corpus/m09-independent-disagreement	Contradictory independent expectations are retained for STAR judgment.
+M10	RETAINED_EXISTING_CONTROL	merge-state	Physical evidence stays NOT_VERIFIED in the existing receipt controls.
+M11	RETAINED_EXISTING_CONTROL	workflow-integrity-v0	Comment-only checkout reference rejection remains owned by workflow integrity.
+M12	RETAINED_EXISTING_CONTROL	workflow-integrity-v0	Quoted YAML failure masking remains owned by workflow integrity.
+M13	RETAINED_EXISTING_CONTROL	workflow-integrity-v0	Harmless quoted operator text remains a benign control.
+M14	RETAINED_EXISTING_CONTROL	ingestion	Fabricated execution trace rejection remains in the ingestion verifier.
+M15	RETAINED_EXISTING_CONTROL	followers	Follower self-supersession rejection remains in the follower verifier.
+M16	RETAINED_EXISTING_CONTROL	merge-authority	Contradictory authority rejection remains in merge authorization.
+M17	DEFERRED_NOT_EXECUTED	merge-retirement	Live refresh before mutation needs its owner integration slice.
+M18	RETAINED_EXISTING_CONTROL	scoped-evidence-v0	Unrelated actor failure remains benign in scoped runtime evidence.
+M19	RETAINED_EXISTING_CONTROL	scoped-evidence-v0	Target-attributed fatal evidence remains rejecting.
+M20	RETAINED_EXISTING_CONTROL	holomorphic-t1-receipt	Unknown receipt metadata remains rejected by the retained candidate gate.
+M21	RETAINED_EXISTING_CONTROL	holomorphic-t1-receipt	Semantic mismatch remains a separately observed result.
+M22	RETAINED_EXISTING_CONTROL	evaluation-protocol	Executable spelling alone remains insufficient fallback evidence.
+M23	EXECUTED_THIS_SLICE	meta-corpus/m23-*	Set and case-order permutations produce identical canonical verdict bytes.
+M24	DEFERRED_NOT_EXECUTED	publication-refresh	Interrupted result publication requires its owner attempt-history slice.
+M25	DEFERRED_NOT_EXECUTED	bounded-streaming	Exact byte and event streaming remains outside this bounded runner.
+M26	DEFERRED_NOT_EXECUTED	retry-history	Flaky history retention remains owned by the attempt-history slice.

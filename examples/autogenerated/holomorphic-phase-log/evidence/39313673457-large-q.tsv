@@ -1,0 +1,43 @@
+field	value
+scope	actual SwiftShader bounded large-q diagnostic; aggregate emulator FAIL
+application_commit	06e12ce7083b0dd00911910adaac1d7c487edfe6
+workflow_run	https://github.com/isomorphismes/holomorphic/actions/runs/39313673457
+emulator_job	118282628081
+artifact_id	12218317521
+artifact_zip_sha256	f85744bbdaf797c4228eb39dbb20e27d69d9d2f041c816debd065c24de54fe35
+original_runtime_log_sha256	4bf543aceec733a53e206b8f8848b6d1c0cb00e556c60192213c72b63fc5279e
+apk_sha256	09b95a402fef5375d3e17b6edee36eaa0353c67526e5b36325859f1e5f2b3213
+fragment_sha256	d909921bc9cbedbeec8266daa5dfbeac23fc5502a2be9ad3c1dc5aa826676b54
+fragment_bytes	29606
+driver_source_readback_sha256	d909921bc9cbedbeec8266daa5dfbeac23fc5502a2be9ad3c1dc5aa826676b54
+backend_commit	8ecb501375110cb326e7fecb109f794185382112
+gl_driver	OpenGL ES 3.0 SwiftShader 4.0.0.1; Android Emulator OpenGL ES Translator; Google
+policy_first_published_revision	b703be117afff1a9efac016988efec7183147e8a
+independent_reference_revision	76043b9a16883ea8366b7c347dbf2639833d9307
+local_diagnostic_only_checker_blob	18fdc68ee04e6aa3f607daf6eaaaacf9d3d8d711
+ithon_revision	d6e83969f82512e920fb17b44326cb54f31d015c; exact restored host frontend
+large_q_policy_sha256	62876c6fd69b1bb22267d316690d15843fab9acb705a1e83a886178eb2084124
+raw_baseline	phase=1000 log=1000 order=0 produced=1 gl_error=0
+raw_pair	phase=1000 log=1000 order=0 produced=0 gl_error=0
+raw_pair_domain	RANGE_REJECTED_UNQUALIFIED
+precolour_baseline	phase=0.973510742 log=0.678039551 order=0 produced=1 gl_error=0
+precolour_pair	phase=0.973490775 log=0.678059578 order=0 produced=1 gl_error=0
+precolour_phase_delta_observed	-0.000019966999999954105
+precolour_phase_delta_expected_binary64	-0.000020000399558280618
+precolour_phase_delta_error	0.000000033399558326513261
+precolour_log_delta_observed	0.000020027000000033546
+precolour_log_delta_expected_binary64	0.000019999999547628643
+precolour_log_delta_error	0.000000027000452404903205
+precolour_delta_budget	0.000002
+rgba8_baseline	197,163,114,255
+rgba8_pair	197,163,114,255
+rgba8_channel_budgets	1,1,1,0
+separate_large_q_acceptance	PASS
+ordinary_34_acceptance	FAIL 24_displaced:0; same phase and colour counterexample as historical run39310320206
+aggregate_emulator_acceptance	FAIL
+hosted_large_q_audit	NOT_RUN because ordinary audit rejected first
+independent_local_large_q_audit	PASS actual full log
+physical_A1_GE8322	NOT_RUN
+physical_C67_GE8320	NOT_RUN
+physical_TAB_P10_Mali_G57	NOT_RUN
+sustained_performance	NOT_RUN

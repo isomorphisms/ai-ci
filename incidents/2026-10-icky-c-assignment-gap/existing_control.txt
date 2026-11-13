@@ -1,0 +1,1 @@
+General ICK-or-NDK declarations, workflow integrity, ordinary-C builds and functorial-style prose did not establish the missing ← capability. Issue #217 already tracks functorial Icky C drift. The compiler repair now supplies an executed literal-syntax control; it does not audit existing consumers or implement ai-ci source enforcement.

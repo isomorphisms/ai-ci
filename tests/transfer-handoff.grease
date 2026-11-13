@@ -85,6 +85,26 @@ setglobal ENV.FP_TRANSFER_STATE = "$output/candidate-7-redirect/job"
 count=$(wc -l < "$output/candidate-7-redirect/remote/posts" | tr -d ' ')
 test "$count" = 1
 printf 'PASS\tknown-bad-candidate-7-redirect\told-posts=1\tcurrent-posts=0\n'
+# The public named FP operation only prepares exact Kitchen bytes. It must not
+# make a fixture call while rendering, and the historical four-argument route
+# must no longer look like a qualified execution alias.
+mkdir -p "$output/display/remote"
+setglobal ENV.AICI_TRANSFER_FIXTURE = "$output/display/remote"
+setglobal ENV.AICI_TRANSFER_SCENARIO = 'normal'
+setglobal ENV.KITCHEN_ROOT = kitchen
+kitchen_revision=$(git -C "$kitchen" rev-parse HEAD)
+"$grease" "$fp/scripts/how-to-move-the-users-github-repository-to-a-different-organization.ysh" isomorphisms Museum_of_Shaders Museum_of_Shaders functorial-games isomorphisms "$kitchen_revision" 1412731191 conanwu777/Museum_of_Shaders > "$output/display/program.grease"
+cmp "$output/program.grease" "$output/display/program.grease"
+test ! -e "$output/display/remote/posts"
+try { "$grease" "$fp/scripts/how-to-move-the-users-github-repository-to-a-different-organization.ysh" isomorphisms Museum_of_Shaders functorial-games isomorphisms > "$output/display/four.stdout" 2> "$output/display/four.stderr" }
+if (_error.code === 0) { echo 'FAIL public four-argument transfer route survived'; exit 1 }
+grep -F 'usage:' "$output/display/four.stderr" >/dev/null
+test ! -e "$output/display/remote/posts"
+try { "$grease" "$fp/scripts/how-to-move-the-users-github-repository-to-a-different-organization.ysh" isomorphisms considered consider functorial-games isomorphisms "$kitchen_revision" 1412731191 conanwu777/Museum_of_Shaders > "$output/display/ambiguous.stdout" 2> "$output/display/ambiguous.stderr" }
+if (_error.code === 0) { echo 'FAIL unresolved considered/consider identity was accepted'; exit 1 }
+grep -F 'repository name remains unresolved' "$output/display/ambiguous.stderr" >/dev/null
+test ! -e "$output/display/remote/posts"
+printf 'PASS\tpublic-display-only\texact-kitchen-bytes=true\tposts=0\n'
 # Cross-owner execution through the maintained FP session, twice.
 mkdir -p "$output/controller/remote"
 approved_digest=$(sha256sum "$output/program.grease" | cut -d ' ' -f1)
@@ -97,7 +117,7 @@ for pass in 1 2; do
     setglobal ENV.KITCHEN_ROOT = kitchen
     setglobal ENV.AICI_ROOT = "$here/.."
     setglobal ENV.FP_TRANSFER_JOB_ROOT = "$output/controller/state"
-    "$grease" "$fp/scripts/how-to-move-the-users-github-repository-to-a-different-organization.ysh" isomorphisms Museum_of_Shaders functorial-games isomorphisms 1412731191 conanwu777/Museum_of_Shaders > "$output/controller/pass-$pass.stdout" 2> "$output/controller/pass-$pass.stderr"
+    "$grease" "$fp/scripts/execute-github-repository-organization-transfer.grease" isomorphisms Museum_of_Shaders functorial-games isomorphisms 1412731191 conanwu777/Museum_of_Shaders > "$output/controller/pass-$pass.stdout" 2> "$output/controller/pass-$pass.stderr"
 done
 count=$(wc -l < "$output/controller/remote/posts" | tr -d ' ')
 test "$count" = 1
@@ -107,7 +127,7 @@ grep -F 'BLOCKED publication' "$output/controller/pass-2.stdout" >/dev/null
 setglobal ENV.FP_TRANSFER_CONTEXT = 'live'
 setglobal ENV.AICI_TRANSFER_FIXTURE = "$output/controller/live-remote"
 mkdir -p "$output/controller/live-remote"
-try { "$grease" "$fp/scripts/how-to-move-the-users-github-repository-to-a-different-organization.ysh" isomorphisms Museum_of_Shaders functorial-games isomorphisms 1412731191 conanwu777/Museum_of_Shaders > "$output/controller/live.stdout" 2> "$output/controller/live.stderr" }
+try { "$grease" "$fp/scripts/execute-github-repository-organization-transfer.grease" isomorphisms Museum_of_Shaders functorial-games isomorphisms 1412731191 conanwu777/Museum_of_Shaders > "$output/controller/live.stdout" 2> "$output/controller/live.stderr" }
 if (_error.code === 0) { echo 'FAIL live execution admitted by local envelope'; exit 1 }
 test ! -f "$output/controller/live-remote/posts"
 # Independently reject changed delivered bytes and an absent FP envelope.

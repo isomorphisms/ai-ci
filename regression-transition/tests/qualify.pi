@@ -1,0 +1,102 @@
+"""Positive/hostile result pairs for the independent comparison gate."""
+import sys
+import json
+import subprocess
+from pathlib import Path
+from builtins import dict, list, ValueError, AssertionError
+
+args ∈ list[str] ← sys.argv
+root ∈ str ← args[1]
+ithon ∈ str ← args[2]
+output ∈ Path ← Path(args[3])
+output.mkdir(parents=True, exist_ok=False)
+validator ∈ str ← root + "/validators/regression_transition.pi"
+
+def fixture(status ∈ str, name ∈ str) → dict[str, object]:
+    messages ∈ list[str] ← ["AssertionError: expected observed behavior"] if status == "failed" else []
+    assertions ∈ list[dict[str, object]] ← [{"fullName": name, "status": status, "failureMessages": messages}]
+    suites ∈ list[dict[str, object]] ← [{"message": "", "assertionResults": assertions}]
+    return {"numTotalTests": 1, "numPassedTests": 1 if status == "passed" else 0, "numFailedTests": 1 if status == "failed" else 0, "numPendingTests": 1 if status == "pending" else 0, "success": status == "passed", "testResults": suites}
+
+cases ∈ list[tuple[str, str]] ← [("positive", "PASS"), ("absent", "REGRESSION_CASE_ABSENT"), ("duplicate", "REGRESSION_CASE_DUPLICATE"), ("candidate-failed", "REGRESSION_CANDIDATE_NOT_PASSED"), ("baseline-passed", "REGRESSION_BASELINE_NOT_FAILED"), ("unexecuted", "REPORT_UNEXECUTED_ASSERTION"), ("loader-error", "REPORT_LOADER_ERROR"), ("count-only", "REPORT_ASSERTIONS_REQUIRED"), ("wrong-counts", "REPORT_COUNTS"), ("missing-assertion-error", "REPORT_ASSERTION_MISMATCH"), ("pending-count", "REPORT_COUNTS"), ("empty-scope", "MATRIX_SCOPE_EMPTY"), ("duplicate-matrix", "MATRIX_SCHEMA"), ("duplicate-json", "DUPLICATE_JSON_KEY"), ("stale-output", "OUTPUT_EXISTS"), ("forged-success", "REPORT_COUNTS")]
+results ∈ list[str] ← ["case\texpected\tobserved"]
+for case in cases:
+    label ∈ str ← case[0]
+    expected ∈ str ← case[1]
+    directory ∈ Path ← output.joinpath(label)
+    directory.mkdir()
+    before ∈ dict[str, object] ← fixture("failed", "rejects a broken archive")
+    after ∈ dict[str, object] ← fixture("passed", "rejects a broken archive")
+    matrix ∈ str ← "case_id\tscope\tfull_name\narchive\tX2\trejects a broken archive\n"
+    scope ∈ str ← "all"
+    before_suites ∈ list[dict[str, object]] ← list(before["testResults"])
+    after_suites ∈ list[dict[str, object]] ← list(after["testResults"])
+    item ∈ dict[str, object] ← {}
+    assertions ∈ list[dict[str, object]] ← []
+    if label == "absent":
+        after ← fixture("passed", "some other assertion")
+    elif label == "duplicate":
+        item ← dict(after_suites[0])
+        assertions ← list(item["assertionResults"])
+        assertions.append(dict(assertions[0]))
+        item["assertionResults"] ← assertions
+        after["testResults"] ← [item]
+        after["numTotalTests"] ← 2
+        after["numPassedTests"] ← 2
+    elif label == "candidate-failed" or label == "forged-success":
+        after ← fixture("failed", "rejects a broken archive")
+        if label == "forged-success":
+            after["success"] ← True
+    elif label == "baseline-passed":
+        before ← fixture("passed", "rejects a broken archive")
+    elif label == "unexecuted":
+        after ← fixture("pending", "rejects a broken archive")
+    elif label == "loader-error":
+        item ← dict(after_suites[0])
+        item["message"] ← "module import failed"
+        after["testResults"] ← [item]
+    elif label == "count-only":
+        after ← {"success": True, "numPassedTests": 1000}
+    elif label == "wrong-counts":
+        after["numPassedTests"] ← 99
+    elif label == "missing-assertion-error":
+        item ← dict(before_suites[0])
+        assertions ← list(item["assertionResults"])
+        empty ∈ list[str] ← []
+        assertions[0]["failureMessages"] ← empty
+        item["assertionResults"] ← assertions
+        before["testResults"] ← [item]
+    elif label == "pending-count":
+        after["numPendingTests"] ← 1
+    elif label == "empty-scope":
+        scope ← "unregistered"
+    elif label == "duplicate-matrix":
+        matrix ← matrix + "archive\tX2\trejects a broken archive\n"
+    before_text ∈ str ← json.dumps(before)
+    after_text ∈ str ← json.dumps(after)
+    if label == "duplicate-json":
+        after_text ← '{"numTotalTests":1,' + after_text[1:]
+    directory.joinpath("matrix.tsv").write_text(matrix)
+    directory.joinpath("before.json").write_text(before_text)
+    directory.joinpath("after.json").write_text(after_text)
+    decision ∈ Path ← directory.joinpath("decision.txt")
+    if label == "stale-output":
+        decision.write_text("status=PASS\n")
+    command ∈ list[str] ← [sys.executable, ithon + "/ithon_host.py", validator, str(directory.joinpath("matrix.tsv")), str(directory.joinpath("before.json")), str(directory.joinpath("after.json")), scope, str(decision)]
+    child ∈ object ← subprocess.run(command, capture_output=True, timeout=10)
+    directory.joinpath("stdout.bin").write_bytes(child.stdout)
+    directory.joinpath("stderr.bin").write_bytes(child.stderr)
+    code ∈ int ← int(child.returncode)
+    output_text ∈ str ← child.stdout.decode()
+    error_text ∈ str ← child.stderr.decode()
+    observed ∈ str ← output_text + error_text
+    if expected == "PASS":
+        if code != 0 or not decision.exists() or not decision.read_text().__contains__("status=PASS\n"):
+            raise AssertionError(label + ": " + observed)
+    else:
+        if code == 0 or not observed.__contains__(expected) or label != "stale-output" and decision.exists():
+            raise AssertionError(label + ": expected " + expected + "; got " + observed)
+    results.append(label + "\t" + expected + "\t" + ("PASS" if expected == "PASS" else expected))
+    print("PASS " + label + " -> " + expected)
+output.joinpath("results.tsv").write_text(str("\n".join(results)) + "\n")
+print("PASS 16 independent regression-comparison controls")

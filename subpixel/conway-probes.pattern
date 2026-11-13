@@ -1,0 +1,16 @@
+canvas 32 24
+viewport -16 -12 16 12
+background #f4e9d8
+motif crossing
+    stroke #f008 2
+    move -3 -2
+    line 5 1
+    line -3 -2
+    line 5 1
+    stroke #00f8 2
+    segment -1 -4 2 5
+    stroke #0f08 2
+    segment -20 12 -12 12
+end
+generator mirror reflect 0 0 1 0
+orbit crossing

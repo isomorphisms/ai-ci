@@ -1,0 +1,8 @@
+meta	schema	aici-stage-verdict-v1
+summary	selected_complete	yes
+summary	first_required_failure	none
+summary	first_required_incomplete	none
+summary	disposition	ACCEPT_SCOPE
+kind	stage_id	attempt	actor	required	selected	depends_on	claim	observation	declared_evidence_validity	evidence_validity	diagnosis	disposition	exit	signal	command	source_identity	producer_digest	log_digest	native_code	detail
+verdict	application	1	application	yes	yes	-	application_behavior	PASS	VALID	VALID	UNKNOWN	ACCEPT_SCOPE	0	-	run-application	1111111111111111111111111111111111111111	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb	behavior_ok	application behavior demonstrated
+verdict	cleanup	1	cleanup	no	yes	application	optional_cleanup	PASS	VALID	VALID	UNKNOWN	ACCEPT_SCOPE	0	-	cleanup	1111111111111111111111111111111111111111	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc	cleanup_ok	optional cleanup succeeded

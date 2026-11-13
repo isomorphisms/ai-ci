@@ -1,0 +1,21 @@
+# Canonical regular-file material record. No symlinks or special nodes admitted.
+set -e
+var root = ARGV[0]
+cd $root
+var paths = $(find . -type f -printf '%P\n' | LC_ALL=C sort).split(u'\n')
+for path in (paths) {
+  if (path === 'material.tsv') { continue }
+if ! grep -Eq '^[a-zA-Z0-9][a-zA-Z0-9._/-]*$' <<< $path {
+    write -- 'FAIL CLOSURE-PATH: unsupported material pathname' >&2
+    exit 1
+  }
+  for component in (path.split('/')) {
+    if (component === '..' or component === '.' or component === '') {
+      write -- 'FAIL CLOSURE-PATH: noncanonical component' >&2
+      exit 1
+    }
+  }
+  var digest = $(sha256sum -- $path).split(' ')[0]
+  var mode = $(stat -c '%a' -- $path)
+  printf '%s\t%s\t%s\n' $digest $mode $path
+}

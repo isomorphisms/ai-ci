@@ -1,0 +1,31 @@
+meta	schema	aici-stage-verdict-v1
+meta	input_schema	aici-ingestion-receipt-v1
+meta	fixture_id	valid_utf8
+meta	source_identity	1111111111111111111111111111111111111111
+meta	producer	idric+native-c
+meta	producer_digest	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+source_meta	schema	aici-ingestion-receipt-v1
+source_meta	corpus_revision	hostile-web-v1-2026-08-30
+source_meta	corpus_repository_revision	0000000000000000000000000000000000000000
+source_meta	fixture_id	valid_utf8
+source_meta	implementation_role	implementation-under-test
+source_meta	implementation_name	icu-idric-native-transport
+source_meta	implementation_revision	1111111111111111111111111111111111111111
+source_meta	executable_sha256	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+source_meta	fallback	none
+source_meta	scope	network-through-document
+source_meta	producer	idric+native-c
+source_summary	first_failure	none
+source_summary	first_incomplete	none
+summary	selected_complete	yes
+summary	first_required_failure	none
+summary	first_required_incomplete	none
+summary	disposition	ACCEPT_SCOPE
+kind	stage_id	attempt	actor	required	selected	depends_on	claim	observation	declared_evidence_validity	evidence_validity	diagnosis	disposition	exit	signal	command	source_identity	producer_digest	log_digest	native_code	detail
+verdict	input_acquisition	1	idric	yes	yes	-	input_acquisition	PASS	VALID	VALID	UNKNOWN	ACCEPT_SCOPE	-	-	-	1111111111111111111111111111111111111111	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	-	attempted	attempted
+verdict	network	1	idric+native-c	yes	yes	input_acquisition	network	PASS	VALID	VALID	UNKNOWN	ACCEPT_SCOPE	-	-	-	1111111111111111111111111111111111111111	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	-	complete_response	status=200;body_sha256=0123456789abcdef
+verdict	decompression	1	idric	yes	yes	network	decompression	PASS	VALID	VALID	UNKNOWN	ACCEPT_SCOPE	-	-	-	1111111111111111111111111111111111111111	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	-	identity	identity
+verdict	decoding	1	idric	yes	yes	decompression	decoding	PASS	VALID	VALID	UNKNOWN	ACCEPT_SCOPE	-	-	-	1111111111111111111111111111111111111111	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	-	utf8_valid	text_sha256=fedcba9876543210
+verdict	html_recovery	1	idric	yes	yes	decoding	html_recovery	PASS	VALID	VALID	UNKNOWN	ACCEPT_SCOPE	-	-	-	1111111111111111111111111111111111111111	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	-	document_log_subset_v0	recovery=subset
+verdict	document_construction	1	idric	yes	yes	html_recovery	document_construction	PASS	VALID	VALID	UNKNOWN	ACCEPT_SCOPE	-	-	-	1111111111111111111111111111111111111111	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	-	document_log_built	title=Hostile_fixture
+verdict	downstream_extraction	1	idric	no	yes	document_construction	downstream_extraction	SKIPPED	VALID	VALID	UNKNOWN	NOT_APPLICABLE_WITH_REASON	-	-	-	1111111111111111111111111111111111111111	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	-	not_applicable_scope	not-run

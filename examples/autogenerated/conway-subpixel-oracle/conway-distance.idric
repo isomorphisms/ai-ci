@@ -1,0 +1,7 @@
+module ConwayDistance
+
+ScreenCoordinate : Type
+ScreenCoordinate = Float64
+
+distance_squared_from_origin : ScreenCoordinate → ScreenCoordinate → ScreenCoordinate
+distance_squared_from_origin horizontal vertical = horizontal × horizontal + vertical × vertical

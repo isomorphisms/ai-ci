@@ -1,0 +1,5 @@
+# Independent acceptance for a retained original syllabus
+
+Requested behavior: verify the actual retained USF source and reject fabricated course completion, document absence and unsupported assignment claims. This checker imports no consumer parser. Inputs are a repository root, plain course metadata TSV and reading TSV. It hashes the original HTML independently, normalizes its text with the standard HTML entity decoder, checks evidence strings and bookshelf identity, and exercises targeted known-bad records. It is a `.pi` program for the actual pinned Ithon frontend/runtime; any host-interface result is labelled separately from native qualification.
+
+Type sketch: TSV becomes `list[dict[str,str]]`; metadata becomes `dict[str,str]`; original source remains bytes until strict UTF-8 decode. Validation is a fallible effect returning no accepted record on error. The program is deliberately scoped to the one original observed source. It does not infer a course population or claim generic HTML extraction completeness.

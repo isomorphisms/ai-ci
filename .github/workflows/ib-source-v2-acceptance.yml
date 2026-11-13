@@ -1,0 +1,40 @@
+name: Independent ICU Arena source v2 acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'ib-source/**'
+      - '.github/workflows/ib-source-v2-acceptance.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  independently-check-icu-arena:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out exact source under review
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Validate independent source oracle and mutants
+        shell: bash
+        run: |
+          set -euo pipefail
+          sh -n ib-source/verify.sh
+          sh -n ib-source/self-test.sh
+          sh ib-source/self-test.sh | tee ib-source-acceptance.txt
+          grep -F 'PASS: independent IB v2 oracle' ib-source-acceptance.txt
+          grep -F 'NOT_RUN: real phone' ib-source-acceptance.txt
+          sha256sum ib-source/verify.sh ib-source/self-test.sh \
+            > ib-source-sha256.txt
+      - name: Publish independently executed oracle record
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ib-source-v2-aici
+          path: |
+            ib-source-acceptance.txt
+            ib-source-sha256.txt
+          if-no-files-found: error

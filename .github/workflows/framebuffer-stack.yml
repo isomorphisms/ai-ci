@@ -1,0 +1,89 @@
+name: Independent framebuffer stack numerical and memory acceptance
+on:
+  pull_request:
+    paths: ['framebuffer/**', '.github/workflows/framebuffer-stack.yml', 'subpixel/receipt_check.c']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  framebuffer-stack:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      ICK_CC: ${{ github.workspace }}/.stack-tool/ick-host-stage/bin/gcc
+      ICK_ARTIFACT_STAGE: ${{ github.workspace }}/.stack-tool/ick-host-stage
+      ICK_STAGE_ARCHIVE: ${{ github.workspace }}/.stack-ick.zip
+      HOST_LINKER: /usr/bin/x86_64-linux-gnu-gcc
+      STACK_SOURCE_REPO: ${{ github.workspace }}/producer
+      STACK_OUTPUT: ${{ github.workspace }}/framebuffer/build/stack
+      GREASE_BINARY: ${{ github.workspace }}/.grease/bin/grease
+      ASAN_OPTIONS: detect_leaks=0
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphisms/rough.framebuffer
+          ref: dd42b897026e8f652bfe865018a4f42b0aaf868c
+          fetch-depth: 0
+          path: producer
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: dilapidated-shed/ike
+          ref: a92fe68bf8aad8dfcfe9f7a7abd84e07290f7fe0
+          path: ike-source
+          persist-credentials: false
+      # Narrow stage-zero acquisition interface, shared with the accepted
+      # subpixel-independent workflow. No consumer C is compiled here.
+      - name: Acquire authenticated existing ICK and Grease artifacts
+        shell: sh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          mkdir -p .stack-tool .grease/bin .owned
+          gh api repos/isomorphisms/billiard/actions/artifacts/12174071008/zip > "$ICK_STAGE_ARCHIVE"
+          printf '%s  %s\n' 8ee043088fffadba3704fd567c206c4852b0de69f0b8bb76a131bfb8fa4004a4 "$ICK_STAGE_ARCHIVE" | sha256sum -c -
+          unzip -p "$ICK_STAGE_ARCHIVE" ick-host-stage.tar.gz | tar -xz -C .stack-tool
+          gh api repos/dilapidated-shed/grease/actions/artifacts/12192502970/zip > "$RUNNER_TEMP/stack-grease.zip"
+          printf '%s  %s\n' 295329ec3bb419d90364fcb5937eafe4306b03f68b7aaa63089dadde8082ffb5 "$RUNNER_TEMP/stack-grease.zip" | sha256sum -c -
+          unzip -p "$RUNNER_TEMP/stack-grease.zip" _bin/cxx-asan/ysh > .grease/bin/ysh
+          curl --fail --location --silent --show-error https://github.com/isomorphisms/grease/releases/download/tablet-aarch64-9b3dc8904891/grease-aarch64-termux.tar.gz --output "$RUNNER_TEMP/stack-launcher.tar.gz"
+          printf '%s  %s\n' 3ddb962ef313e528e525fa03518f494577e921c2201ecb49f7a11f2fbf4e82b2 "$RUNNER_TEMP/stack-launcher.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/stack-launcher.tar.gz" -C .grease ./bin/grease
+          printf '%s  %s\n' 37088097c36a2f82cf45aaea9392e4a4cf16155fecb9da87d08a9c7fb4d92e4a .grease/bin/grease | sha256sum -c -
+          printf '%s  %s\n' 7e31cd05b7a9d8fb2a4a9e003a7f3fcb0159138506d17f0fb28da8cbe22aa85c .grease/bin/ysh | sha256sum -c -
+          chmod 755 .grease/bin/grease .grease/bin/ysh
+      - name: ICK compile and object-only link owned Ike and receipt checker
+        shell: '/usr/bin/env .grease/bin/grease {0}'
+        run: |
+          set -o errexit -o nounset -o pipefail
+          test "$(git -C ike-source rev-parse HEAD)" = a92fe68bf8aad8dfcfe9f7a7abd84e07290f7fe0
+          test "$(sha256sum "$[ENV.ICK_CC]" | cut -d ' ' -f1)" = 45805e3295f2709737fcc87985a8a2341aa8663ff8e4e398d2a9d78dc1283e10
+          var frontend = "$(readlink -f -- "$("$[ENV.ICK_CC]" -print-prog-name=cc1)")"
+          test "$(sha256sum "$frontend" | cut -d ' ' -f1)" = c09665543aa807967d22bcaf0959aedd970f9d21be309d42170e4bae5a555292
+          "$[ENV.ICK_CC]" -std=c11 -O2 -fPIC -Wall -Wextra -Werror -c ike-source/ike.c -o .owned/ike.o
+          "$[ENV.HOST_LINKER]" .owned/ike.o -o .owned/ike
+          "$[ENV.ICK_CC]" -std=c11 -O2 -fPIC -Wall -Wextra -Werror -c subpixel/receipt_check.c -o .owned/receipt.o
+          "$[ENV.HOST_LINKER]" .owned/receipt.o -o .owned/receipt-check
+      - name: Independent actual-source execution, sanitizers and 14 source mutants via Ike
+        shell: '/usr/bin/env .grease/bin/grease {0}'
+        run: |
+          set -o errexit -o nounset -o pipefail
+          var workspace = ENV.GITHUB_WORKSPACE
+          cd "$workspace/framebuffer"
+          mkdir -p build
+          var identity = "sha256:$(sha256sum Ikefile | cut -d ' ' -f1)"
+          var receipt = "$workspace/framebuffer/build/stack-ike.tsv"
+          env -u IKE_RECIPE_RUNNER IKE_IKEFILE_IDENTITY="$identity" IKE_RECEIPT="$receipt" "$workspace/.owned/ike" accept | tee build/stack.log
+          "$workspace/.owned/receipt-check" "$receipt" "$identity" accept '"$GREASE_BINARY" qualify-stack.grease'
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: framebuffer-stack-independent
+          path: framebuffer/build
+          if-no-files-found: error

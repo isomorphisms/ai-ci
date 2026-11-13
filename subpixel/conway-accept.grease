@@ -1,0 +1,117 @@
+#!/usr/bin/env grease
+set -o errexit -o nounset -o pipefail
+var leaf = ENV.LEAF_ROOT
+var conway = ENV.CONWAY_ROOT
+var compiler = ENV.ICK_CC
+var linker = ENV.HOST_LINKER
+var grease = ENV.GREASE_BINARY
+var source_root = "$(dirname -- "$(realpath -- "$0")")"
+var output = "$source_root/build/conway"
+test "$(git -C "$leaf" rev-parse HEAD)" = f33a476c69da313745b58c10cf8057765f9cbec9
+test "$(git -C "$conway" rev-parse HEAD)" = 42c99ed0d289162b6fd62d864fbf58fc042e24d8
+git -C "$leaf" diff HEAD --exit-code --quiet
+git -C "$conway" diff HEAD --exit-code --quiet
+test -z "${GCC_EXEC_PREFIX-}${COMPILER_PATH-}"
+test -x "$grease"
+var frontend = "$(readlink -f -- "$("$compiler" -print-prog-name=cc1)")"
+if (get(ENV, 'ICK_ARTIFACT_STAGE', '') !== '') {
+    var stage = ENV.ICK_ARTIFACT_STAGE
+    test "$compiler" = "$stage/bin/gcc"
+    test "$(sha256sum "$[ENV.ICK_STAGE_ARCHIVE]" | cut -d ' ' -f1)" = 8ee043088fffadba3704fd567c206c4852b0de69f0b8bb76a131bfb8fa4004a4
+    test "$(sha256sum "$compiler" | cut -d ' ' -f1)" = 45805e3295f2709737fcc87985a8a2341aa8663ff8e4e398d2a9d78dc1283e10
+    test "$frontend" = "$stage/libexec/gcc/x86_64-pc-linux-gnu/17.0.0/cc1"
+    test "$(sha256sum "$frontend" | cut -d ' ' -f1)" = c09665543aa807967d22bcaf0959aedd970f9d21be309d42170e4bae5a555292
+} else {
+    var compiler_source = ENV.ICK_SOURCE_DIR
+    test "$compiler" = "$compiler_source/stage/bin/x86_64-linux-gnu-gcc"
+    test "$(git -C "$compiler_source" rev-parse HEAD)" = c61e448251744a2f40ad743ebef1a027bdcd2f9d
+    test "$(git -C "$compiler_source/gcc" rev-parse HEAD)" = 6294f1d9e7536e5ffcde09d1528c918d63abfef5
+    if (not frontend.startsWith("$compiler_source/stage/libexec/gcc/x86_64-linux-gnu/") or not frontend.endsWith('/cc1')) {
+        echo 'unowned native frontend' >&2
+        exit 2
+    }
+}
+test ! -e "$output"
+mkdir -p "$output"
+
+proc compile (source, object) {
+    "$compiler" -std=c11 -O2 -Wall -Wextra -Werror -pedantic -fPIC -ffp-contract=off -fno-fast-math \
+        "-I$leaf/subpixel/include" "-I$leaf/src" -c "$source" -o "$object"
+}
+compile "$leaf/subpixel/src/curve_patch.c" "$output/3.o"
+compile "$leaf/subpixel/src/curve_patch_5x5.c" "$output/5.o"
+compile "$leaf/subpixel/src/coverage_plane.c" "$output/plane.o"
+compile "$leaf/subpixel/src/path.c" "$output/path.o"
+compile "$leaf/src/subpixel_framebuffer.c" "$output/blend.o"
+compile "$leaf/src/framebuffer.c" "$output/framebuffer.o"
+compile "$leaf/subpixel/examples/path_render.c" "$output/cli.o"
+compile "$source_root/conway_verify.c" "$output/oracle.o"
+"$linker" "$output/3.o" "$output/5.o" "$output/plane.o" "$output/path.o" "$output/oracle.o" -lm -o "$output/verify"
+proc link_cli (object, executable) {
+    "$linker" "$output/3.o" "$output/5.o" "$output/plane.o" "$output/path.o" "$output/blend.o" \
+        "$output/framebuffer.o" "$object" -lm -o "$executable"
+}
+link_cli "$output/cli.o" "$output/path-render"
+node "$conway/pattern-language/subpixel.mjs" "$conway/pattern-language/examples/conway-442.pattern" "$output/wallpaper.sppath" --size 128 128
+node "$conway/pattern-language/subpixel.mjs" "$source_root/conway-probes.pattern" "$output/probe.sppath"
+for strategy in quadratic cubic auto {
+    "$output/path-render" "$strategy" "$output/probe.sppath" "$output/probe-$strategy.ppm" "$output/probe-$strategy.tsv"
+}
+"$output/verify" "$output/wallpaper.sppath" "$output/probe.sppath" \
+    "$output/probe-quadratic.ppm" "$output/probe-cubic.ppm" "$output/probe-auto.ppm" | tee "$output/positive.log"
+grep -Fxq 'AICI_CONWAY_SUBPIXEL_ACCEPT analytic wallpaper geometry, masks and ordered native pixels: PASS' "$output/positive.log"
+
+# Execute actual changed exporter source; leave the oracle and expectations intact.
+proc exporter_mutant (name, before, after, diagnostic) {
+    var directory = "$output/export-$name"
+    mkdir "$directory"
+    cp "$conway/pattern-language/pattern.mjs" "$directory/"
+    awk -v "before=$before" -v "after=$after" \
+        '{ if ($0 == before) { print after; changed++ } else print } END { if (changed != 1) exit 15 }' \
+        "$conway/pattern-language/subpixel.mjs" > "$directory/subpixel.mjs"
+    node "$directory/subpixel.mjs" "$conway/pattern-language/examples/conway-442.pattern" "$directory/wallpaper.sppath" --size 128 128
+    node "$directory/subpixel.mjs" "$source_root/conway-probes.pattern" "$directory/probe.sppath"
+    try { "$output/verify" "$directory/wallpaper.sppath" "$directory/probe.sppath" \
+        "$output/probe-quadratic.ppm" "$output/probe-cubic.ppm" "$output/probe-auto.ppm" --probe-only > "$directory/rejection.log" 2>&1 }
+    if (_error.code !== 1) { echo "exporter mutant $name survived or did not execute" >&2; exit 1 }
+    grep -Fq "$diagnostic" "$directory/rejection.log"
+}
+exporter_mutant screen-flip '  const screen = [scale, 0, 0, -scale,' \
+    '  const screen = [scale, 0, 0, scale,' 'CONWAY_REJECT probe reflection and duplicate-segment mask union'
+exporter_mutant missed-segment "      segments.push({ kind: 'line', points: [point(matrix, ...current), point(matrix, ...end)] });" \
+    "      if (segments.length === 0) segments.push({ kind: 'line', points: [point(matrix, ...current), point(matrix, ...end)] });" 'CONWAY_REJECT motif keeps both line segments'
+exporter_mutant paint-order '  for (const shape of scene.shapes) {' \
+    '  for (const shape of scene.shapes.slice().reverse()) {' 'CONWAY_REJECT versioned serialized geometry'
+exporter_mutant opacity '  return hex.slice(6) + hex.slice(0, 6);' \
+    "  return 'ff' + hex.slice(0, 6);" 'CONWAY_REJECT probe ordered translucent paint'
+
+proc cli_mutant (name, before, after) {
+    var directory = "$output/cli-$name"
+    mkdir "$directory"
+    awk -v "before=$before" -v "after=$after" \
+        '{ if ($0 == before) { print after; changed++ } else print } END { if (changed != 1) exit 15 }' \
+        "$leaf/subpixel/examples/path_render.c" > "$directory/path_render.c"
+    compile "$directory/path_render.c" "$directory/cli.o"
+    link_cli "$directory/cli.o" "$directory/path-render"
+    for strategy in quadratic cubic auto {
+        "$directory/path-render" "$strategy" "$output/probe.sppath" "$directory/$strategy.ppm" "$directory/$strategy.tsv"
+    }
+    try { "$output/verify" "$output/wallpaper.sppath" "$output/probe.sppath" \
+        "$directory/quadratic.ppm" "$directory/cubic.ppm" "$directory/auto.ppm" --probe-only > "$directory/rejection.log" 2>&1 }
+    if (_error.code !== 1) { echo "native CLI mutant $name survived or did not execute" >&2; exit 1 }
+    grep -Fq 'CONWAY_REJECT native CLI ordered single-resolve translucent pixels' "$directory/rejection.log"
+}
+cli_mutant duplicate-alpha '            success=rough_blend_subpixel_coverage(&frame,&plane,s->rgba,s->opacity)==0;' \
+    '            success=rough_blend_subpixel_coverage(&frame,&plane,s->rgba,s->opacity)==0&&rough_blend_subpixel_coverage(&frame,&plane,s->rgba,s->opacity)==0;'
+cli_mutant empty-render '            success=rough_blend_subpixel_coverage(&frame,&plane,s->rgba,s->opacity)==0;' \
+    '            success=1;'
+cli_mutant shifted-clip '    cp_coverage_plane plane={occupancy,words,width,width,height,0,0};' \
+    '    cp_coverage_plane plane={occupancy,words,width,width,height,0,1};'
+sha256sum "$source_root/conway_verify.c" "$source_root/conway-probes.pattern" "$source_root/conway-accept.grease" \
+    "$leaf/subpixel/examples/path_render.c" "$leaf/src/subpixel_framebuffer.c" \
+    "$leaf/subpixel/src/path.c" "$leaf/subpixel/src/curve_patch.c" "$leaf/subpixel/src/curve_patch_5x5.c" \
+    "$leaf/subpixel/src/coverage_plane.c" "$leaf/src/framebuffer.c" \
+    "$conway/pattern-language/pattern.mjs" "$conway/pattern-language/subpixel.mjs" \
+    "$conway/pattern-language/examples/conway-442.pattern" "$compiler" "$frontend" "$grease" > "$output/input-materials.sha256"
+find "$output" -type f '!' -name materials.sha256 -exec sha256sum '{}' '+' > "$output/materials.sha256"
+printf '\033[32mPASS\033[0m Conway native oracle and seven genuine source defects\n'

@@ -1,0 +1,112 @@
+#!/usr/bin/env grease
+set -o errexit -o nounset -o pipefail
+var source_repo = ENV.STACK_SOURCE_REPO
+var output = ENV.STACK_OUTPUT
+var compiler = ENV.ICK_CC
+var linker = ENV.HOST_LINKER
+var root = "$(dirname -- "$(realpath -- "$0")")"
+test ! -e "$output"
+test -z "${GCC_EXEC_PREFIX-}${COMPILER_PATH-}"
+var frontend = "$(readlink -f -- "$("$compiler" -print-prog-name=cc1)")"
+if (get(ENV, 'ICK_ARTIFACT_STAGE', '') !== '') {
+    var stage = ENV.ICK_ARTIFACT_STAGE
+    test "$compiler" = "$stage/bin/gcc"
+    test "$(sha256sum "$[ENV.ICK_STAGE_ARCHIVE]" | cut -d ' ' -f1)" = 8ee043088fffadba3704fd567c206c4852b0de69f0b8bb76a131bfb8fa4004a4
+    test "$(sha256sum "$compiler" | cut -d ' ' -f1)" = 45805e3295f2709737fcc87985a8a2341aa8663ff8e4e398d2a9d78dc1283e10
+    test "$frontend" = "$stage/libexec/gcc/x86_64-pc-linux-gnu/17.0.0/cc1"
+    test "$(sha256sum "$frontend" | cut -d ' ' -f1)" = c09665543aa807967d22bcaf0959aedd970f9d21be309d42170e4bae5a555292
+} else {
+    var compiler_source = ENV.ICK_SOURCE_DIR
+    test "$compiler" = "$compiler_source/stage/bin/x86_64-linux-gnu-gcc"
+    test "$(git -C "$compiler_source" rev-parse HEAD)" = c61e448251744a2f40ad743ebef1a027bdcd2f9d
+    test "$(git -C "$compiler_source/gcc" rev-parse HEAD)" = 6294f1d9e7536e5ffcde09d1528c918d63abfef5
+    if (not frontend.startsWith("$compiler_source/stage/libexec/gcc/x86_64-linux-gnu/") or not frontend.endsWith('/cc1')) {
+        echo 'unowned C frontend' >&2
+        exit 2
+    }
+}
+mkdir -p "$output"
+var candidate = ''
+var level = ''
+var sources = []
+proc compile (source, object) {
+    "$compiler" -std=c11 -O1 -Wall -Wextra -Werror -pedantic -fPIC \
+        -ffp-contract=off -fno-fast-math -fsanitize=address,undefined -fno-omit-frame-pointer \
+        "-DSTACK_LEVEL=$level" "-I$candidate/src" "-I$candidate/subpixel/include" \
+        -c "$source" -o "$object"
+}
+proc build (replace, replacement, name) {
+    var objects = []
+    for relative in @sources {
+        var selected = "$candidate/$relative"
+        if (relative === replace) { setvar selected = replacement }
+        var object = "$candidate/$(basename "$relative").o"
+        compile "$selected" "$object"
+        call objects->append(object)
+    }
+    compile "$root/verify_stack.c" "$candidate/oracle.o"
+    "$linker" @objects "$candidate/oracle.o" -lm -fsanitize=address,undefined -o "$candidate/$name"
+}
+proc mutant (relative, before, after, diagnostic, name) {
+    var changed = "$candidate/$name.c"
+    awk -v "before=$before" -v "after=$after" \
+        '{if ($0==before) {print after; count++} else print} END {if(count!=1)exit 15}' \
+        "$candidate/$relative" > "$changed"
+    build "$relative" "$changed" "$name"
+    try { "$candidate/$name" > "$candidate/$name.log" 2>&1 }
+    if (_error.code !== 1) { echo "mutant $name survived or did not execute" >&2; exit 1 }
+    grep -Fq "STACK_REJECT $diagnostic" "$candidate/$name.log"
+    printf 'MUTANT_REJECT %s\n' "$name"
+}
+for record in '4 fa497265ae82154e597107115d4e144ddd90c296' \
+              '7 40d30bfe9b7e24e0b1046852063709d8be58f1bf' \
+              '9 a6114cd4c5ed7a74beb16597e7739877256d29de' \
+              '11 dd42b897026e8f652bfe865018a4f42b0aaf868c' \
+              '21 99bc37d360a77b7098ca1bce5f1bd1cd862424ed' {
+    setvar level = "$(printf '%s\n' "$record" | cut -d ' ' -f1)"
+    var revision = "$(printf '%s\n' "$record" | cut -d ' ' -f2)"
+    test "$(git -C "$source_repo" rev-parse "$revision^{commit}")" = "$revision"
+    setvar candidate = "$output/$level"
+    mkdir "$candidate"
+    git -C "$source_repo" archive "$revision" | tar -x -C "$candidate"
+    printf '%s\t%s\n' "$level" "$revision" >> "$output/sources.tsv"
+    if (level === '21') {
+        setvar sources = ['subpixel/src/curve_patch.c', 'subpixel/src/curve_patch_5x5.c', 'subpixel/src/coverage_plane.c']
+    } else {
+        setvar sources = ['src/framebuffer.c', 'src/surface.c', 'src/touch.c', 'src/present.c']
+        if (int(level) >= 7) { call sources->append('src/surface_aa.c') }
+        if (int(level) >= 9) {
+            call sources->extend(['src/subpixel_demo.c', 'subpixel/src/curve_patch.c', 'subpixel/src/curve_patch_5x5.c'])
+        }
+    }
+    build '' '' verify
+    "$candidate/verify" | tee "$candidate/positive.log"
+    for relative in @sources { sha256sum "$candidate/$relative" >> "$output/materials.sha256" }
+    if (level === '21') {
+        mutant subpixel/src/coverage_plane.c '            case CP_MASK_UNION: *into |= from; break;' \
+            '            case CP_MASK_UNION: *into = from; break;' 'mask bit truth or padding' overwrite-union
+        mutant subpixel/src/coverage_plane.c '            case CP_MASK_INTERSECTION: *into &= from; break;' \
+            '            case CP_MASK_INTERSECTION: *into |= from; break;' 'mask bit truth or padding' union-instead-intersection
+        mutant subpixel/src/coverage_plane.c '            case CP_MASK_DIFFERENCE: *into &= ~from; break;' \
+            '            case CP_MASK_DIFFERENCE: *into &= from; break;' 'mask bit truth or padding' reversed-difference
+        mutant subpixel/src/coverage_plane.c '            case CP_MASK_SYMMETRIC_DIFFERENCE: *into ^= from; break;' \
+            '            case CP_MASK_SYMMETRIC_DIFFERENCE: *into |= from; break;' 'mask bit truth or padding' union-instead-xor
+    } else {
+        mutant src/touch.c '        double angle = normalized_angle(state->anchor_yaw -' \
+            '        double angle = normalized_angle(state->anchor_yaw +' 'front hemisphere direction' wrong-drag
+        if (int(level) >= 7) {
+            mutant src/surface_aa.c '                argb;' '                colors[0] | (argb & 0u);' \
+                'aa four colors independent depth' single-sample
+        }
+        if (int(level) >= 9) {
+            mutant src/subpixel_demo.c '                small = quadratic[y - 1u][x - 1u];' \
+                '                small = 0.0;' 'diagnostic geometric samples to pixels' empty-quadratic
+        }
+        if (int(level) >= 11) {
+            mutant src/surface.c '    xyz[0] = normal.x;' '    xyz[0] = 1.0;' \
+                'normal analytic orientation' constant-normal
+        }
+    }
+}
+sha256sum "$root/verify_stack.c" "$root/qualify-stack.grease" "$compiler" "$frontend" >> "$output/materials.sha256"
+printf '\033[32mPASS\033[0m independent exact-source stack, sanitizer execution and 14 source mutants\n'

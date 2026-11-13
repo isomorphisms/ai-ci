@@ -1,0 +1,117 @@
+import gzip
+import hashlib
+import json
+import os
+import subprocess
+import sys
+import tempfile
+import time
+from pathlib import Path
+from builtins import dict, list, tuple, ValueError, Exception
+
+
+def require(condition ∈ bool, reason ∈ str) → None:
+    if not condition:
+        raise ValueError(reason)
+
+
+def child(root ∈ Path, name ∈ str) → Path:
+    result ∈ Path ← root.joinpath(name)
+    return result
+
+
+def invoke(launcher ∈ str, reader ∈ str, work ∈ Path, row ∈ dict[str, object], capture ∈ bytes, expected ∈ str) → None:
+    index ∈ Path ← child(work, 'index.json')
+    archive ∈ Path ← child(work, 'range.gz')
+    output ∈ Path ← child(work, 'body.html')
+    receipt_path ∈ Path ← child(work, 'receipt.json')
+    index.write_text(json.dumps(row), encoding='utf-8')
+    archive.write_bytes(capture)
+    output.write_bytes(b'stale accepted body')
+    receipt_path.write_text('{"status":"PASS"}', encoding='utf-8')
+    result ∈ object ← subprocess.run([launcher, reader, '--index-row', str(index),
+        '--range-file', str(archive), '--output', str(output), '--receipt', str(receipt_path)],
+        capture_output=True, timeout=30)
+    code ∈ int ← result.returncode
+    receipt ∈ dict[str, object] ← json.loads(receipt_path.read_text(encoding='utf-8'))
+    if expected == 'PASS':
+        require(code == 0 and receipt['status'] == 'PASS', 'genuine capture rejected')
+        body ∈ bytes ← output.read_bytes()
+        digest ∈ str ← hashlib.sha256(body).hexdigest()
+        require(digest == '1c7f0300f3ed38ba847dace7cb95443c6a865f12396e561f37ba5166a619f894', 'genuine entity differs from independent warcio/jwarc bytes')
+    else:
+        require(code != 0 and receipt['status'] == 'FAIL', 'known-bad capture accepted')
+        require(receipt['failed_stage'] == expected, 'wrong rejection stage')
+        exists ∈ bool ← output.exists()
+        require(not exists, 'stale accepted output survived rejection')
+
+
+def changed(row ∈ dict[str, object], key ∈ str, value ∈ object) → dict[str, object]:
+    result ∈ dict[str, object] ← dict(row)
+    result.__setitem__(key, value)
+    return result
+
+
+def interrupted_retry(launcher ∈ str, reader ∈ str, work ∈ Path, row ∈ dict[str, object], capture ∈ bytes) → None:
+    index ∈ Path ← child(work, 'index.json')
+    archive ∈ Path ← child(work, 'range.gz')
+    output ∈ Path ← child(work, 'body.html')
+    receipt ∈ Path ← child(work, 'receipt.json')
+    output.unlink()
+    receipt.unlink()
+    os.mkfifo(str(receipt), 384)
+    process ∈ object ← subprocess.Popen([launcher, reader, '--index-row', str(index),
+        '--range-file', str(archive), '--output', str(output), '--receipt', str(receipt)],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    published ∈ bool ← False
+    for attempt in range(500):
+        exists ∈ bool ← output.is_file()
+        if exists:
+            published ← True
+            break
+        time.sleep(0.01)
+    process.kill()
+    process.communicate(timeout=5)
+    require(published, 'interruption: did not reach body publication before blocked receipt')
+    body ∈ bytes ← output.read_bytes()
+    digest ∈ str ← hashlib.sha256(body).hexdigest()
+    require(digest == '1c7f0300f3ed38ba847dace7cb95443c6a865f12396e561f37ba5166a619f894', 'interruption: unexpected body')
+    receipt.unlink()
+    invoke(launcher, reader, work, changed(row, 'digest', 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'), capture, 'digest')
+
+
+def main() → None:
+    arguments ∈ list[str] ← sys.argv
+    require(len(arguments) == 4, 'requires ITHON_LAUNCHER READER_SOURCE FIXTURE_DIRECTORY')
+    launcher ∈ str ← arguments[1]
+    reader ∈ str ← arguments[2]
+    fixture ∈ Path ← Path(arguments[3])
+    row ∈ dict[str, object] ← json.loads(child(fixture, 'index-row.json').read_text(encoding='utf-8'))
+    capture ∈ bytes ← child(fixture, 'range.warc.gz').read_bytes()
+    raw ∈ bytes ← gzip.decompress(capture)
+    malformed ∈ bytes ← raw.replace(b'WARC-Type: response', b'WARC-Type: response\r\nWARC-Type: response', 1)
+    duplicate ∈ bytes ← gzip.compress(malformed, mtime=0)
+    truncated ∈ bytes ← capture[:-8]
+    extra_member ∈ bytes ← gzip.compress(b'', mtime=0)
+    extra ∈ bytes ← capture + extra_member
+    error_row ∈ dict[str, object] ← {'message': 'upstream error'}
+    cases ∈ list[tuple[dict[str, object], bytes, str]] ← [
+        (changed(row, 'url', 'https://example.invalid/other'), capture, 'warc'),
+        (changed(row, 'status', '404'), capture, 'http'),
+        (changed(row, 'digest', 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'), capture, 'digest'),
+        (changed(row, 'length', '1'), capture, 'range'),
+        (changed(row, 'length', str(len(truncated))), truncated, 'decompression'),
+        (changed(row, 'length', str(len(extra))), extra, 'decompression'),
+        (changed(row, 'length', str(len(duplicate))), duplicate, 'warc'),
+        (error_row, capture, 'index')]
+    with tempfile.TemporaryDirectory(prefix='aici-real-warc-') as temporary:
+        work ∈ Path ← Path(temporary)
+        invoke(launcher, reader, work, row, capture, 'PASS')
+        for case in cases:
+            invoke(launcher, reader, work, case[0], case[1], case[2])
+        invoke(launcher, reader, work, row, capture, 'PASS')
+        interrupted_retry(launcher, reader, work, row, capture)
+    print('PASS: authentic capture, eight independent hostile controls, stale-output rejection, reproducible rerun and killed-after-publication retry')
+
+
+main()

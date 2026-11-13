@@ -1,0 +1,36 @@
+schema	catfood-android-evidence-v2
+package	holomorphic-qualification-armv7
+target	phone
+package_lane	armeabi-v7a
+device_id	holomorphic-qualification-host-fixture
+device_class	phone
+device_target	phone
+device_product	-
+device_model	MIRO A1
+device_fingerprint	synthetic/MIRO A1/test
+abi	armeabi-v7a
+mode	file
+source	isomorphismes/holomorphic
+source_ref	937a7aa0cfbec32d527b8bd44f3da63a6c76c82b
+package_ref	937a7aa0cfbec32d527b8bd44f3da63a6c76c82b
+url	https://github.com/isomorphismes/holomorphic/releases/download/qualification-holomorphic-937a7aa0cfbec32d527b8bd44f3da63a6c76c82b-934bd35433fa995503a59d5fce90bef1d48454ba6c1a3f740d5394f0135ae3fa/holomorphic-checked-937a7aa0cfbec32d527b8bd44f3da63a6c76c82b-934bd35433fa995503a59d5fce90bef1d48454ba6c1a3f740d5394f0135ae3fa.apk
+sha256	934bd35433fa995503a59d5fce90bef1d48454ba6c1a3f740d5394f0135ae3fa
+termux_packages	-
+runtime_requires	-
+package_requires	-
+build_result	NOT_VERIFIED
+build_evidence	-
+package_result	PASS
+package_evidence	sha256:934bd35433fa995503a59d5fce90bef1d48454ba6c1a3f740d5394f0135ae3fa
+publication_result	PASS
+publication_evidence	https://github.com/isomorphismes/holomorphic/releases/download/qualification-holomorphic-937a7aa0cfbec32d527b8bd44f3da63a6c76c82b-934bd35433fa995503a59d5fce90bef1d48454ba6c1a3f740d5394f0135ae3fa/holomorphic-checked-937a7aa0cfbec32d527b8bd44f3da63a6c76c82b-934bd35433fa995503a59d5fce90bef1d48454ba6c1a3f740d5394f0135ae3fa.apk
+installation_result	PASS
+installation_evidence	/home/runner/work/holomorphic/holomorphic/_/build/qualification-catfood-acquisition/prefix/packages/holomorphic-qualification-armv7/937a7aa0cfbec32d527b8bd44f3da63a6c76c82b
+launch_result	NOT_VERIFIED
+launch_evidence	-
+runtime_result	NOT_VERIFIED
+runtime_evidence	-
+emulator_result	NOT_VERIFIED
+emulator_evidence	-
+physical_device_result	NOT_VERIFIED
+physical_device_evidence	-

@@ -1,0 +1,46 @@
+"""Reject missing/ambient compiler selection before APK or receipt effects."""
+import os
+from pathlib import Path
+import subprocess
+import tempfile
+from builtins import AssertionError, dict
+
+ROOT ∈ object ← Path(__file__).resolve().parent.parent
+
+def require(condition ∈ bool, message ∈ str) → None:
+    if not condition:
+        raise AssertionError(message)
+
+original ∈ object ← subprocess.run(["sh", str(ROOT.joinpath("tests/android-companion-smoke.sh"))], text=True, capture_output=True)
+original_status ∈ int ← original.returncode
+original_error ∈ str ← original.stderr
+require(original_status == 0, "existing companion refusal fixtures failed: " + original_error)
+with tempfile.TemporaryDirectory(prefix="aici-compiler-refusal-") as directory:
+    root ∈ object ← Path(directory)
+    # These are deliberately incomplete negative inputs. They cannot establish
+    # Git, APK, signing, producer, or physical acceptance.
+    root.joinpath("catfood", ".git").mkdir(parents=True)
+    root.joinpath("app", ".git").mkdir(parents=True)
+    for name in ["contract.tsv", "plan.tsv", "map.tsv"]:
+        root.joinpath(name).write_text("negative fixture only\n")
+    receipt ∈ object ← root.joinpath("must-stay-absent.tsv")
+    environment ∈ dict[str, str] ← dict(os.environ)
+    environment.pop("ICK", None)
+    environment["AICI_COMPANION_RECEIPT"] = str(receipt)
+    arguments ∈ list[str] ← ["bash", str(ROOT.joinpath("android-companion/verify.sh")),
+        str(root.joinpath("catfood")), str(root.joinpath("app")),
+        str(root.joinpath("contract.tsv")), str(root.joinpath("plan.tsv")), str(root.joinpath("map.tsv"))]
+    missing ∈ object ← subprocess.run(arguments, env=environment, text=True, capture_output=True)
+    missing_status ∈ int ← missing.returncode
+    missing_error ∈ str ← missing.stderr
+    require(missing_status != 0, "missing ICK was accepted")
+    require("qualified absolute ICK compiler required" in missing_error, "missing ICK failed at the wrong gate")
+    require(not receipt.exists(), "missing compiler emitted an acceptance receipt")
+    environment["ICK"] = "cc"
+    ambient ∈ object ← subprocess.run(arguments, env=environment, text=True, capture_output=True)
+    ambient_status ∈ int ← ambient.returncode
+    ambient_error ∈ str ← ambient.stderr
+    require(ambient_status != 0, "ambient cc was accepted")
+    require("ICK must name an executable absolute compiler" in ambient_error, "relative compiler failed at the wrong gate")
+    require(not receipt.exists(), "ambient compiler emitted an acceptance receipt")
+print("PASS: existing companion refusals and missing/ambient compiler controls; no APK acceptance")
