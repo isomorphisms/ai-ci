@@ -1,0 +1,494 @@
+module SourceAdmissionFixtures
+
+import Data.Text
+import Data.List
+import System
+import System.File
+import SourceProcess
+
+%unbound_implicits off
+
+-- These fixtures create their own Git objects and candidate records. They do
+-- not import the admission implementation or ask Cat Food for an expected row.
+record FixtureRepository where
+  constructor RepositoryFixture
+  checkout_path : Text
+  repository_identity : Text
+  committed_source : Text
+  committed_tree : Text
+
+record FixtureRunner where
+  constructor RunFixtures
+  checker_executable : Text
+  work_directory : Text
+
+ordinary_source : Text
+ordinary_source = "alpha\n"
+
+absent_commit : Text
+absent_commit = "0000000000000000000000000000000000000000"
+
+absent_digest : Text
+absent_digest = "0000000000000000000000000000000000000000000000000000000000000000"
+
+fixture_rows : List Text → Text
+fixture_rows = concatMap (\row ⇒ row ++ "\n")
+
+covering
+write_fixture : Text → Text → IO ()
+write_fixture destination content = do
+  Right () ← writeFile destination content
+    | Left failure ⇒ die ("FIXTURE-WRITE: " ++ destination ++ " " ++ show failure)
+  pure ()
+
+covering
+git_output : Text → List Text → IO Text
+git_output checkout arguments =
+  require_process (["git", "-c", "core.hooksPath=/dev/null", "-C", checkout] ++ arguments) ""
+
+covering
+git_action : Text → List Text → IO ()
+git_action checkout arguments = do
+  _ ← git_output checkout arguments
+  pure ()
+
+covering
+snapshot_repository : Text → Text → IO FixtureRepository
+snapshot_repository checkout identity = do
+  source_commit ← git_output checkout ["rev-parse", "HEAD"]
+  source_tree ← git_output checkout ["rev-parse", "HEAD^{tree}"]
+  pure (RepositoryFixture checkout identity (trim source_commit) (trim source_tree))
+
+covering
+create_repository : Text → Text → IO FixtureRepository
+create_repository checkout identity = do
+  _ ← require_process ["git", "init", "-q", "-b", "main", checkout] ""
+  git_action checkout ["config", "user.name", "Source fixture"]
+  git_action checkout ["config", "user.email", "source-fixture@example.invalid"]
+  git_action checkout ["config", "core.autocrlf", "false"]
+  git_action checkout ["remote", "add", "origin", identity ++ ".git"]
+  write_fixture (checkout ++ "/source.txt") ordinary_source
+  write_fixture (checkout ++ "/.gitattributes") "source.txt text eol=lf\n"
+  git_action checkout ["add", "--", "source.txt", ".gitattributes"]
+  git_action checkout ["commit", "-q", "-m", "controlled source"]
+  snapshot_repository checkout identity
+
+expectation_rows : FixtureRepository → Text → Text → List Text
+expectation_rows repository policy role =
+  [ "schema\taici-source-expectation-v1"
+  , "repository\t" ++ repository.repository_identity
+  , "commit\t" ++ repository.committed_source
+  , "submodules\t" ++ policy
+  , "role\t" ++ role
+  ]
+
+material_rows : FixtureRepository → Text → List Text
+material_rows repository policy =
+  [ "schema\tcatfood-source-v1"
+  , "repository\t" ++ repository.repository_identity
+  , "commit\t" ++ repository.committed_source
+  , "tree\t" ++ repository.committed_tree
+  , "submodules\t" ++ policy
+  ]
+
+reference_row : Text → FixtureRepository → Text → Text
+reference_row reference_path child policy =
+  "gitlink\t" ++ reference_path ++ "\t" ++ child.repository_identity ++ "\t" ++
+    child.committed_source ++ "\t" ++ policy
+
+covering
+sha256_text : Text → IO Text
+sha256_text content = do
+  digest_output ← require_process ["sha256sum"] content
+  case words digest_output of
+    digest :: _ ⇒ pure digest
+    [] ⇒ die "FIXTURE-HASH: sha256sum returned no digest"
+
+covering
+candidate_record : List Text → IO Text
+candidate_record controlled_rows = do
+  let canonical_bytes = fixture_rows (sort controlled_rows)
+  digest ← sha256_text canonical_bytes
+  pure (canonical_bytes ++ "sha256\t" ++ digest ++ "\n")
+
+covering
+fixture_fingerprint : Text → IO Text
+fixture_fingerprint checkout = do
+  file_bytes ← require_process ["find", checkout, "-type", "f", "-exec", "sha256sum", "--", "{}", "+"] ""
+  node_modes ← require_process ["find", checkout, "-printf", "%m\t%p\t%l\n"] ""
+  sha256_text (fixture_rows (sort (lines file_bytes)) ++ fixture_rows (sort (lines node_modes)))
+
+refusal_diagnostic : Text → Maybe Text
+refusal_diagnostic label =
+  if isPrefixOf "rehashed-" label || label ≟ "wrong-record-digest"
+    then Just "SOURCE-EVIDENCE-MISMATCH"
+    else case label of
+      "duplicate-expectation" ⇒ Just "SOURCE-EXPECTATION-FIELD: commit"
+      "wrong-expected-commit" ⇒ Just "SOURCE-COMMIT"
+      "wrong-origin" ⇒ Just "SOURCE-ORIGIN"
+      "changed-source" ⇒ Just "SOURCE-RAW-BYTES"
+      "clean-index-crlf" ⇒ Just "SOURCE-RAW-BYTES"
+      "hidden-index" ⇒ Just "SOURCE-HIDDEN-INDEX"
+      "fifo-source" ⇒ Just "SOURCE-NODE-TYPE"
+      "changed-symlink-target" ⇒ Just "SOURCE-SYMLINK-BYTES"
+      "changed-newline-symlink-target" ⇒ Just "SOURCE-SYMLINK-BYTES"
+      "wrong-executable-mode" ⇒ Just "SOURCE-FILE-MODE"
+      "intermediate-directory-symlink" ⇒ Just "SOURCE-EXTRA-FILES"
+      "wrong-child-origin" ⇒ Just "SOURCE-ORIGIN"
+      "wrong-child-commit" ⇒ Just "SOURCE-COMMIT"
+      "missing-child" ⇒ Just "SOURCE-PARTIAL-CHECKOUT"
+      "skip-none-mismatch" ⇒ Just "SOURCE-POLICY"
+      "wrong-ick-lock" ⇒ Just "SOURCE-ICK-LOCK"
+      "prefix-collision-orphan-declaration" ⇒ Just "SOURCE-ORPHAN-DECLARATION"
+      _ ⇒ Nothing
+
+covering
+check_fixture_bytes : FixtureRunner → Text → Bool → FixtureRepository → Text → Text → IO ()
+check_fixture_bytes runner label should_pass repository expectation candidate = do
+  let expectation_path = runner.work_directory ++ "/" ++ label ++ ".expectation.tsv"
+  let candidate_path = runner.work_directory ++ "/" ++ label ++ ".candidate.tsv"
+  write_fixture expectation_path expectation
+  write_fixture candidate_path candidate
+  before_admission ← fixture_fingerprint repository.checkout_path
+  let checker_arguments = [runner.checker_executable, expectation_path, repository.checkout_path, candidate_path]
+  let bounded_arguments = if label ≟ "fifo-source"
+        then ["timeout", "5"] ++ checker_arguments
+        else checker_arguments
+  command ← if label ≟ "poisoned-tool-path"
+    then do
+      Just existing_path ← getEnv "PATH"
+        | Nothing ⇒ die "FIXTURE-PATH: PATH must be explicit for the poisoned-tool control"
+      pure (["/usr/bin/env", "PATH=" ++ runner.work_directory ++ "/poisoned tools:" ++ existing_path] ++ bounded_arguments)
+    else pure bounded_arguments
+  observed ← observe_process command ""
+  after_admission ← fixture_fingerprint repository.checkout_path
+  if before_admission ≟ after_admission then pure ()
+    else die ("FIXTURE-MUTATED: checker changed source or Git metadata during " ++ label)
+  write_fixture (runner.work_directory ++ "/" ++ label ++ ".observed.txt") observed.standard_output
+  if label ≟ "fifo-source" && not (observed.exit_status ≟ 1)
+    then die ("FIXTURE-FIFO: expected bounded source rejection exit1, observed " ++ show observed.exit_status)
+    else pure ()
+  let accepted = observed.exit_status ≟ 0
+  if accepted ≟ should_pass
+    then do
+      case refusal_diagnostic label of
+        Nothing ⇒ pure ()
+        Just diagnostic ⇒ if should_pass || any (isPrefixOf ("FAIL " ++ diagnostic)) (lines observed.standard_output)
+          then pure ()
+          else die ("FIXTURE-DIAGNOSTIC: " ++ label ++ " expected " ++ diagnostic ++ "\n" ++ observed.standard_output)
+      putStrLn ("PASS\t" ++ label ++ "\tchecker-exit=" ++ show observed.exit_status)
+    else die ("FIXTURE-VERDICT: " ++ label ++ " expected " ++
+      (if should_pass then "acceptance" else "rejection") ++ " but checker exited " ++
+      show observed.exit_status ++ "\n" ++ observed.standard_output)
+
+covering
+check_fixture : FixtureRunner → Text → Bool → FixtureRepository → Text → Text → List Text → IO ()
+check_fixture runner label should_pass repository policy role controlled_rows = do
+  candidate ← candidate_record controlled_rows
+  check_fixture_bytes runner label should_pass repository
+    (fixture_rows (expectation_rows repository policy role)) candidate
+
+covering
+require_normalized_clean : FixtureRepository → IO ()
+require_normalized_clean repository = do
+  -- This asks Git whether normalized content differs; its stat-only status
+  -- column may still report a racily changed file after direct byte replacement.
+  git_action repository.checkout_path ["diff", "--quiet", "--exit-code", "HEAD", "--", "source.txt"]
+
+replace_row : Text → Text → List Text → List Text
+replace_row prefix replacement = map (\row ⇒ if isPrefixOf prefix row then replacement else row)
+
+covering
+ordinary_source_controls : FixtureRunner → IO ()
+ordinary_source_controls runner = do
+  repository ← create_repository (runner.work_directory ++ "/ordinary source")
+    "https://github.com/example/parent"
+  let original_rows = material_rows repository "none"
+  check_fixture runner "ordinary" True repository "none" "ordinary" original_rows
+  check_fixture runner "repeat" True repository "none" "ordinary" original_rows
+  let relocated_path = runner.work_directory ++ "/relocated source with spaces"
+  _ ← require_process ["cp", "-a", "--", repository.checkout_path, relocated_path] ""
+  relocated ← snapshot_repository relocated_path repository.repository_identity
+  check_fixture runner "relocation" True relocated "none" "ordinary" original_rows
+
+  check_fixture runner "rehashed-wrong-tree" False repository "none" "ordinary"
+    (replace_row "tree\t" ("tree\t" ++ absent_commit) original_rows)
+  check_fixture runner "rehashed-extra-material" False repository "none" "ordinary"
+    (original_rows ++ ["material\tundeclared.txt\t" ++ absent_digest])
+  check_fixture runner "rehashed-duplicate-row" False repository "none" "ordinary"
+    (original_rows ++ ["commit\t" ++ repository.committed_source])
+  check_fixture runner "rehashed-extra-row" False repository "none" "ordinary"
+    (original_rows ++ ["unexpected\tself-asserted"])
+  check_fixture runner "rehashed-missing-row" False repository "none" "ordinary"
+    (filter (\row ⇒ not (isPrefixOf "tree\t" row)) original_rows)
+  check_fixture_bytes runner "wrong-record-digest" False repository
+    (fixture_rows (expectation_rows repository "none" "ordinary"))
+    (fixture_rows (sort original_rows) ++ "sha256\t" ++ absent_digest ++ "\n")
+  good_candidate ← candidate_record original_rows
+  check_fixture_bytes runner "duplicate-expectation" False repository
+    (fixture_rows (expectation_rows repository "none" "ordinary" ++
+      ["commit\t" ++ repository.committed_source])) good_candidate
+  check_fixture_bytes runner "wrong-expected-commit" False repository
+    (fixture_rows (replace_row "commit\t" ("commit\t" ++ absent_commit)
+      (expectation_rows repository "none" "ordinary"))) good_candidate
+
+  git_action repository.checkout_path ["remote", "set-url", "origin", "https://github.com/unrelated/parent.git"]
+  check_fixture runner "wrong-origin" False repository "none" "ordinary" original_rows
+  git_action repository.checkout_path ["remote", "set-url", "origin", repository.repository_identity ++ ".git"]
+  write_fixture (repository.checkout_path ++ "/source.txt") "changed bytes\n"
+  check_fixture runner "changed-source" False repository "none" "ordinary" original_rows
+  write_fixture (repository.checkout_path ++ "/source.txt") ordinary_source
+  _ ← require_process ["rm", "--", repository.checkout_path ++ "/source.txt"] ""
+  check_fixture runner "missing-source" False repository "none" "ordinary" original_rows
+  _ ← require_process ["test", "!", "-e", repository.checkout_path ++ "/source.txt"] ""
+  write_fixture (repository.checkout_path ++ "/source.txt") ordinary_source
+
+  git_action repository.checkout_path ["config", "core.autocrlf", "true"]
+  write_fixture (repository.checkout_path ++ "/source.txt") "alpha\r\n"
+  require_normalized_clean repository
+  check_fixture runner "clean-index-crlf" False repository "none" "ordinary" original_rows
+  git_action repository.checkout_path ["config", "core.autocrlf", "false"]
+  write_fixture (repository.checkout_path ++ "/source.txt") ordinary_source
+  git_action repository.checkout_path ["update-index", "--assume-unchanged", "--", "source.txt"]
+  write_fixture (repository.checkout_path ++ "/source.txt") "hidden changed bytes\n"
+  require_normalized_clean repository
+  check_fixture runner "hidden-index" False repository "none" "ordinary" original_rows
+  git_action repository.checkout_path ["update-index", "--no-assume-unchanged", "--", "source.txt"]
+  write_fixture (repository.checkout_path ++ "/source.txt") ordinary_source
+
+  _ ← require_process ["rm", "--", repository.checkout_path ++ "/source.txt"] ""
+  _ ← require_process ["mkfifo", "--", repository.checkout_path ++ "/source.txt"] ""
+  check_fixture runner "fifo-source" False repository "none" "ordinary" original_rows
+  _ ← require_process ["rm", "--", repository.checkout_path ++ "/source.txt"] ""
+  write_fixture (repository.checkout_path ++ "/source.txt") ordinary_source
+
+  write_fixture (repository.checkout_path ++ "/.gitmodules") "# deliberately empty declarations\n"
+  git_action repository.checkout_path ["add", "--", ".gitmodules"]
+  git_action repository.checkout_path ["commit", "-q", "-m", "empty reference declaration file"]
+  empty_leaf ← snapshot_repository repository.checkout_path repository.repository_identity
+  check_fixture runner "empty-gitmodules-leaf" True empty_leaf "none" "ordinary"
+    (material_rows empty_leaf "none")
+
+covering
+source_metadata_controls : FixtureRunner → IO ()
+source_metadata_controls runner = do
+  initial ← create_repository (runner.work_directory ++ "/source metadata")
+    "https://github.com/example/source-metadata"
+  let notes_directory = initial.checkout_path ++ "/notes with spaces"
+  _ ← require_process ["mkdir", "--", notes_directory] ""
+  write_fixture (notes_directory ++ "/reader's note.txt") "unchanged punctuated source\n"
+  git_action initial.checkout_path ["add", "--", "notes with spaces/reader's note.txt"]
+  git_action initial.checkout_path ["commit", "-q", "-m", "punctuated source path"]
+  punctuated ← snapshot_repository initial.checkout_path initial.repository_identity
+  check_fixture runner "apostrophe-whitespace-path" True punctuated "none" "ordinary"
+    (material_rows punctuated "none")
+
+  let ordinary_link = initial.checkout_path ++ "/source-link"
+  let newline_link = initial.checkout_path ++ "/newline-link"
+  _ ← require_process ["ln", "-s", "--", "source.txt", ordinary_link] ""
+  _ ← require_process ["ln", "-s", "--", "source.txt\n", newline_link] ""
+  _ ← require_process ["chmod", "0755", "--", initial.checkout_path ++ "/source.txt"] ""
+  git_action initial.checkout_path ["add", "--", "source.txt", "source-link", "newline-link"]
+  git_action initial.checkout_path ["commit", "-q", "-m", "committed symlinks and executable mode"]
+  repository ← snapshot_repository initial.checkout_path initial.repository_identity
+  let original_rows = material_rows repository "none"
+  check_fixture runner "symlink-executable-metadata" True repository "none" "ordinary" original_rows
+
+  _ ← require_process ["rm", "--", ordinary_link] ""
+  _ ← require_process ["ln", "-s", "--", "different-target", ordinary_link] ""
+  check_fixture runner "changed-symlink-target" False repository "none" "ordinary" original_rows
+  _ ← require_process ["rm", "--", ordinary_link] ""
+  _ ← require_process ["ln", "-s", "--", "source.txt", ordinary_link] ""
+  _ ← require_process ["rm", "--", newline_link] ""
+  _ ← require_process ["ln", "-s", "--", "source.txt", newline_link] ""
+  check_fixture runner "changed-newline-symlink-target" False repository "none" "ordinary" original_rows
+  _ ← require_process ["rm", "--", newline_link] ""
+  _ ← require_process ["ln", "-s", "--", "source.txt\n", newline_link] ""
+
+  _ ← require_process ["chmod", "0644", "--", repository.checkout_path ++ "/source.txt"] ""
+  check_fixture runner "wrong-executable-mode" False repository "none" "ordinary" original_rows
+  _ ← require_process ["chmod", "0755", "--", repository.checkout_path ++ "/source.txt"] ""
+
+  let escaped_notes = runner.work_directory ++ "/notes outside checkout"
+  _ ← require_process ["mv", "--", notes_directory, escaped_notes] ""
+  _ ← require_process ["ln", "-s", "--", escaped_notes, notes_directory] ""
+  check_fixture runner "intermediate-directory-symlink" False repository "none" "ordinary" original_rows
+  _ ← require_process ["rm", "--", notes_directory] ""
+  _ ← require_process ["mv", "--", escaped_notes, notes_directory] ""
+
+  let poisoned_directory = runner.work_directory ++ "/poisoned tools"
+  _ ← require_process ["mkdir", "--", poisoned_directory] ""
+  _ ← require_process ["ln", "-s", "--", "/usr/bin/true", poisoned_directory ++ "/git"] ""
+  _ ← require_process ["ln", "-s", "--", "/usr/bin/true", poisoned_directory ++ "/sha256sum"] ""
+  check_fixture runner "poisoned-tool-path" True repository "none" "ordinary" original_rows
+
+covering
+declare_reference : FixtureRepository → Text → FixtureRepository → IO FixtureRepository
+declare_reference parent reference_path child = do
+  git_action parent.checkout_path ["config", "-f", ".gitmodules",
+    "submodule." ++ reference_path ++ ".path", reference_path]
+  git_action parent.checkout_path ["config", "-f", ".gitmodules",
+    "submodule." ++ reference_path ++ ".url", child.repository_identity ++ ".git"]
+  git_action parent.checkout_path ["add", "--", ".gitmodules"]
+  git_action parent.checkout_path ["update-index", "--add", "--cacheinfo",
+    "160000," ++ child.committed_source ++ "," ++ reference_path]
+  git_action parent.checkout_path ["commit", "-q", "-m", "declare controlled reference"]
+  snapshot_repository parent.checkout_path parent.repository_identity
+
+covering
+populate_reference : FixtureRepository → Text → FixtureRepository → IO ()
+populate_reference parent reference_path child = do
+  let child_path = parent.checkout_path ++ "/" ++ reference_path
+  _ ← require_process ["git", "clone", "-q", "--no-hardlinks", "--", child.checkout_path, child_path] ""
+  git_action child_path ["checkout", "-q", "--detach", child.committed_source]
+  git_action child_path ["remote", "set-url", "origin", child.repository_identity ++ ".git"]
+  git_action child_path ["config", "user.name", "Source fixture"]
+  git_action child_path ["config", "user.email", "source-fixture@example.invalid"]
+  pure ()
+
+covering
+recursive_source_controls : FixtureRunner → IO ()
+recursive_source_controls runner = do
+  leaf_start ← create_repository (runner.work_directory ++ "/leaf upstream")
+    "https://github.com/example/leaf"
+  write_fixture (leaf_start.checkout_path ++ "/.gitmodules") "# leaf has no references\n"
+  git_action leaf_start.checkout_path ["add", "--", ".gitmodules"]
+  git_action leaf_start.checkout_path ["commit", "-q", "-m", "empty leaf declarations"]
+  leaf ← snapshot_repository leaf_start.checkout_path leaf_start.repository_identity
+  parent_start ← create_repository (runner.work_directory ++ "/recursive parent")
+    "https://github.com/example/recursive-parent"
+  parent ← declare_reference parent_start "reference" leaf
+  populate_reference parent "reference" leaf
+  let recursive_rows = material_rows parent "recursive" ++ [reference_row "reference" leaf "recursive"]
+  check_fixture runner "recursive" True parent "recursive" "ordinary" recursive_rows
+  check_fixture runner "recursive-repeat" True parent "recursive" "ordinary" recursive_rows
+  check_fixture runner "skip-previously-populated-reference" True parent "skip" "ordinary"
+    (material_rows parent "skip" ++ [reference_row "reference" leaf "skip"])
+  check_fixture runner "rehashed-omitted-reference" False parent "recursive" "ordinary"
+    (material_rows parent "recursive")
+  check_fixture runner "rehashed-wrong-reference" False parent "recursive" "ordinary"
+    (material_rows parent "recursive" ++
+      ["gitlink\treference\t" ++ leaf.repository_identity ++ "\t" ++ absent_commit ++ "\trecursive"])
+
+  let child_path = parent.checkout_path ++ "/reference"
+  git_action child_path ["remote", "set-url", "origin", "https://github.com/unrelated/leaf.git"]
+  check_fixture runner "wrong-child-origin" False parent "recursive" "ordinary" recursive_rows
+  git_action child_path ["remote", "set-url", "origin", leaf.repository_identity ++ ".git"]
+  git_action child_path ["commit", "-q", "--allow-empty", "-m", "wrong child commit"]
+  check_fixture runner "wrong-child-commit" False parent "recursive" "ordinary" recursive_rows
+  git_action child_path ["checkout", "-q", "--detach", leaf.committed_source]
+
+  _ ← require_process ["rm", "-rf", "--", child_path] ""
+  _ ← require_process ["mkdir", "--", child_path] ""
+  check_fixture runner "missing-child" False parent "recursive" "ordinary" recursive_rows
+  let skipped_rows = material_rows parent "skip" ++ [reference_row "reference" leaf "skip"]
+  check_fixture runner "skip-absent-reference" True parent "skip" "ordinary" skipped_rows
+  _ ← require_process ["test", "!", "-e", child_path ++ "/.git"] ""
+  check_fixture runner "skip-none-mismatch" False parent "none" "ordinary" skipped_rows
+
+  -- A second Git owner proves that recursion follows committed child material,
+  -- rather than treating a correctly pinned first child as complete closure.
+  _ ← require_process ["rmdir", "--", child_path] ""
+  populate_reference parent "reference" leaf
+  grandparent_start ← create_repository (runner.work_directory ++ "/nested parent")
+    "https://github.com/example/nested-parent"
+  grandparent ← declare_reference grandparent_start "nested" parent
+  populate_reference grandparent "nested" parent
+  nested_parent ← snapshot_repository (grandparent.checkout_path ++ "/nested") parent.repository_identity
+  populate_reference nested_parent "reference" leaf
+  let nested_rows = material_rows grandparent "recursive" ++
+        [reference_row "nested" parent "recursive", reference_row "nested/reference" leaf "recursive"]
+  check_fixture runner "nested-recursive" True grandparent "recursive" "ordinary" nested_rows
+  _ ← require_process ["rm", "-rf", "--", nested_parent.checkout_path ++ "/reference"] ""
+  check_fixture runner "missing-nested-child" False grandparent "recursive" "ordinary" nested_rows
+
+  orphan_start ← create_repository (runner.work_directory ++ "/orphan declaration source")
+    "https://github.com/example/orphan-parent"
+  orphan_declared ← declare_reference orphan_start "reference" leaf
+  populate_reference orphan_declared "reference" leaf
+  git_action orphan_declared.checkout_path ["config", "-f", ".gitmodules",
+    "submodule.reference.orphan.url", leaf.repository_identity ++ ".git"]
+  git_action orphan_declared.checkout_path ["add", "--", ".gitmodules"]
+  git_action orphan_declared.checkout_path ["commit", "-q", "-m", "committed URL-only prefix collision"]
+  orphan_parent ← snapshot_repository orphan_declared.checkout_path orphan_declared.repository_identity
+  check_fixture runner "prefix-collision-orphan-declaration" False orphan_parent "recursive" "ordinary"
+    (material_rows orphan_parent "recursive" ++ [reference_row "reference" leaf "recursive"])
+
+  dotted_start ← create_repository (runner.work_directory ++ "/dotted declaration source")
+    "https://github.com/example/dotted-parent"
+  dotted_parent ← declare_reference dotted_start "reference.child" leaf
+  populate_reference dotted_parent "reference.child" leaf
+  check_fixture runner "dotted-reference-subsection" True dotted_parent "recursive" "ordinary"
+    (material_rows dotted_parent "recursive" ++ [reference_row "reference.child" leaf "recursive"])
+
+covering
+controlled_material_row : Text → Text → IO Text
+controlled_material_row path contents = do
+  digest ← sha256_text contents
+  pure ("material\t" ++ path ++ "\t" ++ digest)
+
+covering
+ick_source_controls : FixtureRunner → IO ()
+ick_source_controls runner = do
+  gcc ← create_repository (runner.work_directory ++ "/gcc reference")
+    "https://github.com/example/gcc"
+  ick_start ← create_repository (runner.work_directory ++ "/ick source")
+    "https://github.com/example/ick"
+  declared_ick ← declare_reference ick_start "gcc" gcc
+  _ ← require_process ["mkdir", "--", declared_ick.checkout_path ++ "/ick"] ""
+  let lock_contents = "gcc_commit=" ++ gcc.committed_source ++
+        "\ngcc_repository=" ++ gcc.repository_identity ++ ".git\n"
+  let overlay_contents = "controlled overlay bytes\n"
+  let prune_contents = "controlled prune bytes\n"
+  -- These are inert producer-material fixture bytes. No producer is invoked.
+  let materializer_contents = "controlled materializer bytes; never executed\n"
+  write_fixture (declared_ick.checkout_path ++ "/ick/SOURCE.lock") lock_contents
+  write_fixture (declared_ick.checkout_path ++ "/ick/OVERLAY.sha256") overlay_contents
+  write_fixture (declared_ick.checkout_path ++ "/ick/PRUNE") prune_contents
+  write_fixture (declared_ick.checkout_path ++ "/ick/materialize.sh") materializer_contents
+  git_action declared_ick.checkout_path ["add", "--", "ick"]
+  git_action declared_ick.checkout_path ["commit", "-q", "-m", "controlled ICK material"]
+  ick ← snapshot_repository declared_ick.checkout_path declared_ick.repository_identity
+  lock_row ← controlled_material_row "ick/SOURCE.lock" lock_contents
+  overlay_row ← controlled_material_row "ick/OVERLAY.sha256" overlay_contents
+  prune_row ← controlled_material_row "ick/PRUNE" prune_contents
+  materializer_row ← controlled_material_row "ick/materialize.sh" materializer_contents
+  let ick_rows = material_rows ick "skip" ++ [reference_row "gcc" gcc "skip",
+        lock_row, overlay_row, prune_row, materializer_row]
+  check_fixture runner "ick-material" True ick "skip" "ick" ick_rows
+  check_fixture runner "rehashed-wrong-material-digest" False ick "skip" "ick"
+    (replace_row "material\tick/PRUNE\t" ("material\tick/PRUNE\t" ++ absent_digest) ick_rows)
+  check_fixture runner "rehashed-missing-material" False ick "skip" "ick"
+    (filter (\row ⇒ not (isPrefixOf "material\tick/PRUNE\t" row)) ick_rows)
+  let wrong_lock = "gcc_commit=" ++ absent_commit ++
+        "\ngcc_repository=" ++ gcc.repository_identity ++ ".git\n"
+  write_fixture (ick.checkout_path ++ "/ick/SOURCE.lock") wrong_lock
+  git_action ick.checkout_path ["add", "--", "ick/SOURCE.lock"]
+  git_action ick.checkout_path ["commit", "-q", "-m", "wrong source lock"]
+  wrong_ick ← snapshot_repository ick.checkout_path ick.repository_identity
+  wrong_lock_row ← controlled_material_row "ick/SOURCE.lock" wrong_lock
+  let wrong_lock_rows = material_rows wrong_ick "skip" ++ [reference_row "gcc" gcc "skip",
+        wrong_lock_row, overlay_row, prune_row, materializer_row]
+  check_fixture runner "wrong-ick-lock" False wrong_ick "skip" "ick" wrong_lock_rows
+
+covering
+run_source_fixtures : FixtureRunner → Text → IO ()
+run_source_fixtures runner catfood_entrypoint = do
+  _ ← require_process ["mkdir", "-p", "--", runner.work_directory] ""
+  ordinary_source_controls runner
+  source_metadata_controls runner
+  recursive_source_controls runner
+  ick_source_controls runner
+  putStrLn "PASS\tindependent-source-fixtures\t43 named cases"
+  putStrLn ("NOT_RUN\tcatfood-consumer-replay\t" ++ catfood_entrypoint)
+
+covering
+main : IO ()
+main = do
+  arguments ← getArgs
+  case arguments of
+    [_, checker, catfood_entrypoint, work] ⇒
+      if isPrefixOf "/" checker && isPrefixOf "/" catfood_entrypoint && isPrefixOf "/" work
+        then run_source_fixtures (RunFixtures checker work) catfood_entrypoint
+        else die "FIXTURE-USAGE: checker, Cat Food entrypoint and work directory must be absolute"
+    _ ⇒ die "Usage: source-admission-fixtures CHECKER CATFOOD_ENTRYPOINT ABSOLUTE_WORK_DIRECTORY"

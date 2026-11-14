@@ -1,0 +1,6 @@
+schema	aici-source-expectation-v1
+repository	https://github.com/isomorphisms/ick
+commit	8a7aac0e42bc8af4550577bbc87e2a5a15eb9db7
+submodules	skip
+role	ick
+origin	https://github.com/dilapidated-shed/ick

@@ -1,0 +1,50 @@
+module SourceProcess
+
+import Data.Text
+import System
+import System.File
+import System.File.Process
+
+%unbound_implicits off
+
+public export
+record ProcessObservation where
+  constructor ObservedProcess
+  exit_status : Int
+  standard_output : Text
+
+covering
+read_process_output : File → IO Text
+read_process_output stream = do
+  if !(fEOF stream)
+    then pure ""
+    else do
+      Right portion ← fGetChars stream 65536
+        | Left failure ⇒ die ("SOURCE-PROCESS-READ: " ++ show failure)
+      if portion ≟ ""
+        then pure ""
+        else pure (portion ++ !(read_process_output stream))
+
+-- This is the inherited escaped argv interface, not authored shell syntax.
+export
+covering
+observe_process : List Text → Text → IO ProcessObservation
+observe_process arguments input_bytes = do
+  Right process ← System.File.Process.Escaped.popen2 arguments
+    | Left failure ⇒ die ("SOURCE-PROCESS-OPEN: " ++ show failure)
+  Right () ← fPutStr process.input input_bytes
+    | Left failure ⇒ die ("SOURCE-PROCESS-WRITE: " ++ show failure)
+  closeFile process.input
+  output_bytes ← read_process_output process.output
+  closeFile process.output
+  status ← popen2Wait process
+  pure (ObservedProcess status output_bytes)
+
+export
+covering
+require_process : List Text → Text → IO Text
+require_process arguments input_bytes = do
+  observed ← observe_process arguments input_bytes
+  if observed.exit_status ≟ 0
+    then pure observed.standard_output
+    else die ("SOURCE-PROCESS-FAILED: " ++ show arguments ++ " exit " ++ show observed.exit_status)

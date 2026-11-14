@@ -1,0 +1,61 @@
+module SourceCaptureProbe
+
+import Data.Text
+import Data.List
+import System
+import System.File
+import SourceProcess
+
+%unbound_implicits off
+
+covering
+inspect_captured_text : Text → Text → IO ()
+inspect_captured_text phase contents = do
+  putStrLn "PROBE captured text"
+  case phase of
+    "capture" ⇒ pure ()
+    "characters" ⇒ do
+      putStrLn "PROBE before unpack"
+      putStrLn ("PROBE character count " ++ show (length (unpack contents)))
+    "lines" ⇒ do
+      putStrLn "PROBE before lines"
+      putStrLn ("PROBE line count " ++ show (length (lines contents)))
+    "flags" ⇒ do
+      putStrLn "PROBE before flag scan"
+      let hidden = any (\row ⇒ case unpack row of
+            character :: remaining ⇒ (character >= 'a' && character <= 'z') || character ≟ 'S'
+            [] ⇒ False) (filter (\row ⇒ not (row ≟ "")) (lines contents))
+      putStrLn ("PROBE hidden flag " ++ show hidden)
+    _ ⇒ die "PROBE unknown phase"
+
+covering
+probe_capture : Text → Text → Text → IO ()
+probe_capture source input_path phase = do
+  putStrLn ("PROBE reading " ++ source)
+  case source of
+    "git" ⇒ do
+      observed ← observe_process ["/usr/bin/git", "-C", input_path, "ls-files", "-v"] ""
+      putStrLn ("PROBE process returned " ++ show observed.exit_status)
+      inspect_captured_text phase observed.standard_output
+    "file" ⇒ do
+      Right contents ← readFile input_path
+        | Left failure ⇒ die ("PROBE file read failed " ++ show failure)
+      inspect_captured_text phase contents
+    _ ⇒ die "PROBE unknown source"
+
+covering
+repeat_git_capture : Number → Text → Text → IO ()
+repeat_git_capture 0 input_path phase = pure ()
+repeat_git_capture (S remaining) input_path phase = do
+  putStrLn ("PROBE repeated captures remaining " ++ show (S remaining))
+  probe_capture "git" input_path phase
+  repeat_git_capture remaining input_path phase
+
+covering
+main : IO ()
+main = do
+  arguments ← getArgs
+  case arguments of
+    [_, "repeat", input_path, phase] ⇒ repeat_git_capture 8 input_path phase
+    [_, source, input_path, phase] ⇒ probe_capture source input_path phase
+    _ ⇒ die "usage: source-capture-probe git|file INPUT capture|characters|lines|flags"
