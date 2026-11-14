@@ -5,6 +5,7 @@ var work = ARGV[2]
 test ! -e $work
 mkdir -p $work/good/app
 printf 'payload\n' > $work/good/app/program
+printf 'compiler support header\n' > $work/good/app/libgdiagnostics++.h
 chmod 755 $work/good/app/program
 printf 'app/program\t755\n' > $work/required.tsv
 $grease $here/manifest.grease $work/good > $work/good/material.tsv
@@ -50,4 +51,4 @@ $grease $here/manifest.grease $work/reordered > $work/reordered/material.tsv
 tac $work/reordered/material.tsv > $work/reverse.tsv
 cp $work/reverse.tsv $work/reordered/material.tsv
 refuse reordered CLOSURE-MATERIAL
-write -- 'PASS closure self-test: positive plus 12 targeted refusals'
+write -- 'PASS closure self-test: literal-plus support-header positive plus 12 targeted refusals'

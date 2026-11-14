@@ -1,0 +1,220 @@
+"""Acquire externally pinned ICK bytes; retain shared Grease verification."""
+import hashlib
+from pathlib import Path
+import re
+import shutil
+import stat
+import subprocess
+import sys
+import tarfile
+from builtins import ValueError, dict, format, list
+
+TARGET ∈ str ← "arm-linux-gnueabi"
+ICK_SOURCE ∈ str ← "fbe86e23d55cfec2000c08e61deea2a407fd7175"
+GCC_SOURCE ∈ str ← "6294f1d9e7536e5ffcde09d1528c918d63abfef5"
+DRIVER ∈ str ← "bin/arm-linux-gnueabi-gcc"
+FRONTEND ∈ str ← "libexec/gcc/arm-linux-gnueabi/17.0.0/cc1"
+HEADERS ∈ str ← "lib/gcc/arm-linux-gnueabi/17.0.0/include"
+MAX_MEMBERS ∈ int ← 10000
+MAX_EXPANDED_BYTES ∈ int ← 1073741824
+
+def require(condition ∈ bool, diagnostic ∈ str) → None:
+    if not condition:
+        raise ValueError(diagnostic)
+
+def file_digest(path ∈ object) → str:
+    digest ∈ object ← hashlib.sha256()
+    with path.open("rb") as source:
+        while True:
+            block ∈ bytes ← source.read(1048576)
+            if not block:
+                break
+            digest.update(block)
+    return digest.hexdigest()
+
+def checked_digest(path ∈ object, expected ∈ str) → str:
+    require(bool(re.fullmatch("[0-9a-f]{64}", expected)), "ARCHIVE-DIGEST: expected SHA-256 required")
+    require(path.is_file() and not path.is_symlink(), "ARCHIVE-FILE: regular source required")
+    actual ∈ str ← file_digest(path)
+    require(actual == expected, "ARCHIVE-DIGEST: bytes differ from independent pin")
+    return actual
+
+def member_path(name ∈ str, directory ∈ bool) → str:
+    relative ∈ str ← name
+    if relative.startswith("./"):
+        relative ← relative[2:]
+    if directory and relative.endswith("/"):
+        relative ← relative[:-1]
+    require(bool(re.fullmatch("[A-Za-z0-9][A-Za-z0-9._/+-]*", relative)),
+            "ARCHIVE-PATH: unsupported or escaping name: " + relative)
+    components ∈ list[str] ← relative.split("/")
+    for component in components:
+        require(component != "" and component != "." and component != "..", "ARCHIVE-PATH: noncanonical component")
+    return relative
+
+def validate_members(archive ∈ object) → list[object]:
+    members ∈ list[object] ← []
+    kinds ∈ dict[str, str] ← {}
+    sizes ∈ dict[str, int] ← {}
+    expanded ∈ int ← 0
+    member_count ∈ int ← 0
+    while True:
+        member ∈ object ← archive.next()
+        if not member:
+            break
+        member_count ← member_count + 1
+        require(member_count <= MAX_MEMBERS, "ARCHIVE-LIMIT: too many members")
+        require(len(members) < MAX_MEMBERS, "ARCHIVE-LIMIT: too many members")
+        name ∈ str ← str(member.name)
+        mode ∈ int ← int(member.mode)
+        size ∈ int ← int(member.size)
+        if (name == "." or name == "./") and member.isdir():
+            continue
+        relative ∈ str ← member_path(name, bool(member.isdir()))
+        require(relative != "material.tsv" and not relative.startswith("material.tsv/"), "ARCHIVE-MANIFEST: reserved path")
+        require(not bool(kinds.get(relative)), "ARCHIVE-DUPLICATE: repeated path")
+        require(mode & 0o7000 == 0, "ARCHIVE-MODE: privileged mode")
+        require(member.isdir() or member.isfile() or member.islnk(), "ARCHIVE-TYPE: unsupported node")
+        parents ∈ list[object] ← list(Path(relative).parents)
+        for parent in parents:
+            if str(parent) != ".":
+                require(str(kinds.get(str(parent), "directory")) == "directory", "ARCHIVE-PATH: parent is not directory")
+        if member.islnk():
+            target ∈ str ← member_path(str(member.linkname), False)
+            require(str(kinds.get(target)) == "file", "ARCHIVE-LINK: earlier regular target required")
+            expanded ← expanded + sizes[target]
+            require(expanded <= MAX_EXPANDED_BYTES, "ARCHIVE-LIMIT: expanded bytes")
+            kinds[relative] ← "hardlink"
+        elif member.isdir():
+            kinds[relative] ← "directory"
+        else:
+            require(size >= 0, "ARCHIVE-SIZE: invalid size")
+            expanded ← expanded + size
+            require(expanded <= MAX_EXPANDED_BYTES, "ARCHIVE-LIMIT: expanded bytes")
+            kinds[relative] ← "file"
+            sizes[relative] ← size
+        members.append(member)
+    require(bool(kinds.get(DRIVER)) and bool(kinds.get(FRONTEND)), "ARCHIVE-PAYLOAD: compiler driver/frontend absent")
+    for header in ["stddef.h", "stdarg.h", "stdatomic.h"]:
+        require(bool(kinds.get(HEADERS + "/" + header)), "ARCHIVE-PAYLOAD: builtin header absent")
+    return members
+
+def extract_members(archive ∈ object, members ∈ list[object], destination ∈ object) → None:
+    for member in members:
+        relative ∈ str ← member_path(str(member.name), bool(member.isdir()))
+        output ∈ object ← destination.joinpath(relative)
+        if member.isdir():
+            output.mkdir(parents=True, exist_ok=True)
+            output.chmod(member.mode)
+        else:
+            output.parent.mkdir(parents=True, exist_ok=True)
+            if member.islnk():
+                source ∈ object ← destination.joinpath(member_path(str(member.linkname), False)).open("rb")
+            else:
+                source ∈ object ← archive.extractfile(member)
+                require(bool(source), "ARCHIVE-PAYLOAD: missing member stream")
+            with source:
+                with output.open("xb") as target:
+                    shutil.copyfileobj(source, target, 1048576)
+            output.chmod(member.mode)
+
+def require_source_record(archive ∈ object, members ∈ list[object]) → None:
+    observed ∈ dict[str, str] ← {}
+    for member in members:
+        if member_path(str(member.name), bool(member.isdir())) == "qualification/receipt.tsv":
+            require(bool(member.isfile()), "ARCHIVE-SOURCE: regular qualification receipt required")
+            with archive.extractfile(member) as stream:
+                payload ∈ bytes ← stream.read(65537)
+            require(len(payload) <= 65536, "ARCHIVE-SOURCE: oversized qualification receipt")
+            lines ∈ list[str] ← payload.decode("utf-8").splitlines()
+            for line in lines:
+                fields ∈ list[str] ← line.split("\t")
+                require(len(fields) == 2, "ARCHIVE-SOURCE: invalid qualification record")
+                require(not bool(observed.get(fields[0])), "ARCHIVE-SOURCE: duplicate qualification field")
+                observed[fields[0]] ← fields[1]
+    require(str(observed.get("source")) == ICK_SOURCE, "ARCHIVE-SOURCE: ICK source differs")
+    require(str(observed.get("gcc_reference")) == GCC_SOURCE, "ARCHIVE-SOURCE: GCC lock differs")
+    require(str(observed.get("abi")) == "armeabi-v7a", "ARCHIVE-SOURCE: ABI differs")
+
+def write_acquired_material(destination ∈ object) → None:
+    paths ∈ list[str] ← []
+    observed_paths ∈ list[object] ← list(destination.rglob("*"))
+    for path in observed_paths:
+        if path.is_file():
+            paths.append(path.relative_to(destination).as_posix())
+    paths.sort()
+    with destination.joinpath("material.tsv").open("x", encoding="utf-8", newline="\n") as manifest:
+        for relative in paths:
+            require(relative != "material.tsv", "ARCHIVE-MANIFEST: reserved path")
+            path ∈ object ← destination.joinpath(relative)
+            mode ∈ str ← format(stat.S_IMODE(path.stat().st_mode), "o")
+            manifest.write(file_digest(path) + "\t" + mode + "\t" + relative + "\n")
+
+def acquire_archive(source ∈ object, expected ∈ str, destination ∈ object) → None:
+    checked_digest(source, expected)
+    require(not destination.exists() and not destination.is_symlink(), "ARCHIVE-DESTINATION: fresh directory required")
+    require(destination.parent.is_dir(), "ARCHIVE-DESTINATION: existing parent required")
+    with tarfile.open(source, "r:gz") as archive:
+        members ∈ list[object] ← validate_members(archive)
+        require_source_record(archive, members)
+        for member in members:
+            name ∈ str ← str(member.name)
+            require(name != "material.tsv" and name != "./material.tsv", "ARCHIVE-MANIFEST: reserved path")
+        destination.mkdir(mode=0o700)
+        extract_members(archive, members, destination)
+    write_acquired_material(destination)
+
+def execute_compiler(arguments ∈ list[str], output_directory ∈ object) → object:
+    environment ∈ dict[str, str] ← {"PATH": "/usr/bin:/bin", "LC_ALL": "C"}
+    result ∈ object ← subprocess.run(arguments, cwd=output_directory, env=environment,
+                                    capture_output=True, timeout=120)
+    status ∈ int ← int(result.returncode)
+    diagnostic ∈ str ← result.stderr.decode("utf-8", errors="replace")
+    require(status == 0, "REPLAY-COMPILER: " + diagnostic)
+    return result
+
+def replay_compiler(root ∈ object, leaf ∈ object, expected_leaf ∈ str, glyph ∈ object, output ∈ object) → None:
+    checked_digest(leaf, expected_leaf)
+    require(not output.exists(), "REPLAY-DESTINATION: fresh directory required")
+    for relative in [DRIVER, FRONTEND, HEADERS + "/stddef.h", HEADERS + "/stdatomic.h"]:
+        require(root.joinpath(relative).is_file() and not root.joinpath(relative).is_symlink(), "REPLAY-PAYLOAD: missing compiler material")
+    output.mkdir(mode=0o700)
+    compiler ∈ str ← str(root.joinpath(DRIVER))
+    target ∈ object ← execute_compiler([compiler, "-dumpmachine"], output)
+    observed_target ∈ str ← target.stdout.decode().strip()
+    require(observed_target == TARGET, "REPLAY-TARGET: unexpected compiler target")
+    frontend ∈ object ← execute_compiler([compiler, "-print-prog-name=cc1"], output)
+    observed_frontend ∈ str ← str(Path(frontend.stdout.decode().strip()).resolve())
+    require(observed_frontend == str(root.joinpath(FRONTEND).resolve()), "REPLAY-FRONTEND: outside delivered package")
+    source_index ∈ int ← 0
+    sources ∈ list[object] ← [leaf, glyph]
+    for source in sources:
+        name ∈ str ← "consumer"
+        if source_index == 1:
+            name ← "glyph"
+        source_index ← source_index + 1
+        for optimization in ["0", "2"]:
+            assembly ∈ object ← output.joinpath(name + "-O" + optimization + ".s")
+            execute_compiler([compiler, "-O" + optimization, "-marm", "-march=armv7-a", "-mfpu=vfpv3-d16",
+                              "-mfloat-abi=softfp", "-S", str(source), "-o", str(assembly)], output)
+            require(assembly.is_file() and int(assembly.stat().st_size) > 0, "REPLAY-OUTPUT: assembly absent")
+    with output.joinpath("observation.tsv").open("x", encoding="utf-8") as receipt:
+        receipt.write("schema\taici-ick-archive-host-observation-v1\n")
+        receipt.write("ick_source\t" + ICK_SOURCE + "\ngcc_reference\t" + GCC_SOURCE + "\n")
+        receipt.write("target\t" + TARGET + "\nfrontend_sha256\t" + file_digest(root.joinpath(FRONTEND)) + "\n")
+        receipt.write("consumer_source_sha256\t" + expected_leaf + "\n")
+        receipt.write("host_compiler_execution\tPASS\narm_assembly_generation\tPASS\n")
+        receipt.write("shared_material_verification\tNOT_RUN\nauthenticated_witness\tNOT_RUN\n")
+        receipt.write("ndk_assembly_link\tNOT_RUN\nandroid_runtime\tNOT_RUN\nmanaged_installation\tNOT_RUN\n")
+
+def main(arguments ∈ list[str]) → None:
+    if len(arguments) == 5 and arguments[1] == "acquire":
+        acquire_archive(Path(arguments[2]).absolute(), arguments[3], Path(arguments[4]).absolute())
+    elif len(arguments) == 7 and arguments[1] == "replay":
+        replay_compiler(Path(arguments[2]).resolve(), Path(arguments[3]).resolve(), arguments[4],
+                        Path(arguments[5]).resolve(), Path(arguments[6]).absolute())
+    else:
+        raise ValueError("usage: acquire ARCHIVE SHA256 DEST | replay ROOT LEAF SHA256 GLYPH OUTPUT")
+
+if __name__ == "__main__":
+    main(sys.argv)

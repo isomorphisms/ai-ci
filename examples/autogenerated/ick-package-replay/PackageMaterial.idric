@@ -1,0 +1,27 @@
+module PackageMaterial
+
+import Data.Text
+
+record RequiredMaterial where
+  constructor Required
+  relative_path : Text
+  expected_digest : Text
+
+record ObservedMaterial where
+  constructor Observed
+  relative_path : Text
+  actual_digest : Text
+
+matches_required_material : RequiredMaterial → ObservedMaterial → Bool
+matches_required_material required observed =
+  required.relative_path ≟ observed.relative_path &&
+  required.expected_digest ≟ observed.actual_digest
+
+pure_checks : Bool
+pure_checks =
+  matches_required_material (Required "bin/compiler" "same")
+    (Observed "bin/compiler" "same") &&
+  not (matches_required_material (Required "bin/compiler" "same")
+    (Observed "bin/compiler" "changed")) &&
+  not (matches_required_material (Required "bin/compiler" "same")
+    (Observed "other/compiler" "same"))
