@@ -1,0 +1,18 @@
+PASS independent raw-source/readelf accounting: {"artifacts":136,"elf":18,"relocations":1345,"listings":9,"instructions":7426,"englishRows":6835,"semanticForms":1542,"semanticAcceptance":"UNVERIFIED","libraryClosure":"UNKNOWN","languageCoverage":"UNKNOWN"}
+dropped instruction	REJECTED	DROPPED_OR_DUPLICATED_INSTRUCTION
+duplicated instruction	REJECTED	DROPPED_OR_DUPLICATED_INSTRUCTION
+reordered instruction	REJECTED	REORDERED_INSTRUCTION
+altered encoding	REJECTED	ALTERED_INSTRUCTION_BYTES
+missing ELF relocation	REJECTED	MISSING_RELOCATION
+missing printed relocation	REJECTED	MISSING_PRINTED_RELOCATION
+literal data as instruction	REJECTED	DATA_OR_ISA_MISCLASSIFIED
+swallowed executable gap	REJECTED	SWALLOWED_EXECUTABLE_GAP
+swallowed physical-file gap	REJECTED	FILE_GAP_OR_OVERLAP
+library coverage overclaim	REJECTED	FALSE_LIBRARY_COVERAGE
+semantic form overclaim	REJECTED	UNVERIFIED_SEMANTICS_COMPLETE
+semantic instruction overclaim	REJECTED	UNVERIFIED_SEMANTICS_COMPLETE
+linked copies double counted	REJECTED	FALSE_INSTRUCTION_TOTAL
+Fortran language overclaim	REJECTED	FALSE_LANGUAGE_COVERAGE
+English row dropped	REJECTED	MISSING_ENGLISH_ROW
+unlisted object omitted	REJECTED	UNLISTED_OBJECT_GAP_OMITTED
+uncaptured library body falsely covered	REJECTED	FALSE_LIBRARY_BODY_COVERAGE

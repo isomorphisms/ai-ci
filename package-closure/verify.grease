@@ -1,0 +1,44 @@
+# Read-only verification. Required paths/modes come from the consumer contract.
+set -e
+var root = ARGV[0]
+var required = ARGV[1]
+var generator = ARGV[2]
+var grease = ARGV[3]
+var observed = ARGV[4]
+if test ! -s $root/material.tsv {
+  write -- 'FAIL CLOSURE-MANIFEST: absent material record' >&2
+  exit 1
+}
+var links = $(find $root -type l -print)
+if (links !== '') {
+  write -- 'FAIL CLOSURE-LINK: this profile permits no symlinks' >&2
+  exit 1
+}
+var special = $(find $root ! -type f ! -type d -print)
+if (special !== '') {
+  write -- 'FAIL CLOSURE-NODE: special file' >&2
+  exit 1
+}
+# Regeneration reads files but never writes into or repairs the package.
+$grease $generator $root > $observed
+if ! cmp $root/material.tsv $observed {
+  write -- 'FAIL CLOSURE-MATERIAL: missing, changed, extra, duplicate or reordered material' >&2
+  exit 1
+}
+var obligations = $(cat $required).split(u'\n')
+for obligation in (obligations) {
+  var fields = obligation.split(u'\t')
+  if (len(fields) !== 2) { exit 2 }
+  var path = fields[0]
+  var mode = fields[1]
+  if ! test -s $root/$path {
+    write -- "FAIL CLOSURE-REQUIRED: $path" >&2
+    exit 1
+  }
+  var actual_mode = $(stat -c '%a' -- $root/$path)
+  if (actual_mode !== mode) {
+    write -- "FAIL CLOSURE-MODE: $path" >&2
+    exit 1
+  }
+}
+write -- 'PASS CLOSURE-MATERIAL: all declared bytes and modes, no links, required payloads present'

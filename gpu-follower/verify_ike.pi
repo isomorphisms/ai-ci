@@ -1,0 +1,64 @@
+import sys
+import hashlib
+from pathlib import Path
+
+def fail(message ∈ str) → None:
+    print(message)
+    sys.exit(1)
+
+def hexadecimal(text ∈ str) → str:
+    result ∈ str ← text.encode().hex()
+    return result
+
+def require_line(lines ∈ list[str], expected ∈ str) → None:
+    actual ∈ str ← lines.pop(0)
+    if actual != expected:
+        fail("Ike receipt mismatch: " + expected + " observed " + actual)
+
+def main() → None:
+    arguments ∈ list[str] ← sys.argv
+    program ∈ str ← arguments.pop(0)
+    receipt ∈ str ← arguments.pop(0)
+    ikefile ∈ str ← arguments.pop(0)
+    target ∈ str ← arguments.pop(0)
+    runner ∈ str ← arguments.pop(0)
+    plan ∈ str ← arguments.pop(0)
+    remaining ∈ int ← arguments.__len__()
+    if remaining != 0:
+        fail("unexpected verifier arguments")
+    source ∈ bytes ← Path(ikefile).read_bytes()
+    digest ∈ str ← hashlib.sha256(source).hexdigest()
+    identity ← "sha256:" + digest
+    lines ∈ list[str] ← Path(receipt).read_text().splitlines()
+    require_line(lines, "schema\tike-build-v1")
+    require_line(lines, "selected_target_hex\t" + hexadecimal(target))
+    require_line(lines, "ikefile_identity_hex\t" + hexadecimal(identity))
+    if runner == "POSIX-system()":
+        require_line(lines, "recipe_runner_mode\tposix-system")
+    else:
+        require_line(lines, "recipe_runner_mode\texternal-source-file")
+    require_line(lines, "recipe_runner_identity_hex\t" + hexadecimal(runner))
+    expected_plan ∈ list[str] ← Path(plan).read_text().splitlines()
+    event ← 0
+    count ← 0
+    for entry in expected_plan:
+        fields ∈ list[str] ← entry.split("\t")
+        rule ∈ str ← fields.pop(0)
+        recipe ∈ str ← fields.pop(0)
+        extra ∈ int ← fields.__len__()
+        if extra != 0:
+            fail("invalid expected plan")
+        require_line(lines, "rule\t" + str(event) + "\t" + hexadecimal(rule))
+        event ← event + 1
+        require_line(lines, "recipe\t" + str(event) + "\t" + hexadecimal(rule) + "\t" + hexadecimal(recipe) + "\t0")
+        event ← event + 1
+        count ← count + 1
+    if count == 0:
+        fail("empty expected plan")
+    require_line(lines, "final_result\tPASS")
+    trailing ∈ int ← lines.__len__()
+    if trailing != 0:
+        fail("unexpected trailing receipt records")
+    print("PASS independently anchored Ike identity, runner, complete ordered plan and every recipe status", count)
+
+main()

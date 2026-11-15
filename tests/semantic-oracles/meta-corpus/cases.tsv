@@ -1,0 +1,14 @@
+scenario_id	meta_case	candidate	test	oracle_ids	selection
+m01-correct	M01	overlap-correct	exact-offsets	m01-offsets	selected
+m01-wrong-offset	M01	overlap-wrong-offset	exact-offsets	m01-offsets	selected
+m02-correct	M02	set-correct	set-ab	m02-set-ab	selected
+m02-missing-element	M02	set-missing	false-positive	m02-set-ab	selected
+m02-renamed-reordered	M02	set-renamed-reordered	set-renamed	m02-set-renamed	selected
+m02-reordered	M02	set-reordered	order-sensitive-ab	m02-set-ab	selected
+m04-circular	M04	overlap-wrong-offset	false-positive	m04-copied	selected
+m06-empty-selection	M06	overlap-correct	exact-offsets	m06-offsets	empty
+m06-missing-selection	M06	overlap-correct	exact-offsets	m06-offsets	missing
+m06-never-run	M06	overlap-correct	never-run	m06-offsets	selected
+m09-independent-disagreement	M09	overlap-correct	exact-offsets	m09-left,m09-right	selected
+m23-set-a	M23	set-correct	set-ab	m23-set	selected
+m23-set-b	M23	set-reordered	set-ab	m23-set	selected

@@ -1,0 +1,53 @@
+set -e
+var here = ARGV[0]
+var grease = ARGV[1]
+var work = ARGV[2]
+test ! -e $work
+mkdir -p $work/good/app
+printf 'payload\n' > $work/good/app/program
+chmod 755 $work/good/app/program
+printf 'app/program\t755\n' > $work/required.tsv
+$grease $here/manifest.grease $work/good > $work/good/material.tsv
+$grease $here/verify.grease $work/good $work/required.tsv $here/manifest.grease $grease $work/observed.tsv
+proc refuse(name, diagnostic) {
+  if $grease $here/verify.grease $work/$name $work/required.tsv $here/manifest.grease $grease $work/observed.tsv > $work/$name.log 2>&1 {
+    write -- "FAIL mutant accepted: $name" >&2
+    exit 1
+  }
+  grep -F $diagnostic $work/$name.log
+  write -- "PASS mutant rejected: $name"
+}
+for name in absent missing changed extra duplicate reordered forged symlink mode required special path {
+  cp -R $work/good $work/$name
+}
+rm $work/absent/material.tsv
+refuse absent CLOSURE-MANIFEST
+rm $work/missing/app/program
+refuse missing CLOSURE-MATERIAL
+printf 'replacement\n' > $work/changed/app/program
+refuse changed CLOSURE-MATERIAL
+printf 'undeclared\n' > $work/extra/extra
+refuse extra CLOSURE-MATERIAL
+cat $work/good/material.tsv >> $work/duplicate/material.tsv
+refuse duplicate CLOSURE-MATERIAL
+printf 'invalid\n' > $work/forged/material.tsv
+refuse forged CLOSURE-MATERIAL
+ln -s /etc/passwd $work/symlink/escape
+refuse symlink CLOSURE-LINK
+chmod 644 $work/mode/app/program
+$grease $here/manifest.grease $work/mode > $work/mode/material.tsv
+refuse mode CLOSURE-MODE
+rm $work/required/app/program
+printf 'placeholder\n' > $work/required/placeholder
+$grease $here/manifest.grease $work/required > $work/required/material.tsv
+refuse required CLOSURE-REQUIRED
+mkfifo $work/special/fifo
+refuse special CLOSURE-NODE
+printf 'bad\n' > "$work/path/bad name"
+refuse path CLOSURE-PATH
+printf 'second\n' > $work/reordered/second
+$grease $here/manifest.grease $work/reordered > $work/reordered/material.tsv
+tac $work/reordered/material.tsv > $work/reverse.tsv
+cp $work/reverse.tsv $work/reordered/material.tsv
+refuse reordered CLOSURE-MATERIAL
+write -- 'PASS closure self-test: positive plus 12 targeted refusals'

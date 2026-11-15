@@ -1,0 +1,194 @@
+#!/usr/bin/env grease
+set -o errexit -o nounset -o pipefail
+var leaf = ENV.LEAF_ROOT
+var compiler = ENV.ICK_CC
+var linker = ENV.HOST_LINKER
+var source_root = "$(dirname -- "$(realpath -- "$0")")"
+var output = "$source_root/build/font-preview"
+test "$(git -C "$leaf" rev-parse HEAD)" = f33a476c69da313745b58c10cf8057765f9cbec9
+git -C "$leaf" diff HEAD --exit-code --quiet
+test -z "${GCC_EXEC_PREFIX-}${COMPILER_PATH-}"
+var frontend = "$(readlink -f -- "$("$compiler" -print-prog-name=cc1)")"
+if (get(ENV, 'ICK_ARTIFACT_STAGE', '') !== '') {
+    var stage = ENV.ICK_ARTIFACT_STAGE
+    test "$compiler" = "$stage/bin/gcc"
+    test "$(sha256sum "$[ENV.ICK_STAGE_ARCHIVE]" | cut -d ' ' -f1)" = 8ee043088fffadba3704fd567c206c4852b0de69f0b8bb76a131bfb8fa4004a4
+    test "$(sha256sum "$compiler" | cut -d ' ' -f1)" = 45805e3295f2709737fcc87985a8a2341aa8663ff8e4e398d2a9d78dc1283e10
+    test "$frontend" = "$stage/libexec/gcc/x86_64-pc-linux-gnu/17.0.0/cc1"
+    test "$(sha256sum "$frontend" | cut -d ' ' -f1)" = c09665543aa807967d22bcaf0959aedd970f9d21be309d42170e4bae5a555292
+} else {
+    var compiler_source = ENV.ICK_SOURCE_DIR
+    test "$compiler" = "$compiler_source/stage/bin/x86_64-linux-gnu-gcc"
+    test "$(git -C "$compiler_source" rev-parse HEAD)" = c61e448251744a2f40ad743ebef1a027bdcd2f9d
+    test "$(git -C "$compiler_source/gcc" rev-parse HEAD)" = 6294f1d9e7536e5ffcde09d1528c918d63abfef5
+    if (not frontend.startsWith("$compiler_source/stage/libexec/gcc/x86_64-linux-gnu/") or not frontend.endsWith('/cc1')) {
+        echo 'unowned native frontend' >&2; exit 2
+    }
+}
+test ! -e "$output"
+mkdir -p "$output/full"
+proc compile (source, object) {
+    "$compiler" -std=c11 -O2 -Wall -Wextra -Werror -pedantic -fPIC -ffp-contract=off -fno-fast-math \
+        "-I$leaf/subpixel/include" "-I$leaf/src" "-I$leaf/subpixel/examples" -c "$source" -o "$object"
+}
+compile "$leaf/subpixel/src/curve_patch.c" "$output/3.o"
+compile "$leaf/subpixel/src/curve_patch_5x5.c" "$output/5.o"
+compile "$leaf/subpixel/src/coverage_plane.c" "$output/plane.o"
+compile "$leaf/subpixel/src/path.c" "$output/path.o"
+compile "$leaf/src/subpixel_framebuffer.c" "$output/blend.o"
+compile "$leaf/src/framebuffer.c" "$output/framebuffer.o"
+compile "$leaf/subpixel/examples/font_5x7.c" "$output/font.o"
+compile "$source_root/font_verify.c" "$output/oracle.o"
+compile "$source_root/receipt_check.c" "$output/receipt.o"
+"$linker" "$output/receipt.o" -o "$output/receipt-check"
+"$linker" "$output/3.o" "$output/5.o" "$output/plane.o" "$output/path.o" "$output/font.o" "$output/oracle.o" -lm -o "$output/verify"
+proc link_preview (preview_object, path_object, executable) {
+    "$linker" "$output/3.o" "$output/5.o" "$output/plane.o" "$path_object" "$output/blend.o" \
+        "$output/framebuffer.o" "$output/font.o" "$preview_object" -lm -o "$executable"
+}
+var preview_source = "$leaf/subpixel/examples/font_5x7_preview.c"
+compile "$preview_source" "$output/preview.o"
+link_preview "$output/preview.o" "$output/path.o" "$output/font-5x7-preview"
+"$output/font-5x7-preview" "$output/full" > "$output/producer.log"
+"$output/verify" --preview "$output/full" | tee "$output/positive.log"
+grep -Fxq 'AICI_FONT_PREVIEW_ACCEPT literal bitmap, independent geometry and exact mask/count/image round trip: PASS' "$output/positive.log"
+
+# Only the test matrix is reduced for targeted negatives. All rendering,
+# serialization and painting remain the real producer source. The positive
+# twin first proves this scope independently accepts unchanged behavior.
+awk '{ if ($0 == "    for (unsigned scale_index = 0; okay && scale_index < 4; ++scale_index)") {
+          print "    for (unsigned scale_index = 0; okay && scale_index < 1; ++scale_index)"; changed++
+      } else if ($0 == "        for (int offset = 0; okay && offset < 4; ++offset)") {
+          print "        for (int offset = 0; okay && offset < 1; ++offset)"; changed++
+      } else if ($0 == "            for (int inverse = 0; okay && inverse < 2; ++inverse) {") {
+          print "            for (int inverse = 0; okay && inverse < 1; ++inverse) {"; changed++
+      } else print
+    } END { if (changed != 3) exit 15 }' "$preview_source" > "$output/probe-source.c"
+compile "$output/probe-source.c" "$output/probe.o"
+link_preview "$output/probe.o" "$output/path.o" "$output/probe-preview"
+mkdir "$output/control"
+"$output/probe-preview" "$output/control" > "$output/control-producer.log"
+"$output/verify" --preview-probe "$output/control" > "$output/control-oracle.log"
+grep -Fxq 'AICI_FONT_PREVIEW_PROBE_ACCEPT one panel and exact mask/count/image round trip: PASS' "$output/control-oracle.log"
+
+proc reject (directory, diagnostic) {
+    try { "$output/verify" --preview-probe "$directory" > "$directory/rejection.log" 2>&1 }
+    if (_error.code !== 1) { echo "font source defect survived or did not execute: $directory" >&2; exit 1 }
+    grep -Fq "FONT_PREVIEW_REJECT $diagnostic" "$directory/rejection.log"
+}
+proc preview_mutant (name, before, after, diagnostic) {
+    var directory = "$output/$name"
+    mkdir "$directory"
+    awk -v "before=$before" -v "after=$after" \
+        '{ if ($0 == before) { print after; changed++ } else print } END { if (changed != 1) exit 15 }' \
+        "$output/probe-source.c" > "$directory/preview.c"
+    if (name === 'forced-binary') {
+        # The first attempt stopped in the producer's fractional-cell guard.
+        # Remove only that self-check in this deliberately broken source so
+        # the unchanged independent oracle can observe its actual bad bits.
+        awk -v before='            if (status == 0 && mode >= 2 && (occupied == 0 || fractional == 0))' \
+            -v after='            if (status == 0 && mode >= 2 && occupied == 0)' \
+            '{if($0==before){print after;changed++}else print}END{if(changed!=1)exit 15}' \
+            "$directory/preview.c" > "$directory/observable.c"
+        mv "$directory/observable.c" "$directory/preview.c"
+    }
+    compile "$directory/preview.c" "$directory/preview.o"
+    link_preview "$directory/preview.o" "$output/path.o" "$directory/preview"
+    "$directory/preview" "$directory" > "$directory/producer.log"
+    reject "$directory" "$diagnostic"
+    printf 'source_mutant\t%s\tREJECTED\n' "$name" | tee -a "$output/mutations.tsv"
+}
+preview_mutant bitmap-rows "                    if (glyph->bitmap_rows[(unsigned)material_y][(unsigned)material_x] == '#')" \
+    "                    if (glyph->bitmap_rows[6U-(unsigned)material_y][(unsigned)material_x] == '#')" 'literal bitmap midpoint, rows and clipping'
+preview_mutant lost-S-control '            segments[segment].controls[point].x = glyph->segments[segment].point[point].x;' \
+    "            segments[segment].controls[point].x = glyph->name == 'S' && segment == 1 && point == 2 ? glyph->segments[segment].point[0].x : glyph->segments[segment].point[point].x;" \
+    'serialized individual samples match independent geometry outside boundary strip'
+preview_mutant corner-phase '        .transform = {scale, 0, 0, scale, origin - .5, origin - .5},' \
+    '        .transform = {scale, 0, 0, scale, origin - .5625, origin - .5625},' \
+    'serialized individual samples match independent geometry outside boundary strip'
+var blend_line = '            if (status == 0 && mode != 1 && rough_blend_subpixel_coverage(&target,'
+preview_mutant missing-microcell-edges "$blend_line" \
+    "            if(mode>=2) for(unsigned yy=0;yy<height;yy++) for(unsigned xx=0;xx<width;xx++) masks[yy*(width+PAD)+xx]&=UINT64_C(0x007f7f7f7f7f7f7f);
+$blend_line" \
+    'serialized individual samples match independent geometry outside boundary strip'
+preview_mutant transposed-bits "$blend_line" \
+    "            if(mode>=2) for(unsigned yy=0;yy<height;yy++) for(unsigned xx=0;xx<width;xx++){uint64_t old=masks[yy*(width+PAD)+xx],next=0;for(unsigned a=0;a<8;a++)for(unsigned b=0;b<8;b++)next|=((old>>(8*a+b))&1)<<(8*b+a);masks[yy*(width+PAD)+xx]=next;}
+$blend_line" \
+    'serialized individual samples match independent geometry outside boundary strip'
+preview_mutant macro-bitmap "$blend_line" \
+    "            if(mode>=2){for(unsigned yy=0;yy<height;yy++)for(unsigned xx=0;xx<width;xx++)masks[yy*(width+PAD)+xx]=0;bitmap_masks(glyph,scale,origin,&plane);}
+$blend_line" \
+    'serialized individual samples match independent geometry outside boundary strip'
+preview_mutant forced-binary "$blend_line" \
+    "            if(mode>=2) for(unsigned yy=0;yy<height;yy++) for(unsigned xx=0;xx<width;xx++) masks[yy*(width+PAD)+xx]=count_bits(masks[yy*(width+PAD)+xx])>=32?UINT64_MAX:0;
+$blend_line" \
+    'serialized individual samples match independent geometry outside boundary strip'
+preview_mutant invented-counts '                            x, y, bits, count) < 0)' \
+    '                            x, y, bits, count == 64 ? 63 : count + 1) < 0)' 'printed count equals all 64 mask bits'
+preview_mutant transposed-image '                        (bits & (UINT64_C(1) << (8 * sy + sx))) ? ink : paper);' \
+    '                        (bits & (UINT64_C(1) << (8 * sx + sy))) ? ink : paper);' 'fine-grid image round trips to serialized mask'
+preview_mutant hardcoded-strategy '        .max_sample_tests = 200000000, .strategy = strategy,' \
+    '        .max_sample_tests = 200000000, .strategy = strategy == CP_PATH_QUADRATIC ? CP_PATH_CUBIC : strategy,' 'forced strategy and actual auto choice'
+
+compile "$source_root/path_verify.c" "$output/path-oracle.o"
+"$linker" "$output/3.o" "$output/5.o" "$output/plane.o" "$output/path.o" "$output/path-oracle.o" -lm -o "$output/path-verify"
+"$output/path-verify" > "$output/path-control.log"
+proc path_mutant (name, before, after, diagnostic) {
+    var directory = "$output/$name"
+    mkdir "$directory"
+    awk -v "before=$before" -v "after=$after" \
+        '{if($0==before){print after;changed++}else print}END{if(changed!=1)exit 15}' "$leaf/subpixel/src/path.c" > "$directory/path.c"
+    compile "$directory/path.c" "$directory/path.o"
+    "$linker" "$output/3.o" "$output/5.o" "$output/plane.o" "$directory/path.o" "$output/path-oracle.o" -lm -o "$directory/verify"
+    try { "$directory/verify" > "$directory/rejection.log" 2>&1 }
+    if (_error.code !== 1) { echo "path source defect survived or did not execute: $name" >&2; exit 1 }
+    grep -Fq "$diagnostic" "$directory/rejection.log"
+    printf 'source_mutant\t%s\tREJECTED\n' "$name" >> "$output/mutations.tsv"
+}
+# Repeated native API calls expose addition; a preview's initially empty
+# destination would make addition indistinguishable from OR on its first call.
+path_mutant additive-union '                destination->occupied[y*destination->stride_words+x]|=workspace->candidate[y*width+x];' \
+    '                destination->occupied[y*destination->stride_words+x]+=workspace->candidate[y*width+x];' 'FAIL idempotence masks'
+path_mutant ignored-work-cap '    if(samples>c->options->max_sample_tests-c->report.sample_tests) return CP_PATH_BUDGET;' \
+    '    if(0 && samples>c->options->max_sample_tests-c->report.sample_tests) return CP_PATH_BUDGET;' 'FAIL sample budget'
+path_mutant packed-stride '                destination->occupied[y*destination->stride_words+x]|=workspace->candidate[y*width+x];' \
+    '                destination->occupied[y*width+x]|=workspace->candidate[y*width+x];' 'FAIL stride padding preserved'
+
+# File-level malformed inventories are distinct from compiled source defects.
+for defect in missing-row extra-row extra-pixel truncated-pixel metric-count metric-hash native-gray enlarged-gray nonbinary-sample {
+    var directory = "$output/file-$defect"
+    mkdir "$directory"
+    cp -a "$output/control/." "$directory/"
+    case "$defect" in
+        missing-row) sed '$d' "$directory/font-masks.tsv" > "$directory/changed.tsv"; mv "$directory/changed.tsv" "$directory/font-masks.tsv" ;;
+        extra-row) printf 'extra\n' >> "$directory/font-masks.tsv" ;;
+        extra-pixel) printf 'x' >> "$directory/font-1x-origin-minus-eighth-black-on-white.ppm" ;;
+        truncated-pixel) truncate -s -1 "$directory/font-1x-origin-minus-eighth-black-on-white.ppm" ;;
+        metric-count)
+            awk -F '\t' 'BEGIN{OFS="\t"} NR==2{$21=$21+1} {print}' "$directory/font-metrics.tsv" > "$directory/changed.tsv"
+            mv "$directory/changed.tsv" "$directory/font-metrics.tsv" ;;
+        metric-hash)
+            awk -F '\t' 'BEGIN{OFS="\t"} NR==2{$23="0000000000000000"} {print}' "$directory/font-metrics.tsv" > "$directory/changed.tsv"
+            mv "$directory/changed.tsv" "$directory/font-metrics.tsv" ;;
+        native-gray|enlarged-gray|nonbinary-sample)
+            var image = "$directory/font-1x-origin-minus-eighth-black-on-white.ppm"
+            var header_size = int("$(head -n 3 "$image" | wc -c)")
+            var pixel_index = 4 * 580 + 102
+            if (defect === 'enlarged-gray') { setvar pixel_index = 4 * 580 + 58 }
+            if (defect === 'nonbinary-sample') { setvar pixel_index = 5 * 580 + 5 }
+            printf '\001\001\001' | dd "of=$image" bs=1 "seek=$[header_size + 3 * pixel_index]" conv=notrunc status=none ;;
+    esac
+    var diagnostic = 'exact P6 payload and no trailing bytes'
+    if (defect === 'missing-row') { setvar diagnostic = 'complete ordered TSV inventory' }
+    if (defect === 'extra-row') { setvar diagnostic = 'no missing or additional TSV rows' }
+    if (defect === 'metric-count' or defect === 'metric-hash') { setvar diagnostic = 'metric totals, fractional cells and hash derive from masks' }
+    if (defect === 'native-gray') { setvar diagnostic = 'native resolve derives from mask count' }
+    if (defect === 'enlarged-gray') { setvar diagnostic = 'enlarged resolve derives from mask count' }
+    if (defect === 'nonbinary-sample') { setvar diagnostic = 'fine grid contains binary sample decisions' }
+    reject "$directory" "$diagnostic"
+    printf 'file_mutant\t%s\tREJECTED\n' "$defect" >> "$output/file-mutations.tsv"
+}
+sha256sum "$compiler" "$frontend" "$preview_source" "$source_root/font_verify.c" \
+    "$source_root/path_verify.c" "$source_root/font-preview-accept.grease" > "$output/input-materials.sha256"
+find "$output" -type f '!' -name materials.sha256 -exec sha256sum '{}' '+' > "$output/materials.sha256"
+printf '\033[32mPASS\033[0m actual font preview, thirteen compiled source defects and nine corrupt file inventories\n'

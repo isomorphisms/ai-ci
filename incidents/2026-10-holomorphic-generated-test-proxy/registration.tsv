@@ -1,0 +1,2 @@
+schema	incident_id	expected_specimens	expected_seeds	expected_candidates	expected_confirmed	expected_benign	expected_unknown	expected_inaccessible	expected_obligations	expected_consumers	coverage_scope
+aici-defect-registration-v1	holomorphic-generated-test-proxy	1	11	12	2	3	6	1	8	3	Eleven named owner rows from the retained SUN T1 incident plus the separately discovered unavailable original generator trace; this is not an account-wide health claim.

@@ -1,0 +1,11 @@
+# Actual SwiftShader phase counterexample
+
+The generated application in run [39310320206](https://github.com/isomorphismes/holomorphic/actions/runs/39310320206) launched, submitted the checked fragment and produced all 34 numerical and colour observations. Independent acceptance rejected `24_displaced:0`: its circular phase error is approximately π, exceeding the predeclared 0.0001 radian budget. Its colour also fails the unchanged one-level RGBA8 budget.
+
+The canonical independent Wegert function applied to the observed raw phase/log produces exactly the observed colour. This localizes this sample's colour discrepancy to its mathematical measure. The input inventory includes zero index 14 at (0.125, -0.0625), giving a positive vertical displacement, and zero index 22 at (0.625, 0.1875), giving a negative horizontal displacement. Both exact-axis contributions are producer investigation targets; the aggregate observation does not establish which factor caused the discrepancy.
+
+The focused log retains every original input, reduced factor, coefficient and observation for this case, together with actual runtime source binding, driver identity and complete-output summaries. The TSV records the complete artifact and original log hashes, mathematical expectations, observed values and fixed budgets. All other 33 rows pass this bounded corpus, including both 24-factor scale probes. This historical build predates the separate large-q probes.
+
+The hosted job checked out independent acceptance revision 66eba2c0e02276386ed9d736614348fd3416d48a. The separate local recheck used the frozen 76043b9a16883ea8366b7c347dbf2639833d9307 checker. Both correctly returned failure but displayed the last failed colour channel. The accompanying diagnostic-only change preserves the first semantic failure and prints all failed colour channels with the underlying values and budgets. It changes no acceptance predicate or policy.
+
+This is actual Android emulator execution through SwiftShader. A1/GE8322, C67/GE8320, TAB_P10/Mali-G57 and sustained physical performance remain NOT_RUN. The 10 mathematical mutation results are separate executed semantic controls; compiler rejection is not counted as a successful mutation test.

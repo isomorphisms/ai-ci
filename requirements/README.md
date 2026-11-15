@@ -49,6 +49,12 @@ request identity. The A1 delivery fixture exercises that seam. A later consumer
 can make the projection mandatory without recreating this checker. The bound
 projection's `request_id` must equal the immutable request's `id`.
 
+The same optional binding is checked for stored binary artifacts and actual
+surface observations. A byte-correct stored APK cannot satisfy the contract
+when its request carries a changed projection with the old digest. The storage
+twins preserve the valid bound request and reject that mutation; before the
+authority-path check, both twins passed.
+
 The SDF good twin and its duplicated-leaf-matrix bad twin are executable. Other
 controls reject stale C++ eligibility despite the historical artifact digest,
 proposal promotion, an omitted rule, unsupported supersession, wrong target,

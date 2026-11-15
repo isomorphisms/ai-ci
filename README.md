@@ -7,6 +7,15 @@ binds applicable owner/program/target obligations and explicit corrections to
 maintained request bytes without treating retrieval or copied prose as proof of
 compliance.
 
+[Independent source-checkout admission](source-closure/README.md) compares
+Cat Food's acquired source and canonical record against caller-owned immutable
+expectations, using the actual Idriç verifier and independently built Git cases.
+
+[Complete delivered material](package-closure/README.md) verifies canonical
+file hashes, modes, required payloads and a bounded no-symlink package profile
+without repairing the producer's archive. Consumer-owned runtime controls
+remain mandatory.
+
 [Job delivery](docs/job-delivery.md) checks complete visible assignment bytes
 and first-class binary attachment identity, plus separately bound dispatch,
 using Flexible Pipes' existing stage artifact.
@@ -215,6 +224,14 @@ revision, state `fallback=none`, and include an `execve` trace. The verifier
 rejects traces that invoke the side-by-side curl/libxml2 oracle. See
 [`ingestion/README.md`](ingestion/README.md) for the schema and current
 `document_log_subset_v0` boundary.
+
+The optional [`stage-verdict/`](stage-verdict/) action maps owner receipts into
+lossless stage and attempt verdicts. It preserves raw process fields and invalid
+evidence classes, keeps diagnosis `UNKNOWN` unless an owner supplies separate
+causal evidence, and computes the first required failure without erasing
+independent successful scope or dependent `NOT_RUN` stages. The ingestion action
+exercises the first native mapping; Kitchen and Flexible Pipes mappings remain
+pending their owner schemas.
 
 ## Idriç bounded orthogonal-core acceptance
 

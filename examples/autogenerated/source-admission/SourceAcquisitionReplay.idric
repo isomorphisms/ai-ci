@@ -1,0 +1,59 @@
+module SourceAcquisitionReplay
+
+import Data.Text
+import System
+import System.File
+import SourceProcess
+import SourceDomain
+
+%unbound_implicits off
+
+covering
+write_observation : Text → Text → IO ()
+write_observation destination contents = do
+  Right () ← writeFile destination contents
+    | Left failure ⇒ die ("SOURCE-REPLAY-WRITE: " ++ show failure)
+  pure ()
+
+covering
+replay_acquisition : Text → Text → Text → Text → Text → IO ()
+replay_acquisition checker catfood expectation_path work operation = do
+  Right expectation_bytes ← readFile expectation_path
+    | Left failure ⇒ die ("SOURCE-REPLAY-EXPECTATION: " ++ show failure)
+  Right expectation ← pure (parse_expectation expectation_bytes)
+    | Left failure ⇒ die failure
+  if isPrefixOf "/" checker && isPrefixOf "/" catfood && isPrefixOf "/" work &&
+       elem operation ["workbench", "producer"]
+    then pure () else die "SOURCE-REPLAY-ARGUMENTS"
+  ignore $ require_process ["mkdir", "-p", "--", work] ""
+  let checkout = work ++ "/acquired ICK source"
+  let evidence = work ++ "/catfood-source.tsv"
+  putStrLn ("STAGE\tCat Food source acquisition\t" ++ operation)
+  acquired ← observe_process ["env", "CATFOOD_TARGET=container", catfood, "acquire", "ick",
+      expectation.commit, checkout, operation] ""
+  write_observation evidence acquired.standard_output
+  write_observation (work ++ "/acquisition-exit.tsv") ("exit\t" ++ show acquired.exit_status ++ "\n")
+  if acquired.exit_status ≟ 0 then pure () else die "SOURCE-REPLAY-ACQUISITION-FAILED"
+  case expectation.reference_policy of
+    SkippedReferences ⇒ do
+      populated ← observe_process ["/usr/bin/test", "-e", checkout ++ "/gcc/.git"] ""
+      if populated.exit_status ≟ 1
+        then putStrLn "PASS SOURCE-ACQUISITION: fresh workbench did not populate GCC"
+        else die "SOURCE-REPLAY-UNEXPECTED-GCC-ACQUISITION"
+    _ ⇒ pure ()
+  putStrLn "STAGE\tindependent read-only source admission"
+  admitted ← observe_process [checker, expectation_path, checkout, evidence] ""
+  write_observation (work ++ "/admission.txt") admitted.standard_output
+  write_observation (work ++ "/admission-exit.tsv") ("exit\t" ++ show admitted.exit_status ++ "\n")
+  if admitted.exit_status ≟ 0
+    then putStrLn admitted.standard_output
+    else die ("SOURCE-REPLAY-ADMISSION-FAILED: " ++ admitted.standard_output)
+
+covering
+main : IO ()
+main = do
+  arguments ← getArgs
+  case arguments of
+    [_, checker, catfood, expectation_path, work, operation] ⇒
+      replay_acquisition checker catfood expectation_path work operation
+    _ ⇒ die "usage: source-acquisition-replay CHECKER CATFOOD EXPECTATION.tsv ABSOLUTE_WORK_DIRECTORY workbench|producer"

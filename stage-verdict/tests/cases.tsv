@@ -1,0 +1,14 @@
+case_id	plan	observations	expected	exit	diagnostic
+correct	plans/single.tsv	observations/correct.tsv	expected/correct.tsv	0	-
+exit-seven	plans/pipeline.tsv	observations/exit-seven.tsv	expected/exit-seven.tsv	1	-
+compiler-failure	plans/single.tsv	observations/compiler-failure.tsv	expected/compiler-failure.tsv	1	-
+omitted-selected-work	plans/pipeline.tsv	observations/omitted.tsv	expected/omitted.tsv	1	-
+timeout-and-interruption	plans/pipeline.tsv	observations/timeout-interruption.tsv	expected/timeout-interruption.tsv	1	-
+upload-only-failure	plans/upload.tsv	observations/upload-only.tsv	expected/upload-only.tsv	1	-
+unrelated-actor-crash	plans/unrelated.tsv	observations/unrelated-crash.tsv	expected/unrelated-crash.tsv	0	-
+successful-optional-cleanup	plans/optional.tsv	observations/optional-cleanup.tsv	expected/optional-cleanup.tsv	0	-
+failed-then-successful-retry	plans/single.tsv	observations/retry.tsv	expected/retry.tsv	1	-
+retry-row-permutation	plans/single.tsv	observations/retry-ordered.tsv	expected/retry.tsv	1	-
+invalid-evidence-mappings	plans/invalid-evidence.tsv	observations/invalid-evidence.tsv	expected/invalid-evidence.tsv	1	-
+contradictory-zero-exit	plans/single.tsv	observations/contradictory-zero.tsv	expected/contradictory-zero.tsv	1	-
+missing-selection	plans/missing-selection.tsv	observations/empty.tsv	-	2	PLAN-SELECTION

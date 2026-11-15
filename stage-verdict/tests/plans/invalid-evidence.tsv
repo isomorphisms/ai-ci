@@ -1,0 +1,7 @@
+stage_id	actor	required	selected	depends_on	claim
+incomplete	application	yes	yes	-	incomplete_evidence
+malformed	application	yes	yes	-	malformed_evidence
+stale	application	yes	yes	-	stale_evidence
+wrong_target	application	yes	yes	-	wrong_target_evidence
+wrong_layer	application	yes	yes	-	wrong_layer_evidence
+untrusted	application	yes	yes	-	untrusted_evidence

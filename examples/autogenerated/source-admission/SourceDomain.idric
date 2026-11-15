@@ -1,0 +1,149 @@
+module SourceDomain
+
+import Data.Text
+import Data.List
+
+%unbound_implicits off
+
+public export
+data ReferencePolicy = NoReferences | SkippedReferences | RecursiveReferences
+
+public export
+data SourceRole = OrdinarySource | IckSource
+
+public export
+record SourceExpectation where
+  constructor ExpectedSource
+  repository : Text
+  commit : Text
+  reference_policy : ReferencePolicy
+  source_role : SourceRole
+  approved_origins : List Text
+
+public export
+record SourceEntry where
+  constructor CommittedEntry
+  mode : Text
+  object_id : Text
+  path : Text
+
+public export
+record SourceReference where
+  constructor RequiredReference
+  reference_path : Text
+  reference_repository : Text
+  reference_commit : Text
+
+export
+policy_text : ReferencePolicy → Text
+policy_text NoReferences = "none"
+policy_text SkippedReferences = "skip"
+policy_text RecursiveReferences = "recursive"
+
+split_characters : Char → List Char → List (List Char)
+split_characters separator [] = [[]]
+split_characters separator (character :: remaining) =
+  case split_characters separator remaining of
+    [] ⇒ [[character]]
+    first :: others ⇒ if character ≟ separator
+      then [] :: first :: others
+      else (character :: first) :: others
+
+export
+fields : Text → List Text
+fields value = map pack (split_characters '\t' (unpack value))
+
+export
+rows : Text → List Text
+rows contents = filter (\row ⇒ not (row ≟ "")) (lines contents)
+
+export
+hexadecimal : Number → Text → Bool
+hexadecimal width value = length (unpack value) ≟ width &&
+  all (\character ⇒ isDigit character || elem character (unpack "abcdef")) (unpack value)
+
+export
+safe_path : Text → Bool
+safe_path value =
+  not (value ≟ "") && not (isPrefixOf "/" value) &&
+  all (\character ⇒ not (isControl character) && not (elem character ['\\', '"'])) (unpack value) &&
+  all (\component ⇒ not (elem component ["", ".", ".."])) (map pack (split_characters '/' (unpack value)))
+
+export
+normalize_repository : Text → Text
+normalize_repository value =
+  let canonical = if isSuffixOf ".git" value
+        then pack (take (minus (length (unpack value)) 4) (unpack value))
+        else value
+  in toLower canonical
+
+export
+valid_repository : Text → Bool
+valid_repository value = case map pack (split_characters '/' (unpack value)) of
+  ["https:", "", "github.com", owner, project] ⇒
+    not (owner ≟ "") && not (project ≟ "") &&
+    all (\character ⇒ isAlphaNum character || elem character (unpack "-_.")) (unpack (owner ++ project))
+  _ ⇒ False
+
+single_value : Text → List (List Text) → Either Text Text
+single_value name entries = case mapMaybe (\entry ⇒ case entry of
+    [key, value] ⇒ if key ≟ name then Just value else Nothing
+    _ ⇒ Nothing) entries of
+  [value] ⇒ Right value
+  _ ⇒ Left ("SOURCE-EXPECTATION-FIELD: " ++ name)
+
+export
+parse_expectation : Text → Either Text SourceExpectation
+parse_expectation contents = do
+  let entries = map fields (rows contents)
+  if all (\entry ⇒ case entry of
+      [name, value] ⇒ elem name ["schema", "repository", "commit", "submodules", "role", "origin"]
+      _ ⇒ False) entries
+    then Right () else Left "SOURCE-EXPECTATION-SCHEMA"
+  schema ← single_value "schema" entries
+  if schema ≟ "aici-source-expectation-v1" then Right () else Left "SOURCE-EXPECTATION-SCHEMA"
+  repository ← single_value "repository" entries
+  if valid_repository repository && repository ≟ normalize_repository repository
+    then Right () else Left "SOURCE-EXPECTATION-REPOSITORY"
+  commit ← single_value "commit" entries
+  if hexadecimal 40 commit then Right () else Left "SOURCE-EXPECTATION-COMMIT"
+  policy ← single_value "submodules" entries
+  reference_policy ← case policy of
+    "none" ⇒ Right NoReferences
+    "skip" ⇒ Right SkippedReferences
+    "recursive" ⇒ Right RecursiveReferences
+    _ ⇒ Left "SOURCE-EXPECTATION-POLICY"
+  role ← single_value "role" entries
+  source_role ← case role of
+    "ordinary" ⇒ Right OrdinarySource
+    "ick" ⇒ Right IckSource
+    _ ⇒ Left "SOURCE-EXPECTATION-ROLE"
+  let origins = mapMaybe (\entry ⇒ case entry of
+        ["origin", value] ⇒ Just value
+        _ ⇒ Nothing) entries
+  if all (\origin ⇒ valid_repository (normalize_repository origin)) origins
+    then Right (ExpectedSource repository commit reference_policy source_role
+      (repository :: map normalize_repository origins))
+    else Left "SOURCE-EXPECTATION-ORIGIN"
+
+export
+parse_entry : Text → Either Text SourceEntry
+parse_entry row = case fields row of
+  [metadata, path] ⇒ case words metadata of
+    [mode, kind, object_id] ⇒
+      if safe_path path && hexadecimal 40 object_id &&
+         ((mode ≟ "160000" && kind ≟ "commit") ||
+          (elem mode ["100644", "100755", "120000"] && kind ≟ "blob") ||
+          (mode ≟ "040000" && kind ≟ "tree"))
+        then Right (CommittedEntry mode object_id path)
+        else Left "SOURCE-TREE-ENTRY"
+    _ ⇒ Left "SOURCE-TREE-ENTRY"
+  _ ⇒ Left "SOURCE-TREE-ENTRY"
+
+export
+join_rows : List Text → Text
+join_rows = concatMap (\row ⇒ row ++ "\n")
+
+export
+canonical_material : List Text → Text
+canonical_material material = join_rows (sort material)

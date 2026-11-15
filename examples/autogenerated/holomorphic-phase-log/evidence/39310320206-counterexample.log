@@ -1,0 +1,115 @@
+HOLO_PROCESS package=org.isomorphisms.analyticcontinuation.lasso.dev pid=2236
+10-19 20:09:31.432  2236  2263 I AnalyticContinuation: holomorphic field shader bytes verified: mode=checked-idris compiler=idris2-glsles backend_commit=8ecb501375110cb326e7fecb109f794185382112 application_commit=987339696df20fda0f77313199b66d7b52e597c3 fragment_sha256=dad240b0327e61a8e0e175e3a2561f0f68b85cd617908edb68bb6abd46447348 bytes=28765 submission=glShaderSource fallback=none driver_readback_sha256=dad240b0327e61a8e0e175e3a2561f0f68b85cd617908edb68bb6abd46447348
+10-19 20:09:31.459  2236  2263 I AnalyticContinuation: holomorphic field renderer ready: GL_VERSION=OpenGL ES 3.0 (OpenGL ES 3.0 SwiftShader 4.0.0.1) GL_RENDERER=Android Emulator OpenGL ES Translator (Google SwiftShader) GL_VENDOR=Google (Google Inc.)
+10-19 20:09:32.791  2236  2263 I AnalyticContinuation: HOLO_GPU_CASE case=24_displaced coefficient_count=5 zero_count=24 pole_count=24 remote_count=0 factor_count=48 time=0
+10-19 20:09:32.791  2236  2263 I AnalyticContinuation: HOLO_GPU_COEFFICIENT case=24_displaced index=0 real=0.125 imag=-0.0625
+10-19 20:09:32.791  2236  2263 I AnalyticContinuation: HOLO_GPU_COEFFICIENT case=24_displaced index=1 real=-0.03125 imag=0.015625
+10-19 20:09:32.791  2236  2263 I AnalyticContinuation: HOLO_GPU_COEFFICIENT case=24_displaced index=2 real=0.0078125 imag=0.00390625
+10-19 20:09:32.791  2236  2263 I AnalyticContinuation: HOLO_GPU_COEFFICIENT case=24_displaced index=3 real=-0.001953125 imag=0.0009765625
+10-19 20:09:32.791  2236  2263 I AnalyticContinuation: HOLO_GPU_COEFFICIENT case=24_displaced index=4 real=0.00048828125 imag=-0.000244140625
+10-19 20:09:32.791  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=zero index=0 x=-0.75 y=-0.5
+10-19 20:09:32.791  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=zero index=1 x=-0.6875 y=-0.46875
+10-19 20:09:32.791  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=zero index=2 x=-0.625 y=-0.4375
+10-19 20:09:32.791  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=zero index=3 x=-0.5625 y=-0.40625
+10-19 20:09:32.791  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=zero index=4 x=-0.5 y=-0.375
+10-19 20:09:32.791  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=zero index=5 x=-0.4375 y=-0.34375
+10-19 20:09:32.791  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=zero index=6 x=-0.375 y=-0.3125
+10-19 20:09:32.791  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=zero index=7 x=-0.3125 y=-0.28125
+10-19 20:09:32.791  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=zero index=8 x=-0.25 y=-0.25
+10-19 20:09:32.791  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=zero index=9 x=-0.1875 y=-0.21875
+10-19 20:09:32.791  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=zero index=10 x=-0.125 y=-0.1875
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=zero index=11 x=-0.0625 y=-0.15625
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=zero index=12 x=0 y=-0.125
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=zero index=13 x=0.0625 y=-0.09375
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=zero index=14 x=0.125 y=-0.0625
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=zero index=15 x=0.1875 y=-0.03125
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=zero index=16 x=0.25 y=0
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=zero index=17 x=0.3125 y=0.03125
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=zero index=18 x=0.375 y=0.0625
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=zero index=19 x=0.4375 y=0.09375
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=zero index=20 x=0.5 y=0.125
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=zero index=21 x=0.5625 y=0.15625
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=zero index=22 x=0.625 y=0.1875
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=zero index=23 x=0.6875 y=0.21875
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=pole index=0 x=-0.734375 y=-0.5078125
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=pole index=1 x=-0.671875 y=-0.4765625
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=pole index=2 x=-0.609375 y=-0.4453125
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=pole index=3 x=-0.546875 y=-0.4140625
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=pole index=4 x=-0.484375 y=-0.3828125
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=pole index=5 x=-0.421875 y=-0.3515625
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=pole index=6 x=-0.359375 y=-0.3203125
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=pole index=7 x=-0.296875 y=-0.2890625
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=pole index=8 x=-0.234375 y=-0.2578125
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=pole index=9 x=-0.171875 y=-0.2265625
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=pole index=10 x=-0.109375 y=-0.1953125
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=pole index=11 x=-0.046875 y=-0.1640625
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=pole index=12 x=0.015625 y=-0.1328125
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=pole index=13 x=0.078125 y=-0.1015625
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=pole index=14 x=0.140625 y=-0.0703125
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=pole index=15 x=0.203125 y=-0.0390625
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=pole index=16 x=0.265625 y=-0.0078125
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=pole index=17 x=0.328125 y=0.0234375
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=pole index=18 x=0.390625 y=0.0546875
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=pole index=19 x=0.453125 y=0.0859375
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=pole index=20 x=0.515625 y=0.1171875
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=pole index=21 x=0.578125 y=0.1484375
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=pole index=22 x=0.640625 y=0.1796875
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_INPUT case=24_displaced kind=pole index=23 x=0.703125 y=0.2109375
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=0 x=-0.75 y=-0.5 order=1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=1 x=-0.6875 y=-0.46875 order=1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=2 x=-0.625 y=-0.4375 order=1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=3 x=-0.5625 y=-0.40625 order=1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=4 x=-0.5 y=-0.375 order=1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=5 x=-0.4375 y=-0.34375 order=1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=6 x=-0.375 y=-0.3125 order=1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=7 x=-0.3125 y=-0.28125 order=1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=8 x=-0.25 y=-0.25 order=1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=9 x=-0.1875 y=-0.21875 order=1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=10 x=-0.125 y=-0.1875 order=1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=11 x=-0.0625 y=-0.15625 order=1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=12 x=0 y=-0.125 order=1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=13 x=0.0625 y=-0.09375 order=1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=14 x=0.125 y=-0.0625 order=1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=15 x=0.1875 y=-0.03125 order=1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=16 x=0.25 y=0 order=1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=17 x=0.3125 y=0.03125 order=1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=18 x=0.375 y=0.0625 order=1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=19 x=0.4375 y=0.09375 order=1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=20 x=0.5 y=0.125 order=1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=21 x=0.5625 y=0.15625 order=1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=22 x=0.625 y=0.1875 order=1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=23 x=0.6875 y=0.21875 order=1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=24 x=-0.734375 y=-0.5078125 order=-1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=25 x=-0.671875 y=-0.4765625 order=-1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=26 x=-0.609375 y=-0.4453125 order=-1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=27 x=-0.546875 y=-0.4140625 order=-1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=28 x=-0.484375 y=-0.3828125 order=-1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=29 x=-0.421875 y=-0.3515625 order=-1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=30 x=-0.359375 y=-0.3203125 order=-1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=31 x=-0.296875 y=-0.2890625 order=-1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=32 x=-0.234375 y=-0.2578125 order=-1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=33 x=-0.171875 y=-0.2265625 order=-1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=34 x=-0.109375 y=-0.1953125 order=-1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=35 x=-0.046875 y=-0.1640625 order=-1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=36 x=0.015625 y=-0.1328125 order=-1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=37 x=0.078125 y=-0.1015625 order=-1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=38 x=0.140625 y=-0.0703125 order=-1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=39 x=0.203125 y=-0.0390625 order=-1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=40 x=0.265625 y=-0.0078125 order=-1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=41 x=0.328125 y=0.0234375 order=-1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=42 x=0.390625 y=0.0546875 order=-1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=43 x=0.453125 y=0.0859375 order=-1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=44 x=0.515625 y=0.1171875 order=-1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=45 x=0.578125 y=0.1484375 order=-1
+10-19 20:09:32.792  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=46 x=0.640625 y=0.1796875 order=-1
+10-19 20:09:32.793  2236  2263 I AnalyticContinuation: HOLO_GPU_FACTOR case=24_displaced index=47 x=0.703125 y=0.2109375 order=-1
+10-19 20:09:32.793  2236  2263 I AnalyticContinuation: HOLO_GPU_MEASURE case=24_displaced sample=0 point_x=0.125 point_y=0.1875 time=0 zoom=0.5 zero_count=24 pole_count=24 remote_count=0 phase=-3.6464498 log_modulus=-0.404329538 singular_order=0 produced=1 gl_error=0 readback_cpu_ms=0.186738
+10-19 20:09:32.793  2236  2263 I AnalyticContinuation: HOLO_GPU_COLOR case=24_displaced sample=0 red=104 green=190 blue=152 alpha=255 produced=1 gl_error=0 output_mode=2 framebuffer_format=RGBA8 conversion=glReadPixels
+10-19 20:09:32.793  2236  2263 I AnalyticContinuation: HOLO_GPU_MEASURE case=24_displaced sample=1 point_x=0.25 point_y=-0.375 time=0 zoom=1 zero_count=24 pole_count=24 remote_count=0 phase=0.277677596 log_modulus=0.522884071 singular_order=0 produced=1 gl_error=0 readback_cpu_ms=0.158976
+10-19 20:09:32.793  2236  2263 I AnalyticContinuation: HOLO_GPU_COLOR case=24_displaced sample=1 red=213 green=148 blue=143 alpha=255 produced=1 gl_error=0 output_mode=2 framebuffer_format=RGBA8 conversion=glReadPixels
+10-19 20:09:32.793  2236  2263 I AnalyticContinuation: HOLO_GPU_MEASURE case=24_displaced sample=2 point_x=-0.75 point_y=-0.5 time=0 zoom=3 zero_count=24 pole_count=24 remote_count=0 phase=-1.98402286 log_modulus=3.43424463 singular_order=1 produced=1 gl_error=0 readback_cpu_ms=0.145496
+10-19 20:09:32.794  2236  2263 I AnalyticContinuation: HOLO_GPU_COLOR case=24_displaced sample=2 red=0 green=0 blue=0 alpha=255 produced=1 gl_error=0 output_mode=2 framebuffer_format=RGBA8 conversion=glReadPixels
+10-19 20:09:32.794  2236  2263 I AnalyticContinuation: HOLO_GPU_MEASURE case=24_displaced sample=3 point_x=0.3125 point_y=-0.40625 time=0 zoom=3 zero_count=24 pole_count=24 remote_count=0 phase=0.24248445 log_modulus=0.509986877 singular_order=0 produced=1 gl_error=0 readback_cpu_ms=0.148111
+10-19 20:09:32.794  2236  2263 I AnalyticContinuation: HOLO_GPU_COLOR case=24_displaced sample=3 red=213 green=147 blue=145 alpha=255 produced=1 gl_error=0 output_mode=2 framebuffer_format=RGBA8 conversion=glReadPixels
+10-19 20:09:32.805  2236  2263 I AnalyticContinuation: HOLO_GPU_NUMERIC status=OUTPUT_READY samples=34 expected=34 reference_acceptance=NOT_RUN
+10-19 20:09:32.805  2236  2263 I AnalyticContinuation: HOLO_GPU_COLOR_OUTPUT status=OUTPUT_READY samples=34 expected=34 reference_acceptance=NOT_RUN
