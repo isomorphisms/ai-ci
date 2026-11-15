@@ -27,6 +27,8 @@ jobs:
           cmake
           -DTEST_ROOT="$RUNNER_TEMP/ick-material-guard"
           -P ick-android/tests/material-guard.cmake
+      - name: Require location-independent object names
+        run: cmake -P ick-android/tests/source-identity.cmake
   boundary:
     runs-on: ubuntu-24.04
     timeout-minutes: 150
@@ -83,3 +85,15 @@ jobs:
           -DNDK="$ANDROID_HOME/ndk/27.2.12479018"
           -DTEST_ROOT="$RUNNER_TEMP/wegert-material-qualification"
           -P ick-android/tests/qualify-wegert-incremental.cmake
+      - name: Retain real incremental and relocation material
+        if: always() && matrix.abi == 'x86_64'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: wegert-incremental-material-${{ github.event.pull_request.head.sha || github.sha }}
+          if-no-files-found: error
+          path: |
+            ${{ runner.temp }}/wegert-material-qualification/**/*.material.tsv
+            ${{ runner.temp }}/wegert-material-qualification/**/*.receipt.tsv
+            ${{ runner.temp }}/wegert-material-qualification/**/*.material-spec.tsv
+            ${{ runner.temp }}/wegert-material-qualification/*-path-policy.cmake
+            ${{ runner.temp }}/wegert-material-qualification/*-assembler.txt

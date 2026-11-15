@@ -218,3 +218,19 @@ requires refusal before the qualification record is refreshed. After explicit
 fixture reapproval, its incremental object material and bytes must match an
 independently clean Wegert build. This is disposable host qualification of
 invalidation, not approval of a modified compiler for installation or use.
+
+### Location-independent object identity
+
+Object filename keys now hash the source pathname relative to its most specific
+declared material root, with that root's stable role. They no longer hash the
+absolute checkout path. A source outside the declared roots is rejected;
+similarly named sibling directories do not count as the same root. Existing
+byte, compiler, header, recipe, policy and emitted-output checks are unchanged.
+
+The source-identity test covers relocated paths containing spaces/apostrophes,
+root reordering, nested-root selection, distinct same-basename sources and an
+outside-root refusal. It also retains the previous absolute-path algorithm as
+a deliberately wrong counterexample. The real Wegert test still requires equal
+material/assembly/object/library bytes after relocation. Its workflow retains
+both attempts' manifests, specifications and receipts, and prints differing
+material rows before reporting a relocation failure.
