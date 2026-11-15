@@ -22,8 +22,6 @@ set(compiler_record "${STAGE}/qualification/compiler.sha256")
 set(ndk_record "${STAGE}/qualification/ndk.sha256")
 set(closure_record "${STAGE}/qualification/artifacts.sha256")
 set(policy_record "${STAGE}/qualification/receipt.tsv")
-set(assembler_link "${NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android26-clang")
-file(REAL_PATH "${assembler_link}" assembler)
 execute_process(COMMAND "${compiler}" -print-prog-name=cc1
   OUTPUT_VARIABLE cc1 OUTPUT_STRIP_TRAILING_WHITESPACE RESULT_VARIABLE cc1_result)
 if(NOT cc1_result EQUAL 0 OR NOT EXISTS "${cc1}")
@@ -50,7 +48,8 @@ function(configure_wegert source build api)
   file(WRITE "${path_policy}"
     "add_compile_options(\n"
     "  \"-ffile-prefix-map=${source}/_/build=@consumer-source@\"\n"
-    "  \"-ffile-prefix-map=${build}=@consumer-build@\")\n")
+    "  \"-ffile-prefix-map=${build}=@consumer-build@\")\n"
+    "file(WRITE \"${build}-assembler.txt\" \"\${CMAKE_C_COMPILER}\\n\")\n")
   run("Wegert configure"
     "${CMAKE_COMMAND}" -S "${source}/_/build" -B "${build}" -G Ninja
     "-DCMAKE_TOOLCHAIN_FILE=${toolchain}"
@@ -196,6 +195,34 @@ endfunction()
 
 set(incremental "${TEST_ROOT}/incremental")
 configure_wegert("${WEGERT_SOURCE}" "${incremental}" 26)
+# The API-specific command-line wrapper is not necessarily the executable
+# selected by the NDK CMake toolchain. Mutate the actual configured assembler,
+# after independently checking its bytes against the qualified NDK record.
+file(STRINGS "${incremental}-assembler.txt" configured_assembler_paths)
+list(LENGTH configured_assembler_paths configured_assembler_count)
+if(NOT configured_assembler_count EQUAL 1)
+  message(FATAL_ERROR "Configured Wegert assembler observation is missing or ambiguous")
+endif()
+list(GET configured_assembler_paths 0 configured_assembler)
+if(NOT IS_ABSOLUTE "${configured_assembler}" OR NOT EXISTS "${configured_assembler}")
+  message(FATAL_ERROR "Configured Wegert assembler is not an existing absolute executable")
+endif()
+file(REAL_PATH "${configured_assembler}" assembler)
+file(SHA256 "${assembler}" assembler_sha)
+file(STRINGS "${ndk_record}" ndk_material_lines)
+list(LENGTH ndk_material_lines ndk_material_count)
+if(ndk_material_count LESS 2)
+  message(FATAL_ERROR "Qualified NDK record has no assembler identity")
+endif()
+list(GET ndk_material_lines 1 assembler_record)
+if(NOT assembler_record MATCHES "^([0-9a-f]+)[ \t]+.+$")
+  message(FATAL_ERROR "Qualified NDK assembler record is malformed")
+endif()
+set(qualified_assembler_sha "${CMAKE_MATCH_1}")
+if(NOT assembler_sha STREQUAL qualified_assembler_sha)
+  message(FATAL_ERROR "Configured Wegert assembler differs from the qualified NDK executable")
+endif()
+message(STATUS "Wegert configured assembler: ${assembler}; SHA-256 ${assembler_sha}")
 build_wegert("${incremental}")
 material_identity("${incremental}" LAST_MATERIAL)
 set(clean_baseline "${TEST_ROOT}/clean-baseline")
@@ -239,6 +266,8 @@ file(APPEND "${compiler}" "\n")
 update_record("${compiler_record}" 0 "${compiler}")
 compare_incremental_with_clean(compiler-driver 26)
 file(APPEND "${assembler}" "\n")
+run("Backdate assembler" touch -t 200001010000 "${assembler}")
+expect_build_failure(backdated-assembler "Qualified ICK material changed|ICK qualified material mismatch for assembler")
 update_record("${ndk_record}" 1 "${assembler}")
 compare_incremental_with_clean(assembler-driver 26)
 file(APPEND "${INTERFACE_ROOT}/ick-android/OwnedC.cmake" "\n# material recipe case\n")

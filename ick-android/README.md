@@ -203,3 +203,18 @@ older capability policy. A retained object tree with `HAVE_GAS_BASE64` enabled
 is rejected; use a fresh `ICK_BUILD` and `ICK_STAGE` for that configuration.
 Installed stages still undergo the unchanged NDK glyph qualification without
 requiring their original object tree.
+
+### Incremental qualification's assembler identity
+
+The real Wegert mutation test records `CMAKE_C_COMPILER` from the configured
+NDK project, resolves that executable and checks its SHA-256 against the
+qualified NDK record before mutating it. An API-specific command-line wrapper
+can be a different file from the compiler CMake selected. The former test
+changed that wrapper, then incorrectly used its digest to approve the actual
+assembler; production correctly refused the mismatch in run 39346465022.
+
+The repaired test backdates a change to the actual configured executable and
+requires refusal before the qualification record is refreshed. After explicit
+fixture reapproval, its incremental object material and bytes must match an
+independently clean Wegert build. This is disposable host qualification of
+invalidation, not approval of a modified compiler for installation or use.
