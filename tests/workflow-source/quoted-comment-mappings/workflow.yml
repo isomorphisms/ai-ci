@@ -1,0 +1,17 @@
+'on': # trigger
+  "pull_request":
+'jobs': # jobs
+  check:
+    if: ${{ true }}
+    'steps':
+      - 'uses': 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683'
+        'if': true
+        'with': # actual source
+          "ref": '${{ github.event.pull_request.head.sha || github.sha }}' # exact
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: example/dependency
+          ref: 1111111111111111111111111111111111111111
+        env:
+          OTHER: ${{ matrix.os }}
+          FALSE_TEXT: ${{ false }}

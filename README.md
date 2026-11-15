@@ -168,6 +168,9 @@ The reusable parsing and diagnostics belong here in `ai-ci`; consumer
 repositories should keep only their own critical-path lists, fixtures, expected
 results, and workflow wiring.
 
+See [supported workflow source](docs/workflow-source.md) for the shared reader,
+exact-checkout compatibility entrypoint, diagnostics and source-only limits.
+
 ## Finished-video acceptance
 
 The optional `video/` action tests the encoded artifact, not a renderer's source
@@ -256,9 +259,11 @@ exports that executable and its native scalar runtime flag. Keep that declared
 runtime boundary when reproducing the commands locally.
 
 ```text
-cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici src/aici.c
+"$ICK" -fno-link-libatomic -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici src/aici.c
 /tmp/aici self-test tests/cases.tsv
 /tmp/aici suite tests/good-suite.tsv .
+
+AICI_BIN=/tmp/aici sh tests/merge-workflow-head.sh merge/check-workflow-head.sh
 
 "$ICK" -fno-link-libatomic -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-video src/aici_video.c -lm
 "$ICK" -fno-link-libatomic -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-video-fixtures video/tests/make_video_fixtures.c

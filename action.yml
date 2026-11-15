@@ -12,6 +12,9 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Select the qualified C verifier compiler
+      id: compiler
+      uses: isomorphisms/ai-ci/ick-host@903b2cb27ea572c9c6cb2ffa9f39e0fbf06ec9f8
     - shell: sh
       env:
         AICI_ROOT: ${{ inputs.root }}
@@ -24,7 +27,7 @@ runs:
           exit 2
         fi
 
-        cc -std=c17 -Wall -Wextra -Werror -O2 \
+        "${{ steps.compiler.outputs.compiler }}" ${{ steps.compiler.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -O2 \
           "$GITHUB_ACTION_PATH/src/aici.c" \
           -o "$RUNNER_TEMP/aici"
 

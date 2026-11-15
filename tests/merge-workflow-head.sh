@@ -58,3 +58,19 @@ fi
 grep -F 'CI-EXACT-HEAD-PRIMARY-CHECKOUT-MISSING' "$work/dependency.out" >/dev/null
 
 printf '%s\n' 'exact-head workflow fixtures pass'
+
+# Both compatibility routes must use the same structural decision and emit the
+# intended rejection, including unsupported/ambiguous source rather than PASS.
+while IFS='	' read -r expected diagnostic fixture; do
+    source="$root/tests/workflow-source/$fixture/workflow.yml"
+    if "$checker" "$source" > "$work/adapter.out"; then actual=pass; else actual=fail; fi
+    test "$actual" = "$expected"
+    grep -F "$diagnostic" "$work/adapter.out" >/dev/null
+    if "$AICI_BIN" workflow-head "$source" > "$work/core.out"; then actual=pass; else actual=fail; fi
+    test "$actual" = "$expected"
+    cmp "$work/core.out" "$work/adapter.out"
+    if "$AICI_BIN" verify "$root/tests/contracts/workflow-head.contract.tsv" \
+        "$root/tests/workflow-source/$fixture" > "$work/contract.out"; then actual=pass; else actual=fail; fi
+    test "$actual" = "$expected"
+    printf 'PASS\tworkflow-source\t%s\t%s\n' "$fixture" "$diagnostic"
+done < "$root/tests/workflow-source/cases.tsv"
