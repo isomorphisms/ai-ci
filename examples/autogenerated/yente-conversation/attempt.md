@@ -42,7 +42,7 @@ stops at its first stage when supplied `/usr/bin/false`, retaining exit 1 and
 running no acceptance stage. Those observations qualify checker/runner refusal
 only.
 
-The final host run against the compiled Shallow candidate passes all 97 named
+The final host run against the compiled Shallow candidate passes all 111 named
 observations and emits `YENTE_AICI_ACCEPTANCE_OK`. This count includes process
 and request-construction checks; it is not a count of independent semantic
 properties. The four-stage Flexible Pipes execution also passes: fictional
@@ -54,11 +54,11 @@ model inference is `NOT_RUN`.
 Final executable identities:
 
 - Shallow compiled Chez artifact SHA-256:
-  `8e04ce846d0321b92199aba2506fdc598ab27b1731a7cbfdec68084a6343c187`.
+  `86ee804c2af636a823a26b7bc058b680fd0479465d8e7b2a80a91ba30f1d747c`.
 - Oracle compiled Chez artifact SHA-256:
-  `829f43a391e3283da8105ab7d402b3f3ad6e468cc044f56f686427dfbb0f26bd`.
+  `ebea93573ad871f08efa6e4f218fe8eb37c9a41852a28548695ef4df6e4b202e`.
 - Oracle source SHA-256:
-  `096cd471bee9745792b80d168da33e4607fc868aa819f002e00ca1f327471d87`.
+  `b20869508289c05f523b9d55187b5e2f283f0a7a6d64901eccb35576173f1807`.
 - Flexible Pipes specification SHA-256:
   `8bd6a76e0be0cb6f91688304e4a82b14adae874b27bb3707dbdc2865c64ab453`.
 
@@ -70,6 +70,13 @@ actual transitive invalidation removes them; independent support remains.
 Later runtime tests use frozen artifact directories to avoid overwriting a
 Chez artifact while another acceptance process executes it. An interrupted
 concurrent-build run is invalid evidence, not a rejected semantic mutant.
+
+A later replay defect required another regression: an event receipt retained
+the original Yenta sentence and could reemit it after its evidence was corrected
+or its disclosure revoked. The current checks require an opaque retry receipt,
+no repeated private sentence, one original journal entry, and rejection of
+`event`-wrapped context reads before any journal update. Both corrected-source
+and revoked-disclosure sequences execute through a restarted candidate.
 
 Live model inference and semantic transcript quality remain separate from
 this deterministic process oracle. The checker cannot turn a synthetic reply

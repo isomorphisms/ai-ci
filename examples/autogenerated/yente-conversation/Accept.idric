@@ -390,6 +390,44 @@ check_event_retry candidate = do
   require "reusing event identity for different content rejected"
     (has_text "ERR\tevent\t" restarted && not (has_text "Conflicting replacement event." restarted))
 
+covering
+check_reply_retry : Candidate → IO ()
+check_reply_retry candidate = do
+  let reply = "event\treply1\tanswer\tprivateA\tinterpretation\tWhat does this account mean?\tprivateA-e1\t-\t-\tCORRECTED-PRIVATE-REPLY-TEXT\n"
+  initial ← successful_script candidate "reply-retry" (setup ++
+    "say\tprivateA\tAri\treport\t-\tnow\tAn initial private account.\n" ++ reply)
+  require "event delivers grounded response initially"
+    (exact_line "YENTA\tprivateA\tinterpretation\tCORRECTED-PRIVATE-REPLY-TEXT" initial)
+  ignore $ successful_script candidate "reply-retry"
+    "correct\tprivateA\tAri\tprivateA-e1\treport\t-\tlater\tA corrected account.\n"
+  repeated ← successful_script candidate "reply-retry" reply
+  require "reply retry after correction returns opaque receipt"
+    (exact_line "OK\treplayed\treply1" repeated &&
+     not (any (isPrefixOf "YENTA\t") (lines repeated)) &&
+     not (has_text "CORRECTED-PRIVATE-REPLY-TEXT" repeated))
+  journal_before ← read_required (candidate.work_directory ++ "/reply-retry.state/journal.tsv")
+  require "reply retry cannot duplicate recorded history"
+    (length (filter (isPrefixOf "event\treply1\tanswer\t") (lines journal_before)) ≟ 1)
+  read_event ← successful_script candidate "reply-retry" "event\tview1\tshow\tprivateA\n"
+  require "event cannot cache a context read"
+    (has_text "ERR\tevent\t" read_event && not (has_text "CONTEXT\t" read_event))
+  journal_after ← read_required (candidate.work_directory ++ "/reply-retry.state/journal.tsv")
+  require "rejected read event never enters journal" (journal_after ≟ journal_before)
+  let approved_reply = "event\tapprovedReply\tanswer\tprivateB\texpectation\tWhat does this preference require?\tdisclosure:secret:1:privateB\t-\t-\tREVOKED-APPROVED-REPLY-TEXT\n"
+  approved ← successful_script candidate "revoked-reply-retry" (setup ++ joined
+    [ "proposal\tprivateA\tAri\tsecret\tZev\tprivateB\tI need more time."
+    , "approve\tAri\tsecret\t1\tI need more time."
+    , "deliver\tAri\tsecret\t1\tnow"
+    ] ++ approved_reply)
+  require "approved evidence supports initial response"
+    (exact_line "YENTA\tprivateB\texpectation\tREVOKED-APPROVED-REPLY-TEXT" approved)
+  ignore $ successful_script candidate "revoked-reply-retry" "revoke\tAri\tsecret\n"
+  revoked_retry ← successful_script candidate "revoked-reply-retry" approved_reply
+  require "reply retry cannot reemit revoked disclosure"
+    (exact_line "OK\treplayed\tapprovedReply" revoked_retry &&
+     not (any (isPrefixOf "YENTA\t") (lines revoked_retry)) &&
+     not (has_text "REVOKED-APPROVED-REPLY-TEXT" revoked_retry))
+
 valid_transcript_line : Text → Bool
 valid_transcript_line line =
   case forget $ split (≟ '\t') line of
@@ -421,6 +459,7 @@ semantic_cases candidate = do
   check_plan_acceptance candidate
   check_journal candidate
   check_event_retry candidate
+  check_reply_retry candidate
 
 covering
 run : List Text → IO ()
