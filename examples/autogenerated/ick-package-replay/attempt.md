@@ -23,3 +23,24 @@ Ithon revision `74ab6d6044b07b76a910978437a34a6b5ac6acda` checks and executes th
 The real archive identified a previously incompatible shared path restriction: `plugin/include/libgdiagnostics++.h`. The shared Grease manifest now permits literal `+`, and its existing positive fixture includes that exact basename while preserving all twelve refusal cases. These Grease changes are source changes only until an eligible qualified runtime executes the shared corpus. The checked-Ithon archive controls are not substituted for Grease execution or authenticated closure admission.
 
 BC-P01-S01 remains independently blocked: current-head candidate job 117671539313 in run 39126131374 exits before tests because its independently provisioned qualification runtime/material is absent. This container also has no `/opt/aici` deployment. No alternate runtime, issuer, local fixture authority or deployment activation was introduced.
+
+## Continuation, 2026-11-14
+
+The source-checkout slice supplies a real pinned Idriç/Chez toolchain and the
+escaped subprocess primitive. Independent acquired-package admission is now
+implemented in Idriç; see `material-attempt.md` for its types and actual cases.
+The original pure `PackageMaterial.idric` prototype remains historical and is
+not the executable acceptance gate. Checked Ithon still owns archive decoding
+and actual compiler replay through its declared existing substrate.
+
+The unchanged Grease corpus and real compiler-package verifier have now run
+successfully under the pinned partial native D implementation. Their dated
+observation supersedes the earlier NOT_RUN for scoped source verification only.
+It does not satisfy the separate complete-language, managed-eligibility or
+authenticated BC-P01 boundaries. No C++ or Python2 Grease runtime was used.
+
+Replay additionally pins the unchanged glyph input, checks ARMv7/function
+assembly observations, and runs the existing unsupported preprocessor source
+control. Five deliberately false observation controls are rejected. The actual
+archived compiler passes O0/O2 for both sources and rejects that invalid source;
+executing the resulting ARM program remains NOT_RUN.

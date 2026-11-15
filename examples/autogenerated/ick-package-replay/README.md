@@ -22,15 +22,31 @@ delivered driver in a fresh unrelated directory with a bounded environment.
 It verifies the driver target and delivered cc1 location and emits ARMv7
 assembly at O0/O2 for both an unchanged real Fourier Voice leaf and the
 existing ICK glyph fixture. The source pin and digest are in the workflow;
-the consumer's ordinary-C leaf is preserved byte-for-byte.
+the consumer's ordinary-C leaf is preserved byte-for-byte. The glyph fixture
+also has an external byte pin. Each output must contain the ARMv7 architecture,
+the intended exported function and its definition. The existing unsupported
+preprocessor-glyph source must fail for its intended diagnostic. These checks
+reject absent or unrelated assembly and an always-successful observation;
+they do not execute the emitted program or prove its numerical semantics.
 
 The archive SHA-256 anchors provenance; a producer receipt alone does not.
 Acquisition creates the material record, and cannot independently certify it.
-`package-closure/verify.grease` remains the shared independent verifier. Run
-it under an eligible qualified Grease runtime before accepting full closure;
-its absence is explicitly NOT_RUN in this host observation. The literal `+`
+`MaterialAdmission.idric` independently enumerates every node before reading
+file contents, reconstructs the complete byte/mode/path inventory, and compares
+both the candidate record and a caller-approved whole-inventory digest. The
+consumer's required compiler digests/modes come from `required-ick.tsv` outside
+the package. The workflow calls this observer before and after execution, so
+changing a dependency or compiler and rehashing its record cannot self-admit.
+
+`package-closure/verify.grease` remains the shared Grease material verifier. Its
+unchanged corpus and actual 870-file compiler-package check now execute under
+the separately pinned partial native runtime; see the dated observation. This
+is scoped checker execution, with managed runtime eligibility still NOT_RUN.
+The literal `+`
 pathname extension is required by the actual GCC `libgdiagnostics++.h` support
-file and has its positive in the unchanged shared refusal corpus.
+file has its positive in the unchanged shared refusal corpus. The Idriç observer
+adds externally pinned complete-inventory admission rather than replacing the
+Grease corpus or silently qualifying its runtime.
 
 Synthetic acquisition controls cover relocation, the internal hardlink,
 literal-plus header, altered digest, absolute/traversing/duplicate paths,

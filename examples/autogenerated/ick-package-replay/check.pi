@@ -72,6 +72,40 @@ def refused(source ∈ object, digest ∈ str, destination ∈ object, diagnosti
     raise AssertionError("invalid archive accepted: " + diagnostic)
 
 def main() → None:
+    valid_assembly ∈ str ← "\t.arch armv7-a\n\t.global fourier_polynomial_cartesian_ick\nfourier_polynomial_cartesian_ick:\n"
+    package_replay.require_assembly(valid_assembly, "fourier_polynomial_cartesian_ick")
+    for mutation in ["architecture", "symbol", "body"]:
+        emitted ∈ str ← valid_assembly
+        diagnostic ∈ str ← "REPLAY-ASSEMBLY: wrong architecture"
+        if mutation == "architecture":
+            emitted ← emitted.replace("armv7-a", "armv6")
+        elif mutation == "symbol":
+            emitted ← emitted.replace(".global fourier_polynomial_cartesian_ick", ".global unrelated")
+            diagnostic ← "REPLAY-ASSEMBLY: consumer symbol absent"
+        else:
+            emitted ← emitted.replace("fourier_polynomial_cartesian_ick:", "unrelated:")
+            diagnostic ← "REPLAY-ASSEMBLY: consumer body absent"
+        try:
+            package_replay.require_assembly(emitted, "fourier_polynomial_cartesian_ick")
+        except ValueError as failure:
+            require(str(failure) == diagnostic, "wrong assembly rejection")
+        else:
+            raise AssertionError("malformed assembly observation accepted")
+    package_replay.require_source_refusal(1, b"preprocessor rejects unsupported glyph")
+    for mutation in ["success", "wrong-reason"]:
+        status ∈ int ← 0
+        message ∈ bytes ← b"preprocessor"
+        diagnostic ∈ str ← "REPLAY-REFUSAL: unsupported preprocessor source accepted"
+        if mutation == "wrong-reason":
+            status ← 1
+            message ← b"unrelated failure"
+            diagnostic ← "REPLAY-REFUSAL: wrong source rejection"
+        try:
+            package_replay.require_source_refusal(status, message)
+        except ValueError as failure:
+            require(str(failure) == diagnostic, "wrong source refusal rejection")
+        else:
+            raise AssertionError("invalid source refusal accepted")
     with tempfile.TemporaryDirectory(prefix="ick replay controls ") as directory:
         root ∈ object ← Path(directory)
         source ∈ object ← root.joinpath("good.tar.gz")
@@ -111,6 +145,6 @@ def main() → None:
             elif mutation == "wrong-source":
                 diagnostic ← "ARCHIVE-SOURCE"
             refused(archive, expected, root.joinpath(mutation), diagnostic)
-    print("PASS archive acquisition: two relocated inventories, hardlink/plus-header positives and eleven targeted refusals; compiler execution NOT_RUN in synthetic controls")
+    print("PASS archive acquisition: two relocated inventories, hardlink/plus-header positives and eleven targeted refusals; five assembly/refusal observation mutants rejected; compiler execution NOT_RUN in synthetic controls")
 
 main()

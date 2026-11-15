@@ -17,6 +17,7 @@ FRONTEND ∈ str ← "libexec/gcc/arm-linux-gnueabi/17.0.0/cc1"
 HEADERS ∈ str ← "lib/gcc/arm-linux-gnueabi/17.0.0/include"
 MAX_MEMBERS ∈ int ← 10000
 MAX_EXPANDED_BYTES ∈ int ← 1073741824
+GLYPH_SOURCE_SHA256 ∈ str ← "37e9e9014f0bd2871db05fe0beda0ac150d742ff488a4d13c7d007dab4e34d24"
 
 def require(condition ∈ bool, diagnostic ∈ str) → None:
     if not condition:
@@ -173,8 +174,18 @@ def execute_compiler(arguments ∈ list[str], output_directory ∈ object) → o
     require(status == 0, "REPLAY-COMPILER: " + diagnostic)
     return result
 
+def require_assembly(emitted ∈ str, expected_symbol ∈ str) → None:
+    require(bool(re.search(r"(?m)^\s*\.arch\s+armv7-a\s*$", emitted)), "REPLAY-ASSEMBLY: wrong architecture")
+    require(bool(re.search(r"(?m)^\s*\.global\s+" + expected_symbol + r"\s*$", emitted)), "REPLAY-ASSEMBLY: consumer symbol absent")
+    require(bool(re.search(r"(?m)^" + expected_symbol + r":\s*$", emitted)), "REPLAY-ASSEMBLY: consumer body absent")
+
+def require_source_refusal(status ∈ int, diagnostic ∈ bytes) → None:
+    require(status != 0, "REPLAY-REFUSAL: unsupported preprocessor source accepted")
+    require(b"preprocessor" in diagnostic, "REPLAY-REFUSAL: wrong source rejection")
+
 def replay_compiler(root ∈ object, leaf ∈ object, expected_leaf ∈ str, glyph ∈ object, output ∈ object) → None:
     checked_digest(leaf, expected_leaf)
+    checked_digest(glyph, GLYPH_SOURCE_SHA256)
     require(not output.exists(), "REPLAY-DESTINATION: fresh directory required")
     for relative in [DRIVER, FRONTEND, HEADERS + "/stddef.h", HEADERS + "/stdatomic.h"]:
         require(root.joinpath(relative).is_file() and not root.joinpath(relative).is_symlink(), "REPLAY-PAYLOAD: missing compiler material")
@@ -198,12 +209,26 @@ def replay_compiler(root ∈ object, leaf ∈ object, expected_leaf ∈ str, gly
             execute_compiler([compiler, "-O" + optimization, "-marm", "-march=armv7-a", "-mfpu=vfpv3-d16",
                               "-mfloat-abi=softfp", "-S", str(source), "-o", str(assembly)], output)
             require(assembly.is_file() and int(assembly.stat().st_size) > 0, "REPLAY-OUTPUT: assembly absent")
+            expected_symbol ∈ str ← "fourier_polynomial_cartesian_ick"
+            if name == "glyph":
+                expected_symbol ← "main"
+            emitted ∈ str ← assembly.read_text(encoding="utf-8")
+            require_assembly(emitted, expected_symbol)
+    # Existing independently maintained unsupported-source control. A driver
+    # which always exits successfully must not establish compiler replay.
+    refusal ∈ object ← subprocess.run([compiler, "-DICK_HOST_REJECT_PP_DIVISION", "-S", str(glyph),
+                                      "-o", str(output.joinpath("refused-preprocessor.s"))],
+                                     cwd=output, env={"PATH": "/usr/bin:/bin", "LC_ALL": "C"},
+                                     capture_output=True, timeout=120)
+    require_source_refusal(int(refusal.returncode), refusal.stderr)
     with output.joinpath("observation.tsv").open("x", encoding="utf-8") as receipt:
         receipt.write("schema\taici-ick-archive-host-observation-v1\n")
         receipt.write("ick_source\t" + ICK_SOURCE + "\ngcc_reference\t" + GCC_SOURCE + "\n")
         receipt.write("target\t" + TARGET + "\nfrontend_sha256\t" + file_digest(root.joinpath(FRONTEND)) + "\n")
         receipt.write("consumer_source_sha256\t" + expected_leaf + "\n")
+        receipt.write("glyph_source_sha256\t" + GLYPH_SOURCE_SHA256 + "\n")
         receipt.write("host_compiler_execution\tPASS\narm_assembly_generation\tPASS\n")
+        receipt.write("unsupported_source_refusal\tPASS\ncompiled_program_semantics\tNOT_RUN\n")
         receipt.write("shared_material_verification\tNOT_RUN\nauthenticated_witness\tNOT_RUN\n")
         receipt.write("ndk_assembly_link\tNOT_RUN\nandroid_runtime\tNOT_RUN\nmanaged_installation\tNOT_RUN\n")
 
