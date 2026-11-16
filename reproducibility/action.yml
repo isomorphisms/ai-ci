@@ -52,7 +52,7 @@ runs:
       id: ick
 
     - name: Compile independent build comparator
-      shell: ${{ runner.temp }}/aici-repro-grease/grease {0}
+      shell: /usr/bin/env grease {0}
       env:
         AICI_REPRO_COMPILER: ${{ steps.ick.outputs.compiler }}
       run: >-
@@ -62,7 +62,7 @@ runs:
 
     - name: Compare retained build bytes and receipts
       id: verify
-      shell: ${{ runner.temp }}/aici-repro-grease/grease {0}
+      shell: /usr/bin/env grease {0}
       env:
         AICI_REPRO_CONTRACT: ${{ inputs.contract }}
         AICI_REPRO_LEFT_ATTEMPT: ${{ inputs.left-attempt }}

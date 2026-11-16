@@ -66,7 +66,7 @@ jobs:
         id: ick
 
       - name: Compile and check owned Icky C through ICK and Grease
-        shell: ${{ runner.temp }}/aici-repro-grease/grease {0}
+        shell: /usr/bin/env grease {0}
         env:
           AICI_REPRO_COMPILER: ${{ steps.ick.outputs.compiler }}
         run: >-
@@ -75,7 +75,7 @@ jobs:
           "$RUNNER_TEMP/aici-reproducibility"
 
       - name: Prove equal builds and targeted hostile controls
-        shell: ${{ runner.temp }}/aici-repro-grease/grease {0}
+        shell: /usr/bin/env grease {0}
         run: >-
           "$RUNNER_TEMP/aici-repro-grease/grease" reproducibility/driver.grease
           self-test "$RUNNER_TEMP/aici-reproducibility"
@@ -94,7 +94,7 @@ jobs:
           ndk-receipt-schema: _android-ndk-s01/apk/nativeactivity-receipt-v2.schema.tsv
 
       - name: Check the retained verdict boundary
-        shell: ${{ runner.temp }}/aici-repro-grease/grease {0}
+        shell: /usr/bin/env grease {0}
         env:
           VERDICT: ${{ steps.reproducibility.outputs.verdict }}
         run: >-
