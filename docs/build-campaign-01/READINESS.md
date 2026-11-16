@@ -1,5 +1,15 @@
 # Dependency, readiness and continuation
 
+**Historical readiness archive, 2026-11-16:** The entries below preserve
+October 12–14 snapshots. In particular, the retained 45/71 emission checkpoint
+is superseded by [wave2/DELIVERY.tsv](wave2/DELIVERY.tsv), which records 71/71
+complete assistant emissions, next undelivered `NONE`, and zero Work dispatches.
+These historical readiness labels are not a current queue or prerequisite
+qualification. Refresh actual source, material, authority and owner evidence
+through [the canonical campaign issue](https://github.com/isomorphisms/ai-ci/issues/239)
+before current implementation or execution. Job packets and hashes are retained
+without rewriting their history.
+
 **Continuation, 2026-10-14 UTC:** [Wave 2](wave2/README.md) preserves71 additional complete SUN handoffs (58 new identities,13 reused), all filed/readback-verified on45 canonical issues. Together with the earlier26, the campaign has97 distinct SUN assignments beneath33 domain STARs. All27 remaining decisions and the55-row runtime allocation are reconciled. Complete chat emission is in progress (45/71; next BC-K01-S01). No SUN implementation or Work dispatch is claimed. Current [dependency/readiness](wave2/DEPENDENCIES.md), [domain dispositions](wave2/domains.tsv) and [prior-wave corrections](wave2/PRIOR-WAVE-DISPOSITIONS.md) supersede only their affected dated assumptions below.
 
 **Continuation:** [Wave 1](wave1/README.md) requalified BC-A02/A06/A07/K04/P02/T01 and authored 26 SUN jobs. Its artifact-level dependency order supersedes the provisional boundaries below for those domains; 27 other domain STARs remain unexecuted in this continuation.
