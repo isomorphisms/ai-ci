@@ -87,3 +87,20 @@ or a shaped response record into evidence of language understanding.
 No new language requirement is established by this sketch. If compiling or
 executing the real subprocess/file boundary fails, retain the minimal failing
 Idriç source and first specific diagnostic before considering any fallback.
+
+## Fresh-inference observer
+
+`Live.idric` separately reads the actual model artifacts. Its type boundary is
+`encode_response : Text → Either Text Text` and a fail-closed IO observation of
+eight fictional cases. It imports standard JSON, text, file and process modules,
+never the producer's codec or Shallow's policy functions. It independently
+reconstructs the TSV plan from raw model JSON and compares that exact value with
+the admitted plan and emitted Yenta line. It checks model pin, positive token
+counts, artifact hashes, permitted speakers/session IDs, the unrelated private
+sentinel's absence, and a bounded no-further-question control for deferral.
+
+Canonical Idriç/Chez compilation and its codec controls execute locally. A
+prepare-only run is not accepted as inference. Fresh hosted execution and
+interpretation quality are reported separately after the actual trial; an
+adapter-written execution receipt alone is not an independent claim about
+model semantics. No additional language gap is established by this observer.
