@@ -33,8 +33,18 @@ jobs:
             exit 1
           }
 
+      - name: Select the qualified workflow verifier compiler
+        id: compiler
+        uses: isomorphisms/ai-ci/ick-host@903b2cb27ea572c9c6cb2ffa9f39e0fbf06ec9f8
+
+      - name: Build the shared workflow source reader
+        shell: sh
+        run: '"${{ steps.compiler.outputs.compiler }}" ${{ steps.compiler.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici src/aici.c'
+
       - name: Prove hostile merge evidence fails closed
         shell: sh
+        env:
+          AICI_BIN: /tmp/aici
         run: |
           sh tests/merge-gate.sh merge/verify.sh
           sh tests/merge-state.sh merge/state.sh

@@ -35,7 +35,7 @@ jobs:
       - name: Compile independent verifiers
         shell: sh
         run: |
-          cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici src/aici.c
+          "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici src/aici.c
           "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-build-preflight tests/build_preflight_oracle.c
           "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-defect-registration src/aici_defect_registration.c
           cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-host-context src/aici_host_context.c
@@ -71,6 +71,8 @@ jobs:
         run: sh ike/tests.sh /tmp/aici-ike-receipt
       - name: Shadow the AICI core build through Ike
         shell: sh
+        env:
+          AICI_C_COMPILER: ${{ steps.ick.outputs.compiler }}
         run: |
           ikefile_digest=$(sha256sum ike/Ikefile | cut -d ' ' -f 1)
           ikefile_identity="sha256:$ikefile_digest"

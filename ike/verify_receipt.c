@@ -103,7 +103,7 @@ static void verify(const char *path, const char *ikefile_identity)
     require_line(file, expected, "compile rule mismatch");
 
     recipe_line(expected, sizeof expected, 1, "/tmp/aici-ike",
-                "cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 "
+                "\"$AICI_C_COMPILER\" -fno-link-libatomic -std=c17 -Wall -Wextra -Werror -pedantic -O2 "
                 "-o /tmp/aici-ike ../src/aici.c", 0);
     require_line(file, expected, "compile recipe mismatch");
 

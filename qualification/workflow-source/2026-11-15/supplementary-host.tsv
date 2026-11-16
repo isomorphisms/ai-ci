@@ -1,0 +1,26 @@
+key	value
+schema	workflow-source-supplementary-host-v1
+job	BC-A07-S01
+source_base	1492cf1bb736c56e5aed00a10a615676b4e19e49
+source_kernel_sha256	c2aaaf4576f1676fd8a90eaf6b65331f8b17e1bed7f4f079c5afcf5a7f33e5c2
+source_reader_sha256	4d62965f6e9d854c50396e47d2f417b6103b26b09a1b658bf0247f241647e4c9
+host	Linux x86_64 disposable container
+compiler	retained ICK xgcc with retained cc1; explicit preserved GCC13 builtin headers/runtime and host assembler/linker
+compiler_source_revision_recorded	515c0f29fe6e2e96e10495fbaf25da93532e7722
+compiler_artifact_recorded	11468256648
+compiler_source_binding	inherited producer receipt; source acquisition not independently repeated in this test
+compiler_driver_sha256	86cdbaf8d405d7d05883f20ddcc0ac21a55a48bae20cc9f11aca78f1710867d3
+compiler_frontend_sha256	5aff3188c58cae7cfffb20bdade56ec3e9ab89667ff6feafcfeed066350f9400
+compile_flags	-fno-use-linker-plugin -fno-link-libatomic -std=c17 -Wall -Wextra -Werror -pedantic -O2
+verifier_sha256	eb3581b0d38538d211587142a83165e45ca824a044b0319a1b9ddaec3c39dcf0
+core_self_test	PASS 81 cases; zero failures
+checkout_corpus	PASS 28 cases; direct command, POSIX adapter and core contract agree
+old_checkout_controls	PASS positive source, default synthetic-ref refusal and dependency-only refusal
+new_quoted_predicates	PASS quoted key/path/pin/run cases and block-scalar structural decoys
+new_action_pin_controls	PASS pinned/unpinned reusable-workflow and composite-step twins
+current_pinned_ICK_qualification	NOT_RUN locally; maintained caller selects ICK c61e448251744a2f40ad743ebef1a027bdcd2f9d
+Ike_receipt_fixture_execution	BLOCKED locally: retained older frontend rejects existing literal division glyph in ike/verify_receipt.c
+Ike_source_and_recipe	updated together; current pinned hosted compiler required for receipt self-test and shadow execution
+checkout_execution	NOT_RUN
+command_behavior	NOT_VERIFIED by source reader
+physical_device	NOT_RUN
