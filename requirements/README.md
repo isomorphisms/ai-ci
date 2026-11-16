@@ -55,6 +55,19 @@ when its request carries a changed projection with the old digest. The storage
 twins preserve the valid bound request and reject that mutation; before the
 authority-path check, both twins passed.
 
+The complete public fixture suite also exercises matching and stale bindings
+for binary attachments and actual text/file readback, and rejects a missing
+projection half, malformed digest and another request's projection even when
+its digest is recomputed. These checks use synthetic observations and do not
+claim trusted platform delivery.
+
+The requirement-projection workflow has a separate `request-binding-source`
+job for the full public source fixture path using exact partial native Grease
+material. Its [input identities](native-grease-source.tsv) and
+[qualification boundary](native-source-qualification.md) remain separate from
+managed-runtime admission. The original delivery and native-handoff workflows
+retain their distinct deployment prerequisites.
+
 The SDF good twin and its duplicated-leaf-matrix bad twin are executable. Other
 controls reject stale C++ eligibility despite the historical artifact digest,
 proposal promotion, an omitted rule, unsupported supersession, wrong target,
