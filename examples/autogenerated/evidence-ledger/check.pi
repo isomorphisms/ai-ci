@@ -1,0 +1,107 @@
+"""Bounded independent source/TSV acceptance through checked Ithon."""
+import sys
+import subprocess
+import hashlib
+from pathlib import Path
+from builtins import ValueError, list, dict
+
+def read_rows(root ∈ str, relative ∈ str) → list[list[str]]:
+    full ∈ Path ← Path(root).joinpath(relative)
+    body ∈ str ← full.read_text(encoding="utf-8")
+    if not body.endswith("\n"):
+        raise ValueError("EVIDENCE-TABLE-NEWLINE")
+    lines ∈ list[str] ← body.splitlines()
+    rows ∈ list[list[str]] ← []
+    width ∈ int ← 0
+    for line in lines:
+        fields ∈ list[str] ← line.split("\t")
+        if width == 0:
+            width ← len(fields)
+        if len(fields) != width:
+            raise ValueError("EVIDENCE-TABLE-SHAPE")
+        rows.append(fields)
+    return rows
+
+def git_bytes(root ∈ str, arguments ∈ list[str]) → bytes:
+    command ∈ list[str] ← ["git", "-C", root]
+    command.extend(arguments)
+    result ∈ object ← subprocess.run(command, check=True, capture_output=True)
+    return bytes(result.stdout)
+
+def manifest_matches(root ∈ str, manifest_path ∈ str, snapshot_path ∈ str) → bool:
+    manifest ∈ list[list[str]] ← read_rows(root, manifest_path)
+    snapshots ∈ list[list[str]] ← read_rows(root, snapshot_path)
+    expected_count ∈ int ← 0
+    seen ∈ list[str] ← []
+    for snapshot in snapshots[1:]:
+        snapshot_id ∈ str ← snapshot[0]
+        revision ∈ str ← snapshot[2]
+        tree ∈ str ← git_bytes(root, ["ls-tree", "-rz", revision]).decode("utf-8")
+        entries ∈ list[str] ← tree.split("\0")
+        for entry in entries:
+            if entry == "":
+                continue
+            expected_count ← expected_count + 1
+            pieces ∈ list[str] ← entry.split("\t", 1)
+            metadata ∈ list[str] ← pieces[0].split(" ")
+            filename ∈ str ← pieces[1]
+            identity ∈ str ← snapshot_id + "\t" + filename
+            if identity in seen:
+                return False
+            seen.append(identity)
+            found ∈ int ← 0
+            for record in manifest[1:]:
+                if record[0] == snapshot_id and record[2] == filename:
+                    found ← found + 1
+                    if record[1] != revision or record[3] != metadata[0] or record[4] != metadata[2]:
+                        return False
+                    body ∈ bytes ← git_bytes(root, ["cat-file", "blob", metadata[2]])
+                    digest ∈ str ← hashlib.sha256(body).hexdigest()
+                    if record[5] != digest or record[6] != str(len(body)):
+                        return False
+            if found != 1:
+                return False
+    return len(manifest) - 1 == expected_count
+
+def verify(root ∈ str, contract_path ∈ str) → None:
+    rules ∈ list[list[str]] ← read_rows(root, contract_path)
+    for rule in rules[1:]:
+        operation ∈ str ← rule[0]
+        diagnostic ∈ str ← rule[1]
+        filename ∈ str ← rule[2]
+        rows ∈ list[list[str]] ← read_rows(root, filename)
+        passed ∈ bool ← False
+        if operation == "rows":
+            passed ← len(rows) - 1 == int(rule[3])
+        elif operation == "column_count":
+            column ∈ int ← int(rule[3])
+            wanted ∈ str ← rule[4]
+            count ∈ int ← 0
+            for row in rows[1:]:
+                if row[column] == wanted:
+                    count ← count + 1
+            passed ← count == int(rule[5])
+        elif operation == "column_enum":
+            column ∈ int ← int(rule[3])
+            allowed ∈ list[str] ← rule[4].split("|")
+            passed ← True
+            for row in rows[1:]:
+                if row[column] in allowed:
+                    pass
+                else:
+                    passed ← False
+        elif operation == "git_manifest":
+            passed ← manifest_matches(root, filename, rule[3])
+        else:
+            raise ValueError("EVIDENCE-UNKNOWN-OPERATION")
+        if not passed:
+            raise ValueError(diagnostic)
+        print("PASS\t" + diagnostic)
+
+def main() → None:
+    arguments ∈ list[str] ← list(sys.argv)
+    if len(arguments) != 3:
+        raise ValueError("usage: ithon check.pi ROOT CONTRACT_TSV")
+    verify(arguments[1], arguments[2])
+
+main()

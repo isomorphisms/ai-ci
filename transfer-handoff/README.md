@@ -18,8 +18,12 @@ The `publication` mode therefore fails closed even when a local envelope claims
 PASS for admission or delivery. The FP session invokes it before any live API
 effect. Its explicit `acceptance-fixture` context runs the native integration
 suite but records `publication=BLOCKED` and `job_completion=NOT_ACCEPTED`.
-This is a refusal boundary, not an implemented trusted transport. Existing
-four-argument historical clients are outside this candidate admission contract.
+This is a refusal boundary, not an implemented trusted transport. The public FP
+transfer operation now prepares exact Kitchen bytes only, and the independent
+suite compares those bytes with a direct Kitchen regeneration, verifies zero
+fixture POST attempts, rejects the retired four-argument route and rejects the
+historical considered/consider mismatch. The separate six-argument execute
+operation retains the existing one-attempt/recovery controls.
 
 The complete task remains unaccepted until the exact source-fetch/bootstrap
 handoff, provisioning reuse/acquisition/recovery matrix, protected FP admission,

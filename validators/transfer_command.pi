@@ -1,0 +1,173 @@
+"""Independent acceptance for FP's narrow GitHub transfer display contract.
+
+This validates one registered operation against Kitchen's maintained generator.
+It is not a generic natural-language command filter and it does not attest a
+ChatGPT platform adapter.
+"""
+import re
+import subprocess
+import json
+from types import SimpleNamespace
+from pathlib import Path
+from builtins import dict, list, ValueError, KeyError, isinstance
+import handoff
+import job_delivery
+
+NAME_RE ∈ object ← re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]*")
+REVISION_RE ∈ object ← re.compile(r"[0-9a-f]{40}")
+ID_RE ∈ object ← re.compile(r"[0-9]+")
+FIELDS ∈ list[str] ← [
+    "kind",
+    "authority",
+    "source_owner",
+    "requested_repository",
+    "resolved_repository",
+    "destination_owner",
+    "expected_login",
+    "kitchen_revision",
+    "repository_id",
+    "upstream"
+]
+
+def text_field(operation ∈ dict[str, object], key ∈ str, error ∈ str) → str:
+    if not operation.__contains__(key) or not isinstance(operation[key], str):
+        raise ValueError(error)
+    return str(operation[key])
+
+def github_name(operation ∈ dict[str, object], key ∈ str, error ∈ str) → str:
+    text ∈ str ← text_field(operation, key, error)
+    if not bool(NAME_RE.fullmatch(text)):
+        raise ValueError(error)
+    return text
+
+def validate_operation(value ∈ object) → dict[str, object]:
+    if not isinstance(value, dict):
+        raise ValueError("TRANSFER_COMMAND_OPERATION")
+    operation ∈ dict[str, object] ← dict(value)
+    if len(operation) != len(FIELDS):
+        raise ValueError("TRANSFER_COMMAND_OPERATION")
+    for field in operation:
+        if not FIELDS.__contains__(field):
+            raise ValueError("TRANSFER_COMMAND_OPERATION")
+    if text_field(operation, "kind", "TRANSFER_COMMAND_OPERATION") != "github-repository-transfer":
+        raise ValueError("TRANSFER_COMMAND_OPERATION")
+    if text_field(operation, "authority", "TRANSFER_COMMAND_OPERATION") != "display-only":
+        raise ValueError("TRANSFER_COMMAND_OPERATION")
+    github_name(operation, "source_owner", "TRANSFER_COMMAND_OPERATION")
+    requested ∈ str ← github_name(operation, "requested_repository", "TRANSFER_COMMAND_OPERATION")
+    resolved ∈ str ← github_name(operation, "resolved_repository", "TRANSFER_COMMAND_OPERATION")
+    if requested != resolved:
+        raise ValueError("TRANSFER_COMMAND_REPOSITORY_UNRESOLVED")
+    github_name(operation, "destination_owner", "TRANSFER_COMMAND_OPERATION")
+    github_name(operation, "expected_login", "TRANSFER_COMMAND_OPERATION")
+    revision ∈ str ← text_field(operation, "kitchen_revision", "TRANSFER_COMMAND_OPERATION")
+    if not bool(REVISION_RE.fullmatch(revision)):
+        raise ValueError("TRANSFER_COMMAND_OPERATION")
+    repository_id ∈ str ← text_field(operation, "repository_id", "TRANSFER_COMMAND_REPOSITORY_ID")
+    if not bool(ID_RE.fullmatch(repository_id)):
+        raise ValueError("TRANSFER_COMMAND_REPOSITORY_ID")
+    upstream ∈ str ← text_field(operation, "upstream", "TRANSFER_COMMAND_OPERATION")
+    if upstream != "-":
+        parts ∈ list[str] ← upstream.split("/")
+        if len(parts) != 2 or not bool(NAME_RE.fullmatch(parts[0])) or not bool(NAME_RE.fullmatch(parts[1])):
+            raise ValueError("TRANSFER_COMMAND_OPERATION")
+    return operation
+
+def kitchen_program(kitchen ∈ str, grease ∈ str, operation ∈ dict[str, object]) → bytes:
+    revision ∈ object ← subprocess.run(["git", "-C", kitchen, "rev-parse", "HEAD"], capture_output=True)
+    if int(revision.returncode) != 0 or str(revision.stdout.decode().strip()) != str(operation["kitchen_revision"]):
+        raise ValueError("TRANSFER_COMMAND_KITCHEN_REVISION")
+    clean ∈ object ← subprocess.run(["git", "-C", kitchen, "diff", "--quiet", str(operation["kitchen_revision"]), "--", "tasks/github-repository-transfer"], capture_output=True)
+    if int(clean.returncode) != 0:
+        raise ValueError("TRANSFER_COMMAND_KITCHEN_DIRTY")
+    generator ∈ Path ← Path(kitchen + "/tasks/github-repository-transfer/render-standalone-github-repository-organization-transfer.ysh")
+    if not generator.is_file():
+        raise ValueError("TRANSFER_COMMAND_KITCHEN_GENERATOR")
+    completed ∈ object ← subprocess.run(
+        [
+            grease,
+            str(generator),
+            str(operation["source_owner"]),
+            str(operation["resolved_repository"]),
+            str(operation["destination_owner"]),
+            str(operation["expected_login"]),
+            str(operation["repository_id"]),
+            str(operation["upstream"])
+        ],
+        capture_output=True
+    )
+    if int(completed.returncode) != 0:
+        raise ValueError("TRANSFER_COMMAND_KITCHEN_GENERATION")
+    return bytes(completed.stdout)
+
+def check_candidate(
+    stage ∈ dict[str, object],
+    payload ∈ bytes,
+    kitchen ∈ str,
+    grease ∈ str,
+    admission ∈ dict[str, object]
+) → None:
+    try:
+        record ∈ dict[str, object] ← handoff.identity(stage, payload)
+    except (ValueError, KeyError):
+        raise ValueError("TRANSFER_COMMAND_UNADMITTED")
+    if int(record.get("version", 0)) != 1:
+        raise ValueError("TRANSFER_COMMAND_UNADMITTED")
+    operation ∈ dict[str, object] ← validate_operation(record.get("operation"))
+    expected_operation ∈ dict[str, object] ← validate_operation(admission["operation"])
+    expected_request ∈ dict[str, object] ← dict(admission["request"])
+    if str(record.get("delivery_mode")) != "display-only" or str(record.get("execution_target")) != "display-only":
+        raise ValueError("TRANSFER_COMMAND_OPERATION")
+    if str(operation["repository_id"]) != str(expected_operation["repository_id"]):
+        raise ValueError("TRANSFER_COMMAND_REPOSITORY_ID")
+    for field in FIELDS:
+        if str(operation[field]) != str(expected_operation[field]):
+            raise ValueError("TRANSFER_COMMAND_ADMISSION")
+    record_request ∈ dict[str, object] ← dict(record["request"])
+    if len(record_request) != len(expected_request):
+        raise ValueError("TRANSFER_COMMAND_ADMISSION")
+    for key in expected_request:
+        if not record_request.__contains__(key) or not isinstance(record_request[key], str) or not isinstance(expected_request[key], str) or str(record_request[key]) != str(expected_request[key]):
+            raise ValueError("TRANSFER_COMMAND_ADMISSION")
+    if kitchen_program(kitchen, grease, operation) != payload:
+        raise ValueError("TRANSFER_COMMAND_KITCHEN_BYTES")
+
+def check(stage ∈ dict[str, object], payload ∈ bytes, response ∈ bytes, kitchen ∈ str, grease ∈ str, admission ∈ dict[str, object]) → None:
+    check_candidate(stage, payload, kitchen, grease, admission)
+    check_response(payload, response)
+    try:
+        job_delivery.check(stage, payload, response, True)
+    except ValueError:
+        raise ValueError("TRANSFER_COMMAND_VISIBLE_BYTES")
+
+def check_response(payload ∈ bytes, response ∈ bytes) → None:
+    if response != payload and response != bytes(handoff.render(payload, "")):
+        raise ValueError("TRANSFER_COMMAND_VISIBLE_BYTES")
+
+def delivery_gate(kitchen ∈ str, grease ∈ str, admission ∈ dict[str, object]) → object:
+    """Bind the existing FP controller gate to supervisor-owned inputs.
+
+    This is an adapter for that controller, not another sender or a platform
+    acknowledgement. The worker cannot change the admitted operation in place.
+    """
+    admitted ∈ dict[str, object] ← json.loads(json.dumps(admission))
+    handoff.validate_spec(admitted)
+    validate_operation(admitted.get("operation"))
+    no_text ∈ list[str] ← []
+    def candidate(stage ∈ dict[str, object], source ∈ bytes, response ∈ bytes = b"") → None:
+        job_delivery.check_authority(stage, source, admitted, no_text)
+        check_candidate(stage, source, kitchen, grease, admitted)
+        if response != b"":
+            check_response(source, response)
+    def authority(stage ∈ dict[str, object], source ∈ bytes, expected ∈ dict[str, object], required_text ∈ list[str]) → None:
+        job_delivery.check_authority(stage, source, admitted, required_text)
+        job_delivery.check_authority(stage, source, expected, required_text)
+        check_candidate(stage, source, kitchen, grease, admitted)
+    def actual(stage ∈ dict[str, object], source ∈ bytes, delivered ∈ bytes, metadata ∈ dict[str, object], expected ∈ dict[str, object], required_text ∈ list[str], complete ∈ bool) → None:
+        authority(stage, source, expected, required_text)
+        check_response(source, delivered)
+        job_delivery.check_actual(stage, source, delivered, metadata, admitted, required_text, complete)
+    def visible(stage ∈ dict[str, object], source ∈ bytes, response ∈ bytes, complete ∈ bool) → None:
+        candidate(stage, source, response)
+        job_delivery.check(stage, source, response, complete)
+    return SimpleNamespace(check_candidate=candidate, check_authority=authority, check_actual=actual, check=visible)

@@ -1,0 +1,58 @@
+#!/usr/bin/env grease
+set -o errexit
+var ITHON = ENV.ITHON
+var AICI_ROOT = ENV.AICI_ROOT
+var PRODUCER_TSV = ENV.PRODUCER_TSV
+var IKE_RECEIPT_FILE = ENV.IKE_RECEIPT_FILE
+var IKEFILE = ENV.IKEFILE
+var IKE_TARGET = ENV.IKE_TARGET
+var IKE_RUNNER = ENV.IKE_RUNNER
+var IKE_PLAN = ENV.IKE_PLAN
+var OUTPUT = ENV.GPU_GATE_OUTPUT
+test -x "$ITHON"
+test -s "$PRODUCER_TSV"
+test -s "$IKE_RECEIPT_FILE"
+mkdir -p "$OUTPUT"
+"$ITHON" "$AICI_ROOT/gpu-follower/verify_numeric.pi" "$PRODUCER_TSV" > "$OUTPUT/numeric-good.log" 2>&1
+"$ITHON" "$AICI_ROOT/gpu-follower/verify_ike.pi" "$IKE_RECEIPT_FILE" "$IKEFILE" "$IKE_TARGET" "$IKE_RUNNER" "$IKE_PLAN" > "$OUTPUT/ike-good.log" 2>&1
+sed '1s/\t0$/\t1/' "$PRODUCER_TSV" > "$OUTPUT/numeric-wrong.tsv"
+sed '/^decode\te4m3fnuz\t128\t/s/nan/0/' "$PRODUCER_TSV" > "$OUTPUT/numeric-fnuz.tsv"
+sed '$d' "$PRODUCER_TSV" > "$OUTPUT/numeric-truncated.tsv"
+cat "$PRODUCER_TSV" > "$OUTPUT/numeric-duplicate.tsv"
+head -n 1 "$PRODUCER_TSV" >> "$OUTPUT/numeric-duplicate.tsv"
+var name = ''
+for name in wrong fnuz truncated duplicate {
+  if "$ITHON" "$AICI_ROOT/gpu-follower/verify_numeric.pi" "$OUTPUT/numeric-${name}.tsv" > "$OUTPUT/numeric-${name}.log" 2>&1 {
+    printf '\033[31mFAIL numerical mutation accepted: %s\033[0m\n' "$name"
+    exit 1
+  }
+}
+rg -q 'decode mismatch' "$OUTPUT/numeric-wrong.log"
+rg -q 'decode mismatch' "$OUTPUT/numeric-fnuz.log"
+rg -q 'incomplete arithmetic corpus' "$OUTPUT/numeric-truncated.log"
+rg -q 'duplicate numerical record' "$OUTPUT/numeric-duplicate.log"
+# Preserve the total row counts while replacing a required semantic case.
+# Raw-line uniqueness alone accepted both of these damaged corpora.
+sed '2s/\t1\t256$/\t00\t0/' "$PRODUCER_TSV" > "$OUTPUT/numeric-semantic-duplicate.tsv"
+sed '/^round\te4m3\t0\t1\t1$/s/\t1\t1$/\t2\t1/' "$PRODUCER_TSV" > "$OUTPUT/numeric-unexpected-midpoint.tsv"
+awk -F '\t' -v OFS='\t' '{ if ($1=="arith" && $2=="e4m3" && $3=="0" && $4=="0" && $5=="sub") { $3="00"; $5="add" } print }' "$PRODUCER_TSV" > "$OUTPUT/numeric-arithmetic-duplicate.tsv"
+for name in semantic-duplicate unexpected-midpoint arithmetic-duplicate {
+  if "$ITHON" "$AICI_ROOT/gpu-follower/verify_numeric.pi" "$OUTPUT/numeric-${name}.tsv" > "$OUTPUT/numeric-${name}.log" 2>&1 {
+    printf '\033[31mFAIL incomplete semantic corpus accepted: %s\033[0m\n' "$name"
+    exit 1
+  }
+}
+rg -q 'duplicate numerical record' "$OUTPUT/numeric-semantic-duplicate.log"
+rg -q 'unexpected midpoint case' "$OUTPUT/numeric-unexpected-midpoint.log"
+rg -q 'duplicate numerical record' "$OUTPUT/numeric-arithmetic-duplicate.log"
+sed 's/final_result\tPASS/final_result\tFAIL/' "$IKE_RECEIPT_FILE" > "$OUTPUT/ike-final.tsv"
+sed '/^recipe\t/s/\t0$/\t57/' "$IKE_RECEIPT_FILE" > "$OUTPUT/ike-status.tsv"
+sed 's/^ikefile_identity_hex.*/ikefile_identity_hex\t00/' "$IKE_RECEIPT_FILE" > "$OUTPUT/ike-identity.tsv"
+for name in final status identity {
+  if "$ITHON" "$AICI_ROOT/gpu-follower/verify_ike.pi" "$OUTPUT/ike-${name}.tsv" "$IKEFILE" "$IKE_TARGET" "$IKE_RUNNER" "$IKE_PLAN" > "$OUTPUT/ike-${name}.log" 2>&1 {
+    printf '\033[31mFAIL Ike mutation accepted: %s\033[0m\n' "$name"
+    exit 1
+  }
+  rg -q 'Ike receipt mismatch' "$OUTPUT/ike-${name}.log"
+}
+printf '\033[32mPASS independent numeric and Ike gates; seven numerical and three receipt mutations rejected\033[0m\n'

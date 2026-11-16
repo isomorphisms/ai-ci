@@ -53,6 +53,21 @@ disclosure, mechanical constraints, and agent-legible evidence, see
   `build-toolchain-v0` contract (or a stricter executable equivalent) into
   their required build checks.
 
+- **Verify the requested Icky C syntax and audit inherited assignments.**
+  For first-party C governed by the Icky profile, preserve `←` assignments
+  and initializers and the declared functorial dataflow. Prove the required
+  literal syntax through the actual selected, pinned ICK frontend; a generic
+  C build or compiler version string does not prove that capability. Never
+  silently rewrite the source or switch compilers to hide a gap. Review
+  existing C against its declared source role/profile; preserve explicitly
+  approved ordinary-C, foreign and compiler-bootstrap boundaries. Distinguish
+  assignments from comparisons, literals and comments, and preserve C pointer
+  syntax. The 2026-10-07 discovery leaves a cross-repository audit obligation:
+  a compiler fix does not retroactively verify source style or downstream
+  artifacts. See [issue #217](https://github.com/isomorphisms/ai-ci/issues/217)
+  and the [incident packet](incidents/2026-10-icky-c-assignment-gap/README.md).
+  Shared executable source enforcement and the fleet audit remain unfinished.
+
 - **Do not weaken acceptance to obtain green.** Repair the implementation.
   Change a test or contract only when the intended requirement itself is
   independently shown to be wrong or obsolete.

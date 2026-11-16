@@ -1,0 +1,5 @@
+attempt	stage_id	actor	observation	evidence_validity	exit	signal	command	source_identity	producer_digest	log_digest	native_code	detail
+1	build	compiler	TIMEOUT	VALID	124	SIGTERM	compile	1111111111111111111111111111111111111111	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb	timeout	compiler timed out
+1	test	test-runner	INTERRUPTED	VALID	130	SIGINT	run-tests	1111111111111111111111111111111111111111	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc	interrupted	test interrupted
+1	package	packager	NOT_RUN	VALID	-	-	package	1111111111111111111111111111111111111111	-	-	blocked_by_build	dependent stage did not run
+1	publish	publisher	NOT_RUN	VALID	-	-	publish	1111111111111111111111111111111111111111	-	-	blocked_by_package	dependent stage did not run

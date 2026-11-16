@@ -1,0 +1,1400 @@
+"""Independent binary64 reference and fail-closed Holomorphic observations."""
+import math
+import hashlib
+import sys
+import csv
+import re
+import struct
+import json
+import io
+import contextlib
+from pathlib import Path
+from builtins import dict, list, tuple, ValueError, ZeroDivisionError, Exception, AssertionError, format, abs, sum, enumerate, zip, reversed
+
+CASE_HEADER ∈ list[str] ← ["case_id", "world_x", "world_y", "time", "pan_x", "pan_y", "zoom", "coefficients", "zeros", "poles", "remote_count"]
+OUTPUT_HEADER ∈ list[str] ← ["case_id", "phase", "log_modulus", "singularity_order", "reduced_zero_count", "reduced_pole_count"]
+HOST_TOLERANCE ∈ float ← 2.0e-12
+TAU ∈ float ← math.tau
+INFINITY ∈ float ← math.inf
+NAN ∈ float ← math.nan
+GPU_PHASE_BUDGET ∈ float ← 0.0001
+GPU_LOG_BUDGET ∈ float ← 0.0001
+LARGE_Q_DELTA_BUDGET ∈ float ← 0.000002
+LARGE_Q_RAW_BUDGET ∈ float ← 8.0 * 2.0 ** -14
+BINARY32_EPSILON ∈ float ← 2.0 ** -23
+CANONICAL_PALETTE_DIGEST ∈ str ← "f30991435214135aa8a4c42798ff4ccc10ebc28db3b03d275d546ba203bad364"
+
+def repeat_text(value ∈ str, count ∈ int) → str:
+    return value.__mul__(count)
+
+def decimal(value ∈ float) → str:
+    return format(value, ".17g")
+
+def hash_position(value ∈ float) → float:
+    sine ∈ float ← math.sin(value * 127.1 + 31.7)
+    hashed ∈ float ← sine * 43758.5453123
+    integer ∈ float ← math.floor(hashed)
+    return hashed - integer
+
+def float32(value ∈ float) → float:
+    decoded ∈ tuple[float] ← struct.unpack("!f", struct.pack("!f", value))
+    return decoded[0]
+
+def remote_position(index ∈ int, time ∈ float) → complex:
+    initial ∈ float ← TAU * hash_position(index + 0.11)
+    direction ∈ float ← -1.0 if hash_position(index + 7.91) < 0.5 else 1.0
+    speed ∈ float ← 0.11 + 0.08 * hash_position(index + 4.37)
+    angle ∈ float ← initial + direction * speed * time
+    bend_phase ∈ float ← TAU * hash_position(index + 11.23)
+    bend ∈ float ← math.sin(2.0 * angle + bend_phase)
+    radius ∈ float ← 2.75 + 1.25 * hash_position(index + 1.73) + 0.22 * bend
+    ellipticity ∈ float ← -0.08 + 0.16 * hash_position(index + 14.67)
+    cosine ∈ float ← math.cos(angle)
+    sine ∈ float ← math.sin(angle)
+    return complex(float32(2.0 * radius * (1.0 + ellipticity) * cosine), float32(2.0 * radius * (1.0 - ellipticity) * sine))
+
+def coordinates(text ∈ str) → list[complex]:
+    values ∈ list[complex] ← []
+    if text == "-":
+        return values
+    pairs ∈ list[str] ← text.split(";")
+    for pair in pairs:
+        pieces ∈ list[str] ← pair.split(",")
+        if len(pieces) != 2:
+            raise ValueError("INPUT-COORDINATES")
+        value ∈ complex ← complex(float(pieces[0]), float(pieces[1]))
+        if not math.isfinite(value.real) or not math.isfinite(value.imag):
+            raise ValueError("INPUT-NONFINITE")
+        values.append(value)
+    return values
+
+def encode(values ∈ list[complex]) → str:
+    encoded ∈ list[str] ← []
+    for value in values:
+        part ∈ str ← decimal(value.real) + "," + decimal(value.imag)
+        encoded.append(part)
+    return ";".join(encoded) if len(values) > 0 else "-"
+
+def load_cases(path ∈ Path) → list[dict[str, str]]:
+    with path.open(newline="") as stream:
+        reader ∈ object ← csv.DictReader(stream, delimiter="\t")
+        fields ∈ list[str] ← reader.fieldnames
+        if fields != CASE_HEADER:
+            raise ValueError("INPUT-HEADER")
+        cases ∈ list[dict[str, str]] ← list(reader)
+    identities ∈ list[str] ← []
+    for case in cases:
+        identities.append(case["case_id"])
+    if not cases or len(set(identities)) != len(cases):
+        raise ValueError("INPUT-EMPTY-OR-DUPLICATE")
+    return cases
+
+def reduced_orders(zeros ∈ list[complex], poles ∈ list[complex], mode ∈ str) → dict[complex, int]:
+    orders ∈ dict[complex, int] ← {}
+    if mode == "wrong-multiplicity":
+        zeros ← list(dict.fromkeys(zeros))
+        poles ← list(dict.fromkeys(poles))
+    if mode == "displaced-pair-reduction":
+        unmatched ∈ list[complex] ← list(poles)
+        retained ∈ list[complex] ← []
+        for zero in zeros:
+            match ∈ int ← -1
+            for index in range(len(unmatched)):
+                distance ∈ float ← abs(zero - unmatched[index])
+                if distance < 0.01:
+                    match ← index
+                    break
+            if match == -1:
+                retained.append(zero)
+            else:
+                unmatched.pop(match)
+        zeros ← retained
+        poles ← unmatched
+    for zero in zeros:
+        previous ∈ int ← orders.get(zero, 0)
+        orders[zero] ← previous + 1
+    for pole in poles:
+        previous ← orders.get(pole, 0)
+        orders[pole] ← previous - 1
+    nonzero ∈ dict[complex, int] ← {}
+    positions ∈ list[complex] ← list(orders)
+    for position in positions:
+        if orders[position] != 0:
+            nonzero[position] ← orders[position]
+    return nonzero
+
+def evaluate(case ∈ dict[str, str], mode ∈ str = "reference") → tuple[float, float, int, int, int]:
+    point ∈ complex ← complex(float(case["world_x"]), float(case["world_y"]))
+    numeric_names ∈ list[str] ← ["world_x", "world_y", "time", "pan_x", "pan_y", "zoom"]
+    for numeric_name in numeric_names:
+        scalar ∈ float ← float(case[numeric_name])
+        if not math.isfinite(scalar):
+            raise ValueError("INPUT-NONFINITE")
+    zoom_value ∈ float ← float(case["zoom"])
+    if zoom_value <= 0.0:
+        raise ValueError("INPUT-INVALID-ZOOM")
+    coefficients ∈ list[complex] ← coordinates(case["coefficients"])
+    remote_count ∈ int ← int(case["remote_count"])
+    if len(coefficients) != 5 or remote_count < 0 or remote_count > 24:
+        raise ValueError("INPUT-COEFFICIENTS-OR-REMOTE-PROTOCOL")
+    zeros ∈ list[complex] ← coordinates(case["zeros"])
+    poles ∈ list[complex] ← coordinates(case["poles"])
+    for index in range(len(coefficients)):
+        coefficients[index] ← complex(float32(coefficients[index].real), float32(coefficients[index].imag))
+    for index in range(len(zeros)):
+        zeros[index] ← complex(float32(zeros[index].real), float32(zeros[index].imag))
+    for index in range(len(poles)):
+        poles[index] ← complex(float32(poles[index].real), float32(poles[index].imag))
+    for index in range(remote_count):
+        position ∈ complex ← remote_position(index, float(case["time"]))
+        if mode == "viewport-relative-motion":
+            zoom ∈ float ← float(case["zoom"])
+            position ← position * zoom / 3.0 + complex(float(case["pan_x"]), float(case["pan_y"]))
+        poles.append(position)
+    if mode == "wrong-pole-count" and poles:
+        poles ← poles[:-1]
+    normalized ∈ complex ← point / (6.0 if mode == "changed-normalization" else 3.0)
+    # Independent power sum, rather than the producer's Horner implementation.
+    real_terms ∈ list[float] ← []
+    imaginary_terms ∈ list[float] ← []
+    for index in range(5):
+        if coefficients[index] != 0j:
+            term ∈ complex ← coefficients[index] * normalized ** (index + 1)
+            real_terms.append(term.real)
+            imaginary_terms.append(term.imag)
+    polynomial ∈ complex ← complex(math.fsum(real_terms), math.fsum(imaginary_terms))
+    orders ∈ dict[complex, int] ← reduced_orders(zeros, poles, mode)
+    zero_count ∈ int ← 0
+    pole_count ∈ int ← 0
+    positions ∈ list[complex] ← list(orders)
+    for position in positions:
+        order ∈ int ← orders[position]
+        if order > 0:
+            zero_count ← zero_count + order
+        else:
+            pole_count ← pole_count - order
+    singularity ∈ int ← orders.get(point, 0)
+    if mode == "missing-cancellation":
+        numerator ∈ complex ← 1.0 + 0j
+        denominator ∈ complex ← 1.0 + 0j
+        for factor in zeros:
+            numerator ← numerator * (point - factor)
+        for factor in poles:
+            denominator ← denominator * (point - factor)
+        try:
+            uncancelled_ratio ∈ complex ← numerator / denominator
+            uncancelled_radius ∈ float ← abs(uncancelled_ratio)
+            uncancelled_log ∈ float ← math.log(uncancelled_radius)
+        except (ValueError, ZeroDivisionError):
+            return (NAN, NAN, 0, zero_count, pole_count)
+    if mode == "late-cancellation":
+        # Actually execute the faulty order: taking a logarithm before the
+        # algebraic simplification raises a domain error at the removable point.
+        raw ∈ list[complex] ← list(zeros)
+        raw.extend(poles)
+        for factor in raw:
+            delta_radius ∈ float ← abs(point - factor)
+            try:
+                uncancelled_log ← math.log(delta_radius)
+            except ValueError:
+                return (NAN, NAN, 0, zero_count, pole_count)
+    if singularity != 0:
+        return (0.0, -INFINITY if singularity > 0 else INFINITY, singularity, zero_count, pole_count)
+    phase_terms ∈ list[float] ← []
+    log_terms ∈ list[float] ← []
+    for position in positions:
+        order ← orders[position]
+        delta ∈ complex ← point - position
+        # hypot avoids squaring extreme radii. No product or exp(q) is formed.
+        argument ∈ float ← math.atan2(delta.imag, delta.real)
+        log_radius ∈ float ← math.log(math.hypot(delta.real, delta.imag))
+        phase_terms.append(order * argument)
+        log_terms.append(order * log_radius)
+    phase_terms.append(polynomial.imag)
+    log_terms.append(polynomial.real)
+    phase ∈ float ← math.fsum(phase_terms)
+    logarithm ∈ float ← math.fsum(log_terms)
+    if mode == "wrong-phase-sign":
+        phase ← -phase
+    if mode == "wrong-log-sign":
+        logarithm ← -logarithm
+    if mode == "divisor-disappears":
+        phase ← float32(phase)
+        logarithm ← float32(logarithm)
+    return (phase, logarithm, 0, zero_count, pole_count)
+
+def compare_values(expected ∈ tuple[float, float, int, int, int], observed ∈ tuple[float, float, int, int, int], tolerance ∈ float) → str:
+    if observed[2:] != expected[2:]:
+        return "SEMANTIC-CLASS-OR-MULTIPLICITY"
+    if expected[2] != 0:
+        # The application represents true singularities by finite placeholder
+        # channels and an exact signed order, never by pretending phase exists.
+        finite_placeholder ∈ bool ← math.isfinite(observed[0]) and math.isfinite(observed[1])
+        correct_infinity ∈ bool ← observed[1] == expected[1]
+        return "PASS" if finite_placeholder or correct_infinity else "SEMANTIC-SINGULARITY-OUTPUT"
+    if not math.isfinite(observed[0]) or not math.isfinite(observed[1]):
+        return "SEMANTIC-NONFINITE"
+    if not math.isfinite(expected[0]) or not math.isfinite(expected[1]):
+        raise ValueError("REFERENCE-NONFINITE-REGULAR-FIELD")
+    phase_difference ∈ float ← abs(math.remainder(observed[0] - expected[0], math.tau))
+    if phase_difference > tolerance:
+        return "SEMANTIC-PHASE"
+    # This is unreduced log modulus: log(10)-shifted colours cannot pass it.
+    log_difference ∈ float ← abs(observed[1] - expected[1])
+    if log_difference > tolerance:
+        return "SEMANTIC-LOG-MODULUS"
+    return "PASS"
+
+def compare_file(cases_path ∈ Path, observation_path ∈ Path, tolerance ∈ float = HOST_TOLERANCE) → int:
+    cases ∈ list[dict[str, str]] ← load_cases(cases_path)
+    with observation_path.open(newline="") as stream:
+        reader ∈ object ← csv.DictReader(stream, delimiter="\t")
+        fields ∈ list[str] ← reader.fieldnames
+        if fields != OUTPUT_HEADER:
+            raise ValueError("READBACK-HEADER")
+        rows ∈ list[dict[str, str]] ← list(reader)
+    observations ∈ dict[str, dict[str, str]] ← {}
+    identities ∈ list[str] ← []
+    for row in rows:
+        observations[row["case_id"]] ← row
+    for case in cases:
+        identities.append(case["case_id"])
+    wanted ∈ object ← set(identities)
+    received ∈ object ← set(observations)
+    if len(observations) != len(rows) or received != wanted:
+        raise ValueError("READBACK-MISSING-DUPLICATE-OR-UNEXPECTED")
+    failures ∈ int ← 0
+    for case in cases:
+        row ∈ dict[str, str] ← observations[case["case_id"]]
+        actual ∈ tuple[float, float, int, int, int] ← (float(row["phase"]), float(row["log_modulus"]), int(row["singularity_order"]), int(row["reduced_zero_count"]), int(row["reduced_pole_count"]))
+        diagnosis ∈ str ← compare_values(evaluate(case, "reference"), actual, tolerance)
+        print(case["case_id"] + "\t" + diagnosis)
+        failures ← failures + int(diagnosis != "PASS")
+    return failures
+
+def provenance(expected_path ∈ Path, actual_path ∈ Path, log_path ∈ Path) → str:
+    expected ∈ bytes ← expected_path.read_bytes()
+    actual ∈ bytes ← actual_path.read_bytes()
+    if not expected or actual != expected:
+        return "PROVENANCE-SUBMITTED-BYTES"
+    digest ∈ str ← hashlib.sha256(actual).hexdigest()
+    source_lines ∈ list[str] ← log_path.read_text().splitlines()
+    lines ∈ list[str] ← []
+    for line in source_lines:
+        marker_offset ∈ int ← line.find("holomorphic field shader bytes verified:")
+        has_marker ∈ bool ← marker_offset >= 0
+        if has_marker:
+            lines.append(line)
+    if len(lines) != 1:
+        return "PROVENANCE-MISSING-OR-DUPLICATE"
+    parsed_fields ∈ list[tuple[str, str]] ← re.findall(r"([a-z0-9_]+)=([^\s]+)", lines[0])
+    fields ∈ dict[str, str] ← dict(parsed_fields)
+    if len(fields) != len(parsed_fields):
+        return "PROVENANCE-DUPLICATE-FIELD"
+    required ∈ dict[str, str] ← {"mode": "checked-idris", "compiler": "idris2-glsles", "fragment_sha256": digest, "bytes": str(len(actual)), "submission": "glShaderSource", "fallback": "none", "driver_readback_sha256": digest}
+    names ∈ list[str] ← list(required)
+    for name in names:
+        value ∈ str ← fields.get(name, "")
+        if value != required[name]:
+            upper_name ∈ str ← name.upper()
+            return "PROVENANCE-" + upper_name
+    commits ∈ list[str] ← ["backend_commit", "application_commit"]
+    for name in commits:
+        match ∈ object ← re.fullmatch(r"[0-9a-f]{40}", fields.get(name, ""))
+        if not match:
+            upper_name ← name.upper()
+            return "PROVENANCE-" + upper_name
+    return "PASS"
+
+def make_case(name ∈ str, point ∈ complex, zeros ∈ list[complex], poles ∈ list[complex], coefficients ∈ list[complex] = []) → dict[str, str]:
+    selected_coefficients ∈ list[complex] ← list(coefficients)
+    if not selected_coefficients:
+        for index in range(5):
+            selected_coefficients.append(0j)
+    return dict(zip(CASE_HEADER, [name, format(point.real, ".17g"), format(point.imag, ".17g"), "0", "0", "0", "3", encode(selected_coefficients), encode(zeros), encode(poles), "0"]))
+
+def corpus() → list[dict[str, str]]:
+    positions ∈ list[complex] ← []
+    displaced ∈ list[complex] ← []
+    for index in range(24):
+        position ∈ complex ← complex(0.25 * ((index % 6) - 2), 0.20 * ((index // 6) - 2))
+        positions.append(position)
+        displaced.append(position + complex((1 + index % 3) * 2.0 ** -11, -(1 + index % 5) * 2.0 ** -12))
+    zero ∈ complex ← complex(0.25, -0.125)
+    pole ∈ complex ← zero + complex(2.0 ** -10, -2.0 ** -11)
+    coefficients ∈ list[complex] ← [complex(0.2, -0.3), complex(-0.1, 0.05), complex(0.03, 0.02), complex(-0.004, 0.006), complex(0.001, -0.002)]
+    cases ∈ list[dict[str, str]] ← []
+    samples ∈ list[complex] ← [zero, complex(-1, -0.5), 0j, complex(0.75, 0.25), complex(4, -3)]
+    for index in range(len(samples)):
+        point ∈ complex ← samples[index]
+        cases.append(make_case("one-exact-" + str(index), point, [zero], [zero], coefficients))
+    samples ← [complex(-1, 0.75), 0j, complex(0.75, 0.25), complex(3, -2)]
+    for index in range(len(samples)):
+        point ← samples[index]
+        cases.append(make_case("one-displaced-" + str(index), point, [zero], [pole], coefficients))
+    samples ← [positions[0], positions[11], complex(-1.5, 0.75), complex(0.125, -0.875), complex(5, 4)]
+    reversed_positions ∈ list[complex] ← list(reversed(positions))
+    for index in range(len(samples)):
+        point ← samples[index]
+        cases.append(make_case("twentyfour-exact-" + str(index), point, positions, reversed_positions, coefficients))
+    samples ← [complex(-2, 1.25), complex(0.1, 1.6), complex(2.5, -1.75), complex(7, 3)]
+    for index in range(len(samples)):
+        point ← samples[index]
+        cases.append(make_case("twentyfour-displaced-" + str(index), point, positions, displaced, coefficients))
+    empty ∈ list[complex] ← []
+    repeated ∈ list[complex] ← []
+    for index in range(24):
+        repeated.append(0j)
+    cases.append(make_case("multiplicity-residual", complex(1.25, 0.5), [zero, zero, zero], [zero, zero], empty))
+    cases.append(make_case("multiplicity-at-zero", zero, [zero, zero, zero], [zero, zero], empty))
+    cases.append(make_case("multiplicity-at-pole", pole, [pole], [pole, pole, pole], empty))
+    cases.append(make_case("large-radius", complex(1.0e200, -1.0e200), positions, empty, empty))
+    cases.append(make_case("tiny-radius", complex(1.0e-200, -1.0e-200), repeated, empty, empty))
+    cases.append(make_case("normalization-z-over-three", complex(2, -1), [], [], coefficients))
+    cases.append(make_case("large-q-small-divisor", complex(1000,1000), [0j], [complex(0.001,0)], [complex(3,0),0j,0j,0j,0j]))
+    cameras ∈ list[tuple[float, float, float]] ← [(0.0, 0.0, 3.0), (100.0, -70.0, 0.01), (-4.0, 9.0, 1000.0)]
+    for index in range(len(cameras)):
+        case ∈ dict[str, str] ← make_case("camera-" + str(index), complex(0.125, 0.75), [zero], [pole], coefficients)
+        camera ∈ tuple[float, float, float] ← cameras[index]
+        case["pan_x"] ← str(camera[0])
+        case["pan_y"] ← str(camera[1])
+        case["zoom"] ← str(camera[2])
+        case["remote_count"] ← "24"
+        cases.append(case)
+    for index in range(3):
+        case ← make_case("moving-" + str(index), complex(0.125, 0.75), empty, empty, coefficients)
+        case["time"] ← str(index * 17.25)
+        case["remote_count"] ← "24"
+        cases.append(case)
+    return cases
+
+def emit_cases(directory ∈ Path) → None:
+    directory.mkdir(parents=True, exist_ok=True)
+    with directory.joinpath("cases.tsv").open("w", newline="") as stream:
+        writer ∈ object ← csv.DictWriter(stream, fieldnames=CASE_HEADER, delimiter="\t", lineterminator="\n")
+        writer.writeheader()
+        writer.writerows(corpus())
+    with directory.joinpath("reference.tsv").open("w", newline="") as stream:
+        writer ∈ object ← csv.writer(stream, delimiter="\t", lineterminator="\n")
+        writer.writerow(OUTPUT_HEADER)
+        for case in corpus():
+            output_row ∈ list[object] ← [case["case_id"]]
+            output_row.extend(evaluate(case, "reference"))
+            writer.writerow(output_row)
+
+def analytic_anchors() → None:
+    empty ∈ list[complex] ← []
+    coefficients ∈ list[complex] ← [complex(1.0, 2.0), 0j, 0j, 0j, 0j]
+    anchor ∈ dict[str, str] ← make_case("analytic-normalization", complex(3.0, 0.0), empty, empty, coefficients)
+    expected ∈ tuple[float, float, int, int, int] ← (2.0, 1.0, 0, 0, 0)
+    if compare_values(expected, evaluate(anchor, "reference"), HOST_TOLERANCE) != "PASS":
+        raise AssertionError("ANALYTIC-NORMALIZATION")
+    zero ∈ complex ← complex(0.25, -0.125)
+    pole ∈ complex ← zero + complex(2.0 ** -10, -2.0 ** -11)
+    point ∈ complex ← complex(0.75, 0.25)
+    ratio ∈ complex ← (point - zero) / (point - pole)
+    phase ∈ float ← math.atan2(ratio.imag, ratio.real)
+    logarithm ∈ float ← math.log(abs(ratio))
+    expected ← (phase, logarithm, 0, 1, 1)
+    anchor ← make_case("analytic-displaced", point, [zero], [pole], empty)
+    if compare_values(expected, evaluate(anchor, "reference"), HOST_TOLERANCE) != "PASS":
+        raise AssertionError("ANALYTIC-DISPLACED-RATIO")
+    # A phase wrap is the same value; a log10 colour-period shift is not the
+    # same numerical field. This prevents colour parity replacing field parity.
+    wrapped ∈ tuple[float, float, int, int, int] ← (phase + TAU, logarithm, 0, 1, 1)
+    if compare_values(expected, wrapped, HOST_TOLERANCE) != "PASS":
+        raise AssertionError("CIRCULAR-PHASE")
+    colour_period ∈ float ← math.log(10.0)
+    shifted ∈ tuple[float, float, int, int, int] ← (phase, logarithm + colour_period, 0, 1, 1)
+    if compare_values(expected, shifted, HOST_TOLERANCE) != "SEMANTIC-LOG-MODULUS":
+        raise AssertionError("COLOUR-PERIOD-IS-NOT-FIELD-PARITY")
+
+def positive_fraction(value ∈ float) → float:
+    lower ∈ float ← math.floor(value)
+    return value - lower
+
+def srgb_component(linear ∈ float) → float:
+    value ∈ float ← linear if linear > 0.0 else 0.0
+    converted ∈ float ← 12.92 * value if value <= 0.0031308 else 1.055 * value ** (1.0 / 2.4) - 0.055
+    return 0.0 if converted < 0.0 else 1.0 if converted > 1.0 else converted
+
+def canonical_rgb(phase ∈ float, logarithm ∈ float) → list[float]:
+    hue_degrees ∈ float ← 360.0 * positive_fraction(phase / TAU)
+    log_ten ∈ float ← math.log(10.0)
+    lightness ∈ float ← 66.0 + 4.0 * positive_fraction(logarithm / log_ten) + 3.0 * positive_fraction(hue_degrees / 100.0)
+    hue ∈ float ← hue_degrees * TAU / 360.0
+    cosine ∈ float ← math.cos(hue)
+    sine ∈ float ← math.sin(hue)
+    u_star ∈ float ← 45.0 * cosine
+    v_star ∈ float ← 45.0 * sine
+    cie_y ∈ float ← ((lightness + 16.0) / 116.0) ** 3.0
+    u_prime ∈ float ← u_star / (13.0 * lightness) + 0.19783982482140777
+    v_prime ∈ float ← v_star / (13.0 * lightness) + 0.46833630293240974
+    cie_x ∈ float ← 9.0 * cie_y * u_prime / (4.0 * v_prime)
+    cie_z ∈ float ← cie_y * (12.0 - 3.0 * u_prime - 20.0 * v_prime) / (4.0 * v_prime)
+    red ∈ float ← 3.2404542 * cie_x - 1.5371385 * cie_y - 0.4985314 * cie_z
+    green ∈ float ← -0.9692660 * cie_x + 1.8760108 * cie_y + 0.0415560 * cie_z
+    blue ∈ float ← 0.0556434 * cie_x - 0.2040259 * cie_y + 1.0572252 * cie_z
+    return [srgb_component(red), srgb_component(green), srgb_component(blue)]
+
+def canonical_rgba8(expected ∈ tuple[float, float, int, int, int]) → list[int]:
+    if expected[2] > 0:
+        return [0, 0, 0, 255]
+    if expected[2] < 0:
+        return [255, 255, 255, 255]
+    rgb ∈ list[float] ← canonical_rgb(expected[0], expected[1])
+    result ∈ list[int] ← []
+    for value in rgb:
+        quantized ∈ int ← int(math.floor(value * 255.0 + 0.5))
+        result.append(quantized)
+    result.append(255)
+    return result
+
+def palette_check(core_path ∈ Path, fixture_path ∈ Path) → None:
+    digest ∈ str ← hashlib.sha256(core_path.read_bytes()).hexdigest()
+    fixture ∈ dict[str, object] ← json.loads(fixture_path.read_text())
+    fixture_digest ∈ str ← str(fixture["canonical_core_sha256"])
+    tolerance ∈ float ← float(fixture["color_tolerance"])
+    if digest != CANONICAL_PALETTE_DIGEST or fixture_digest != digest or tolerance != 0.00002:
+        raise ValueError("PALETTE-PIN-OR-EXISTING-TOLERANCE")
+    cases ∈ list[dict[str, object]] ← list(fixture["cases"])
+    if len(cases) != 6:
+        raise ValueError("PALETTE-FIXTURE-COUNT")
+    for case in cases:
+        fixture_point ∈ list[float] ← list(case["value"])
+        rgb ∈ list[float] ← list(case["rgb"])
+        phase ∈ float ← math.atan2(fixture_point[1], fixture_point[0])
+        radius ∈ float ← math.hypot(fixture_point[0], fixture_point[1])
+        logarithm ∈ float ← math.log(radius if radius > 1.0e-12 else 1.0e-12)
+        actual ∈ list[float] ← canonical_rgb(phase, logarithm)
+        for channel in range(3):
+            error ∈ float ← abs(actual[channel] - rgb[channel])
+            if error > tolerance:
+                raise ValueError("PALETTE-CPU-REFERENCE")
+    print("PASS independent binary64 shared Wegert reference: six retained fixtures, unchanged 2e-5 budget")
+
+def gamma(operations ∈ int) → float:
+    return operations * BINARY32_EPSILON / (1.0 - operations * BINARY32_EPSILON)
+
+def log_roundoff_bound(case ∈ dict[str, str]) → float:
+    point ∈ complex ← complex(float(case["world_x"]), float(case["world_y"]))
+    zeros ∈ list[complex] ← coordinates(case["zeros"])
+    poles ∈ list[complex] ← coordinates(case["poles"])
+    remote_count ∈ int ← int(case["remote_count"])
+    for index in range(remote_count):
+        poles.append(remote_position(index, float(case["time"])))
+    orders ∈ dict[complex, int] ← reduced_orders(zeros, poles, "reference")
+    positions ∈ list[complex] ← list(orders)
+    absolute_log_terms ∈ float ← 0.0
+    total_multiplicity ∈ int ← 0
+    for position in positions:
+        delta ∈ complex ← point - position
+        radius ∈ float ← math.hypot(delta.real, delta.imag)
+        if radius == 0.0:
+            continue
+        logarithm ∈ float ← math.log(radius)
+        magnitude ∈ float ← abs(orders[position] * logarithm)
+        multiplicity ∈ int ← abs(orders[position])
+        absolute_log_terms ← absolute_log_terms + magnitude
+        total_multiplicity ← total_multiplicity + multiplicity
+    coefficients ∈ list[complex] ← coordinates(case["coefficients"])
+    polynomial_condition ∈ float ← 0.0
+    polynomial_real ∈ float ← 0.0
+    normalized ∈ complex ← point / 3.0
+    for index in range(5):
+        term ∈ complex ← coefficients[index] * normalized ** (index + 1)
+        magnitude ∈ float ← abs(term)
+        real_part ∈ float ← term.real
+        polynomial_real ← polynomial_real + real_part
+        polynomial_condition ← polynomial_condition + (index + 2) * magnitude
+    absolute_polynomial_real ∈ float ← abs(polynomial_real)
+    bound ∈ float ← 64.0 * BINARY32_EPSILON * total_multiplicity + 8.0 * BINARY32_EPSILON * absolute_log_terms + gamma(len(orders) + 2) * (absolute_polynomial_real + absolute_log_terms) + gamma(128) * polynomial_condition
+    return bound if bound > HOST_TOLERANCE else HOST_TOLERANCE
+
+def boundary_classification(expected ∈ tuple[float, float, int, int, int]) → str:
+    if expected[2] != 0:
+        return "TRUE_ZERO" if expected[2] > 0 else "TRUE_POLE"
+    hue ∈ float ← 360.0 * positive_fraction(expected[0] / TAU)
+    hue_phase ∈ float ← hue * TAU / 360.0
+    hue_seams ∈ list[float] ← [0.0, 100.0 * TAU / 360.0, 200.0 * TAU / 360.0, 300.0 * TAU / 360.0, TAU]
+    for seam in hue_seams:
+        distance ∈ float ← abs(hue_phase - seam)
+        if distance <= GPU_PHASE_BUDGET:
+            return "COLOUR_SEAM_SAME_BUDGET"
+    log_ten ∈ float ← math.log(10.0)
+    log_distance ∈ float ← abs(math.remainder(expected[1], log_ten))
+    return "COLOUR_SEAM_SAME_BUDGET" if log_distance <= GPU_LOG_BUDGET else "REGULAR"
+
+def load_gpu_policy() → str:
+    source_path ∈ Path ← Path(__file__)
+    policy_path ∈ Path ← source_path.parent.joinpath("gpu-policy.tsv")
+    policy ∈ dict[str, str] ← {}
+    lines ∈ list[str] ← policy_path.read_text().splitlines()
+    for line in lines:
+        fields ∈ list[str] ← line.split("\t")
+        if len(fields) != 2:
+            raise ValueError("GPU-POLICY-SCHEMA")
+        previous ∈ str ← policy.get(fields[0], "")
+        if previous:
+            raise ValueError("GPU-POLICY-DUPLICATE")
+        policy[fields[0]] ← fields[1]
+    required ∈ dict[str, str] ← {"schema": "holomorphic-gpu-acceptance-v1", "declaration_order": "before-first-observed-holomorphic-gpu-readback", "gpu_circular_phase_absolute_error_radians": "0.0001", "gpu_raw_log_modulus_absolute_error": "0.0001", "regular_rgba8_channel_absolute_error": "1", "singular_rgba8_channel_absolute_error": "0", "raw_log_period_reduction": "forbidden", "canonical_wegert_glsl_sha256": CANONICAL_PALETTE_DIGEST}
+    names ∈ list[str] ← list(required)
+    for name in names:
+        actual ∈ str ← policy.get(name, "")
+        if actual != required[name]:
+            raise ValueError("GPU-POLICY-UNREVIEWED-CHANGE:" + name)
+    return hashlib.sha256(policy_path.read_bytes()).hexdigest()
+
+def gpu_cases() → list[dict[str, str]]:
+    names ∈ list[str] ← ["one_exact", "one_displaced", "24_exact", "24_displaced", "multiplicity", "moving0", "moving7_5", "moving7_5_zoom", "24_displaced_large", "24_displaced_small"]
+    coefficients ∈ list[complex] ← [complex(0.125,-0.0625), complex(-0.03125,0.015625), complex(0.0078125,0.00390625), complex(-0.001953125,0.0009765625), complex(0.00048828125,-0.000244140625)]
+    points ∈ list[complex] ← [complex(0.125,0.1875), complex(0.25,-0.375), complex(-0.75,-0.5), complex(0.3125,-0.40625)]
+    result ∈ list[dict[str, str]] ← []
+    for case_index in range(len(names)):
+        zeros ∈ list[complex] ← [complex(0.25,-0.375)]
+        poles ∈ list[complex] ← [complex(0.25,-0.375)]
+        if case_index == 1:
+            poles ← [complex(0.3125,-0.40625)]
+        if case_index == 2 or case_index == 3 or case_index >= 8:
+            zeros ← []
+            poles ← []
+            scale ∈ float ← 2.0 ** 60 if case_index == 8 else 2.0 ** -60
+            for index in range(24):
+                zero ∈ complex ← complex(scale * (1.0 + index * 0.0625), scale * (-1.0 - index * 0.03125)) if case_index >= 8 else complex(-0.75 + index * 0.0625, -0.5 + index * 0.03125)
+                displacement ∈ complex ← 0j if case_index == 2 else complex((scale if case_index >= 8 else 1.0) * 0.015625, -(scale if case_index >= 8 else 1.0) * 0.0078125)
+                zeros.append(zero)
+                poles.append(zero + displacement)
+        if case_index == 4:
+            zeros ← [complex(0.25,-0.375), complex(0.25,-0.375), complex(0.25,-0.375)]
+        if case_index >= 5 and case_index <= 7:
+            zeros ← [complex(-0.34375,0.0)]
+            poles ← [complex(0.34375,0.0)]
+        sample_count ∈ int ← 1 if case_index >= 8 else 4
+        for sample in range(sample_count):
+            point ∈ complex ← 0j if case_index >= 8 else points[sample]
+            case ∈ dict[str, str] ← make_case(names[case_index] + ":" + str(sample), point, zeros, poles, coefficients)
+            case["time"] ← "7.5" if case_index == 6 or case_index == 7 else "0"
+            case["remote_count"] ← "24" if case_index >= 5 and case_index <= 7 else "0"
+            case["zoom"] ← "5.5" if case_index == 7 else "0.5" if sample == 0 else "1" if sample == 1 else "3"
+            result.append(case)
+    return result
+
+def gpu_records(path ∈ Path) → list[dict[str, str]]:
+    lines ∈ list[str] ← path.read_text().splitlines()
+    records ∈ list[dict[str, str]] ← []
+    for line in lines:
+        match ∈ object ← re.search(r"\b(HOLO_GPU_[A-Z_]+)\s+(.*)$", line)
+        if match:
+            kind ∈ str ← match.group(1)
+            pairs ∈ list[tuple[str, str]] ← re.findall(r"([a-z0-9_]+)=([^\s]+)", match.group(2))
+            fields ∈ dict[str, str] ← dict(pairs)
+            if len(fields) != len(pairs):
+                raise ValueError("GPU-DUPLICATE-FIELD")
+            fields["event"] ← kind
+            records.append(fields)
+    return records
+
+def position_from_row(row ∈ dict[str, str], x_name ∈ str, y_name ∈ str) → complex:
+    return complex(float32(float(row[x_name])), float32(float(row[y_name])))
+
+def gpu_audit(log_path ∈ Path, fixture_math ∈ bool, qualify ∈ bool) → int:
+    records ∈ list[dict[str, str]] ← gpu_records(log_path)
+    expected_cases ∈ list[dict[str, str]] ← gpu_cases()
+    summaries ∈ list[dict[str, str]] ← []
+    colour_summaries ∈ list[dict[str, str]] ← []
+    colours ∈ dict[str, dict[str, str]] ← {}
+    measures ∈ dict[str, dict[str, str]] ← {}
+    headers ∈ dict[str, dict[str, str]] ← {}
+    inputs ∈ dict[str, dict[str, str]] ← {}
+    factors ∈ dict[str, dict[str, str]] ← {}
+    coefficient_rows ∈ dict[str, dict[str, str]] ← {}
+    empty_record ∈ dict[str, str] ← {}
+    for row in records:
+        event ∈ str ← row["event"]
+        separate_large_q ∈ bool ← event.startswith("HOLO_GPU_LARGE_Q_")
+        if separate_large_q:
+            continue
+        if event == "HOLO_GPU_NUMERIC":
+            summaries.append(row)
+        elif event == "HOLO_GPU_COLOR_OUTPUT":
+            colour_summaries.append(row)
+        else:
+            name ∈ str ← row["case"]
+            key ∈ str ← name
+            destination ∈ dict[str, dict[str, str]] ← headers
+            if event == "HOLO_GPU_MEASURE":
+                key ← name + ":" + row["sample"]
+                destination ← measures
+            elif event == "HOLO_GPU_COLOR":
+                key ← name + ":" + row["sample"]
+                destination ← colours
+            elif event == "HOLO_GPU_INPUT":
+                key ← name + ":" + row["kind"] + ":" + row["index"]
+                destination ← inputs
+            elif event == "HOLO_GPU_FACTOR":
+                key ← name + ":" + row["index"]
+                destination ← factors
+            elif event == "HOLO_GPU_COEFFICIENT":
+                key ← name + ":" + row["index"]
+                destination ← coefficient_rows
+            elif event != "HOLO_GPU_CASE":
+                raise ValueError("GPU-UNEXPECTED-EVENT")
+            previous ∈ dict[str, str] ← destination.get(key, empty_record)
+            if previous:
+                raise ValueError("GPU-DUPLICATE-OBSERVATION")
+            destination[key] ← row
+    if len(summaries) != 1 or len(measures) != 34 or len(headers) != 10 or len(coefficient_rows) != 50:
+        raise ValueError("GPU-MISSING-NUMERICAL-OUTPUT")
+    summary ∈ dict[str, str] ← summaries[0]
+    if summary["status"] != "OUTPUT_READY" or summary["samples"] != "34" or summary["expected"] != "34" or summary["reference_acceptance"] != "NOT_RUN":
+        raise ValueError("GPU-NUMERICAL-OUTPUT-NOT-READY")
+    if qualify:
+        policy_digest ∈ str ← load_gpu_policy()
+        print("GPU_POLICY sha256=" + policy_digest + " phase_abs=0.0001 raw_log_abs=0.0001 regular_rgb8_abs=1")
+        if len(colours) != 34 or len(colour_summaries) != 1:
+            raise ValueError("GPU-MISSING-COLOUR-OUTPUT")
+        colour_summary ∈ dict[str, str] ← colour_summaries[0]
+        if colour_summary["status"] != "OUTPUT_READY" or colour_summary["samples"] != "34" or colour_summary["expected"] != "34" or colour_summary["reference_acceptance"] != "NOT_RUN":
+            raise ValueError("GPU-COLOUR-OUTPUT-NOT-READY")
+    failures ∈ int ← 0
+    expected_input_total ∈ int ← 0
+    expected_factor_total ∈ int ← 0
+    for case in expected_cases:
+        pieces ∈ list[str] ← case["case_id"].split(":")
+        name ← pieces[0]
+        sample ∈ int ← int(pieces[1])
+        header ∈ dict[str, str] ← headers[name]
+        zeros ∈ list[complex] ← coordinates(case["zeros"])
+        poles ∈ list[complex] ← coordinates(case["poles"])
+        remote_count ∈ int ← int(case["remote_count"])
+        all_poles ∈ list[complex] ← list(poles)
+        remote ∈ list[complex] ← []
+        for index in range(remote_count):
+            remote.append(remote_position(index, float(case["time"])))
+        all_poles.extend(remote)
+        orders ∈ dict[complex, int] ← reduced_orders(zeros, all_poles, "reference")
+        if sample == 0:
+            expected_input_total ← expected_input_total + len(zeros) + len(poles) + len(remote)
+            expected_factor_total ← expected_factor_total + len(orders)
+            expected_header ∈ dict[str, str] ← {"coefficient_count": "5", "zero_count": str(len(zeros)), "pole_count": str(len(poles)), "remote_count": str(remote_count), "factor_count": str(len(orders)), "time": case["time"]}
+            fields ∈ list[str] ← list(expected_header)
+            for field in fields:
+                if header[field] != expected_header[field]:
+                    raise ValueError("GPU-CASE-METADATA:" + name + ":" + field)
+            kinds ∈ list[str] ← ["zero", "pole", "remote"]
+            positions_by_kind ∈ list[list[complex]] ← [zeros, poles, remote]
+            for kind_index in range(3):
+                positions ∈ list[complex] ← positions_by_kind[kind_index]
+                for index in range(len(positions)):
+                    input_row ∈ dict[str, str] ← inputs[name + ":" + kinds[kind_index] + ":" + str(index)]
+                    if position_from_row(input_row, "x", "y") != positions[index]:
+                        raise ValueError("GPU-INPUT-COORDINATE:" + name)
+            coefficients ∈ list[complex] ← coordinates(case["coefficients"])
+            for index in range(5):
+                coefficient_row ∈ dict[str, str] ← coefficient_rows[name + ":" + str(index)]
+                if position_from_row(coefficient_row, "real", "imag") != coefficients[index]:
+                    raise ValueError("GPU-COEFFICIENT-NORMALIZATION:" + name)
+            actual_orders ∈ dict[complex, int] ← {}
+            for index in range(len(orders)):
+                factor_row ∈ dict[str, str] ← factors[name + ":" + str(index)]
+                position ∈ complex ← position_from_row(factor_row, "x", "y")
+                integer_order ∈ int ← int(float(factor_row["order"]))
+                order_value ∈ float ← float(factor_row["order"])
+                if integer_order == 0 or float(integer_order) != order_value:
+                    raise ValueError("GPU-INVALID-MULTIPLICITY")
+                previous_order ∈ int ← actual_orders.get(position, 0)
+                if previous_order != 0:
+                    raise ValueError("GPU-NONREDUCED-DUPLICATE-FACTOR")
+                actual_orders[position] ← integer_order
+            if actual_orders != orders:
+                raise ValueError("GPU-EXACT-CANCELLATION-OR-MULTIPLICITY:" + name)
+        measurement ∈ dict[str, str] ← measures[case["case_id"]]
+        produced ∈ float ← float(measurement["produced"])
+        graphics_error ∈ int ← int(measurement["gl_error"])
+        if produced != 1.0 or graphics_error != 0:
+            raise ValueError("GPU-MISSING-OR-FAILED-READBACK:" + name)
+        point ∈ complex ← position_from_row(measurement, "point_x", "point_y")
+        expected_point ∈ complex ← complex(float(case["world_x"]), float(case["world_y"]))
+        if point != expected_point or measurement["time"] != case["time"] or measurement["zoom"] != case["zoom"]:
+            raise ValueError("GPU-POINT-TIME-OR-CAMERA:" + name)
+        count_fields ∈ list[str] ← ["zero_count", "pole_count", "remote_count"]
+        for field in count_fields:
+            if measurement[field] != header[field]:
+                raise ValueError("GPU-MEASUREMENT-COUNTS:" + name)
+        order_value ← float(measurement["singular_order"])
+        integer_order ← int(order_value)
+        if float(integer_order) != order_value:
+            raise ValueError("GPU-NONINTEGER-SINGULARITY")
+        expected ∈ tuple[float, float, int, int, int] ← evaluate(case, "reference")
+        actual ∈ tuple[float, float, int, int, int] ← (float(measurement["phase"]), float(measurement["log_modulus"]), integer_order, expected[3], expected[4])
+        diagnosis ∈ str ← "PASS"
+        details ∈ str ← ""
+        if fixture_math:
+            diagnosis ← compare_values(expected, actual, HOST_TOLERANCE)
+        elif qualify:
+            diagnosis ← compare_values(expected, actual, GPU_PHASE_BUDGET)
+            if expected[2] == 0 and diagnosis == "PASS":
+                actual_log_error ∈ float ← abs(actual[1] - expected[1])
+                source_bound ∈ float ← log_roundoff_bound(case)
+                log_budget ∈ float ← source_bound if source_bound < GPU_LOG_BUDGET else GPU_LOG_BUDGET
+                if actual_log_error > log_budget:
+                    diagnosis ← "SEMANTIC-LOG-ROUNDOFF-BOUND"
+            colour_row ∈ dict[str, str] ← colours[case["case_id"]]
+            colour_produced ∈ float ← float(colour_row["produced"])
+            colour_error ∈ int ← int(colour_row["gl_error"])
+            if colour_produced != 1.0 or colour_error != 0 or colour_row["framebuffer_format"] != "RGBA8" or colour_row["conversion"] != "glReadPixels":
+                raise ValueError("GPU-COLOUR-SUBMISSION-OR-READBACK:" + name)
+            expected_rgba ∈ list[int] ← canonical_rgba8(expected)
+            channel_names ∈ list[str] ← ["red", "green", "blue", "alpha"]
+            channel_budget ∈ int ← 1 if expected[2] == 0 else 0
+            violations ∈ list[str] ← []
+            if diagnosis != "PASS":
+                violations.append(diagnosis)
+            observed_rgba ∈ list[int] ← []
+            for channel in range(4):
+                observed_channel ∈ int ← int(colour_row[channel_names[channel]])
+                observed_rgba.append(observed_channel)
+                channel_difference ∈ int ← abs(observed_channel - expected_rgba[channel])
+                allowed ∈ int ← 0 if channel == 3 else channel_budget
+                if observed_channel < 0 or observed_channel > 255 or channel_difference > allowed:
+                    channel_diagnosis ∈ str ← "SEMANTIC-RGBA8-" + channel_names[channel]
+                    violations.append(channel_diagnosis)
+                    if diagnosis == "PASS":
+                        diagnosis ← channel_diagnosis
+            if diagnosis != "PASS":
+                violation_text ∈ str ← ",".join(violations)
+                details ← " violations=" + violation_text
+                details ← details + " phase_observed=" + decimal(actual[0]) + " log_observed=" + decimal(actual[1])
+                if expected[2] == 0:
+                    phase_is_finite ∈ bool ← math.isfinite(actual[0])
+                    phase_abs_error ∈ float ← abs(math.remainder(actual[0] - expected[0], TAU)) if phase_is_finite else float("nan")
+                    raw_log_abs_error ∈ float ← abs(actual[1] - expected[1])
+                    diagnostic_source_bound ∈ float ← log_roundoff_bound(case)
+                    diagnostic_log_budget ∈ float ← diagnostic_source_bound if diagnostic_source_bound < GPU_LOG_BUDGET else GPU_LOG_BUDGET
+                    details ← details + " phase_expected=" + decimal(expected[0]) + " phase_circular_error=" + decimal(phase_abs_error) + " phase_budget=" + decimal(GPU_PHASE_BUDGET)
+                    details ← details + " log_expected=" + decimal(expected[1]) + " log_error=" + decimal(raw_log_abs_error) + " log_budget=" + decimal(diagnostic_log_budget)
+                else:
+                    details ← details + " phase_log_class=UNDEFINED_TRUE_SINGULARITY"
+                details ← details + " rgba_observed=" + str(observed_rgba) + " rgba_expected=" + str(expected_rgba) + " rgb8_budget=" + str(channel_budget) + " alpha_budget=0"
+        else:
+            if not math.isfinite(actual[0]) or not math.isfinite(actual[1]):
+                raise ValueError("GPU-NONFINITE-READBACK:" + name)
+            if actual[2:] != expected[2:]:
+                diagnosis ← "SEMANTIC-CLASS-OR-MULTIPLICITY"
+        if fixture_math or qualify or diagnosis != "PASS":
+            classification ∈ str ← boundary_classification(expected)
+            print(case["case_id"] + "\t" + diagnosis + (" class=" + classification if qualify else "") + details)
+        else:
+            phase_error ∈ float ← 0.0 if expected[2] != 0 else abs(math.remainder(actual[0] - expected[0], TAU))
+            log_error ∈ float ← 0.0 if expected[2] != 0 else abs(actual[1] - expected[1])
+            print(case["case_id"] + "\tOUTPUT_READY phase_abs_error=" + decimal(phase_error) + " log_abs_error=" + decimal(log_error) + " numerical_acceptance=NOT_RUN")
+        failures ← failures + int(diagnosis != "PASS")
+    if len(inputs) != expected_input_total or len(factors) != expected_factor_total:
+        raise ValueError("GPU-UNEXPECTED-INPUT-OR-FACTOR")
+    return failures
+
+def large_q_cases() → list[dict[str, str]]:
+    empty ∈ list[complex] ← []
+    coefficients ∈ list[complex] ← [complex(3.0,0.0),0j,0j,0j,0j]
+    baseline ∈ dict[str, str] ← make_case("baseline", complex(1000.0,1000.0), empty, empty, coefficients)
+    pair ∈ dict[str, str] ← make_case("pair", complex(1000.0,1000.0), [0j], [complex(float32(0.04),0.0)], coefficients)
+    return [baseline, pair]
+
+def large_q_reference() → tuple[float, float, float, float]:
+    point ∈ complex ← complex(1000.0,1000.0)
+    pole ∈ complex ← complex(float32(0.04),0.0)
+    ratio ∈ complex ← point / (point - pole)
+    phase_increment ∈ float ← math.atan2(ratio.imag, ratio.real)
+    logarithmic_increment ∈ float ← math.log(math.hypot(ratio.real, ratio.imag))
+    phase_turns ∈ float ← math.floor(1000.0 / TAU)
+    phase_residue ∈ float ← 1000.0 - TAU * phase_turns
+    log_ten ∈ float ← math.log(10.0)
+    log_turns ∈ float ← math.floor(1000.0 / log_ten)
+    log_residue ∈ float ← 1000.0 - log_ten * log_turns
+    return (phase_residue, log_residue, phase_increment, logarithmic_increment)
+
+def load_large_q_policy() → str:
+    source_path ∈ Path ← Path(__file__)
+    policy_path ∈ Path ← source_path.parent.joinpath("large-q-policy.tsv")
+    old_policy ∈ Path ← source_path.parent.joinpath("gpu-policy.tsv")
+    old_digest ∈ str ← hashlib.sha256(old_policy.read_bytes()).hexdigest()
+    if old_digest != "5c5a90912823dd6a1d75fc09f04bd161c6521dd9c4844e3a399b333b4bbe0f21":
+        raise ValueError("LARGE-Q-EXISTING-POLICY-CHANGED")
+    policy ∈ dict[str, str] ← {}
+    lines ∈ list[str] ← policy_path.read_text().splitlines()
+    for line in lines:
+        fields ∈ list[str] ← line.split("\t")
+        if len(fields) != 2:
+            raise ValueError("LARGE-Q-POLICY-SCHEMA")
+        previous ∈ str ← policy.get(fields[0], "")
+        if previous:
+            raise ValueError("LARGE-Q-POLICY-DUPLICATE")
+        policy[fields[0]] ← fields[1]
+    required ∈ dict[str, str] ← {"schema": "holomorphic-large-q-diagnostic-v1", "declaration_order": "before-first-observed-holomorphic-gpu-readback", "raw_q_component_maximum_binary32_ulps": "8", "raw_baseline_produced": "1", "raw_pair_produced": "0", "raw_pair_domain": "RANGE_REJECTED_UNQUALIFIED", "precolour_baseline_produced": "1", "precolour_pair_produced": "1", "precolour_phase_absolute_error_radians": "0.0001", "precolour_log_coordinate_absolute_error": "0.0001", "precolour_delta_absolute_error": "0.000002", "regular_rgba8_channel_absolute_error": "1"}
+    names ∈ list[str] ← list(required)
+    for name in names:
+        actual ∈ str ← policy.get(name, "")
+        if actual != required[name]:
+            raise ValueError("LARGE-Q-POLICY-UNREVIEWED-CHANGE:" + name)
+    return hashlib.sha256(policy_path.read_bytes()).hexdigest()
+
+def large_q_numeric(row ∈ dict[str, str], mode ∈ int, marker ∈ float, label ∈ str) → tuple[float, float]:
+    phase ∈ float ← float(row["phase"])
+    logarithm ∈ float ← float(row["log_modulus"])
+    order ∈ float ← float(row["singular_order"])
+    produced ∈ float ← float(row["produced"])
+    graphics_error ∈ int ← int(row["gl_error"])
+    output_mode ∈ int ← int(row["output_mode"])
+    framebuffer_status ∈ int ← int(row["framebuffer_status"])
+    if not math.isfinite(phase) or not math.isfinite(logarithm) or order != 0.0:
+        raise ValueError("LARGE-Q-NONFINITE-OR-SENTINEL:" + label)
+    if produced != marker:
+        raise ValueError("LARGE-Q-WRONG-PRODUCED-MARKER:" + label)
+    if graphics_error != 0 or output_mode != mode or framebuffer_status != 36053 or row["framebuffer_format"] != "RGBA32F" or row["conversion"] != "glReadPixels":
+        raise ValueError("LARGE-Q-GRAPHICS-OR-MODE:" + label)
+    return (phase, logarithm)
+
+def large_q_audit(path ∈ Path) → None:
+    policy_digest ∈ str ← load_large_q_policy()
+    records ∈ list[dict[str, str]] ← gpu_records(path)
+    summaries ∈ list[dict[str, str]] ← []
+    headers ∈ dict[str, dict[str, str]] ← {}
+    coefficient_rows ∈ dict[str, dict[str, str]] ← {}
+    inputs ∈ dict[str, dict[str, str]] ← {}
+    factors ∈ dict[str, dict[str, str]] ← {}
+    raw_rows ∈ dict[str, dict[str, str]] ← {}
+    precolour_rows ∈ dict[str, dict[str, str]] ← {}
+    colour_rows ∈ dict[str, dict[str, str]] ← {}
+    empty ∈ dict[str, str] ← {}
+    for row in records:
+        event ∈ str ← row["event"]
+        is_large_q ∈ bool ← event.startswith("HOLO_GPU_LARGE_Q_")
+        if not is_large_q:
+            continue
+        if event == "HOLO_GPU_LARGE_Q_OUTPUT":
+            summaries.append(row)
+            continue
+        name ∈ str ← row["case"]
+        if name != "baseline" and name != "pair":
+            raise ValueError("LARGE-Q-UNEXPECTED-CASE")
+        key ∈ str ← name
+        destination ∈ dict[str, dict[str, str]] ← headers
+        if event == "HOLO_GPU_LARGE_Q_COEFFICIENT":
+            key ← name + ":" + row["index"]
+            destination ← coefficient_rows
+        elif event == "HOLO_GPU_LARGE_Q_INPUT":
+            key ← name + ":" + row["kind"] + ":" + row["index"]
+            destination ← inputs
+        elif event == "HOLO_GPU_LARGE_Q_FACTOR":
+            key ← name + ":" + row["index"]
+            destination ← factors
+        elif event == "HOLO_GPU_LARGE_Q_RAW":
+            destination ← raw_rows
+        elif event == "HOLO_GPU_LARGE_Q_PRECOLOR":
+            destination ← precolour_rows
+        elif event == "HOLO_GPU_LARGE_Q_COLOR":
+            destination ← colour_rows
+        elif event != "HOLO_GPU_LARGE_Q_CASE":
+            raise ValueError("LARGE-Q-UNEXPECTED-EVENT")
+        previous ∈ dict[str, str] ← destination.get(key, empty)
+        if previous:
+            raise ValueError("LARGE-Q-DUPLICATE-OBSERVATION")
+        destination[key] ← row
+    if len(summaries) != 1 or len(headers) != 2 or len(coefficient_rows) != 10 or len(inputs) != 2 or len(factors) != 2 or len(raw_rows) != 2 or len(precolour_rows) != 2 or len(colour_rows) != 2:
+        raise ValueError("LARGE-Q-MISSING-OBSERVATIONS")
+    summary ∈ dict[str, str] ← summaries[0]
+    required_summary ∈ dict[str, str] ← {"status": "OUTPUT_READY", "raw_samples": "2", "precolor_samples": "2", "color_samples": "2", "expected_cases": "2", "raw_pair_domain": "RANGE_REJECTED_UNQUALIFIED", "reference_acceptance": "NOT_RUN"}
+    summary_fields ∈ list[str] ← list(required_summary)
+    for field in summary_fields:
+        if summary[field] != required_summary[field]:
+            raise ValueError("LARGE-Q-OUTPUT-NOT-READY:" + field)
+    cases ∈ list[dict[str, str]] ← large_q_cases()
+    reference ∈ tuple[float, float, float, float] ← large_q_reference()
+    raw_values ∈ list[tuple[float, float]] ← []
+    precolour_values ∈ list[tuple[float, float]] ← []
+    print("LARGE_Q_POLICY sha256=" + policy_digest + " delta_abs=0.000002 raw_pair_domain=RANGE_REJECTED_UNQUALIFIED")
+    for case in cases:
+        name ← case["case_id"]
+        header ∈ dict[str, str] ← headers[name]
+        is_pair ∈ bool ← name == "pair"
+        expected_header ∈ dict[str, str] ← {"coefficient_count": "5", "zero_count": "1" if is_pair else "0", "pole_count": "1" if is_pair else "0", "remote_count": "0", "factor_count": "2" if is_pair else "0", "point_x": "1000", "point_y": "1000", "time": "0", "zoom": "1"}
+        header_fields ∈ list[str] ← list(expected_header)
+        for field in header_fields:
+            if header[field] != expected_header[field]:
+                raise ValueError("LARGE-Q-INPUT-METADATA:" + name + ":" + field)
+        coefficients ∈ list[complex] ← coordinates(case["coefficients"])
+        for index in range(5):
+            row ∈ dict[str, str] ← coefficient_rows[name + ":" + str(index)]
+            if position_from_row(row, "real", "imag") != coefficients[index]:
+                raise ValueError("LARGE-Q-CHANGED-COEFFICIENTS")
+        if is_pair:
+            zero_row ∈ dict[str, str] ← inputs["pair:zero:0"]
+            pole_row ∈ dict[str, str] ← inputs["pair:pole:0"]
+            zero ∈ complex ← position_from_row(zero_row, "x", "y")
+            pole ∈ complex ← position_from_row(pole_row, "x", "y")
+            expected_pole ∈ complex ← complex(float32(0.04),0.0)
+            if zero != 0j or pole != expected_pole:
+                raise ValueError("LARGE-Q-CHANGED-DIVISOR")
+            actual_orders ∈ dict[complex, int] ← {}
+            for index in range(2):
+                factor ∈ dict[str, str] ← factors["pair:" + str(index)]
+                position ∈ complex ← position_from_row(factor, "x", "y")
+                order_value ∈ float ← float(factor["order"])
+                order ∈ int ← int(order_value)
+                if float(order) != order_value or (order != 1 and order != -1):
+                    raise ValueError("LARGE-Q-INVALID-UPLOADED-ORDER")
+                previous_order ∈ int ← actual_orders.get(position, 0)
+                if previous_order != 0:
+                    raise ValueError("LARGE-Q-DUPLICATE-FACTOR")
+                actual_orders[position] ← order
+            expected_orders ∈ dict[complex, int] ← {0j: 1, expected_pole: -1}
+            if actual_orders != expected_orders:
+                raise ValueError("LARGE-Q-CHANGED-UPLOADED-DIVISOR")
+        raw_marker ∈ float ← 0.0 if is_pair else 1.0
+        raw ∈ tuple[float, float] ← large_q_numeric(raw_rows[name], 1, raw_marker, name + ":RAW")
+        raw_values.append(raw)
+        for channel in range(2):
+            raw_q_error ∈ float ← abs(raw[channel] - 1000.0)
+            if raw_q_error > LARGE_Q_RAW_BUDGET:
+                raise ValueError("LARGE-Q-RAW-NOT-Q-SIZED:" + name)
+        precolour ∈ tuple[float, float] ← large_q_numeric(precolour_rows[name], 3, 1.0, name + ":PRECOLOR")
+        precolour_values.append(precolour)
+        expected_pre_phase ∈ float ← reference[0] + (reference[2] if is_pair else 0.0)
+        expected_pre_log ∈ float ← reference[1] + (reference[3] if is_pair else 0.0)
+        phase_error ∈ float ← abs(math.remainder(precolour[0] - expected_pre_phase, TAU))
+        log_error ∈ float ← abs(precolour[1] - expected_pre_log)
+        if phase_error > GPU_PHASE_BUDGET or log_error > GPU_LOG_BUDGET:
+            raise ValueError("LARGE-Q-PRECOLOUR-ABSOLUTE-PARITY:" + name)
+        colour ∈ dict[str, str] ← colour_rows[name]
+        colour_marker ∈ float ← float(colour["produced"])
+        colour_gl_error ∈ int ← int(colour["gl_error"])
+        colour_mode ∈ int ← int(colour["output_mode"])
+        colour_framebuffer ∈ int ← int(colour["framebuffer_status"])
+        if colour_marker != 1.0 or colour_gl_error != 0 or colour_mode != 2 or colour_framebuffer != 36053 or colour["framebuffer_format"] != "RGBA8" or colour["conversion"] != "glReadPixels" or colour["dither"] != "disabled":
+            raise ValueError("LARGE-Q-COLOUR-MODE-OR-READBACK:" + name)
+        expected_measure ∈ tuple[float, float, int, int, int] ← evaluate(case, "reference")
+        expected_rgba ∈ list[int] ← canonical_rgba8(expected_measure)
+        channel_names ∈ list[str] ← ["red", "green", "blue", "alpha"]
+        for channel in range(4):
+            actual_channel ∈ int ← int(colour[channel_names[channel]])
+            error ∈ int ← abs(actual_channel - expected_rgba[channel])
+            allowance ∈ int ← 0 if channel == 3 else 1
+            if actual_channel < 0 or actual_channel > 255 or error > allowance:
+                raise ValueError("LARGE-Q-RGBA8-PARITY:" + name + ":" + channel_names[channel])
+    if raw_values[0][0] != raw_values[1][0] and raw_values[0][1] != raw_values[1][1]:
+        raise ValueError("LARGE-Q-RAW-ERASURE-NOT-OBSERVED")
+    actual_phase_delta ∈ float ← math.remainder(precolour_values[1][0] - precolour_values[0][0], TAU)
+    actual_log_delta ∈ float ← precolour_values[1][1] - precolour_values[0][1]
+    if actual_phase_delta * reference[2] <= 0.0 or actual_log_delta * reference[3] <= 0.0:
+        raise ValueError("LARGE-Q-DROPPED-OR-REVERSED-PRECOLOUR-INCREMENT")
+    phase_delta_error ∈ float ← abs(math.remainder(actual_phase_delta - reference[2], TAU))
+    log_delta_error ∈ float ← abs(actual_log_delta - reference[3])
+    if phase_delta_error > LARGE_Q_DELTA_BUDGET or log_delta_error > LARGE_Q_DELTA_BUDGET:
+        raise ValueError("LARGE-Q-PRECOLOUR-DELTA-BUDGET")
+    print("large_q_raw_pair_domain=RANGE_REJECTED_UNQUALIFIED")
+    print("large_q_phase_delta=" + decimal(actual_phase_delta) + " expected=" + decimal(reference[2]) + " absolute_error=" + decimal(phase_delta_error))
+    print("large_q_log_delta=" + decimal(actual_log_delta) + " expected=" + decimal(reference[3]) + " absolute_error=" + decimal(log_delta_error))
+
+def large_q_fixture(path ∈ Path) → None:
+    lines ∈ list[str] ← []
+    cases ∈ list[dict[str, str]] ← large_q_cases()
+    reference ∈ tuple[float, float, float, float] ← large_q_reference()
+    for case in cases:
+        name ∈ str ← case["case_id"]
+        pair ∈ bool ← name == "pair"
+        lines.append(log_line("HOLO_GPU_LARGE_Q_CASE", {"case": name, "point_x": "1000", "point_y": "1000", "coefficient_count": "5", "zero_count": "1" if pair else "0", "pole_count": "1" if pair else "0", "remote_count": "0", "factor_count": "2" if pair else "0", "time": "0", "zoom": "1"}))
+        coefficients ∈ list[complex] ← coordinates(case["coefficients"])
+        for index in range(5):
+            lines.append(log_line("HOLO_GPU_LARGE_Q_COEFFICIENT", {"case": name, "index": str(index), "real": decimal(coefficients[index].real), "imag": decimal(coefficients[index].imag)}))
+        if pair:
+            positions ∈ list[complex] ← [0j, complex(float32(0.04),0.0)]
+            kinds ∈ list[str] ← ["zero", "pole"]
+            orders ∈ list[int] ← [1, -1]
+            for index in range(2):
+                position ∈ complex ← positions[index]
+                lines.append(log_line("HOLO_GPU_LARGE_Q_INPUT", {"case": name, "kind": kinds[index], "index": "0", "x": decimal(position.real), "y": decimal(position.imag)}))
+                lines.append(log_line("HOLO_GPU_LARGE_Q_FACTOR", {"case": name, "index": str(index), "x": decimal(position.real), "y": decimal(position.imag), "order": str(orders[index])}))
+        lines.append(log_line("HOLO_GPU_LARGE_Q_RAW", {"case": name, "output_mode": "1", "phase": "1000", "log_modulus": "1000", "singular_order": "0", "produced": "0" if pair else "1", "gl_error": "0", "framebuffer_status": "36053", "framebuffer_format": "RGBA32F", "conversion": "glReadPixels", "readback_cpu_ms": "0"}))
+        phase ∈ float ← float32(reference[0] + (reference[2] if pair else 0.0))
+        logarithm ∈ float ← float32(reference[1] + (reference[3] if pair else 0.0))
+        lines.append(log_line("HOLO_GPU_LARGE_Q_PRECOLOR", {"case": name, "output_mode": "3", "phase": decimal(phase), "log_modulus": decimal(logarithm), "singular_order": "0", "produced": "1", "gl_error": "0", "framebuffer_status": "36053", "framebuffer_format": "RGBA32F", "conversion": "glReadPixels", "readback_cpu_ms": "0"}))
+        expected ∈ tuple[float, float, int, int, int] ← evaluate(case, "reference")
+        rgba ∈ list[int] ← canonical_rgba8(expected)
+        lines.append(log_line("HOLO_GPU_LARGE_Q_COLOR", {"case": name, "output_mode": "2", "red": str(rgba[0]), "green": str(rgba[1]), "blue": str(rgba[2]), "alpha": "255", "produced": "1", "gl_error": "0", "framebuffer_status": "36053", "framebuffer_format": "RGBA8", "conversion": "glReadPixels", "dither": "disabled"}))
+    lines.append("HOLO_GPU_LARGE_Q_OUTPUT status=OUTPUT_READY raw_samples=2 precolor_samples=2 color_samples=2 expected_cases=2 raw_pair_domain=RANGE_REJECTED_UNQUALIFIED reference_acceptance=NOT_RUN")
+    text ∈ str ← "\n".join(lines)
+    path.write_text(text + "\n")
+
+def large_q_mutant(source ∈ Path, target ∈ Path, variant ∈ str) → None:
+    records ∈ list[dict[str, str]] ← gpu_records(source)
+    reference ∈ tuple[float, float, float, float] ← large_q_reference()
+    lines ∈ list[str] ← []
+    for record in records:
+        event ∈ str ← record["event"]
+        row ∈ dict[str, str] ← dict(record)
+        row.pop("event")
+        name ∈ str ← row.get("case", "")
+        if variant == "summary-only" and event != "HOLO_GPU_LARGE_Q_OUTPUT":
+            continue
+        if event == "HOLO_GPU_LARGE_Q_RAW":
+            if variant == "always-zero":
+                row["produced"] ← "0"
+            if name == "pair":
+                if variant == "forced-one":
+                    row["produced"] ← "1"
+                elif variant == "missing-raw":
+                    continue
+                elif variant == "clear-sentinel":
+                    row["phase"] ← "nan"
+                    row["log_modulus"] ← "nan"
+                    row["singular_order"] ← "-12345"
+                    row["produced"] ← "-12345"
+                elif variant == "constant-zero-output":
+                    row["phase"] ← "0"
+                    row["log_modulus"] ← "0"
+                elif variant == "no-erasure-evidence":
+                    row["phase"] ← decimal(1000.0 + 2.0 ** -14)
+                    row["log_modulus"] ← decimal(1000.0 + 2.0 ** -14)
+        if event == "HOLO_GPU_LARGE_Q_PRECOLOR":
+            if variant == "two-pi-positive":
+                old_phase ∈ float ← float(row["phase"])
+                row["phase"] ← decimal(old_phase + TAU)
+            if name == "pair":
+                if variant == "missing-precolour":
+                    continue
+                elif variant == "dropped-increment":
+                    row["phase"] ← decimal(float32(reference[0]))
+                    row["log_modulus"] ← decimal(float32(reference[1]))
+                elif variant == "reversed-phase-increment":
+                    row["phase"] ← decimal(reference[0] - reference[2])
+                elif variant == "reversed-log-increment":
+                    row["log_modulus"] ← decimal(reference[1] - reference[3])
+                elif variant == "phase-delta-over-budget":
+                    row["phase"] ← decimal(reference[0] + reference[2] + LARGE_Q_DELTA_BUDGET * 1.1)
+                elif variant == "log-delta-over-budget":
+                    row["log_modulus"] ← decimal(reference[1] + reference[3] + LARGE_Q_DELTA_BUDGET * 1.1)
+                elif variant == "precolour-zero-marker":
+                    row["produced"] ← "0"
+                elif variant == "wrong-precolour-mode":
+                    row["output_mode"] ← "1"
+        if event == "HOLO_GPU_LARGE_Q_INPUT" and name == "pair" and variant == "wrong-divisor":
+            kind ∈ str ← row["kind"]
+            if kind == "pole":
+                row["x"] ← "0.08"
+        if event == "HOLO_GPU_LARGE_Q_COLOR" and name == "pair":
+            if variant == "missing-colour":
+                continue
+            elif variant == "colour-two-levels":
+                red ∈ int ← int(row["red"])
+                row["red"] ← str(red + 2 if red < 253 else red - 2)
+        lines.append(log_line(event, row))
+    text ∈ str ← "\n".join(lines)
+    target.write_text(text + "\n")
+
+def large_q_selftest(directory ∈ Path) → None:
+    source ∈ Path ← directory.joinpath("synthetic-large-q-reference.log")
+    large_q_fixture(source)
+    variants ∈ dict[str, str] ← {"reference-positive": "PASS", "two-pi-positive": "PASS", "forced-one": "LARGE-Q-WRONG-PRODUCED-MARKER:pair:RAW", "always-zero": "LARGE-Q-WRONG-PRODUCED-MARKER:baseline:RAW", "missing-raw": "LARGE-Q-MISSING-OBSERVATIONS", "missing-precolour": "LARGE-Q-MISSING-OBSERVATIONS", "missing-colour": "LARGE-Q-MISSING-OBSERVATIONS", "summary-only": "LARGE-Q-MISSING-OBSERVATIONS", "clear-sentinel": "LARGE-Q-NONFINITE-OR-SENTINEL:pair:RAW", "constant-zero-output": "LARGE-Q-RAW-NOT-Q-SIZED:pair", "no-erasure-evidence": "LARGE-Q-RAW-ERASURE-NOT-OBSERVED", "dropped-increment": "LARGE-Q-DROPPED-OR-REVERSED-PRECOLOUR-INCREMENT", "reversed-phase-increment": "LARGE-Q-DROPPED-OR-REVERSED-PRECOLOUR-INCREMENT", "reversed-log-increment": "LARGE-Q-DROPPED-OR-REVERSED-PRECOLOUR-INCREMENT", "phase-delta-over-budget": "LARGE-Q-PRECOLOUR-DELTA-BUDGET", "log-delta-over-budget": "LARGE-Q-PRECOLOUR-DELTA-BUDGET", "precolour-zero-marker": "LARGE-Q-WRONG-PRODUCED-MARKER:pair:PRECOLOR", "wrong-precolour-mode": "LARGE-Q-GRAPHICS-OR-MODE:pair:PRECOLOR", "wrong-divisor": "LARGE-Q-CHANGED-DIVISOR", "colour-two-levels": "LARGE-Q-RGBA8-PARITY:pair:red"}
+    names ∈ list[str] ← list(variants)
+    with directory.joinpath("large-q-mutations.tsv").open("w") as receipt:
+        receipt.write("variant\tdiagnostic\tevidence_kind\n")
+        for variant in names:
+            path ∈ Path ← directory.joinpath("large-q-" + variant + ".log")
+            large_q_mutant(source, path, variant)
+            output ∈ object ← io.StringIO()
+            diagnosis ∈ str ← "PASS"
+            try:
+                with contextlib.redirect_stdout(output):
+                    large_q_audit(path)
+            except ValueError as error:
+                diagnosis ← str(error)
+            if diagnosis != variants[variant]:
+                raise AssertionError("LARGE-Q-WRONG-CONTROL-RESULT:" + variant + ":" + diagnosis)
+            transcript ∈ str ← output.getvalue()
+            directory.joinpath("large-q-" + variant + ".audit.txt").write_text(transcript + "\n" + diagnosis + "\n")
+            receipt.write(variant + "\t" + diagnosis + "\tsynthetic-checker-fixture\n")
+            print(variant + "\t" + diagnosis + "\tsynthetic-checker-fixture")
+    normal ∈ Path ← directory.joinpath("synthetic-gpu-reference.log")
+    combined ∈ Path ← directory.joinpath("synthetic-normal-and-large-q.log")
+    normal_text ∈ str ← normal.read_text()
+    extra_text ∈ str ← source.read_text()
+    combined.write_text(normal_text + extra_text)
+    output ∈ object ← io.StringIO()
+    with contextlib.redirect_stdout(output):
+        failures ∈ int ← gpu_audit(combined, False, True)
+        large_q_audit(combined)
+    if failures != 0:
+        raise AssertionError("LARGE-Q-CHANGED-NORMAL-34-ACCEPTANCE")
+    print("PASS separate large-q checker controls; synthetic output never establishes GPU execution")
+
+def log_line(event ∈ str, values ∈ dict[str, str]) → str:
+    parts ∈ list[str] ← [event]
+    keys ∈ list[str] ← list(values)
+    for key in keys:
+        parts.append(key + "=" + values[key])
+    return " ".join(parts)
+
+def gpu_fixture(path ∈ Path) → None:
+    lines ∈ list[str] ← []
+    cases ∈ list[dict[str, str]] ← gpu_cases()
+    for case in cases:
+        pieces ∈ list[str] ← case["case_id"].split(":")
+        name ∈ str ← pieces[0]
+        zeros ∈ list[complex] ← coordinates(case["zeros"])
+        poles ∈ list[complex] ← coordinates(case["poles"])
+        remotes ∈ list[complex] ← []
+        remote_count ∈ int ← int(case["remote_count"])
+        for index in range(remote_count):
+            remotes.append(remote_position(index, float(case["time"])))
+        all_poles ∈ list[complex] ← list(poles)
+        all_poles.extend(remotes)
+        orders ∈ dict[complex, int] ← reduced_orders(zeros, all_poles, "reference")
+        if pieces[1] == "0":
+            lines.append(log_line("HOLO_GPU_CASE", {"case": name, "coefficient_count": "5", "zero_count": str(len(zeros)), "pole_count": str(len(poles)), "remote_count": str(remote_count), "factor_count": str(len(orders)), "time": case["time"]}))
+            coefficients ∈ list[complex] ← coordinates(case["coefficients"])
+            for index in range(5):
+                lines.append(log_line("HOLO_GPU_COEFFICIENT", {"case": name, "index": str(index), "real": decimal(coefficients[index].real), "imag": decimal(coefficients[index].imag)}))
+            kinds ∈ list[str] ← ["zero", "pole", "remote"]
+            positions_by_kind ∈ list[list[complex]] ← [zeros, poles, remotes]
+            for kind_index in range(3):
+                positions ∈ list[complex] ← positions_by_kind[kind_index]
+                for index in range(len(positions)):
+                    lines.append(log_line("HOLO_GPU_INPUT", {"case": name, "kind": kinds[kind_index], "index": str(index), "x": decimal(positions[index].real), "y": decimal(positions[index].imag)}))
+            positions ← list(orders)
+            for index in range(len(positions)):
+                position ∈ complex ← positions[index]
+                lines.append(log_line("HOLO_GPU_FACTOR", {"case": name, "index": str(index), "x": decimal(position.real), "y": decimal(position.imag), "order": str(orders[position])}))
+        expected ∈ tuple[float, float, int, int, int] ← evaluate(case, "reference")
+        phase ∈ float ← expected[0] if expected[2] == 0 else 0.0
+        logarithm ∈ float ← expected[1] if expected[2] == 0 else 0.0
+        lines.append(log_line("HOLO_GPU_MEASURE", {"case": name, "sample": pieces[1], "point_x": case["world_x"], "point_y": case["world_y"], "time": case["time"], "zoom": case["zoom"], "zero_count": str(len(zeros)), "pole_count": str(len(poles)), "remote_count": str(remote_count), "phase": decimal(phase), "log_modulus": decimal(logarithm), "singular_order": str(expected[2]), "produced": "1", "gl_error": "0", "readback_cpu_ms": "0"}))
+        rgba ∈ list[int] ← canonical_rgba8(expected)
+        lines.append(log_line("HOLO_GPU_COLOR", {"case": name, "sample": pieces[1], "red": str(rgba[0]), "green": str(rgba[1]), "blue": str(rgba[2]), "alpha": str(rgba[3]), "produced": "1", "gl_error": "0", "framebuffer_format": "RGBA8", "conversion": "glReadPixels"}))
+    lines.append("HOLO_GPU_NUMERIC status=OUTPUT_READY samples=34 expected=34 reference_acceptance=NOT_RUN")
+    lines.append("HOLO_GPU_COLOR_OUTPUT status=OUTPUT_READY samples=34 expected=34 reference_acceptance=NOT_RUN")
+    text ∈ str ← "\n".join(lines)
+    path.write_text(text + "\n")
+
+def gpu_selftest(directory ∈ Path) → None:
+    positive ∈ Path ← directory.joinpath("synthetic-gpu-reference.log")
+    gpu_fixture(positive)
+    if gpu_audit(positive, True, False) != 0:
+        raise AssertionError("GPU-PARSER-GOOD-REFERENCE-REJECTED")
+    good ∈ str ← positive.read_text()
+    missing ∈ Path ← directory.joinpath("synthetic-gpu-missing.log")
+    missing.write_text("HOLO_GPU_NUMERIC status=OUTPUT_READY samples=34 expected=34 reference_acceptance=NOT_RUN\n")
+    try:
+        gpu_audit(missing, True, False)
+    except ValueError as error:
+        message ∈ str ← str(error)
+        if message != "GPU-MISSING-NUMERICAL-OUTPUT":
+            raise
+    else:
+        raise AssertionError("GPU-MISSING-OUTPUT-PASSED")
+    missing.write_text(good.replace("produced=1", "produced=0", 1))
+    try:
+        gpu_audit(missing, True, False)
+    except ValueError as error:
+        message ← str(error)
+        if message != "GPU-MISSING-OR-FAILED-READBACK:one_exact":
+            raise
+    else:
+        raise AssertionError("GPU-MISSING-MARKER-PASSED")
+    print("PASS GPU log checker fixtures; synthetic binary64 observations are not GPU execution")
+    gpu_policy_selftest(directory, positive)
+
+def gpu_policy_fixture(source ∈ Path, target ∈ Path, variant ∈ str) → None:
+    records ∈ list[dict[str, str]] ← gpu_records(source)
+    lines ∈ list[str] ← []
+    first_cases ∈ list[dict[str, str]] ← gpu_cases()
+    for record in records:
+        event ∈ str ← record["event"]
+        row ∈ dict[str, str] ← dict(record)
+        row.pop("event")
+        name ∈ str ← row.get("case", "")
+        sample ∈ str ← row.get("sample", "")
+        if event == "HOLO_GPU_MEASURE" and name == "one_exact" and sample == "0":
+            phase ∈ float ← float(row["phase"])
+            logarithm ∈ float ← float(row["log_modulus"])
+            if variant == "phase-over-budget":
+                row["phase"] ← decimal(phase + GPU_PHASE_BUDGET * 1.01)
+            elif variant == "phase-and-colour-over-budget":
+                row["phase"] ← decimal(phase + GPU_PHASE_BUDGET * 1.01)
+            elif variant == "nonfinite-phase-diagnostic":
+                row["phase"] ← "inf"
+            elif variant == "phase-reversed":
+                row["phase"] ← decimal(-phase)
+            elif variant == "phase-wrap-positive":
+                row["phase"] ← decimal(phase + TAU)
+            elif variant == "raw-log-colour-period":
+                log_ten ∈ float ← math.log(10.0)
+                row["log_modulus"] ← decimal(logarithm + log_ten)
+            elif variant == "raw-log-source-bound":
+                bound ∈ float ← log_roundoff_bound(first_cases[0])
+                row["log_modulus"] ← decimal(logarithm + bound * 1.01)
+            elif variant == "missing-produced-marker":
+                row["produced"] ← "0"
+        if event == "HOLO_GPU_COLOR" and name == "one_exact" and sample == "0":
+            red ∈ int ← int(row["red"])
+            if variant == "colour-two-levels" or variant == "phase-and-colour-over-budget":
+                row["red"] ← str(red + 2 if red < 253 else red - 2)
+            elif variant == "colour-one-level-positive":
+                row["red"] ← str(red + 1 if red < 254 else red - 1)
+            elif variant == "missing-colour-row":
+                continue
+        if event == "HOLO_GPU_COLOR" and name == "multiplicity" and sample == "1" and variant == "singularity-endpoint":
+            row["red"] ← "1"
+        if event == "HOLO_GPU_FACTOR" and name == "one_displaced" and variant == "wrong-uploaded-multiplicity":
+            row["order"] ← "2"
+        lines.append(log_line(event, row))
+    text ∈ str ← "\n".join(lines)
+    target.write_text(text + "\n")
+
+def gpu_policy_selftest(directory ∈ Path, positive ∈ Path) → None:
+    variants ∈ list[str] ← ["unchanged-positive", "phase-wrap-positive", "colour-one-level-positive", "phase-over-budget", "phase-reversed", "raw-log-colour-period", "raw-log-source-bound", "colour-two-levels", "missing-produced-marker", "missing-colour-row", "wrong-uploaded-multiplicity", "singularity-endpoint", "phase-and-colour-over-budget", "nonfinite-phase-diagnostic"]
+    with directory.joinpath("gpu-policy-mutations.tsv").open("w") as receipt:
+        receipt.write("variant\tresult\tevidence_kind\n")
+        for variant in variants:
+            path ∈ Path ← directory.joinpath(variant + ".log")
+            gpu_policy_fixture(positive, path, variant)
+            output ∈ object ← io.StringIO()
+            diagnosis ∈ str ← ""
+            try:
+                with contextlib.redirect_stdout(output):
+                    failures ∈ int ← gpu_audit(path, False, True)
+                diagnosis ← "PASS" if failures == 0 else "REJECTED-SEMANTIC"
+            except ValueError as error:
+                diagnosis ← str(error)
+            transcript ∈ str ← output.getvalue()
+            directory.joinpath(variant + ".audit.txt").write_text(transcript + "\n" + diagnosis + "\n")
+            positive_variant ∈ bool ← variant == "unchanged-positive" or variant == "phase-wrap-positive" or variant == "colour-one-level-positive"
+            if positive_variant and diagnosis != "PASS":
+                raise AssertionError("GPU-POLICY-POSITIVE-REJECTED:" + variant + ":" + diagnosis)
+            if not positive_variant and diagnosis == "PASS":
+                raise AssertionError("GPU-POLICY-MUTANT-SURVIVED:" + variant)
+            expected_diagnostic ∈ str ← "SEMANTIC-PHASE" if variant == "phase-over-budget" or variant == "phase-reversed" else "SEMANTIC-LOG-MODULUS" if variant == "raw-log-colour-period" else "SEMANTIC-LOG-ROUNDOFF-BOUND" if variant == "raw-log-source-bound" else "SEMANTIC-RGBA8-red" if variant == "colour-two-levels" or variant == "singularity-endpoint" else ""
+            if expected_diagnostic:
+                location ∈ int ← transcript.find(expected_diagnostic)
+                if location < 0:
+                    raise AssertionError("GPU-POLICY-WRONG-REJECTION:" + variant + ":" + diagnosis)
+            if variant == "phase-and-colour-over-budget":
+                first_rejection ∈ int ← transcript.find("one_exact:0\tSEMANTIC-PHASE class=")
+                both_rejections ∈ int ← transcript.find("violations=SEMANTIC-PHASE,SEMANTIC-RGBA8-red")
+                phase_details ∈ int ← transcript.find("phase_circular_error=")
+                colour_details ∈ int ← transcript.find("rgba_expected=")
+                if first_rejection < 0 or both_rejections < 0 or phase_details < 0 or colour_details < 0:
+                    raise AssertionError("GPU-POLICY-MASKED-FIRST-REJECTION")
+            if variant == "nonfinite-phase-diagnostic":
+                nonfinite_rejection ∈ int ← transcript.find("one_exact:0\tSEMANTIC-NONFINITE class=")
+                if nonfinite_rejection < 0:
+                    raise AssertionError("GPU-POLICY-MASKED-NONFINITE-REJECTION")
+            receipt.write(variant + "\t" + diagnosis + "\tsynthetic-checker-fixture\n")
+            print(variant + "\t" + diagnosis + "\tsynthetic-checker-fixture")
+    print("PASS predeclared GPU policy controls; no actual GPU execution inferred")
+
+def selftest(directory ∈ Path) → None:
+    analytic_anchors()
+    emit_cases(directory)
+    if compare_file(directory.joinpath("cases.tsv"), directory.joinpath("reference.tsv"), HOST_TOLERANCE) != 0:
+        raise AssertionError("GOOD-OBSERVATION-REJECTED")
+    mutants ∈ list[str] ← ["viewport-relative-motion", "missing-cancellation", "late-cancellation", "displaced-pair-reduction", "wrong-multiplicity", "changed-normalization", "wrong-pole-count", "wrong-phase-sign", "wrong-log-sign", "divisor-disappears"]
+    with directory.joinpath("mutations.tsv").open("w") as stream:
+        stream.write("mutant\tstatus\twitness\tdiagnostic\n")
+        for mutant in mutants:
+            witness ∈ str ← ""
+            diagnostic ∈ str ← ""
+            for case in corpus():
+                if mutant == "divisor-disappears" and case["case_id"] != "large-q-small-divisor":
+                    continue
+                diagnosis ∈ str ← compare_values(evaluate(case, "reference"), evaluate(case, mutant), HOST_TOLERANCE)
+                if diagnosis != "PASS":
+                    witness ← case["case_id"]
+                    diagnostic ← diagnosis
+                    break
+            if not witness:
+                raise AssertionError("MUTANT-SURVIVED:" + mutant)
+            stream.write(mutant + "\tREJECTED\t" + witness + "\t" + diagnostic + "\n")
+            print(mutant + "\tREJECTED\t" + witness + "\t" + diagnostic)
+    empty ∈ Path ← directory.joinpath("missing-readback.tsv")
+    output_header ∈ str ← "\t".join(OUTPUT_HEADER)
+    empty.write_text(output_header + "\n")
+    try:
+        compare_file(directory.joinpath("cases.tsv"), empty, HOST_TOLERANCE)
+    except ValueError as error:
+        error_text ∈ str ← str(error)
+        if error_text != "READBACK-MISSING-DUPLICATE-OR-UNEXPECTED":
+            raise
+    else:
+        raise AssertionError("MISSING-READBACK-PASSED")
+    expected ∈ Path ← directory.joinpath("expected.frag")
+    actual ∈ Path ← directory.joinpath("submitted.frag")
+    log ∈ Path ← directory.joinpath("runtime.log")
+    source ∈ bytes ← b"precision highp float; void main() { gl_FragColor = vec4(1.0); }\n"
+    expected.write_bytes(source)
+    actual.write_bytes(source)
+    digest ∈ str ← hashlib.sha256(source).hexdigest()
+    good_log ∈ str ← "holomorphic field shader bytes verified: mode=checked-idris compiler=idris2-glsles backend_commit=" + repeat_text("1", 40) + " application_commit=" + repeat_text("2", 40) + " fragment_sha256=" + digest + " bytes=" + str(len(source)) + " submission=glShaderSource fallback=none driver_readback_sha256=" + digest + "\n"
+    log.write_text(good_log)
+    if provenance(expected, actual, log) != "PASS":
+        raise AssertionError("PROVENANCE-GOOD-REJECTED")
+    swapped_source ∈ bytes ← source.replace(b"1.0", b"0.0")
+    fallback_log ∈ str ← good_log.replace("fallback=none", "fallback=handwritten")
+    changed_driver ∈ str ← good_log.replace("driver_readback_sha256=" + digest, "driver_readback_sha256=" + repeat_text("0", 64))
+    provenance_mutants ∈ list[tuple[str, bytes, str, str]] ← [
+        ("changed-bytes-same-sidecar", source + b"// changed\n", good_log, "PROVENANCE-SUBMITTED-BYTES"),
+        ("swapped-asset", swapped_source, good_log, "PROVENANCE-SUBMITTED-BYTES"),
+        ("missing-provenance", source, "", "PROVENANCE-MISSING-OR-DUPLICATE"),
+        ("handwritten-fallback", source, fallback_log, "PROVENANCE-FALLBACK"),
+        ("driver-source-changed", source, changed_driver, "PROVENANCE-DRIVER_READBACK_SHA256")]
+    for variant in provenance_mutants:
+        name ∈ str ← variant[0]
+        bytes_value ∈ bytes ← variant[1]
+        log_value ∈ str ← variant[2]
+        diagnosis ∈ str ← variant[3]
+        actual.write_bytes(bytes_value)
+        log.write_text(log_value)
+        if provenance(expected, actual, log) != diagnosis:
+            raise AssertionError("PROVENANCE-MUTANT:" + name)
+        print(name + "\tREJECTED\t" + diagnosis)
+    actual.write_bytes(source)
+    log.write_text(good_log)
+    gpu_selftest(directory)
+    large_q_selftest(directory)
+    print("PASS independent checker fixtures; producer/GPU/emulator/physical acceptance NOT_RUN")
+
+def main(arguments ∈ list[str]) → int:
+    if len(arguments) == 3 and arguments[1] == "selftest":
+        selftest(Path(arguments[2]))
+        return 0
+    if len(arguments) == 3 and arguments[1] == "corpus":
+        emit_cases(Path(arguments[2]))
+        cases ∈ list[dict[str, str]] ← corpus()
+        print("PASS corpus cases=" + str(len(cases)))
+        return 0
+    if len(arguments) == 4 and arguments[1] == "compare":
+        return int(compare_file(Path(arguments[2]), Path(arguments[3]), HOST_TOLERANCE) != 0)
+    if len(arguments) == 5 and arguments[1] == "provenance":
+        diagnosis ∈ str ← provenance(Path(arguments[2]), Path(arguments[3]), Path(arguments[4]))
+        print(diagnosis)
+        return int(diagnosis != "PASS")
+    if len(arguments) == 3 and arguments[1] == "gpu-structure":
+        failures ∈ int ← gpu_audit(Path(arguments[2]), False, False)
+        if failures == 0:
+            print("PASS numerical readback structure and corpus; GPU numerical acceptance NOT_RUN")
+        return int(failures != 0)
+    if len(arguments) == 3 and arguments[1] == "gpu-audit":
+        failures ← gpu_audit(Path(arguments[2]), False, True)
+        if failures == 0:
+            print("PASS bounded generated GPU field and same-program RGBA8 corpus; physical identity and provenance require separate receipts")
+        return int(failures != 0)
+    if len(arguments) == 4 and arguments[1] == "palette-check":
+        palette_check(Path(arguments[2]), Path(arguments[3]))
+        return 0
+    if len(arguments) == 3 and arguments[1] == "large-q-audit":
+        large_q_audit(Path(arguments[2]))
+        print("PASS separate large-q guard, precolour delta and same-program RGBA8; raw pair RANGE_REJECTED_UNQUALIFIED")
+        return 0
+    raise ValueError("USAGE selftest OUTDIR | corpus OUTDIR | compare CASES.tsv READBACK.tsv | provenance EXPECTED_FRAGMENT SUBMITTED_FRAGMENT RUNTIME_LOG")
+
+sys.exit(main(sys.argv))

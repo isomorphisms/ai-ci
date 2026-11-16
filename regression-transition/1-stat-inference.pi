@@ -1,0 +1,111 @@
+"""Compare independent assertion-level fail-to-pass evidence; no execution claim."""
+import sys
+import json
+import hashlib
+from pathlib import Path
+from builtins import dict, list, set, isinstance, ValueError, TypeError
+
+LIMIT ∈ int ← 8388608
+
+def digest(raw ∈ bytes) → str:
+    return hashlib.sha256(raw).hexdigest()
+
+def unique(pairs ∈ list[tuple[str, object]]) → dict[str, object]:
+    result ∈ dict[str, object] ← {}
+    for pair in pairs:
+        if result.__contains__(pair[0]):
+            raise ValueError("DUPLICATE_JSON_KEY")
+        result[pair[0]] ← pair[1]
+    return result
+
+def report(path ∈ str) → tuple[dict[str, str], bytes]:
+    selected ∈ Path ← Path(path)
+    if selected.stat().st_size > LIMIT:
+        raise ValueError("REPORT_BOUND")
+    raw ∈ bytes ← selected.read_bytes()
+    root ∈ dict[str, object] ← json.loads(raw, object_pairs_hook=unique)
+    if not isinstance(root, dict) or not isinstance(root.get("testResults"), list):
+        raise ValueError("REPORT_ASSERTIONS_REQUIRED")
+    suites ∈ list[dict[str, object]] ← list(root["testResults"])
+    records ∈ dict[str, str] ← {}
+    duplicates ∈ list[str] ← []
+    passed ∈ int ← 0
+    failed ∈ int ← 0
+    for suite in suites:
+        if str(suite.get("message", "")) != "" or not isinstance(suite.get("assertionResults"), list):
+            raise ValueError("REPORT_LOADER_ERROR")
+        assertions ∈ list[dict[str, object]] ← list(suite["assertionResults"])
+        for assertion in assertions:
+            name ∈ str ← str(assertion.get("fullName", ""))
+            status ∈ str ← str(assertion.get("status", ""))
+            if name == "" or status != "passed" and status != "failed":
+                raise ValueError("REPORT_UNEXECUTED_ASSERTION")
+            messages ∈ list[object] ← list(assertion.get("failureMessages", []))
+            if status == "failed" and len(messages) == 0 or status == "passed" and len(messages) != 0:
+                raise ValueError("REPORT_ASSERTION_MISMATCH")
+            if records.__contains__(name):
+                duplicates.append(name)
+            records[name] ← status
+            if status == "passed":
+                passed ← passed + 1
+            else:
+                failed ← failed + 1
+    if passed + failed == 0:
+        raise ValueError("REPORT_ASSERTIONS_REQUIRED")
+    for field in ["numTotalTests", "numPassedTests", "numFailedTests", "numPendingTests"]:
+        if type(root.get(field)) != int:
+            raise ValueError("REPORT_COUNTS")
+    if root["numTotalTests"] != passed + failed or root["numPassedTests"] != passed or root["numFailedTests"] != failed or root["numPendingTests"] != 0 or type(root.get("success")) != bool or root["success"] != (failed == 0):
+        raise ValueError("REPORT_COUNTS")
+    for name in duplicates:
+        records[name] ← "duplicate"
+    return (records, raw)
+
+def verify(matrix_path ∈ str, baseline_path ∈ str, candidate_path ∈ str, scope ∈ str, output ∈ str) → None:
+    matrix ∈ bytes ← Path(matrix_path).read_bytes()
+    if len(matrix) > 262144:
+        raise ValueError("MATRIX_BOUND")
+    lines ∈ list[str] ← matrix.decode().splitlines()
+    if len(lines) < 2 or lines[0] != "case_id\tscope\tfull_name":
+        raise ValueError("MATRIX_SCHEMA")
+    identities ∈ list[str] ← []
+    names ∈ list[str] ← []
+    selected ∈ list[list[str]] ← []
+    for line in lines[1:]:
+        fields ∈ list[str] ← line.split("\t")
+        if len(fields) != 3 or fields[0] == "" or fields[1] == "" or fields[2] == "" or identities.__contains__(fields[0]) or names.__contains__(fields[2]):
+            raise ValueError("MATRIX_SCHEMA")
+        identities.append(fields[0])
+        names.append(fields[2])
+        if scope == "all" or scope == fields[1]:
+            selected.append(fields)
+    if len(selected) == 0:
+        raise ValueError("MATRIX_SCOPE_EMPTY")
+    before ∈ tuple[dict[str, str], bytes] ← report(baseline_path)
+    after ∈ tuple[dict[str, str], bytes] ← report(candidate_path)
+    result ∈ list[str] ← ["scope=" + scope, "matrix_sha256=" + digest(matrix), "baseline_sha256=" + digest(before[1]), "candidate_sha256=" + digest(after[1]), "case_id\tbaseline\tcandidate"]
+    for fields in selected:
+        name ∈ str ← fields[2]
+        if not before[0].__contains__(name) or not after[0].__contains__(name):
+            raise ValueError("REGRESSION_CASE_ABSENT: " + fields[0])
+        if before[0][name] == "duplicate" or after[0][name] == "duplicate":
+            raise ValueError("REGRESSION_CASE_DUPLICATE: " + fields[0])
+        if before[0][name] != "failed":
+            raise ValueError("REGRESSION_BASELINE_NOT_FAILED: " + fields[0])
+        if after[0][name] != "passed":
+            raise ValueError("REGRESSION_CANDIDATE_NOT_PASSED: " + fields[0])
+        result.append(fields[0] + "\tfailed\tpassed")
+    result.append("status=PASS")
+    result.append("scope=behavioral-report-comparison")
+    result.append("trusted_admission=NOT_VERIFIED")
+    Path(output).write_text("\n".join(result) + "\n")
+    print("PASS " + str(len(selected)) + " independent regression transitions; trusted admission NOT_VERIFIED")
+
+def main() → None:
+    args ∈ list[str] ← sys.argv
+    if len(args) != 6:
+        raise ValueError("requires MATRIX BASELINE CANDIDATE SCOPE OUTPUT")
+    verify(args[1], args[2], args[3], args[4], args[5])
+
+if sys.argv[0] == __file__:
+    main()

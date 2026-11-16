@@ -1,0 +1,31 @@
+name: AICI stage verdict
+description: Normalize lossless stage observations and fail closed on required failure or incomplete evidence
+
+inputs:
+  plan:
+    description: Selected stage graph TSV
+    required: true
+  observations:
+    description: Stage observation and attempt history TSV
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Select the qualified ICK C compiler
+      uses: isomorphisms/ai-ci/ick-host@903b2cb27ea572c9c6cb2ffa9f39e0fbf06ec9f8
+      id: ick
+    - name: Compile stage verdict adapter
+      shell: sh
+      run: >-
+        "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2
+        -o "$RUNNER_TEMP/aici-stage-verdict"
+        "$GITHUB_ACTION_PATH/src/aici_stage_verdict.c"
+    - name: Normalize and enforce the selected stage verdict
+      shell: sh
+      env:
+        AICI_STAGE_PLAN: ${{ inputs.plan }}
+        AICI_STAGE_OBSERVATIONS: ${{ inputs.observations }}
+      run: >-
+        "$RUNNER_TEMP/aici-stage-verdict" normalize
+        "$AICI_STAGE_PLAN" "$AICI_STAGE_OBSERVATIONS"

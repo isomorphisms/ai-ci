@@ -1,0 +1,26 @@
+HOLO_PROCESS package=org.isomorphisms.analyticcontinuation.lasso.dev pid=2196
+10-19 20:17:42.364  2196  2266 I AnalyticContinuation: holomorphic field shader bytes verified: mode=checked-idris compiler=idris2-glsles backend_commit=8ecb501375110cb326e7fecb109f794185382112 application_commit=06e12ce7083b0dd00911910adaac1d7c487edfe6 fragment_sha256=d909921bc9cbedbeec8266daa5dfbeac23fc5502a2be9ad3c1dc5aa826676b54 bytes=29606 submission=glShaderSource fallback=none driver_readback_sha256=d909921bc9cbedbeec8266daa5dfbeac23fc5502a2be9ad3c1dc5aa826676b54
+10-19 20:17:42.408  2196  2266 I AnalyticContinuation: holomorphic field renderer ready: GL_VERSION=OpenGL ES 3.0 (OpenGL ES 3.0 SwiftShader 4.0.0.1) GL_RENDERER=Android Emulator OpenGL ES Translator (Google SwiftShader) GL_VENDOR=Google (Google Inc.)
+10-19 20:17:44.103  2196  2266 I AnalyticContinuation: HOLO_GPU_LARGE_Q_CASE case=baseline point_x=1000 point_y=1000 coefficient_count=5 zero_count=0 pole_count=0 remote_count=0 factor_count=0 time=0 zoom=1
+10-19 20:17:44.103  2196  2266 I AnalyticContinuation: HOLO_GPU_LARGE_Q_COEFFICIENT case=baseline index=0 real=3 imag=0
+10-19 20:17:44.103  2196  2266 I AnalyticContinuation: HOLO_GPU_LARGE_Q_COEFFICIENT case=baseline index=1 real=0 imag=0
+10-19 20:17:44.103  2196  2266 I AnalyticContinuation: HOLO_GPU_LARGE_Q_COEFFICIENT case=baseline index=2 real=0 imag=0
+10-19 20:17:44.103  2196  2266 I AnalyticContinuation: HOLO_GPU_LARGE_Q_COEFFICIENT case=baseline index=3 real=0 imag=0
+10-19 20:17:44.103  2196  2266 I AnalyticContinuation: HOLO_GPU_LARGE_Q_COEFFICIENT case=baseline index=4 real=0 imag=0
+10-19 20:17:44.104  2196  2266 I AnalyticContinuation: HOLO_GPU_LARGE_Q_RAW case=baseline output_mode=1 phase=1000 log_modulus=1000 singular_order=0 produced=1 gl_error=0 framebuffer_status=36053 framebuffer_format=RGBA32F conversion=glReadPixels readback_cpu_ms=0.354781
+10-19 20:17:44.104  2196  2266 I AnalyticContinuation: HOLO_GPU_LARGE_Q_PRECOLOR case=baseline output_mode=3 phase=0.973510742 log_modulus=0.678039551 singular_order=0 produced=1 gl_error=0 framebuffer_status=36053 framebuffer_format=RGBA32F conversion=glReadPixels readback_cpu_ms=0.347127
+10-19 20:17:44.104  2196  2266 I AnalyticContinuation: HOLO_GPU_LARGE_Q_COLOR case=baseline output_mode=2 red=197 green=163 blue=114 alpha=255 produced=1 gl_error=0 framebuffer_status=36053 framebuffer_format=RGBA8 conversion=glReadPixels dither=disabled
+10-19 20:17:44.104  2196  2266 I AnalyticContinuation: HOLO_GPU_LARGE_Q_CASE case=pair point_x=1000 point_y=1000 coefficient_count=5 zero_count=1 pole_count=1 remote_count=0 factor_count=2 time=0 zoom=1
+10-19 20:17:44.104  2196  2266 I AnalyticContinuation: HOLO_GPU_LARGE_Q_COEFFICIENT case=pair index=0 real=3 imag=0
+10-19 20:17:44.104  2196  2266 I AnalyticContinuation: HOLO_GPU_LARGE_Q_COEFFICIENT case=pair index=1 real=0 imag=0
+10-19 20:17:44.104  2196  2266 I AnalyticContinuation: HOLO_GPU_LARGE_Q_COEFFICIENT case=pair index=2 real=0 imag=0
+10-19 20:17:44.104  2196  2266 I AnalyticContinuation: HOLO_GPU_LARGE_Q_COEFFICIENT case=pair index=3 real=0 imag=0
+10-19 20:17:44.104  2196  2266 I AnalyticContinuation: HOLO_GPU_LARGE_Q_COEFFICIENT case=pair index=4 real=0 imag=0
+10-19 20:17:44.104  2196  2266 I AnalyticContinuation: HOLO_GPU_LARGE_Q_INPUT case=pair kind=zero index=0 x=0 y=0
+10-19 20:17:44.104  2196  2266 I AnalyticContinuation: HOLO_GPU_LARGE_Q_INPUT case=pair kind=pole index=0 x=0.0399999991 y=0
+10-19 20:17:44.104  2196  2266 I AnalyticContinuation: HOLO_GPU_LARGE_Q_FACTOR case=pair index=0 x=0 y=0 order=1
+10-19 20:17:44.104  2196  2266 I AnalyticContinuation: HOLO_GPU_LARGE_Q_FACTOR case=pair index=1 x=0.0399999991 y=0 order=-1
+10-19 20:17:44.105  2196  2266 I AnalyticContinuation: HOLO_GPU_LARGE_Q_RAW case=pair output_mode=1 phase=1000 log_modulus=1000 singular_order=0 produced=0 gl_error=0 framebuffer_status=36053 framebuffer_format=RGBA32F conversion=glReadPixels readback_cpu_ms=0.390378
+10-19 20:17:44.105  2196  2266 I AnalyticContinuation: HOLO_GPU_LARGE_Q_PRECOLOR case=pair output_mode=3 phase=0.973490775 log_modulus=0.678059578 singular_order=0 produced=1 gl_error=0 framebuffer_status=36053 framebuffer_format=RGBA32F conversion=glReadPixels readback_cpu_ms=0.23083
+10-19 20:17:44.105  2196  2266 I AnalyticContinuation: HOLO_GPU_LARGE_Q_COLOR case=pair output_mode=2 red=197 green=163 blue=114 alpha=255 produced=1 gl_error=0 framebuffer_status=36053 framebuffer_format=RGBA8 conversion=glReadPixels dither=disabled
+10-19 20:17:44.105  2196  2266 I AnalyticContinuation: HOLO_GPU_LARGE_Q_OUTPUT status=OUTPUT_READY raw_samples=2 precolor_samples=2 color_samples=2 expected_cases=2 raw_pair_domain=RANGE_REJECTED_UNQUALIFIED reference_acceptance=NOT_RUN

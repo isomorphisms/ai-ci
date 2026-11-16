@@ -15,6 +15,20 @@ permissions:
 env:
   ANDROID_HOME: /usr/local/lib/android/sdk
 jobs:
+  material-contract:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Reject stale and unqualified incremental material
+        run: >-
+          cmake
+          -DTEST_ROOT="$RUNNER_TEMP/ick-material-guard"
+          -P ick-android/tests/material-guard.cmake
+      - name: Require location-independent object names
+        run: cmake -P ick-android/tests/source-identity.cmake
   boundary:
     runs-on: ubuntu-24.04
     timeout-minutes: 150
@@ -53,3 +67,33 @@ jobs:
           name: ick-android-${{ matrix.abi }}-${{ github.event.pull_request.head.sha || github.sha }}
           path: ${{ runner.temp }}/ick-android-${{ matrix.abi }}-stage/qualification/
           if-no-files-found: error
+      - name: Check out the exact Wegert consumer
+        if: matrix.abi == 'x86_64'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphismes/wegert
+          ref: 52f6d47332f84015987f3bc0903123f6cb8e9267
+          path: .wegert-material-consumer
+          persist-credentials: false
+      - name: Compare real Wegert incremental and clean builds under changed material
+        if: matrix.abi == 'x86_64'
+        run: >-
+          cmake
+          -DWEGERT_SOURCE="$GITHUB_WORKSPACE/.wegert-material-consumer"
+          -DINTERFACE_ROOT="$GITHUB_WORKSPACE"
+          -DSTAGE="$RUNNER_TEMP/ick-android-x86_64-stage"
+          -DNDK="$ANDROID_HOME/ndk/27.2.12479018"
+          -DTEST_ROOT="$RUNNER_TEMP/wegert-material-qualification"
+          -P ick-android/tests/qualify-wegert-incremental.cmake
+      - name: Retain real incremental and relocation material
+        if: always() && matrix.abi == 'x86_64'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: wegert-incremental-material-${{ github.event.pull_request.head.sha || github.sha }}
+          if-no-files-found: error
+          path: |
+            ${{ runner.temp }}/wegert-material-qualification/**/*.material.tsv
+            ${{ runner.temp }}/wegert-material-qualification/**/*.receipt.tsv
+            ${{ runner.temp }}/wegert-material-qualification/**/*.material-spec.tsv
+            ${{ runner.temp }}/wegert-material-qualification/*-path-policy.cmake
+            ${{ runner.temp }}/wegert-material-qualification/*-assembler.txt

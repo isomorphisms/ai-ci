@@ -1,0 +1,57 @@
+field	value
+scope	actual-emulator-semantic-counterexample; not physical-device acceptance
+application_commit	987339696df20fda0f77313199b66d7b52e597c3
+workflow_run	https://github.com/isomorphismes/holomorphic/actions/runs/39310320206
+emulator_job	118280105228
+artifact_id	12217768308
+artifact_zip_sha256	c3bfa904cc687ceaa7786459736d5bb0602994c73ef23034ab62851b2e816d21
+original_runtime_log_sha256	bfe8af24de688fcc3743672c2c2ce33a13443fc054da70a8510bb530735a871e
+apk_sha256	0c835545a66eca18690a4d1df1d94c736ff6cd41d29eb7916610d8ed79aa6d94
+fragment_sha256	dad240b0327e61a8e0e175e3a2561f0f68b85cd617908edb68bb6abd46447348
+fragment_bytes	28765
+backend_commit	8ecb501375110cb326e7fecb109f794185382112
+driver_source_readback_sha256	dad240b0327e61a8e0e175e3a2561f0f68b85cd617908edb68bb6abd46447348
+shader_submission	glShaderSource; fallback=none
+gl_version	OpenGL ES 3.0 (OpenGL ES 3.0 SwiftShader 4.0.0.1)
+gl_renderer	Android Emulator OpenGL ES Translator (Google SwiftShader)
+gl_vendor	Google (Google Inc.)
+hosted_independent_checker_revision	66eba2c0e02276386ed9d736614348fd3416d48a
+independent_recheck_revision	76043b9a16883ea8366b7c347dbf2639833d9307
+independent_recheck_original_blob	99acba407ee42d48e6c60b42a585926ad588c559
+ithon_revision	d6e83969f82512e920fb17b44326cb54f31d015c; exact restored host frontend
+gpu_policy_sha256	5c5a90912823dd6a1d75fc09f04bd161c6521dd9c4844e3a399b333b4bbe0f21
+case	24_displaced:0
+point	0.125,0.1875
+zero_pole_remote_counts	24,24,0
+singular_order	0
+produced	1
+gl_error	0
+phase_observed	-3.6464498
+phase_expected_binary64	-0.5048554277997677
+phase_signed_difference	-3.1415943722002323
+phase_circular_error	3.141590934979354
+phase_budget	0.0001
+phase_acceptance	FAIL
+log_observed	-0.404329538
+log_expected_binary64	-0.40432843853845485
+log_absolute_error	0.000001099461545139846
+log_budget_min_source_bound_and_absolute	0.0001
+log_acceptance	PASS
+rgba8_observed	104,190,152,255
+rgba8_expected_binary64_canonical_wegert	220,151,192,255
+rgba8_absolute_channel_errors	116,39,40,0
+rgba8_regular_channel_budgets	1,1,1,0
+rgba8_acceptance	FAIL
+canonical_wegert_at_observed_raw_measure	104,190,152,255
+other_33_ordinary_probe_rows	PASS frozen numeric and colour policy
+scale24_large_phase_error	0.0000010477126588109842
+scale24_large_log_error	0.00003686995072363364
+scale24_small_phase_error	0.0000010477126588109842
+scale24_small_log_error	0.000039424049226632896
+scale24_large_and_small_log_budgets	0.0001
+large_q_diagnostic_scope	NOT_RUN in this historical 34-only build
+physical_A1_GE8322	NOT_RUN
+physical_C67_GE8320	NOT_RUN
+physical_TAB_P10_Mali_G57	NOT_RUN
+sustained_performance	NOT_RUN
+mathematical_mutations	10 executable semantic mutants; none established by compilation errors

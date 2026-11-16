@@ -30,6 +30,12 @@ outputs:
   builtin_include:
     description: Exact ICK resource headers; put before NDK directories with -nostdinc.
     value: ${{ steps.compiler.outputs.builtin_include }}
+  material_records:
+    description: Semicolon-separated exact qualification records required by incremental consumers.
+    value: ${{ steps.compiler.outputs.material_records }}
+  policy:
+    description: Exact qualified compiler policy receipt required by incremental consumers.
+    value: ${{ steps.compiler.outputs.policy }}
 runs:
   using: composite
   steps:
@@ -51,7 +57,7 @@ runs:
       uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
       with:
         path: ${{ runner.temp }}/ick-android-${{ inputs.abi }}-stage
-        key: ick-android-v2-${{ runner.os }}-${{ runner.arch }}-${{ inputs.abi }}-fbe86e23d55cfec2000c08e61deea2a407fd7175
+        key: ick-android-v3-${{ runner.os }}-${{ runner.arch }}-${{ inputs.abi }}-fbe86e23d55cfec2000c08e61deea2a407fd7175
     - name: Install compiler bootstrap dependencies
       shell: bash
       run: sudo apt-get update && sudo apt-get install -y build-essential flex bison texinfo libgmp-dev libmpfr-dev libmpc-dev binutils-aarch64-linux-gnu binutils-arm-linux-gnueabi binutils-x86-64-linux-gnu

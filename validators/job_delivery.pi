@@ -8,8 +8,10 @@ import hashlib
 import json
 import sys
 import re
+import io
+import zipfile
 from pathlib import Path
-from builtins import dict, list, ValueError
+from builtins import dict, list, ValueError, KeyError, RuntimeError, OSError, isinstance
 
 def check(stage ∈ dict[str, object], payload ∈ bytes, response ∈ bytes, complete ∈ bool) → None:
     record ∈ dict[str, object] ← handoff.identity(stage, payload)
@@ -142,8 +144,139 @@ def check_attachment(stage ∈ dict[str, object], source ∈ bytes, complete ∈
     if requested == "display-only" and record["dispatch_state"] != "NOT_REQUESTED":
         raise ValueError("JOB-UNAUTHORIZED-DISPATCH")
 
+def check_authority(stage ∈ dict[str, object], source ∈ bytes, expected ∈ dict[str, object], required_text ∈ list[str]) → None:
+    """Compare with the supervisor's admission, not a worker's recomputed hashes."""
+    record ∈ dict[str, object] ← handoff.identity(stage, source)
+    handoff.validate_spec(expected)
+    for field in ["audience", "model", "source_context", "execution_target", "request", "attachment", "operation"]:
+        observed_value ∈ str ← json.dumps(record.get(field), sort_keys=True)
+        expected_value ∈ str ← json.dumps(expected.get(field), sort_keys=True)
+        if observed_value != expected_value:
+            raise ValueError("JOB-AUTHORITY-" + str(field.upper().replace("_", "-")))
+    if int(record["version"]) == 1:
+        text ∈ str ← source.decode("utf-8")
+        for requirement in required_text:
+            if not isinstance(requirement, str) or requirement == "" or not text.__contains__(requirement):
+                raise ValueError("JOB-CORRECTION-MISSING")
+    elif len(required_text) != 0:
+        raise ValueError("JOB-BINARY-TEXT-REQUIREMENT")
+
+def reference_attachment(source ∈ bytes, attachment ∈ dict[str, object]) → bytes:
+    """Independent byte oracle: do not call the producer's extractor."""
+    limit ∈ int ← 134217728
+    if len(source) == 0 or len(source) > limit or str(hashlib.sha256(source).hexdigest()) != str(attachment["source_sha256"]):
+        raise ValueError("JOB-SOURCE-BYTES")
+    name ∈ str ← str(attachment["file_name"])
+    if name == "" or name == "." or name == ".." or name.__contains__("/") or name.__contains__("\\"):
+        raise ValueError("JOB-SOURCE-NAME")
+    selected ∈ bytes ← source
+    if attachment.__contains__("archive_member"):
+        member ∈ str ← str(attachment["archive_member"])
+        parts ∈ list[str] ← member.split("/")
+        if member.startswith("/") or member.__contains__("\\") or parts.__contains__("") or parts.__contains__(".") or parts.__contains__("..") or parts[-1] != name:
+            raise ValueError("JOB-SOURCE-MEMBER")
+        try:
+            archive ∈ object ← zipfile.ZipFile(io.BytesIO(source), "r")
+            matches ∈ list[object] ← []
+            entries ∈ list[object] ← list(archive.infolist())
+            for entry in entries:
+                if str(entry.filename) == member:
+                    matches.append(entry)
+            if len(matches) != 1 or matches[0].is_dir() or int(matches[0].flag_bits) & 1 != 0 or int(matches[0].file_size) <= 0 or int(matches[0].file_size) > limit:
+                raise ValueError("JOB-SOURCE-MEMBER")
+            selected ← archive.read(matches[0])
+            archive.close()
+        except (zipfile.BadZipFile, KeyError, RuntimeError, OSError):
+            raise ValueError("JOB-SOURCE-ARCHIVE")
+    elif str(attachment["source_name"]) != name:
+        raise ValueError("JOB-SOURCE-NAME")
+    if len(selected) == 0 or len(selected) > limit or str(hashlib.sha256(selected).hexdigest()) != str(attachment["sha256"]):
+        raise ValueError("JOB-SOURCE-PAYLOAD")
+    return selected
+
+def check_actual(stage ∈ dict[str, object], source ∈ bytes, delivered ∈ bytes, metadata ∈ dict[str, object], expected ∈ dict[str, object], required_text ∈ list[str], complete ∈ bool) → None:
+    """Inspect delivered bytes. This does not authenticate arbitrary input files."""
+    check_authority(stage, source, expected, required_text)
+    evidence ∈ str ← str(metadata.get("evidence_class", ""))
+    # No deployed platform verifier exists. A caller cannot enable one with a
+    # string, file ID, signature made by that caller, or 'trusted=true'.
+    if evidence != "fixture" and evidence != "service-readback":
+        raise ValueError("JOB-PLATFORM-ADAPTER-UNAVAILABLE")
+    record ∈ dict[str, object] ← dict(stage["handoff"])
+    events ∈ list[dict[str, object]] ← list(record["events"])
+    latest ∈ dict[str, object] ← {}
+    for event in events:
+        if str(event["kind"]) == "visible" or str(event["kind"]) == "attachment":
+            latest ← event
+        elif str(event["kind"]) == "delivery-failed":
+            latest ← {}
+    if int(record["version"]) == 1:
+        check(stage, source, delivered, complete)
+        if str(record["delivery_mode"]) != "dispatch-only":
+            if str(latest.get("message_id")) != str(metadata.get("message_id")) or str(latest.get("surface")) != str(metadata.get("surface")):
+                raise ValueError("JOB-READBACK-MESSAGE")
+    else:
+        check_attachment(stage, source, complete)
+        selected ∈ bytes ← reference_attachment(source, dict(record["attachment"]))
+        if str(record["delivery_mode"]) != "dispatch-only":
+            if delivered != selected:
+                raise ValueError("JOB-READBACK-BYTES")
+            attachment ∈ dict[str, object] ← dict(record["attachment"])
+            if str(metadata.get("file_name")) != str(attachment["file_name"]) or str(metadata.get("mime_type")) != str(attachment["mime_type"]):
+                raise ValueError("JOB-READBACK-METADATA")
+            if str(latest.get("file_id")) != str(metadata.get("file_id")) or str(latest.get("surface")) != str(metadata.get("surface")):
+                raise ValueError("JOB-READBACK-FILE")
+
+def check_storage(stage ∈ dict[str, object], source ∈ bytes, stored ∈ bytes, metadata ∈ dict[str, object], expected ∈ dict[str, object]) → None:
+    """Inspect storage bytes without manufacturing a visible-delivery event."""
+    no_text ∈ list[str] ← []
+    check_authority(stage, source, expected, no_text)
+    record ∈ dict[str, object] ← dict(stage["handoff"])
+    if int(record["version"]) != 2:
+        raise ValueError("JOB-STORAGE-TRANSPORT")
+    evidence ∈ str ← str(metadata.get("evidence_class", ""))
+    if evidence != "fixture" and evidence != "service-storage-readback":
+        raise ValueError("JOB-PLATFORM-ADAPTER-UNAVAILABLE")
+    attachment ∈ dict[str, object] ← dict(record["attachment"])
+    if stored != bytes(reference_attachment(source, attachment)):
+        raise ValueError("JOB-STORAGE-BYTES")
+    if str(metadata.get("file_name")) != str(attachment["file_name"]):
+        raise ValueError("JOB-STORAGE-NAME")
+    if str(metadata.get("mime_type")) != str(attachment["mime_type"]):
+        raise ValueError("JOB-STORAGE-MIME")
+    if int(metadata.get("file_size_bytes", -1)) != len(stored):
+        raise ValueError("JOB-STORAGE-SIZE")
+    if str(metadata.get("file_id", "")) == "":
+        raise ValueError("JOB-STORAGE-FILE")
+    handoff.plain(metadata["file_id"])
+
 def main() → None:
     args ∈ list[str] ← sys.argv
+    if len(args) == 8 and args[1] == "stored":
+        storage_stage ∈ dict[str, object] ← json.loads(Path(args[2]).read_bytes())
+        storage_source ∈ bytes ← Path(args[3]).read_bytes()
+        stored ∈ bytes ← Path(args[4]).read_bytes()
+        storage_metadata ∈ dict[str, object] ← json.loads(Path(args[5]).read_bytes())
+        storage_admission ∈ dict[str, object] ← json.loads(Path(args[6]).read_bytes())
+        storage_expected ∈ dict[str, object] ← dict(storage_admission["spec"])
+        check_storage(storage_stage, storage_source, stored, storage_metadata, storage_expected)
+        storage_result ∈ dict[str, object] ← {"status": "STORAGE_BYTES_PASS", "platform_delivery_status": "NOT_VERIFIED", "presentation_status": "NOT_VERIFIED", "evidence_class": storage_metadata["evidence_class"], "stage_sha256": hashlib.sha256(Path(args[2]).read_bytes()).hexdigest(), "source_sha256": hashlib.sha256(storage_source).hexdigest(), "stored_sha256": hashlib.sha256(stored).hexdigest(), "admission_sha256": hashlib.sha256(Path(args[6]).read_bytes()).hexdigest()}
+        Path(args[7]).write_text(str(json.dumps(storage_result, sort_keys=True)) + "\n")
+        return
+    if len(args) == 8 and args[1] == "actual":
+        stage ∈ dict[str, object] ← json.loads(Path(args[2]).read_bytes())
+        source ∈ bytes ← Path(args[3]).read_bytes()
+        delivered ∈ bytes ← Path(args[4]).read_bytes()
+        metadata ∈ dict[str, object] ← json.loads(Path(args[5]).read_bytes())
+        admission ∈ dict[str, object] ← json.loads(Path(args[6]).read_bytes())
+        expected ∈ dict[str, object] ← dict(admission["spec"])
+        required ∈ list[str] ← []
+        if admission.__contains__("required_text"):
+            required ← list(admission["required_text"])
+        check_actual(stage, source, delivered, metadata, expected, required, True)
+        result ∈ dict[str, object] ← {"status": "CONTRACT_PASS", "platform_delivery_status": "NOT_VERIFIED", "evidence_class": metadata["evidence_class"], "stage_sha256": hashlib.sha256(Path(args[2]).read_bytes()).hexdigest(), "source_sha256": hashlib.sha256(source).hexdigest(), "delivered_sha256": hashlib.sha256(delivered).hexdigest(), "admission_sha256": hashlib.sha256(Path(args[6]).read_bytes()).hexdigest()}
+        Path(args[7]).write_text(str(json.dumps(result, sort_keys=True)) + "\n")
+        return
     if len(args) != 5:
         raise ValueError("usage: job_delivery.pi STAGE_JSON PAYLOAD RESPONSE RESULT")
     stage ∈ dict[str, object] ← json.loads(Path(args[1]).read_bytes())

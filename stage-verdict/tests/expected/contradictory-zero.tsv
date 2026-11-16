@@ -1,0 +1,7 @@
+meta	schema	aici-stage-verdict-v1
+summary	selected_complete	yes
+summary	first_required_failure	none
+summary	first_required_incomplete	task
+summary	disposition	HOLD_FOR_EVIDENCE
+kind	stage_id	attempt	actor	required	selected	depends_on	claim	observation	declared_evidence_validity	evidence_validity	diagnosis	disposition	exit	signal	command	source_identity	producer_digest	log_digest	native_code	detail
+verdict	task	1	application	yes	yes	-	application_behavior	FAIL	VALID	MALFORMED	UNKNOWN	HOLD_FOR_EVIDENCE	0	-	run-control	1111111111111111111111111111111111111111	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb	error_text	zero exit contradicts failure

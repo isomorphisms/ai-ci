@@ -1,0 +1,24 @@
+module Main
+
+import Data.List
+import System
+
+record LatticeFactor where
+  constructor AtWorldPosition
+  world_x : Integer
+  world_y : Integer
+  signed_order : Integer
+
+signed_order_at : Integer → Integer → List LatticeFactor → Integer
+signed_order_at world_x world_y [] = 0
+signed_order_at world_x world_y (factor :: remaining) =
+  (if factor.world_x ≟ world_x && factor.world_y ≟ world_y
+     then factor.signed_order else 0) +
+  signed_order_at world_x world_y remaining
+
+main : IO ()
+main =
+  if signed_order_at 2 (-1)
+       [AtWorldPosition 2 (-1) 3, AtWorldPosition 2 (-1) (-2)] ≟ 1
+     then putStrLn "PASS exact signed multiplicity cancellation slice"
+     else exitFailure

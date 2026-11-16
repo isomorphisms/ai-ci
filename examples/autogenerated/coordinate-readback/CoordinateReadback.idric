@@ -1,0 +1,41 @@
+module CoordinateReadback
+
+import Data.Text
+import Data.List
+import System
+import System.File
+
+%unbound_implicits off
+
+basis_row : Number → Number → Text
+basis_row covector_index vector_index =
+  "basis-pairing\t" ++ show covector_index ++ "\t" ++ show vector_index ++ "\t" ++
+  (if covector_index ≟ vector_index then "1" else "0")
+
+basis_rows : List Number → List Number → List Text
+basis_rows [] _ = []
+basis_rows (covector_index :: remaining) vector_indices =
+  map (basis_row covector_index) vector_indices ++ basis_rows remaining vector_indices
+
+expected_rows : List Text
+expected_rows = basis_rows [0..31] [0..31] ++
+  ["basis-change\t0\t31", "basis-change\t1\t31"]
+
+-- File input has no termination bound, so only this effect boundary is covering.
+covering
+check_readback : Text → IO ()
+check_readback filename = do
+  Right contents ← readFile filename
+    | Left failure ⇒ die ("FAIL could not read coordinate result: " ++ show failure)
+  let observed_rows = filter (isPrefixOf "basis-") (lines contents)
+  if observed_rows ≟ expected_rows
+    then putStrLn "PASS independent numerical comparison: 1024 basis pairings and 2 coordinate-change samples"
+    else die "FAIL coordinate numerical comparison: wrong value, order, or incomplete case set"
+
+covering
+main : IO ()
+main = do
+  arguments ← getArgs
+  case arguments of
+    [_, filename] ⇒ check_readback filename
+    _ ⇒ die "requires one absolute numerical-readback filename"

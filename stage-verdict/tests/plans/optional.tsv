@@ -1,0 +1,3 @@
+stage_id	actor	required	selected	depends_on	claim
+application	application	yes	yes	-	application_behavior
+cleanup	cleanup	no	yes	application	optional_cleanup

@@ -3,15 +3,22 @@ import sys
 import io
 import json
 import zipfile
+import os
+import subprocess
+from types import SimpleNamespace
 from pathlib import Path
-from builtins import dict, list, ValueError, Exception, AssertionError
+from builtins import dict, list, ValueError, Exception, AssertionError, isinstance, hasattr
 import handoff
 import job_delivery
+import transfer_command
 
 args ∈ list[str] ← sys.argv
 root ∈ str ← args[1]
 fp ∈ str ← args[2]
 output ∈ Path ← Path(args[3])
+ithon ∈ str ← args[4]
+kitchen ∈ str ← args[5]
+grease ∈ str ← args[6]
 output.mkdir(parents=True, exist_ok=False)
 
 def visible_event(payload ∈ bytes, response ∈ bytes, sequence ∈ int) → dict[str, object]:
@@ -59,7 +66,143 @@ def run_attachment_case(variant ∈ str) → str:
     except ValueError as error:
         return str(error)
 
+def run_actual_case(variant ∈ str, legacy ∈ bool) → str:
+    payload ∈ bytes ← b"SUN fixture\nModel: SUN\nUse ordinary text.\n"
+    request ∈ dict[str, object] ← {"id": "actual-fixture", "text": "Write a SUN job using ordinary text.", "corrections": ["Use ordinary text."]}
+    expected ∈ dict[str, object] ← {"audience": "Sun", "model": "SUN", "source_context": "original-fixture-request", "request": request}
+    spec ∈ dict[str, object] ← json.loads(json.dumps(expected))
+    required ∈ list[str] ← ["Use ordinary text."]
+    source ∈ bytes ← payload
+    metadata ∈ dict[str, object] ← {"evidence_class": "fixture", "message_id": "fixture-message", "surface": "fixture-visible-chat"}
+    delivered ∈ bytes ← payload
+    if variant == "actual-wrong-model":
+        spec["model"] ← "Moon"
+    elif variant == "actual-wrong-audience":
+        spec["audience"] ← "internal-worker"
+    elif variant == "actual-request-substitution":
+        spec["request"] ← {"id": "actual-fixture", "text": "A worker-created replacement request."}
+    elif variant == "actual-correction-missing":
+        source ← b"SUN fixture\nModel: SUN\nUse a CodeBlock.\n"
+        delivered ← source
+    elif variant == "actual-forged-platform":
+        metadata["evidence_class"] ← "platform"
+        metadata["trusted"] ← True
+    elif variant == "actual-internal":
+        metadata["evidence_class"] ← "producer-capture"
+    elif variant == "actual-message-id":
+        metadata["message_id"] ← "another-message"
+    elif variant.startswith("actual-file"):
+        source ← b"PK\x03\x04real-selected-apk\x00\xff"
+        delivered ← source
+        required ← []
+        attachment ∈ dict[str, object] ← {"file_name": "selected.apk", "mime_type": "application/vnd.android.package-archive", "sha256": handoff.digest(source), "source_name": "selected.apk", "source_sha256": handoff.digest(source), "provenance": {"provider": "github-actions", "resource": "fixture/repository", "revision": "1111111111111111111111111111111111111111", "reference": "artifact:123"}}
+        if variant == "actual-file-archive":
+            stream ∈ object ← io.BytesIO()
+            archive ∈ object ← zipfile.ZipFile(stream, "w", zipfile.ZIP_STORED)
+            archive.writestr("c67/selected.apk", source)
+            archive.close()
+            source ← stream.getvalue()
+            attachment["source_name"] ← "artifact.zip"
+            attachment["source_sha256"] ← handoff.digest(source)
+            attachment["archive_member"] ← "c67/selected.apk"
+        spec["attachment"] ← attachment
+        expected["attachment"] ← dict(attachment)
+        metadata ← {"evidence_class": "service-readback", "file_id": "fixture-file", "file_name": "selected.apk", "mime_type": "application/vnd.android.package-archive", "surface": "fixture-visible-chat"}
+        if variant == "actual-file-bytes":
+            delivered ← delivered + b"changed"
+        elif variant == "actual-file-name":
+            metadata["file_name"] ← "renamed.apk"
+        elif variant == "actual-file-mime":
+            metadata["mime_type"] ← "application/zip"
+        elif variant == "actual-file-id":
+            metadata["file_id"] ← "another-file"
+    stage ∈ dict[str, object] ← {"name": "actual-fixture", "kind": "command", "exit_code": 0, "stdout_sha256": handoff.digest(source)}
+    try:
+        stage ← handoff.compose(stage, source, spec)
+        record ∈ dict[str, object] ← dict(stage["handoff"])
+        events ∈ list[dict[str, object]] ← []
+        if int(record["version"]) == 2:
+            attachment ← dict(record["attachment"])
+            events.append(attachment_event(bytes(job_delivery.reference_attachment(source, attachment)), 1, str(attachment["file_name"]), str(attachment["mime_type"])))
+        else:
+            events.append(visible_event(source, source, 1))
+            events[0]["message_id"] ← "fixture-message"
+        record["events"] ← events
+        record["visible_state"] ← "OBSERVED"
+        stage["handoff"] ← record
+        if variant == "actual-recovery":
+            events[0]["message_id"] ← "old-message"
+            events.append({"kind": "delivery-failed", "sequence": 2, "payload_sha256": handoff.digest(source), "correction": "The earlier presentation failed."})
+            events.append(visible_event(source, source, 3))
+            events[2]["message_id"] ← "fixture-message"
+        if variant == "actual-placeholder":
+            delivered ← b"This content is unavailable in this version of the app.\n"
+        if legacy:
+            if int(record["version"]) == 2:
+                job_delivery.check_attachment(stage, source, True)
+            else:
+                job_delivery.check(stage, source, source, True)
+            return "PASS"
+        job_delivery.check_actual(stage, source, delivered, metadata, expected, required, True)
+        if variant == "actual-text" or variant == "actual-file-archive":
+            specimen ∈ Path ← output.joinpath(variant)
+            specimen.mkdir()
+            specimen.joinpath("stage.json").write_text(str(json.dumps(stage, sort_keys=True)) + "\n")
+            specimen.joinpath("source.bin").write_bytes(source)
+            specimen.joinpath("delivered.bin").write_bytes(delivered)
+            specimen.joinpath("metadata.json").write_text(str(json.dumps(metadata, sort_keys=True)) + "\n")
+            specimen.joinpath("admission.json").write_text(str(json.dumps({"spec": expected, "required_text": required}, sort_keys=True)) + "\n")
+        return "PASS"
+    except ValueError as error:
+        return str(error)
+
+def run_storage_case(variant ∈ str) → str:
+    payload ∈ bytes ← b"PK\x03\x04stored-selected-apk\x00\xff"
+    source ∈ bytes ← payload
+    attachment ∈ dict[str, object] ← {"file_name": "app-debug.apk", "mime_type": "application/vnd.android.package-archive", "sha256": handoff.digest(payload), "source_name": "app-debug.apk", "source_sha256": handoff.digest(source), "provenance": {"provider": "github-actions", "resource": "fixture/repository", "revision": "1111111111111111111111111111111111111111", "reference": "artifact:123"}}
+    if variant == "storage-archive":
+        stream ∈ object ← io.BytesIO()
+        archive ∈ object ← zipfile.ZipFile(stream, "w", zipfile.ZIP_STORED)
+        archive.writestr("c67/app-debug.apk", payload)
+        archive.close()
+        source ← stream.getvalue()
+        attachment["source_name"] ← "artifact.zip"
+        attachment["source_sha256"] ← handoff.digest(source)
+        attachment["archive_member"] ← "c67/app-debug.apk"
+    expected ∈ dict[str, object] ← {"audience": "human", "model": "fixture", "source_context": "stored-file-qualification", "request": {"id": "storage-fixture", "text": "Give me the exact APK."}, "attachment": attachment}
+    if variant == "storage-text":
+        expected.pop("attachment")
+        source ← b"ordinary text\n"
+    stage ∈ dict[str, object] ← {"name": "storage-fixture", "kind": "command", "exit_code": 0, "stdout_sha256": handoff.digest(source)}
+    metadata ∈ dict[str, object] ← {"file_id": "fixture-stored-file", "file_name": "app-debug.apk", "mime_type": "application/vnd.android.package-archive", "file_size_bytes": len(payload), "evidence_class": "fixture"}
+    stored ∈ bytes ← payload
+    if variant == "storage-bytes":
+        stored ← stored + b"changed"
+    elif variant == "storage-name":
+        metadata["file_name"] ← "app-debug(7).apk"
+    elif variant == "storage-mime":
+        metadata["mime_type"] ← None
+    elif variant == "storage-size":
+        metadata["file_size_bytes"] ← len(payload) - 1
+    elif variant == "storage-id":
+        metadata["file_id"] ← ""
+    elif variant == "storage-forged-platform":
+        metadata["evidence_class"] ← "platform"
+    try:
+        stage ← handoff.compose(stage, source, expected)
+        unchanged ∈ str ← str(json.dumps(stage, sort_keys=True))
+        job_delivery.check_storage(stage, source, stored, metadata, expected)
+        if str(json.dumps(stage, sort_keys=True)) != unchanged:
+            raise AssertionError("storage inspection changed delivery state")
+        return "PASS"
+    except ValueError as error:
+        return str(error)
+
 def run_case(fixture ∈ str, variant ∈ str) → str:
+    if variant.startswith("storage-"):
+        return run_storage_case(variant)
+    if variant.startswith("actual-"):
+        return run_actual_case(variant, False)
     if variant.startswith("attachment-"):
         return run_attachment_case(variant)
     payload ∈ bytes ← Path(fp + "/regressions/job-delivery/" + fixture + ".txt").read_bytes()
@@ -149,6 +292,350 @@ def run_case(fixture ∈ str, variant ∈ str) → str:
     except ValueError as error:
         return str(error)
 
+def rebind(stage ∈ dict[str, object]) → dict[str, object]:
+    result ∈ dict[str, object] ← dict(stage)
+    record ∈ dict[str, object] ← dict(stage["handoff"])
+    contract_digest ∈ str ← handoff.digest(handoff.contract(record))
+    record["contract_sha256"] ← contract_digest
+    record["id"] ← handoff.digest((contract_digest + "\n" + str(record["payload_sha256"])).encode())
+    result["handoff"] ← record
+    return result
+
+def visible_stage(stage ∈ dict[str, object], payload ∈ bytes, response ∈ bytes) → dict[str, object]:
+    result ∈ dict[str, object] ← dict(stage)
+    record ∈ dict[str, object] ← dict(stage["handoff"])
+    record["visible_state"] ← "OBSERVED"
+    record["events"] ← [visible_event(payload, response, 1)]
+    result["handoff"] ← record
+    return result
+
+def command_result(
+    stage ∈ dict[str, object],
+    payload ∈ bytes,
+    response ∈ bytes,
+    admission ∈ dict[str, object]
+) → str:
+    try:
+        transfer_command.check(stage, payload, response, kitchen, grease, admission)
+        return "PASS"
+    except ValueError as error:
+        return str(error)
+
+def controller_cases(stage ∈ dict[str, object], payload ∈ bytes, forbidden ∈ bytes, work ∈ Path) → None:
+    record ∈ dict[str, object] ← dict(stage["handoff"])
+    spec ∈ dict[str, object] ← {}
+    for field in ["audience", "model", "source_context", "execution_target", "request", "operation"]:
+        spec[field] ← record[field]
+    malicious ∈ dict[str, object] ← dict(stage)
+    malicious["stdout_sha256"] ← handoff.digest(forbidden)
+    malicious ← handoff.compose(malicious, forbidden, spec)
+    sent ∈ list[bytes] ← []
+    def send(value ∈ bytes) → dict[str, object]:
+        sent.append(value)
+        return {"bytes": value, "message_id": "fixture-transfer-message", "surface": "fixture-visible-chat"}
+    def read(message_id ∈ str) → dict[str, object]:
+        return {"bytes": sent[-1], "message_id": message_id, "surface": "fixture-visible-chat"}
+    def dispatch(value ∈ bytes, identity ∈ str) → dict[str, object]:
+        raise AssertionError("display-only transfer reached dispatch")
+    sink ∈ object ← SimpleNamespace(send=send)
+    reader ∈ object ← SimpleNamespace(read_text=read)
+    dispatcher ∈ object ← SimpleNamespace(send=dispatch)
+    no_text ∈ list[str] ← []
+    failures ∈ list[str] ← []
+    for route in ["transport", "controlled"]:
+        sent.clear()
+        verdict ∈ str ← "ACCEPTED"
+        try:
+            if route == "transport":
+                handoff.deliver(malicious, forbidden, sink, dispatcher, job_delivery, "")
+            else:
+                handoff.deliver_controlled(malicious, forbidden, spec, no_text, sink, reader, dispatcher, job_delivery, str(work.joinpath("bare-controller.json")), "fixture")
+        except ValueError as error:
+            verdict ← str(error)
+        print("controller " + route + " verdict=" + verdict + " sends=" + str(len(sent)))
+        if verdict != "HANDOFF_OPERATION_GATE_REQUIRED" or len(sent) != 0:
+            failures.append("bare " + route + " emitted an unaccepted transfer")
+    altered_spec ∈ dict[str, object] ← dict(spec)
+    altered_operation ∈ dict[str, object] ← dict(record["operation"])
+    altered_operation["destination_owner"] ← "unadmitted-destination"
+    altered_spec["operation"] ← altered_operation
+    altered ∈ dict[str, object] ← handoff.compose(stage, payload, altered_spec)
+    authority ∈ str ← "ACCEPTED"
+    try:
+        job_delivery.check_authority(altered, payload, spec, no_text)
+    except ValueError as error:
+        authority ← str(error)
+    print("controller operation substitution verdict=" + authority)
+    if authority != "JOB-AUTHORITY-OPERATION":
+        failures.append("authority omitted operation metadata")
+    if len(failures) != 0:
+        raise AssertionError("; ".join(failures))
+
+    gate ∈ object ← transfer_command.delivery_gate(kitchen, grease, spec)
+    for candidate_kind in ["recipe", "operation", "stripped-operation"]:
+        candidate ∈ dict[str, object] ← malicious if candidate_kind == "recipe" else altered
+        source ∈ bytes ← forbidden if candidate_kind == "recipe" else payload
+        wanted ∈ str ← "TRANSFER_COMMAND_KITCHEN_BYTES" if candidate_kind == "recipe" else "JOB-AUTHORITY-OPERATION"
+        expected_candidate ∈ dict[str, object] ← spec if candidate_kind == "recipe" else altered_spec
+        if candidate_kind == "stripped-operation":
+            stripped_spec ∈ dict[str, object] ← {}
+            for field in spec:
+                if field != "operation":
+                    stripped_spec[field] ← spec[field]
+            candidate ← handoff.compose(stage, payload, stripped_spec)
+            expected_candidate ← stripped_spec
+        sent.clear()
+        verdict ← "ACCEPTED"
+        try:
+            handoff.deliver_controlled(candidate, source, expected_candidate, no_text, sink, reader, dispatcher, gate, str(work.joinpath(candidate_kind + ".json")), "fixture")
+        except ValueError as error:
+            verdict ← str(error)
+        if verdict != wanted or len(sent) != 0:
+            raise AssertionError("transfer candidate " + candidate_kind + " verdict=" + verdict + " sends=" + str(len(sent)))
+        print("PASS controller " + candidate_kind + " rejected before send -> " + verdict)
+    sent.clear()
+    for surface in ["plain", "extra-summary"]:
+        sent.clear()
+        verdict ← "ACCEPTED"
+        try:
+            handoff.deliver(stage, payload, sink, dispatcher, gate, "Unadmitted extra command." if surface == "extra-summary" else "", "literal" if surface == "extra-summary" else "plain")
+        except ValueError as error:
+            verdict ← str(error)
+        wanted ← "TRANSFER_COMMAND_VISIBLE_BYTES" if surface == "extra-summary" else "HANDOFF_RESPONSE_FORMAT"
+        if verdict != wanted or len(sent) != 0:
+            raise AssertionError("unsupported transfer surface sent before acceptance")
+        print("PASS controller " + surface + " rejected before send -> " + verdict)
+    sent.clear()
+    state_path ∈ str ← str(work.joinpath("accepted-controller.json"))
+    accepted ∈ dict[str, object] ← handoff.deliver_controlled(stage, payload, spec, no_text, sink, reader, dispatcher, gate, state_path, "fixture", "literal")
+    if str(accepted["delivery_status"]) != "FIXTURE_PASS" or len(sent) != 1 or sent[0] != bytes(handoff.render(payload, "")):
+        raise AssertionError("accepted transfer did not present exact Kitchen bytes once")
+    handoff.deliver_controlled(stage, payload, spec, no_text, sink, reader, dispatcher, gate, state_path, "fixture", "literal")
+    if len(sent) != 1:
+        raise AssertionError("resumed transfer repeated presentation")
+    print("PASS controller accepted exact Kitchen bytes once and resumed without resend")
+
+    qualified ∈ Path ← work.joinpath("kitchen-source-control")
+    clone ∈ object ← subprocess.run(["git", "clone", "--shared", "--no-checkout", kitchen, str(qualified)], capture_output=True)
+    if int(clone.returncode) != 0:
+        raise AssertionError("cannot create isolated Kitchen source control")
+    operation ∈ dict[str, object] ← dict(spec["operation"])
+    revision ∈ str ← str(operation["kitchen_revision"])
+    checkout ∈ object ← subprocess.run(["git", "-C", str(qualified), "checkout", "--detach", revision], capture_output=True)
+    changed_head ∈ object ← subprocess.run(["git", "-C", str(qualified), "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "-c", "commit.gpgsign=false", "commit", "--allow-empty", "-m", "fixture wrong Kitchen revision"], capture_output=True)
+    if int(checkout.returncode) != 0 or int(changed_head.returncode) != 0:
+        raise AssertionError("cannot establish wrong-revision source control")
+    for source_case in ["wrong-revision", "dirty-generator"]:
+        if source_case == "dirty-generator":
+            checkout ← subprocess.run(["git", "-C", str(qualified), "checkout", "--detach", revision], capture_output=True)
+            if int(checkout.returncode) != 0:
+                raise AssertionError("cannot restore isolated source-control revision")
+            generator ∈ Path ← qualified.joinpath("tasks/github-repository-transfer/render-standalone-github-repository-organization-transfer.ysh")
+            generator_bytes ∈ bytes ← generator.read_bytes()
+            generator.write_bytes(generator_bytes + b"\n# isolated uncommitted source-control mutation\n")
+        verdict ← "ACCEPTED"
+        try:
+            transfer_command.check_candidate(stage, payload, str(qualified), grease, spec)
+        except ValueError as error:
+            verdict ← str(error)
+        wanted ← "TRANSFER_COMMAND_KITCHEN_REVISION" if source_case == "wrong-revision" else "TRANSFER_COMMAND_KITCHEN_DIRTY"
+        if verdict != wanted:
+            raise AssertionError("Kitchen " + source_case + " was accepted: " + verdict)
+        print("PASS independent Kitchen " + source_case + " -> " + verdict)
+    dirty_gate ∈ object ← transfer_command.delivery_gate(str(qualified), grease, spec)
+    verdict ← "ACCEPTED"
+    try:
+        handoff.deliver_controlled(stage, payload, spec, no_text, sink, reader, dispatcher, dirty_gate, state_path, "fixture", "literal")
+    except ValueError as error:
+        verdict ← str(error)
+    saved ∈ dict[str, object] ← json.loads(Path(state_path).read_bytes())
+    if verdict != "TRANSFER_COMMAND_KITCHEN_DIRTY" or str(saved["delivery_status"]) != "AWAITING_HANDOFF_DELIVERY" or len(sent) != 1:
+        raise AssertionError("failed source revalidation retained success or resent bytes")
+    print("PASS controller source revalidation invalidates success without resend")
+    wrapper ∈ object ← subprocess.run([grease, fp + "/scripts/how-to-move-the-users-github-repository-to-a-different-organization.ysh", "isomorphisms", "Museum_of_Shaders", "Museum_of_Shaders", "functorial-games", "isomorphisms", revision, "1412731191", "conanwu777/Museum_of_Shaders"], capture_output=True, env=dict(os.environ, KITCHEN_ROOT=str(qualified), GREASE_BINARY=grease))
+    if int(wrapper.returncode) == 0 or bytes(wrapper.stdout) != b"" or not bytes(wrapper.stderr).__contains__(b"Kitchen transfer sources differ from the bound revision"):
+        raise AssertionError("FP public preparation accepted dirty Kitchen source")
+    print("PASS FP public preparation rejects dirty Kitchen source before generation")
+
+def chat_bypass_cases() → None:
+    case_lines ∈ list[str] ← Path(root + "/tests/job-delivery/chat-bypass-cases.tsv").read_text().splitlines()
+    if len(case_lines) < 2 or case_lines[0] != "id\texpected":
+        raise ValueError("invalid chat bypass case manifest")
+    expected ∈ dict[str, str] ← {}
+    for line in case_lines[1:]:
+        fields ∈ list[str] ← line.split("\t")
+        if len(fields) != 2 or fields[0] == "" or expected.__contains__(fields[0]):
+            raise ValueError("invalid/duplicate chat bypass case")
+        expected[fields[0]] ← fields[1]
+
+    work ∈ Path ← output.joinpath("chat-bypass")
+    work.mkdir()
+    fixture ∈ Path ← Path(root + "/tests/fixtures/chat-bypass/gh.grease")
+    fake_bin ∈ Path ← work.joinpath("bin")
+    fake_bin.mkdir()
+    fake_gh ∈ Path ← fake_bin.joinpath("gh")
+    fake_gh.write_bytes(fixture.read_bytes())
+    os.chmod(str(fake_gh), 448)
+    attempts ∈ Path ← work.joinpath("transfer-attempts.tsv")
+    environment ∈ dict[str, str] ← dict(os.environ)
+    environment["KITCHEN_ROOT"] ← kitchen
+    environment["GREASE_BINARY"] ← grease
+    environment["AICI_CHAT_BYPASS_ATTEMPTS"] ← str(attempts)
+    environment["PATH"] ← str(fake_bin) + ":" + str(Path(grease).parent) + ":" + str(environment.get("PATH", ""))
+
+    observed ∈ dict[str, str] ← {}
+    readonly ∈ object ← subprocess.run(
+        [grease, str(fake_gh), "api", "repos/isomorphisms/Museum_of_Shaders"],
+        capture_output=True,
+        env=environment
+    )
+    if int(readonly.returncode) == 0 and bytes(readonly.stdout) == b"1412731191\n" and not attempts.exists():
+        observed["read-only-github-query"] ← "PASS"
+    else:
+        observed["read-only-github-query"] ← "FAIL"
+
+    public_pipeline ∈ dict[str, object] ← json.loads(Path(fp + "/pipelines/how-to-move-the-users-github-repository-to-a-different-organization.json").read_bytes())
+    execute_pipeline ∈ dict[str, object] ← json.loads(Path(fp + "/pipelines/execute-github-repository-organization-transfer.json").read_bytes())
+    public_stages ∈ list[object] ← list(public_pipeline["stages"])
+    execute_stages ∈ list[object] ← list(execute_pipeline["stages"])
+    if len(public_stages) != 1 or len(execute_stages) != 1:
+        raise AssertionError("transfer pipelines must each declare one stage")
+    public_stage ∈ dict[str, object] ← dict(public_stages[0])
+    execute_stage ∈ dict[str, object] ← dict(execute_stages[0])
+    public_argv ∈ list[object] ← list(public_stage["argv"])
+    execute_argv ∈ list[object] ← list(execute_stage["argv"])
+    if len(public_argv) < 2 or len(execute_argv) < 2:
+        raise AssertionError("transfer pipeline stage argv is incomplete")
+    structural_failure ∈ bool ← str(public_stage["name"]) != "prepare-kitchen-display-only-handoff"
+    structural_failure ← structural_failure or str(public_argv[1]) != "scripts/how-to-move-the-users-github-repository-to-a-different-organization.ysh"
+    structural_failure ← structural_failure or not isinstance(public_stage.get("handoff"), dict)
+    structural_failure ← structural_failure or str(execute_stage["name"]) != "protected-six-argument-execution"
+    structural_failure ← structural_failure or str(execute_argv[1]) != "scripts/execute-github-repository-organization-transfer.grease"
+
+    revision ∈ str ← "32c3bf2d7c6268b50f1e48395dc972cfbafec7a9"
+    admission ∈ dict[str, object] ← {
+        "request": {
+            "id": "github-repository-transfer-display-only",
+            "text": "Display the exact Kitchen-generated GitHub repository transfer recipe only.",
+            "delivery_mode": "display-only"
+        },
+        "operation": {
+            "kind": "github-repository-transfer",
+            "authority": "display-only",
+            "source_owner": "isomorphisms",
+            "requested_repository": "Museum_of_Shaders",
+            "resolved_repository": "Museum_of_Shaders",
+            "destination_owner": "functorial-games",
+            "expected_login": "isomorphisms",
+            "kitchen_revision": revision,
+            "repository_id": "1412731191",
+            "upstream": "conanwu777/Museum_of_Shaders"
+        }
+    }
+    run_root ∈ Path ← work.joinpath("runs")
+    pipeline_command ∈ list[str] ← [
+        sys.executable,
+        fp + "/scripts/run-pipeline",
+        "how-to-move-the-users-github-repository-to-a-different-organization",
+        "--ithon",
+        ithon,
+        "--runs-root",
+        str(run_root),
+        "--param",
+        "source_owner=isomorphisms",
+        "--param",
+        "requested_repository=Museum_of_Shaders",
+        "--param",
+        "resolved_repository=Museum_of_Shaders",
+        "--param",
+        "destination_organization=functorial-games",
+        "--param",
+        "expected_login=isomorphisms",
+        "--param",
+        "kitchen_revision=" + revision,
+        "--param",
+        "repository_id=1412731191",
+        "--param",
+        "upstream=conanwu777/Museum_of_Shaders"
+    ]
+    child ∈ object ← subprocess.run(pipeline_command, capture_output=True, env=environment)
+    generated ∈ dict[str, object] ← json.loads(child.stdout)
+    if int(child.returncode) == 0 or str(generated["status"]) != "AWAITING_HANDOFF_DELIVERY" or structural_failure:
+        raise AssertionError("public transfer pipeline did not stop at the display handoff")
+    generated_stages ∈ list[object] ← list(generated["stages"])
+    if len(generated_stages) != 1:
+        raise AssertionError("display pipeline did not return one stage")
+    stage ∈ dict[str, object] ← dict(generated_stages[0])
+    response_artifact ∈ Path ← Path(str(generated["response_artifact"]))
+    payload ∈ bytes ← response_artifact.parent.joinpath("stdout.bin").read_bytes()
+    response ∈ bytes ← handoff.render(payload, "")
+    displayed ∈ dict[str, object] ← visible_stage(stage, payload, response)
+    observed["exact-kitchen-display-only-bytes"] ← command_result(displayed, payload, response, admission)
+    if attempts.exists():
+        raise AssertionError("display-only generation attempted a GitHub mutation")
+
+    incident ∈ dict[str, object] ← json.loads(Path(fp + "/regressions/chat-bypass/fp-chat-bypass-01.json").read_bytes())
+    forbidden ∈ bytes ← Path(fp + "/regressions/chat-bypass/forbidden-direct-transfer-response.txt").read_bytes()
+    correction ∈ bytes ← Path(fp + "/regressions/chat-bypass/later-correction.txt").read_bytes()
+    identity ∈ dict[str, object] ← dict(incident["identity"])
+    forbidden_record ∈ dict[str, object] ← dict(incident["forbidden_response"])
+    correction_record ∈ dict[str, object] ← dict(incident["later_correction"])
+    if str(incident["original_prompt"]) != "GH script to move considered to Fuego ironworks" or str(identity["requested_repository"]) != "considered" or str(identity["selected_repository"]) != "consider" or str(identity["status"]) != "UNRESOLVED" or str(incident["historical_execution_evidence"]) != "ABSENT":
+        raise AssertionError("sanitized incident metadata changed")
+    if str(forbidden_record["sha256"]) != str(handoff.digest(forbidden)) or str(correction_record["sha256"]) != str(handoff.digest(correction)):
+        raise AssertionError("sanitized incident fixture bytes changed")
+    observed["unadmitted-direct-transfer"] ← command_result({}, forbidden, forbidden, admission)
+
+    execute_record ∈ dict[str, object] ← dict(displayed["handoff"])
+    execute_operation ∈ dict[str, object] ← dict(execute_record["operation"])
+    execute_operation["authority"] ← "execute"
+    execute_record["operation"] ← execute_operation
+    execute_stage_record ∈ dict[str, object] ← dict(displayed)
+    execute_stage_record["handoff"] ← execute_record
+    observed["script-request-routed-to-execute"] ← command_result(rebind(execute_stage_record), payload, response, admission)
+
+    id_outcome ∈ str ← "PASS"
+    for id_value in ["", "1412731192"]:
+        id_record ∈ dict[str, object] ← dict(displayed["handoff"])
+        id_operation ∈ dict[str, object] ← dict(id_record["operation"])
+        id_operation["repository_id"] ← id_value
+        id_record["operation"] ← id_operation
+        id_stage ∈ dict[str, object] ← dict(displayed)
+        id_stage["handoff"] ← id_record
+        id_outcome ← command_result(rebind(id_stage), payload, response, admission)
+        if id_outcome != "TRANSFER_COMMAND_REPOSITORY_ID":
+            break
+    observed["missing-or-substituted-repository-id"] ← id_outcome
+
+    changed_request ∈ dict[str, object] ← dict(displayed["handoff"])
+    changed_request["request"] ← {
+        "id": "github-repository-transfer-display-only",
+        "text": "Run the repository transfer directly.",
+        "delivery_mode": "display-only"
+    }
+    changed_request_stage ∈ dict[str, object] ← dict(displayed)
+    changed_request_stage["handoff"] ← changed_request
+    observed["recomputed-request-or-admission"] ← command_result(rebind(changed_request_stage), payload, response, admission)
+
+    changed_response ∈ bytes ← handoff.render(payload + b"changed\n", "")
+    observed["changed-visible-bytes"] ← command_result(visible_stage(stage, payload, changed_response), payload, changed_response, admission)
+    apology ∈ bytes ← correction
+    observed["apology-as-acceptance"] ← command_result(visible_stage(stage, payload, apology), payload, apology, admission)
+
+    controller_cases(stage, payload, forbidden, work)
+
+    rows ∈ list[str] ← ["id\texpected\tactual\tresult"]
+    for case_id in expected:
+        actual ∈ str ← str(observed.get(case_id, "MISSING"))
+        rows.append(case_id + "\t" + expected[case_id] + "\t" + actual + "\t" + ("PASS" if expected[case_id] == actual else "FAIL"))
+        if expected[case_id] != actual:
+            work.joinpath("results.tsv").write_text(str("\n".join(rows)) + "\n")
+            raise AssertionError("chat bypass " + case_id + ": expected " + expected[case_id] + ", got " + actual)
+        print("PASS " + case_id + " -> " + actual)
+    work.joinpath("results.tsv").write_text(str("\n".join(rows)) + "\n")
+
+chat_bypass_cases()
+
 lines ∈ list[str] ← Path(root + "/tests/job-delivery/cases.tsv").read_text().splitlines()
 if len(lines) < 2 or lines[0] != "id\tfixture\tvariant\texpected":
     raise ValueError("invalid or empty case manifest")
@@ -166,4 +653,12 @@ for line in lines[1:]:
         raise AssertionError(fields[0] + ": expected " + fields[3] + ", got " + actual)
     print("PASS " + fields[0] + " -> " + actual)
 output.joinpath("results.tsv").write_text(str("\n".join(results)) + "\n")
-print("independent delivery cases PASS: " + str(len(seen)))
+for defect in ["actual-wrong-model", "actual-wrong-audience", "actual-request-substitution", "actual-correction-missing", "actual-file-bytes", "actual-file-name", "actual-file-mime", "actual-file-id", "actual-forged-platform"]:
+    old_verdict ∈ str ← run_actual_case(defect, True)
+    new_verdict ∈ str ← run_actual_case(defect, False)
+    if old_verdict != "PASS" or new_verdict == "PASS":
+        raise AssertionError("missing rejection transition for " + defect)
+    results.append(defect + "-transition\tLEGACY_ACCEPTS_BAD_INPUT\t" + new_verdict + "\tPASS")
+    print("PASS rejection transition " + defect + " -> " + new_verdict)
+output.joinpath("results.tsv").write_text(str("\n".join(results)) + "\n")
+print("independent delivery cases PASS: " + str(len(seen)) + "; rejection transitions: 9")
