@@ -30,6 +30,12 @@ outputs:
   builtin_include:
     description: Exact ICK resource headers; put before NDK directories with -nostdinc.
     value: ${{ steps.compiler.outputs.builtin_include }}
+  material_records:
+    description: Semicolon-separated exact qualification records required by incremental consumers.
+    value: ${{ steps.compiler.outputs.material_records }}
+  policy:
+    description: Exact qualified compiler policy receipt required by incremental consumers.
+    value: ${{ steps.compiler.outputs.policy }}
 runs:
   using: composite
   steps:
