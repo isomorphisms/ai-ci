@@ -1,0 +1,12 @@
+schema	aici-grease-source-input-v1
+source_repository	dilapidated-shed/oils
+source_revision	cc3cfdf2c21f50e4c3a2ef0a8a94fcc4868e0d29
+workflow_run	43726139851
+artifact_id	14166313138
+archive_sha256	e6c482068a12253f4c1599ead1d716703e40170071d02075e464e50caf3bf073
+runtime_sha256	4e9ae57236a2f01d97a2bf1f515e632680cfdbc10259c154b3b37d04a0126550
+scope	PUBLIC_SOURCE_FIXTURES_ONLY
+managed_eligibility	NOT_VERIFIED
+issuer_qualification	NOT_RUN
+static_transitive_closure	NOT_RUN
+whole_language_qualification	NOT_RUN

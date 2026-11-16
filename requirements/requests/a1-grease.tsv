@@ -1,0 +1,10 @@
+key	value
+schema	aici-requirement-request-v1
+request_id	a1-c67
+request_body_path	requests/a1-grease.txt
+request_body_sha256	607089cc9777c014d2bb7a788c3c7c6bba482f5eeb4da3869bd05b11efc314cd
+owner	dilapidated-shed/grease
+program	grease
+target	miro-a1
+owner_profile_sha256	17e5b38bbcd60baac0a9ffaf494d9eec8f93d0026061af38169c48e150ad9d84
+requirements_sha256	a203f2a2e7bdf7594f77dd21e431a222571e2455abf2bc8858531394b433a056

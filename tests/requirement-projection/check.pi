@@ -1,0 +1,222 @@
+"""Adversarial requirement-projection controls with static expected results."""
+import sys
+from pathlib import Path
+from builtins import dict, list, object, ValueError, AssertionError
+import requirement_projection
+
+arguments ∈ list[str] ← sys.argv
+root ∈ str ← arguments[1]
+output ∈ str ← arguments[2]
+Path(output).mkdir(parents=True, exist_ok=False)
+specimen ∈ str ← root + "/requirements"
+owners ∈ str ← specimen + "/owners.tsv"
+requirements ∈ str ← specimen + "/requirements.tsv"
+sdf_request ∈ str ← specimen + "/requests/sdf-grease.tsv"
+a1_request ∈ str ← specimen + "/requests/a1-grease.tsv"
+sdf_projection ∈ str ← specimen + "/projections/sdf-grease.tsv"
+a1_projection ∈ str ← specimen + "/projections/a1-grease.tsv"
+sdf_projection_bytes ∈ bytes ← bytes(Path(sdf_projection).read_bytes())
+base_requirements ∈ str ← Path(requirements).read_text()
+base_request ∈ str ← Path(sdf_request).read_text()
+base_owners ∈ str ← Path(owners).read_text()
+case_lines ∈ list[str] ← Path(root + "/tests/requirement-projection/cases.tsv").read_text().splitlines()
+if len(case_lines) != 21 or case_lines[0] != "id\texpected":
+    raise ValueError("invalid requirement-projection case manifest")
+expected ∈ dict[str, str] ← {}
+for line in case_lines[1:]:
+    fields ∈ list[str] ← line.split("\t")
+    if len(fields) != 2 or fields[0] in expected:
+        raise ValueError("malformed or duplicate requirement-projection case")
+    expected[fields[0]] ← fields[1]
+results ∈ list[str] ← ["id\texpected\tactual\tresult"]
+
+def replace_once(text ∈ str, old ∈ str, new ∈ str) → str:
+    count ∈ int ← int(text.count(old))
+    if count != 1:
+        raise AssertionError("mutation landmark count changed: " + old)
+    return text.replace(old, new)
+
+def find_line(text ∈ str, prefix ∈ str) → str:
+    lines ∈ list[str] ← text.splitlines()
+    found ∈ list[str] ← []
+    for line in lines:
+        if line.startswith(prefix):
+            found.append(line)
+    if len(found) != 1:
+        raise AssertionError("line landmark count changed: " + prefix)
+    return found[0]
+
+def case_path(name ∈ str, leaf ∈ str) → str:
+    directory ∈ str ← output + "/" + name
+    Path(directory).mkdir(parents=True, exist_ok=False)
+    return directory + "/" + leaf
+
+def write_case(name ∈ str, request_text ∈ str, owner_text ∈ str, requirement_text ∈ str) → list[str]:
+    request_path ∈ str ← case_path(name, "request.tsv")
+    owner_path ∈ str ← output + "/" + name + "/owners.tsv"
+    requirement_path ∈ str ← output + "/" + name + "/requirements.tsv"
+    Path(owner_path).write_text(owner_text)
+    Path(requirement_path).write_text(requirement_text)
+    Path(request_path).write_text(request_text)
+    return [request_path, owner_path, requirement_path]
+
+def rebind(request_text ∈ str, owner_path ∈ str, requirement_path ∈ str) → str:
+    lines ∈ list[str] ← request_text.splitlines()
+    rebound ∈ list[str] ← []
+    for line in lines:
+        if line.startswith("owner_profile_sha256\t"):
+            rebound.append("owner_profile_sha256\t" + str(requirement_projection.owners_digest(owner_path)))
+        elif line.startswith("requirements_sha256\t"):
+            rebound.append("requirements_sha256\t" + str(requirement_projection.requirements_digest(requirement_path)))
+        else:
+            rebound.append(line)
+    return str("\n".join(rebound)) + "\n"
+
+def error_code(error ∈ object) → str:
+    parts ∈ list[str] ← str(error).split(":", 1)
+    return parts[0]
+
+def project_result(request_path ∈ str, owner_path ∈ str, requirement_path ∈ str) → str:
+    try:
+        requirement_projection.projection_bytes(request_path, owner_path, requirement_path, specimen)
+        return "PASS"
+    except ValueError as error:
+        return error_code(error)
+
+def validate_result(request_path ∈ str, owner_path ∈ str, requirement_path ∈ str, projection_path ∈ str) → str:
+    try:
+        requirement_projection.validate_projection(request_path, owner_path, requirement_path, specimen, projection_path)
+        return "PASS"
+    except ValueError as error:
+        return error_code(error)
+
+def record(name ∈ str, actual ∈ str) → None:
+    wanted ∈ str ← expected[name]
+    result ∈ str ← "PASS" if actual == wanted else "FAIL"
+    results.append(name + "\t" + wanted + "\t" + actual + "\t" + result)
+    if actual != wanted:
+        Path(output + "/results.tsv").write_text(str("\n".join(results)) + "\n")
+        raise AssertionError(name + ": expected " + wanted + ", got " + actual)
+    print("PASS " + name + " -> " + actual)
+
+record("good-sdf", validate_result(sdf_request, owners, requirements, sdf_projection))
+
+try:
+    a1_bytes ∈ bytes ← bytes(requirement_projection.validate_projection(a1_request, owners, requirements, specimen, a1_projection))
+    request_object ∈ dict[str, object] ← requirement_projection.bind_request({"id": "a1-c67", "text": "fixture"}, a1_bytes)
+    requirement_projection.validate_request_binding(request_object)
+    record("good-a1-bound-request", "PASS")
+except ValueError as error:
+    record("good-a1-bound-request", error_code(error))
+
+matrix_line ∈ str ← find_line(base_requirements, "req-matrix-owner\t")
+duplicate_matrix ∈ str ← matrix_line.replace("req-matrix-owner\t", "req-leaf-duplicate-matrix\t", 1).replace("matrix_owner=isomorphisms/catfood", "matrix_owner=dilapidated-shed/grease", 1)
+paths ∈ list[str] ← write_case("duplicated-leaf-matrix", base_request, base_owners, base_requirements + duplicate_matrix + "\n")
+Path(paths[0]).write_text(rebind(base_request, paths[1], paths[2]))
+record("duplicated-leaf-matrix", project_result(paths[0], paths[1], paths[2]))
+
+duplicate_obligation ∈ str ← matrix_line.replace("req-matrix-owner\t", "req-matrix-owner-copy\t", 1)
+paths ← write_case("duplicate-obligation", base_request, base_owners, base_requirements + duplicate_obligation + "\n")
+Path(paths[0]).write_text(rebind(base_request, paths[1], paths[2]))
+record("duplicate-obligation", project_result(paths[0], paths[1], paths[2]))
+
+stale_projection ∈ str ← case_path("stale-cxx-valid-artifact", "projection.tsv")
+stale_text ∈ str ← Path(sdf_projection).read_text().replace("implementation_eligibility=non-cxx-only", "implementation_eligibility=cxx-binary:7e31cd05b7a9d8fb2a4a9e003a7f3fcb0159138506d17f0fb28da8cbe22aa85c", 1)
+Path(stale_projection).write_text(stale_text)
+record("stale-cxx-valid-artifact", validate_result(sdf_request, owners, requirements, stale_projection))
+
+proposal_line ∈ str ← find_line(base_requirements, "proposal-leaf-matrix\t")
+irrelevant_line ∈ str ← proposal_line.replace("proposal-leaf-matrix\tproposal", "irrelevant-observation\tobservation", 1).replace("sdf-netbsd\towner\tmatrix_owner=dilapidated-shed/grease", "unused-target\ttarget\tnote=irrelevant", 1)
+paths ← write_case("irrelevant-record", base_request, base_owners, base_requirements + irrelevant_line + "\n")
+Path(paths[0]).write_text(rebind(base_request, paths[1], paths[2]))
+irrelevant_projection ∈ bytes ← bytes(requirement_projection.projection_bytes(paths[0], paths[1], paths[2], specimen))
+record("irrelevant-record", "PASS" if irrelevant_projection == sdf_projection_bytes else "projection-changed")
+
+all_requirement_lines ∈ list[str] ← base_requirements.splitlines()
+header ∈ str ← all_requirement_lines[0]
+body ∈ list[str] ← all_requirement_lines[1:]
+body.reverse()
+reordered ∈ str ← header + "\n" + str("\n".join(body)) + "\n"
+paths ← write_case("context-reorder", base_request, base_owners, reordered)
+reordered_projection ∈ bytes ← bytes(requirement_projection.projection_bytes(paths[0], paths[1], paths[2], specimen))
+record("context-reorder", "PASS" if reordered_projection == sdf_projection_bytes else "projection-changed")
+
+material_source_hash ∈ str ← str(requirement_projection.digest(Path(specimen + "/sources/material-correction-fixture.txt").read_bytes()))
+correction_line ∈ str ← find_line(base_requirements, "req-grease-non-cxx\t")
+material_line ∈ str ← correction_line.replace("req-grease-non-cxx\t", "req-grease-source-only\t", 1).replace("sources/catfood-131-correction.txt", "sources/material-correction-fixture.txt", 1).replace("https://github.com/isomorphisms/catfood/issues/131", "fixture:material-correction", 1).replace("dcedafe6ad57c02eb9d325b2d2df6bb19392336dcdef2d3ed62eedfcb6eac858", material_source_hash, 1).replace("implementation_eligibility=non-cxx-only", "implementation_eligibility=source-built-non-cxx-only", 1).replace("req-grease-compiled-default\tapplicable", "req-grease-non-cxx\tapplicable", 1)
+paths ← write_case("material-correction", base_request, base_owners, base_requirements + material_line + "\n")
+Path(paths[0]).write_text(rebind(base_request, paths[1], paths[2]))
+material_projection ∈ bytes ← bytes(requirement_projection.projection_bytes(paths[0], paths[1], paths[2], specimen))
+record("material-correction", "PASS" if material_projection != sdf_projection_bytes and b"source-built-non-cxx-only" in material_projection else "projection-unchanged")
+
+proposal_active ∈ str ← replace_once(base_requirements, "\t-\tnot_applicable\tSynthetic proposal control", "\t-\tapplicable\tSynthetic proposal control")
+paths ← write_case("proposal-as-instruction", base_request, base_owners, proposal_active)
+Path(paths[0]).write_text(rebind(base_request, paths[1], paths[2]))
+record("proposal-as-instruction", project_result(paths[0], paths[1], paths[2]))
+
+omitted_projection ∈ str ← case_path("omitted-applicable-rule", "projection.tsv")
+kept ∈ list[str] ← []
+sdf_projection_lines ∈ list[str] ← Path(sdf_projection).read_text().splitlines()
+for line in sdf_projection_lines:
+    if not "req-sdf-matrix-cell" in line:
+        kept.append(line)
+Path(omitted_projection).write_text(str("\n".join(kept)) + "\n")
+record("omitted-applicable-rule", validate_result(sdf_request, owners, requirements, omitted_projection))
+
+unsupported ∈ str ← replace_once(base_requirements, "\treq-grease-compiled-default\tapplicable\tThe later human correction", "\treq-leaf-build-owner\tapplicable\tThe later human correction")
+paths ← write_case("unsupported-supersession", base_request, base_owners, unsupported)
+Path(paths[0]).write_text(rebind(base_request, paths[1], paths[2]))
+record("unsupported-supersession", project_result(paths[0], paths[1], paths[2]))
+
+wrong_target ∈ str ← replace_once(base_request, "target\tsdf-netbsd", "target\tunknown-target")
+paths ← write_case("wrong-target", wrong_target, base_owners, base_requirements)
+record("wrong-target", project_result(paths[0], paths[1], paths[2]))
+
+missing ∈ str ← replace_once(base_requirements, "\treq-grease-compiled-default\tapplicable\tThe later human correction", "\tmissing-predecessor\tapplicable\tThe later human correction")
+paths ← write_case("missing-predecessor", base_request, base_owners, missing)
+Path(paths[0]).write_text(rebind(base_request, paths[1], paths[2]))
+record("missing-predecessor", project_result(paths[0], paths[1], paths[2]))
+
+cycle ∈ str ← replace_once(base_requirements, "req-grease-compiled-default\tdirect_instruction", "req-grease-compiled-default\tcorrection")
+cycle ← replace_once(cycle, "implementation_eligibility=compiled-runtime\t-\tapplicable", "implementation_eligibility=compiled-runtime\treq-grease-non-cxx\tapplicable")
+paths ← write_case("supersession-cycle", base_request, base_owners, cycle)
+Path(paths[0]).write_text(rebind(base_request, paths[1], paths[2]))
+record("supersession-cycle", project_result(paths[0], paths[1], paths[2]))
+
+duplicate_requirement ∈ str ← base_requirements + matrix_line + "\n"
+paths ← write_case("duplicate-requirement", base_request, base_owners, duplicate_requirement)
+Path(paths[0]).write_text(rebind(base_request, paths[1], paths[2]))
+record("duplicate-requirement", project_result(paths[0], paths[1], paths[2]))
+
+changed_source ∈ str ← replace_once(base_requirements, "dcedafe6ad57c02eb9d325b2d2df6bb19392336dcdef2d3ed62eedfcb6eac858", "0000000000000000000000000000000000000000000000000000000000000000")
+paths ← write_case("changed-source-hash", base_request, base_owners, changed_source)
+Path(paths[0]).write_text(rebind(base_request, paths[1], paths[2]))
+record("changed-source-hash", project_result(paths[0], paths[1], paths[2]))
+
+changed_profile ∈ str ← replace_once(base_owners, "build-distribution\tsources/issue-181-ownership.txt", "changed-scope\tsources/issue-181-ownership.txt")
+paths ← write_case("changed-profile-hash", base_request, changed_profile, base_requirements)
+record("changed-profile-hash", project_result(paths[0], paths[1], paths[2]))
+
+changed_requirements ∈ str ← replace_once(base_requirements, "matrix_owner=isomorphisms/catfood", "matrix_owner=dilapidated-shed/grease")
+paths ← write_case("changed-requirements-hash", base_request, base_owners, changed_requirements)
+record("changed-requirements-hash", project_result(paths[0], paths[1], paths[2]))
+
+unknown ∈ str ← replace_once(base_requirements, "\t-\tapplicable\tSDF and NetBSD are", "\t-\tunknown\tSDF and NetBSD are")
+paths ← write_case("unknown-applicability", base_request, base_owners, unknown)
+Path(paths[0]).write_text(rebind(base_request, paths[1], paths[2]))
+record("unknown-applicability", project_result(paths[0], paths[1], paths[2]))
+
+first ∈ bytes ← bytes(requirement_projection.projection_bytes(sdf_request, owners, requirements, specimen))
+second ∈ bytes ← bytes(requirement_projection.projection_bytes(sdf_request, owners, requirements, specimen))
+ids ∈ list[str] ← []
+first_lines ∈ list[str] ← first.decode().splitlines()
+for line in first_lines:
+    fields ∈ list[str] ← line.split("\t")
+    if fields[0] == "obligation":
+        if ids.__contains__(fields[3]):
+            raise AssertionError("duplicate canonical obligation")
+        ids.append(fields[3])
+record("repeat-canonicalization", "PASS" if first == second and len(ids) == 4 else "repeat-changed")
+
+Path(output + "/results.tsv").write_text(str("\n".join(results)) + "\n")
+print("requirement projection cases PASS: " + str(len(expected)))

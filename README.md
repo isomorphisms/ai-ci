@@ -2,6 +2,11 @@
 
 `ai-ci` is a shared contract test suite for AI-authored project work.
 
+[Source-bound requirement projection](requirements/README.md) canonically
+binds applicable owner/program/target obligations and explicit corrections to
+maintained request bytes without treating retrieval or copied prose as proof of
+compliance.
+
 [Independent source-checkout admission](source-closure/README.md) compares
 Cat Food's acquired source and canonical record against caller-owned immutable
 expectations, using the actual Idriç verifier and independently built Git cases.
