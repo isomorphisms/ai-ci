@@ -212,6 +212,9 @@ check_case root (identifier, session) = do
   response_hash ← file_hash (directory ++ "/model/raw-response.txt")
   require (identifier ++ " exact inference artifacts") (field "request_sha256" execution ≟ Just request_hash && field "prompt_sha256" execution ≟ Just prompt_hash && field "raw_response_sha256" execution ≟ Just response_hash)
   raw ← read_required (directory ++ "/model/raw-response.txt")
+  prefix ← read_required (directory ++ "/model/response-prefix.txt")
+  completion ← read_required (directory ++ "/model/completion.txt")
+  require (identifier ++ " declared syntax prefix and actual completion") (prefix ≟ "{" && isSuffixOf prefix prompt && raw ≟ prefix ++ completion)
   encoded ← case encode_response raw of
     Left error => die ("FAIL\tindependent response codec: " ++ error)
     Right value => pure value

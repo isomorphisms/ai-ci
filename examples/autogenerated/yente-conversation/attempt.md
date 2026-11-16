@@ -112,6 +112,12 @@ It imports no producer decoder. Unknown records, changed fields, omitted
 records and extra records fail the projection check. Local input decoder
 controls pass, including refusal of short frames and unknown record types.
 
+The producer's JSON syntax prefill is separately declared. Live.idric requires
+the prefix to be exactly `{`, requires that same suffix in the actual prompt,
+and reconstructs the effective response from the prefix and the unmodified
+generated completion before independently decoding it. This permits a syntax
+constraint without disguising handwritten wording or repaired model fields.
+
 ## Uncited wording withdrawal regression
 
 A later review distinguishes the model's declared citations from everything it
