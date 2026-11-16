@@ -11,6 +11,76 @@ import System.File
 
 -- Independently decode the actual model output. No producer/core imports.
 
+framed_value : List Char → Either Text (Text, List Char)
+framed_value input =
+  let (digits, suffix) = span isDigit input in
+  case suffix of
+    ':' :: remaining =>
+      if null digits then Left "missing frame length" else
+        let count : Number = cast (pack digits) in
+        if length remaining < count then Left "short context frame"
+        else Right (pack (take count remaining), drop count remaining)
+    _ => Left "missing frame separator"
+
+framed_row : Number → List Char → Either Text (List Text, List Char)
+framed_row Z _ = Left "context row exhausted input"
+framed_row (S fuel) ('\n' :: remaining) = Right ([], remaining)
+framed_row (S fuel) [] = Left "unterminated context row"
+framed_row (S fuel) input = do
+  (value, remaining) ← framed_value input
+  (values, rest) ← framed_row fuel remaining
+  Right (value :: values, rest)
+
+context_rows : Number → List Char → Either Text (List (List Text))
+context_rows Z [] = Right []
+context_rows Z _ = Left "context input exhausted"
+context_rows (S fuel) [] = Right []
+context_rows (S fuel) input@(first :: _) =
+  if isDigit first then do
+    (values, remaining) ← framed_row (length input) input
+    rows ← context_rows fuel remaining
+    Right (values :: rows)
+  else case dropWhile (/= '\n') input of
+    '\n' :: remaining => context_rows fuel remaining
+    _ => Left "unterminated request instruction"
+
+record_layouts : List (Text, List Text)
+record_layouts =
+  [ ("session", ["id", "audience_role", "role_subject", "participants", "purpose"])
+  , ("mode", ["discussion_allowed", "retention_allowed", "topic", "deferred_topics", "preferences"])
+  , ("evidence", ["id", "speaker", "account_kind", "event_time", "report_time", "revision", "status", "exact_passage"])
+  , ("tentative", ["id", "support", "dependencies", "claim"])
+  , ("previous-yenta", ["move", "status", "wording"])
+  , ("agreement", ["id", "revision", "exact_text", "affected", "confirmations", "status"])
+  , ("eligible-moves", ["moves"])
+  , ("challenge", ["id", "topic", "audience", "authorship", "source_ids", "assumptions", "relevance", "uncertainty", "first_move", "first_prompt", "followup_moves"])
+  ]
+
+project_record : List Text → Either Text JSON
+project_record [] = Left "empty context record"
+project_record (tag :: values) =
+  case lookup tag record_layouts of
+    Nothing => Left "unknown context record"
+    Just names => if length names /= length values then Left "context record arity"
+      else Right (JObject (("record_type", JString tag) :: zip names (map JString values)))
+
+decode_request : Text → Either Text (Text, List JSON)
+decode_request raw = do
+  let header = "YENTA_MODEL_REQUEST_V1\n"
+  if not (isPrefixOf header raw) then Left "request version" else Right ()
+  let input = drop (length (unpack header)) (unpack raw)
+  rows ← context_rows (length input) input
+  policy ← case filter (\row => case row of "policy" :: _ => True; _ => False) rows of
+    [["policy", value]] => Right value
+    _ => Left "policy cardinality"
+  records ← traverse project_record (filter (\row => case row of "policy" :: _ => False; _ => True) rows)
+  Right (policy, records)
+
+same_record : JSON → JSON → Bool
+same_record (JObject first) (JObject second) =
+  sortBy (\left, right => compare (fst left) (fst right)) first ≟ sortBy (\left, right => compare (fst left) (fst right)) second
+same_record _ _ = False
+
 string_value : JSON → Either Text Text
 string_value (JString value) =
   if value ≟ "" || any (\letter => elem letter ['\t', '\r', '\n', '\0']) (unpack value)
@@ -125,8 +195,14 @@ check_case root (identifier, session) = do
   require (identifier ++ " unrelated confidence absent") (not (isInfixOf "PRIVATE-CONFIDENCE-TULIP-417" prompt))
   presented ← read_required (directory ++ "/model/presented-context.json")
   require (identifier ++ " context used in prompt") (isInfixOf presented prompt)
+  (policy, expected_records) ← case decode_request original of
+    Left error => die ("FAIL\tindependent input decoder: " ++ error)
+    Right value => pure value
+  require (identifier ++ " exact core policy in prompt") (isInfixOf policy prompt)
   case Language.JSON.parse presented of
-    Just (JArray records) => require (identifier ++ " speaker/session scope") (not (null records) && all (permitted_record session) records)
+    Just (JArray records) => do
+      require (identifier ++ " faithful model context projection") (length records ≟ length expected_records && all (\(left, right) => same_record left right) (zip records expected_records))
+      require (identifier ++ " speaker/session scope") (not (null records) && all (permitted_record session) records)
     _ => die "FAIL\tmalformed presented context"
   execution ← read_required (directory ++ "/model/execution.tsv")
   require (identifier ++ " actual model execution receipt") (field "state" execution ≟ Just "EXECUTED" && field "model" execution ≟ Just "Qwen/Qwen2.5-1.5B-Instruct" && field "revision" execution ≟ Just "989aa7980e4cf806f80c7fef2b1adb7bc71aa306")
@@ -157,6 +233,11 @@ codec_controls = do
   require "independent codec refuses extra operation" (isLeft (encode_response (good ++ "{}")))
   require "independent codec refuses missing fields" (isLeft (encode_response "{}"))
   require "independent codec refuses nonstring wording" (isLeft (encode_response "{\"move\":\"pause\",\"uncertainty\":\"x\",\"evidence_ids\":[],\"hypothesis_ids\":[],\"challenge_id\":\"-\",\"wording\":9}"))
+  let framed = "YENTA_MODEL_REQUEST_V1\n6:policy3:a\nb\n7:session1:s7:partner1:p1:p4:test\n"
+  require "independent input decoder preserves multiline policy and named fields"
+    (decode_request framed ≟ Right ("a\nb", [JObject [("record_type", JString "session"), ("id", JString "s"), ("audience_role", JString "partner"), ("role_subject", JString "p"), ("participants", JString "p"), ("purpose", JString "test")]]))
+  require "independent input decoder refuses short frame" (isLeft (decode_request "YENTA_MODEL_REQUEST_V1\n6:policy99:short\n"))
+  require "independent input decoder refuses unknown record" (isLeft (decode_request "YENTA_MODEL_REQUEST_V1\n6:policy1:p\n6:secret1:x\n"))
 
 covering
 main : IO ()

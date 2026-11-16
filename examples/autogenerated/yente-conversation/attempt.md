@@ -105,6 +105,13 @@ interpretation quality are reported separately after the actual trial; an
 adapter-written execution receipt alone is not an independent claim about
 model semantics. No additional language gap is established by this observer.
 
+The input-side observer also independently parses the core's character-count
+framing, including multiline values, maps its declared record fields and
+compares every record with the JSON actually inserted into the model prompt.
+It imports no producer decoder. Unknown records, changed fields, omitted
+records and extra records fail the projection check. Local input decoder
+controls pass, including refusal of short frames and unknown record types.
+
 ## Uncited wording withdrawal regression
 
 A later review distinguishes the model's declared citations from everything it
