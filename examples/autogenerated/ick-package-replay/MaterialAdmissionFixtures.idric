@@ -1,0 +1,145 @@
+module MaterialAdmissionFixtures
+
+import Data.Text
+import Data.List
+import System
+import System.File
+import SourceProcess
+
+%unbound_implicits off
+
+covering
+require_fixture : Bool → Text → IO ()
+require_fixture condition diagnostic = if condition then pure () else die ("MATERIAL-FIXTURE: " ++ diagnostic)
+
+covering
+write_fixture : Text → Text → IO ()
+write_fixture filename contents = do
+  Right () ← writeFile filename contents
+    | Left failure ⇒ die ("MATERIAL-FIXTURE-WRITE: " ++ show failure)
+  pure ()
+
+covering
+fixture_digest : Text → IO Text
+fixture_digest contents = do
+  observed ← require_process ["/usr/bin/sha256sum"] contents
+  case words observed of
+    digest :: remaining ⇒ pure digest
+    [] ⇒ die "MATERIAL-FIXTURE-HASH"
+
+covering
+fixture_record : Text → IO Text
+fixture_record driver = do
+  driver_digest ← fixture_digest driver
+  dependency_digest ← fixture_digest "runtime dependency\n"
+  header_digest ← fixture_digest "literal plus header\n"
+  pure (driver_digest ++ "\t755\tbin/compiler\n" ++
+    dependency_digest ++ "\t644\tlib/dependency\n" ++
+    header_digest ++ "\t644\tlib/libgdiagnostics++.h\n")
+
+covering
+create_fixture : Text → IO Text
+create_fixture root = do
+  ignore $ require_process ["/usr/bin/mkdir", "-p", "--", root ++ "/bin", root ++ "/lib"] ""
+  write_fixture (root ++ "/bin/compiler") "required driver\n"
+  write_fixture (root ++ "/lib/dependency") "runtime dependency\n"
+  write_fixture (root ++ "/lib/libgdiagnostics++.h") "literal plus header\n"
+  ignore $ require_process ["/usr/bin/chmod", "755", "--", root ++ "/bin/compiler"] ""
+  ignore $ require_process ["/usr/bin/chmod", "644", "--", root ++ "/lib/dependency", root ++ "/lib/libgdiagnostics++.h"] ""
+  material_record ← fixture_record "required driver\n"
+  write_fixture (root ++ "/material.tsv") material_record
+  pure material_record
+
+covering
+fingerprint_fixture : Text → IO Text
+fingerprint_fixture root = do
+  nodes ← require_process ["/usr/bin/find", "-P", root, "-printf", "%y %m %p %l\\n"] ""
+  files ← require_process ["/usr/bin/find", "-P", root, "-type", "f", "-exec", "/usr/bin/sha256sum", "--", "{}", "+"] ""
+  fixture_digest (nodes ++ files)
+
+covering
+observe_case : Text → Text → Text → Text → Text → Text → IO ()
+observe_case verifier name root approved required expected = do
+  before ← fingerprint_fixture root
+  observed ← observe_process ["/usr/bin/timeout", "5", verifier, root, approved, required] ""
+  after ← fingerprint_fixture root
+  require_fixture (before ≟ after) (name ++ " changed package")
+  let passing = expected ≟ "PASS"
+  require_fixture (observed.exit_status ≟ if passing then 0 else 1) (name ++ " status " ++ show observed.exit_status ++ ": " ++ observed.standard_output)
+  require_fixture (isInfixOf (if passing then "PASS MATERIAL-ADMISSION" else "FAIL " ++ expected) observed.standard_output)
+    (name ++ " wrong diagnostic: " ++ observed.standard_output)
+  putStrLn ("PASS material-control " ++ name ++ " unchanged")
+
+covering
+run_case : Text → Text → Text → IO ()
+run_case verifier directory mutation = do
+  let root = directory ++ "/" ++ mutation ++ " relocated ' package"
+  material_record ← create_fixture root
+  approved ← fixture_digest material_record
+  let required = directory ++ "/" ++ mutation ++ ".required.tsv"
+  write_fixture required material_record
+  expected ← case mutation of
+    "changed-rehashed-driver" ⇒ do
+      write_fixture (root ++ "/bin/compiler") "wrong driver\n"
+      write_fixture (root ++ "/material.tsv") !(fixture_record "wrong driver\n")
+      pure "MATERIAL-APPROVED-INVENTORY"
+    "missing-dependency" ⇒ do
+      ignore $ require_process ["/usr/bin/rm", "--", root ++ "/lib/dependency"] ""
+      write_fixture (root ++ "/material.tsv")
+        (concat (map (\row ⇒ row ++ "\n") (filter (\row ⇒ not (isSuffixOf "\tlib/dependency" row)) (lines material_record))))
+      pure "MATERIAL-APPROVED-INVENTORY"
+    "false-mode" ⇒ do
+      ignore $ require_process ["/usr/bin/chmod", "644", "--", root ++ "/bin/compiler"] ""
+      pure "MATERIAL-APPROVED-INVENTORY"
+    "extra-file" ⇒ do
+      write_fixture (root ++ "/extra") "unexpected\n"
+      pure "MATERIAL-APPROVED-INVENTORY"
+    "forged-record" ⇒ do
+      write_fixture (root ++ "/material.tsv") !(fixture_record "wrong driver\n")
+      pure "MATERIAL-RECORD"
+    "reordered-record" ⇒ do
+      write_fixture (root ++ "/material.tsv") (concat (map (\row ⇒ row ++ "\n") (reverse (lines material_record))))
+      pure "MATERIAL-RECORD"
+    "required-digest" ⇒ do
+      write_fixture required !(fixture_record "wrong driver\n")
+      pure "MATERIAL-REQUIRED"
+    "required-duplicate" ⇒ do
+      write_fixture required (material_record ++ material_record)
+      pure "MATERIAL-REQUIRED-CONTRACT"
+    "required-malformed" ⇒ do
+      write_fixture required "self-approved\n"
+      pure "MATERIAL-REQUIRED-CONTRACT"
+    "symlink" ⇒ do
+      ignore $ require_process ["/usr/bin/ln", "-s", "--", "dependency", root ++ "/lib/link"] ""
+      pure "MATERIAL-NODE-TYPE"
+    "fifo" ⇒ do
+      ignore $ require_process ["/usr/bin/mkfifo", "--", root ++ "/lib/waiting"] ""
+      pure "MATERIAL-NODE-TYPE"
+    "newline-name" ⇒ do
+      write_fixture (root ++ "/invalid\nname") "unsafe path\n"
+      pure "MATERIAL-PATH"
+    "tab-name" ⇒ do
+      write_fixture (root ++ "/invalid\tname") "unsafe path\n"
+      pure "MATERIAL-PATH"
+    _ ⇒ pure "PASS"
+  observe_case verifier mutation root approved required expected
+
+covering
+main : IO ()
+main = do
+  [_, verifier, directory] ← getArgs | _ ⇒ die "usage: material-admission-fixtures VERIFIER FRESH_WORK_DIRECTORY"
+  require_fixture (isPrefixOf "/" directory) "absolute fixture directory required"
+  ignore $ require_process ["/usr/bin/mkdir", "--", directory] ""
+  let cases = ["ordinary", "relocated", "changed-rehashed-driver", "missing-dependency", "false-mode", "extra-file",
+        "forged-record", "reordered-record", "required-digest", "required-duplicate", "required-malformed",
+        "symlink", "fifo", "newline-name", "tab-name"]
+  for_ cases (run_case verifier directory)
+  let root = directory ++ "/approved-inventory"
+  material_record ← create_fixture root
+  let required = directory ++ "/approved.required.tsv"
+  write_fixture required material_record
+  observe_case verifier "wrong-approved-inventory" root
+    "0000000000000000000000000000000000000000000000000000000000000000" required "MATERIAL-APPROVED-INVENTORY"
+  write_fixture (directory ++ "/outcomes.tsv")
+    (concat (map (\name ⇒ name ++ "\tPASS\tunchanged\n") (cases ++ ["wrong-approved-inventory"])))
+  putStrLn "PASS independent-material-fixtures 16 named cases; package fingerprints unchanged"

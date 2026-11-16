@@ -6,6 +6,7 @@ on:
       - "reproducibility/**"
       - "src/aici_reproducibility.c"
       - "ick-host/**"
+      - "c-source/**"
       - ".github/workflows/reproducibility-self-test.yml"
   push:
     branches:
@@ -14,10 +15,12 @@ on:
       - "reproducibility/**"
       - "src/aici_reproducibility.c"
       - "ick-host/**"
+      - "c-source/**"
       - ".github/workflows/reproducibility-self-test.yml"
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   independent-builds:
@@ -30,7 +33,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
 
-      - name: Check out the exact released S01 candidate
+      - name: Check out the accepted exact S01 schema source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: isomorphisms/android-NDK
@@ -40,27 +43,42 @@ jobs:
           sparse-checkout-cone-mode: false
           persist-credentials: false
 
-      - name: Bind the exact S01 schema bytes
+      - name: Acquire exact partial native Grease for scoped source execution
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          artifact-ids: '14083485063'
+          run-id: '43520333267'
+          repository: dilapidated-shed/oils
+          github-token: ${{ github.token }}
+          merge-multiple: true
+          path: ${{ runner.temp }}/aici-repro-grease-artifact
+
+      - name: Bind native Grease bytes at the artifact transport boundary
         shell: sh
         run: >-
-          test "$(sha256sum _android-ndk-s01/apk/nativeactivity-receipt-v2.schema.tsv | cut -d ' ' -f 1)"
-          = 1b6af10a2e81197b5ebb8413577f6834c440e4eb78e0df6b95f13a4bbaca1c70
+          cmake
+          -DARTIFACT_ROOT="${{ runner.temp }}/aici-repro-grease-artifact"
+          -DRUNTIME_ROOT="${{ runner.temp }}/aici-repro-grease"
+          -P reproducibility/PrepareGrease.cmake
 
       - name: Select the qualified ICK C compiler
         uses: ./ick-host
         id: ick
 
-      - name: Compile the comparator through ICK
-        shell: sh
+      - name: Compile and check owned Icky C through ICK and Grease
+        shell: ${{ runner.temp }}/aici-repro-grease/grease {0}
+        env:
+          AICI_REPRO_COMPILER: ${{ steps.ick.outputs.compiler }}
         run: >-
-          "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }}
-          -std=c17 -Wall -Wextra -Werror -pedantic -O2
-          -o /tmp/aici-reproducibility src/aici_reproducibility.c
+          "$RUNNER_TEMP/aici-repro-grease/grease" reproducibility/driver.grease
+          compile "$AICI_REPRO_COMPILER" "$GITHUB_WORKSPACE"
+          "$RUNNER_TEMP/aici-reproducibility"
 
       - name: Prove equal builds and targeted hostile controls
-        shell: sh
+        shell: ${{ runner.temp }}/aici-repro-grease/grease {0}
         run: >-
-          /tmp/aici-reproducibility self-test
+          "$RUNNER_TEMP/aici-repro-grease/grease" reproducibility/driver.grease
+          self-test "$RUNNER_TEMP/aici-reproducibility"
           _android-ndk-s01/apk/nativeactivity-receipt-v2.schema.tsv
           "$RUNNER_TEMP/aici-reproducibility-cases"
 
@@ -76,13 +94,20 @@ jobs:
           ndk-receipt-schema: _android-ndk-s01/apk/nativeactivity-receipt-v2.schema.tsv
 
       - name: Check the retained verdict boundary
-        shell: sh
+        shell: ${{ runner.temp }}/aici-repro-grease/grease {0}
         env:
           VERDICT: ${{ steps.reproducibility.outputs.verdict }}
-        run: |
-          tab="$(printf '\t')"
-          test -s "$VERDICT"
-          grep -F "schema${tab}aici-independent-build-verdict-v1" "$VERDICT"
-          grep -F "ndk_packager_revision${tab}75d2c6b88443c9cf865c30146a06b89868a182c5" "$VERDICT"
-          grep -F "result${tab}PASS" "$VERDICT"
+        run: >-
+          "$RUNNER_TEMP/aici-repro-grease/grease" reproducibility/driver.grease
+          check-verdict "$VERDICT"
+
+      - name: Retain exact host-source evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: independent-builds-host-source-${{ github.event.pull_request.head.sha || github.sha }}
+          if-no-files-found: error
+          path: |
+            ${{ runner.temp }}/aici-repro-grease/runtime.tsv
+            ${{ runner.temp }}/aici-independent-build-verdict.tsv
 

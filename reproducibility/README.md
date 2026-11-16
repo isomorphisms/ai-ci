@@ -4,9 +4,9 @@ This gate compares two complete consumer builds after each build has run in its
 own source, work and output roots. It consumes the version 2 NativeActivity
 receipt released by [isomorphisms/android-NDK PR #17, “Make NativeActivity
 packaging reproducible with a source epoch”](https://github.com/isomorphisms/android-NDK/pull/17)
-at exact head `75d2c6b88443c9cf865c30146a06b89868a182c5`. That pull request remains
-draft and unmerged; callers must check out the exact head rather than assuming
-the contract exists on `android-NDK` main.
+at accepted source `75d2c6b88443c9cf865c30146a06b89868a182c5`. That pull request
+has merged. Qualification continues to check out the immutable schema source
+and bind its exact bytes.
 
 The exact S01 schema SHA-256 used by this qualification is
 `1b6af10a2e81197b5ebb8413577f6834c440e4eb78e0df6b95f13a4bbaca1c70`.
@@ -54,6 +54,10 @@ inapplicable and requires a new comparison.
 The reusable action accepts these paths:
 
 ```yaml
+permissions:
+  contents: read
+  actions: read
+
 - uses: isomorphisms/ai-ci/reproducibility@FULL_AI_CI_COMMIT
   id: reproducibility
   with:
@@ -70,7 +74,29 @@ The reusable action accepts these paths:
 The self-test accepts equivalent independently witnessed builds and rejects a
 reused first-attempt witness, hidden dependency drift, wrong NDK revision,
 omitted unsigned stage, unequal signed bytes, shared output inodes, unchanged
-environment variation, an unverified witness and stale policy reuse.
+environment variation, an unverified witness, stale policy reuse and a missing
+executed case.
+
+`src/aici_reproducibility.c` is maintained owned Icky C. Its assignments and
+initializers use literal `←`; cardinality quotients use `÷`. The selected ICK
+frontend compiles both the comparator and `c-source/assignments.c`, then the
+checker rejects ordinary assignments in the comparator before its semantic
+corpus runs. Pointer declarators, comparisons, compound operations, literals
+and comments preserve their C meanings.
+
+`driver.grease` owns compile, self-test, action verification and retained-verdict
+orchestration. The workflow and action execute it through the actual partial
+native D Grease implementation from `dilapidated-shed/oils` source
+`df3ecfcb58031e82f5ae98d1301c7ee67fbb21a7`,
+[run 43520333267](https://github.com/dilapidated-shed/oils/actions/runs/43520333267),
+artifact `14083485063`. `PrepareGrease.cmake` is only the artifact transport
+boundary: it checks the exact executable SHA-256
+`5991182c9540a8bba58c12bf15965db033b6bcbb59b30f85a8c44000b697382c`,
+copies those bytes to the consumer-facing `grease` entrypoint, sets executable
+mode and records provenance. It does not invoke another shell implementation.
+Hosted execution qualifies this command source and its exercised operations
+only. Full-language behavior, independent static/transitive exclusion and
+managed runtime eligibility remain separate and unverified by this gate.
 
 This comparator consumes a separately verified process witness; it does not
 authenticate the witness issuer itself. Until BC-P01 releases and qualifies

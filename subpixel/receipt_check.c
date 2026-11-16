@@ -41,8 +41,8 @@ static void field_line(char *buffer, size_t size, const char *field,
 }
 
 int main(int argc, char **argv) {
-    if (argc != 3) {
-        fputs("usage: receipt-check RECEIPT EXPECTED_IKEFILE_IDENTITY\n", stderr);
+    if (argc != 3 && argc != 5) {
+        fputs("usage: receipt-check RECEIPT EXPECTED_IKEFILE_IDENTITY [EXPECTED_TARGET EXPECTED_RECIPE]\n", stderr);
         return 2;
     }
     const char *identity = argv[2];
@@ -55,11 +55,14 @@ int main(int argc, char **argv) {
     FILE *input = fopen(argv[1], "rb");
     if (!input) error("cannot open receipt");
     char line[4096], hex_target[2048], hex_recipe[2048];
-    encoded("accept", hex_target, sizeof hex_target);
-    encoded("sh accept.sh", hex_recipe, sizeof hex_recipe);
+    const char *target = argc == 5 ? argv[3] : "accept";
+    const char *recipe = argc == 5 ? argv[4] : "sh accept.sh";
+    if (!*target || !*recipe) error("empty expected execution");
+    encoded(target, hex_target, sizeof hex_target);
+    encoded(recipe, hex_recipe, sizeof hex_recipe);
 
     require_line(input, "schema\tike-build-v1", "schema");
-    field_line(line, sizeof line, "selected_target_hex", "accept");
+    field_line(line, sizeof line, "selected_target_hex", target);
     require_line(input, line, "selected target");
     field_line(line, sizeof line, "ikefile_identity_hex", identity);
     require_line(input, line, "Ikefile digest");

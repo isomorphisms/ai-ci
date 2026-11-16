@@ -1,0 +1,2 @@
+accept depends on qualify-stack.grease verify_stack.c
+    "$GREASE_BINARY" qualify-stack.grease

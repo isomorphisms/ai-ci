@@ -278,11 +278,52 @@ static void test_coverage_plane_and_framebuffer(void) {
     }
 }
 
+static unsigned rational_byte(uint64_t numerator,uint64_t denominator) {
+    return (unsigned)((numerator+denominator/2)/denominator);
+}
+static void test_translucent_rounding(void) {
+    const unsigned alphas[]={0,1,64,128,136,254,255};
+    const unsigned destination_alphas[]={0,1,128,255};
+    const unsigned opacity_denominators[]={1,2,8};
+    const uint32_t colors[]={0xff0000,0x0000ff,0x1a7fc3};
+    const uint32_t backgrounds[]={0xf4e9d8,0x695bcd,0x000000,0xffffff};
+    unsigned cases=0;
+    for(unsigned source_alpha_index=0;source_alpha_index<7;source_alpha_index++)
+    for(unsigned destination_alpha_index=0;destination_alpha_index<4;destination_alpha_index++)
+    for(unsigned opacity_index=0;opacity_index<3;opacity_index++)
+    for(unsigned color_index=0;color_index<3;color_index++)
+    for(unsigned background_index=0;background_index<4;background_index++)
+    for(unsigned count=0;count<=64;count++) {
+        unsigned source_alpha=alphas[source_alpha_index],destination_alpha=destination_alphas[destination_alpha_index];
+        unsigned opacity_denominator=opacity_denominators[opacity_index];
+        uint64_t mask=count==64?UINT64_MAX:count?(UINT64_C(1)<<count)-1:0;
+        uint32_t source=(source_alpha<<24)|colors[color_index];
+        uint32_t actual=(destination_alpha<<24)|backgrounds[background_index],before=actual;
+        cp_coverage_plane plane={&mask,1,1,1,1,0,0};
+        rough_framebuffer target={&actual,1,1,1};
+        require(rough_blend_subpixel_coverage(&target,&plane,source,1.0/opacity_denominator)==0,"translucent rational invocation");
+        uint32_t expected=before;
+        if(source_alpha&&count) {
+            uint64_t common=255*64*opacity_denominator;
+            uint64_t source_weight=255*source_alpha*count;
+            uint64_t destination_weight=destination_alpha*(common-source_alpha*count);
+            uint64_t total=source_weight+destination_weight;
+            expected=rational_byte(total,common)<<24;
+            for(unsigned shift=0;shift<24;shift+=8)
+                expected|=rational_byte(((source>>shift)&255)*source_weight+((before>>shift)&255)*destination_weight,total)<<shift;
+        }
+        if(actual!=expected)fail("translucent integer-rational byte rounding",(int)source_alpha,(int)count,actual,expected);
+        cases++;
+    }
+    printf("independent translucent rational cases: %u PASS\n",cases);
+}
+
 int main(void) {
     test_3x3();
     test_5x5();
     test_accumulation_and_failure();
     test_coverage_plane_and_framebuffer();
+    test_translucent_rounding();
     puts("aici independent subpixel curvature oracle: PASS");
     return 0;
 }

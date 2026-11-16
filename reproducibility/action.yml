@@ -29,21 +29,40 @@ outputs:
 runs:
   using: composite
   steps:
+    - name: Acquire exact partial native Grease for scoped source execution
+      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+      with:
+        artifact-ids: '14083485063'
+        run-id: '43520333267'
+        repository: dilapidated-shed/oils
+        github-token: ${{ github.token }}
+        merge-multiple: true
+        path: ${{ runner.temp }}/aici-repro-grease-artifact
+
+    - name: Bind native Grease bytes at the artifact transport boundary
+      shell: sh
+      run: >-
+        cmake
+        -DARTIFACT_ROOT="${{ runner.temp }}/aici-repro-grease-artifact"
+        -DRUNTIME_ROOT="${{ runner.temp }}/aici-repro-grease"
+        -P "${{ github.action_path }}/PrepareGrease.cmake"
+
     - name: Select the qualified ICK C compiler
-      uses: isomorphisms/ai-ci/ick-host@903b2cb27ea572c9c6cb2ffa9f39e0fbf06ec9f8
+      uses: isomorphisms/ai-ci/ick-host@2197c6f466e3f11d73acaf8a3814663ec6e9734a
       id: ick
 
     - name: Compile independent build comparator
-      shell: sh
+      shell: ${{ runner.temp }}/aici-repro-grease/grease {0}
+      env:
+        AICI_REPRO_COMPILER: ${{ steps.ick.outputs.compiler }}
       run: >-
-        "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }}
-        -std=c17 -Wall -Wextra -Werror -pedantic -O2
-        -o "$RUNNER_TEMP/aici-reproducibility"
-        "$GITHUB_ACTION_PATH/../src/aici_reproducibility.c"
+        "$RUNNER_TEMP/aici-repro-grease/grease" "$GITHUB_ACTION_PATH/driver.grease"
+        compile "$AICI_REPRO_COMPILER" "$GITHUB_ACTION_PATH/.."
+        "$RUNNER_TEMP/aici-reproducibility"
 
     - name: Compare retained build bytes and receipts
       id: verify
-      shell: sh
+      shell: ${{ runner.temp }}/aici-repro-grease/grease {0}
       env:
         AICI_REPRO_CONTRACT: ${{ inputs.contract }}
         AICI_REPRO_LEFT_ATTEMPT: ${{ inputs.left-attempt }}
@@ -51,14 +70,11 @@ runs:
         AICI_REPRO_RIGHT_ATTEMPT: ${{ inputs.right-attempt }}
         AICI_REPRO_RIGHT_ROOT: ${{ inputs.right-output-root }}
         AICI_REPRO_NDK_SCHEMA: ${{ inputs.ndk-receipt-schema }}
-      run: |
-        set -eu
-        verdict="$RUNNER_TEMP/aici-independent-build-verdict.tsv"
-        "$RUNNER_TEMP/aici-reproducibility" verify \
-          "$AICI_REPRO_CONTRACT" \
-          "$AICI_REPRO_LEFT_ATTEMPT" "$AICI_REPRO_LEFT_ROOT" \
-          "$AICI_REPRO_RIGHT_ATTEMPT" "$AICI_REPRO_RIGHT_ROOT" \
-          "$AICI_REPRO_NDK_SCHEMA" > "$verdict"
-        cat "$verdict"
-        printf 'verdict=%s\n' "$verdict" >> "$GITHUB_OUTPUT"
+      run: >-
+        "$RUNNER_TEMP/aici-repro-grease/grease" "$GITHUB_ACTION_PATH/driver.grease"
+        verify "$RUNNER_TEMP/aici-reproducibility" "$AICI_REPRO_CONTRACT"
+        "$AICI_REPRO_LEFT_ATTEMPT" "$AICI_REPRO_LEFT_ROOT"
+        "$AICI_REPRO_RIGHT_ATTEMPT" "$AICI_REPRO_RIGHT_ROOT"
+        "$AICI_REPRO_NDK_SCHEMA" "$RUNNER_TEMP/aici-independent-build-verdict.tsv"
+        "$GITHUB_OUTPUT"
 

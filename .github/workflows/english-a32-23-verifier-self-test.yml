@@ -1,0 +1,23 @@
+name: Verify independent English A32 acceptance contract
+on:
+  pull_request:
+    paths:
+      - 'english-major-c/verify-a32-23.mjs'
+      - '.github/workflows/english-a32-23-verifier-self-test.yml'
+  push:
+    branches:
+      - 'feature/emc-a32-23-acceptance-20261021'
+    paths:
+      - 'english-major-c/verify-a32-23.mjs'
+      - '.github/workflows/english-a32-23-verifier-self-test.yml'
+permissions:
+  contents: read
+jobs:
+  independent-verifier-self-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Prove independent oracle and mutation checks reject known-bad outputs
+        run: node english-major-c/verify-a32-23.mjs --self-test

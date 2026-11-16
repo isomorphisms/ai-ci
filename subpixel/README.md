@@ -2,8 +2,8 @@
 
 AICI tests the **actual** 3×3/5×5 C implementation in `isomorphisms/rough.framebuffer` against its own rational-integer midpoint oracle. The producer's numerical test arrays and product build scripts are **not** used.
 
-Current immutable acceptance target: `0a09edede932ba80feb7f35addede3eb17baf6f3` from
-[isomorphisms/rough.framebuffer PR #18, “Add bounded whole-path subpixel rendering and sampled font previews”](https://github.com/isomorphisms/rough.framebuffer/pull/18).
+Current immutable acceptance target: `f33a476c69da313745b58c10cf8057765f9cbec9` from
+[isomorphisms/rough.framebuffer PR #20, “Round Subpixel translucent composition in byte units”](https://github.com/isomorphisms/rough.framebuffer/pull/20).
 It includes the quadratic/cubic library and repaired build policy. The source
 checkout must match that exact revision. Updating the target requires a new
 review/run, not silently following a branch.
@@ -72,3 +72,82 @@ revision can run this verifier. The artifact route independently authenticates
 the archive, driver and frontend hashes rather than trusting producer scripts.
 Ike's literal POSIX recipe is the existing compatibility boundary. Device,
 registered FP dispatch and final integration remain separate acceptance levels.
+
+## Conway's real curved consumer
+
+`conway_verify.c` accepts the exact versioned geometry seam emitted by Conway
+42c99ed0d289162b6fd62d864fbf58fc042e24d8. It independently recognizes all
+81 tile translations × 8 square orientations, two source motif shapes per
+isometry, without implementing a competing orbit engine. At 128×128 it
+compares the actual native API's individual bits with long-double distances
+to the original two finite lines, circular quarter arc and separate circle.
+The declared 1/32-pixel boundary strip includes the bridge's 0.01-pixel circular
+approximation. Excluded samples are counted; they are not declared exact.
+Forced quadratic, cubic and automatic calls must converge and preserve padded
+rows. Existing independent path tests retain broader transform/work/cancel
+acceptance; a sampled comparison is not a certified continuous-area theorem.
+
+The reflected translucent probe has independently specified line coordinates,
+repeated segments within one shape and ordered #RGBA colors. Every sample mask
+is derived analytically, then integer-rational source-over predicts actual
+native CLI bytes. This exposed an existing half-byte rounding defect: source
+alpha 64, occupancy 33/64, opacity 1/2 over transparent output produced alpha
+16 rather than 17. The expanded rational oracle rejects that old implementation
+and checks 65,520 combinations of source/destination alpha, opacity, colors and
+all 0..64 occupancies against the repair. Expectations were not relaxed.
+
+`conway-accept.grease`, called by ICK-built Ike's `conway` target, compiles the
+real library, consumer CLI and independent C checker through the authenticated
+ICK. Seven changed real sources must execute and fail the unchanged checker:
+screen y reflection, missing line seam, reversed serialization order, ignored
+source alpha, double alpha resolution, blank output and shifted clipping.
+The full positive run rasterizes the wallpaper; targeted negative runs use
+the same binary's probe-only scope after checking the entire geometry inventory.
+This avoids pretending seven repetitions are independent full-scene tests.
+The exact second target/recipe is bound into an Ike receipt; wrong-target and
+final-result receipts remain rejected. Optional expected fields do not
+change the original `accept` receipt check's fixed defaults.
+
+The retained Idriç attempt records the observed package's missing explicit
+Float64 type. The ICK-compiled C-ABI oracle is a declared fallback, not Idriç
+success. Conway host acceptance does not establish device behavior, protected
+production admission or model dispatch.
+
+## Read the actual font preview bytes
+
+The `font-preview` Ike target executes `font-preview-accept.grease`. It compiles
+the real immutable producer preview and this same independent font oracle with
+ICK, then reads every completed output: 32 P6 panels, 640 metric records and
+105,344 masks. It decodes 6,742,016 fine-grid pixels into the actual masks and
+checks printed counts, enlarged/native resolved pixels, totals, fractional
+cells and FNV identities exactly. Four literal bitmap controls supply exact
+rectangle membership independently of the producer's bitmap accessor.
+
+The continuous comparison reuses the independent Bernstein bounds at scales
+1/1.5/2/4, all four emitted origins and both polarities. Its predeclared
+1/64-pixel boundary strip is reported separately: the positive inventory has
+5,015,040 definite samples and 41,472 excluded samples. These exclusions do
+not apply to the exact image/mask/count round trip. Legacy stroke pixels have
+no mask evidence and are not claimed accepted by this gate.
+
+Thirteen genuine compiled source defects must execute and fail for their intended
+diagnostic with unchanged oracle expectations. Ten change the preview:
+bitmap row reversal, lost S control, corner sampling phase, missing microcell
+edges, transposed bits, bitmap substitution, binary stamping, invented counts,
+transposed fine-grid image and hardcoded strategy. Three change the actual path
+library: additive union, ignored work cap and packed destination stride. The latter use the unchanged
+408-assertion API oracle, because a single preview call into an empty plane
+cannot distinguish first-call addition from OR. Every scope has an unchanged
+positive twin. Nine additional corrupt file inventories must reject: missing
+or additional rows, short/long P6 bytes, wrong totals/hash, wrong native or
+enlarged grayscale and a nonbinary sample pixel. These directly attack the
+metadata and resolved-image checks as well as parsing.
+
+Targeted preview source mutations use a declared one-panel matrix, not a claim
+of thirteen full-matrix repetitions. The original forced-binary fixture refused
+in the producer's own fractional-cell guard and was not counted as a kill;
+its corrected deliberately broken source also removes that guard so the
+independent oracle observes the emitted bad bits. See
+`font-preview-contract.md` for the fixed requirements and preserved failure.
+The workflow verifies the third exact Ike target/recipe and rejects a forged
+target. Registered FP and physical evidence remain separately bound.

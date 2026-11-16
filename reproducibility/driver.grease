@@ -1,0 +1,46 @@
+# Canonical command source. Execute through the exact native Grease artifact.
+set -e
+var operation = ARGV[0]
+if (operation === 'compile') {
+  var compiler = ARGV[1]
+  var root = ARGV[2]
+  var binary = ARGV[3]
+  $compiler -fno-link-libatomic -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o $binary $root/src/aici_reproducibility.c
+  $compiler -fno-link-libatomic -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o "$binary.assignments" $root/c-source/assignments.c
+  "$binary.assignments" check $root/src/aici_reproducibility.c
+} elif (operation === 'self-test') {
+  var binary = ARGV[1]
+  var schema = ARGV[2]
+  var cases = ARGV[3]
+  var schema_digest = $(sha256sum $schema | cut -d ' ' -f 1)
+  if (schema_digest !== '1b6af10a2e81197b5ebb8413577f6834c440e4eb78e0df6b95f13a4bbaca1c70') {
+    write -- 'FAIL REPRO-SCHEMA: accepted S01 schema bytes differ' >&2
+    exit 1
+  }
+  $binary self-test $schema $cases
+} elif (operation === 'verify') {
+  var binary = ARGV[1]
+  var contract = ARGV[2]
+  var left_attempt = ARGV[3]
+  var left_root = ARGV[4]
+  var right_attempt = ARGV[5]
+  var right_root = ARGV[6]
+  var schema = ARGV[7]
+  var verdict = ARGV[8]
+  var output = ARGV[9]
+  $binary verify $contract $left_attempt $left_root $right_attempt $right_root $schema > $verdict
+  cat $verdict
+  printf 'verdict=%s\n' $verdict >> $output
+} elif (operation === 'check-verdict') {
+  var verdict = ARGV[1]
+  var schema_row = u'schema\taici-independent-build-verdict-v1'
+  var packager_row = u'ndk_packager_revision\t75d2c6b88443c9cf865c30146a06b89868a182c5'
+  var result_row = u'result\tPASS'
+  test -s $verdict
+  grep -Fx $schema_row $verdict
+  grep -Fx $packager_row $verdict
+  grep -Fx $result_row $verdict
+} else {
+  write -- 'FAIL REPRO-COMMAND: unknown operation' >&2
+  exit 2
+}

@@ -1,0 +1,52 @@
+name: IB-U8-E1 pending handoff verifier
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/ib-u8-e1-pending-receipt.yml'
+      - 'validators/ib_u8_e1.pi'
+      - 'validators/check-ib-u8-e1-inputs.pi'
+      - 'validators/check-ib-u8-e1-pending.pi'
+      - 'validators/ib-u8-e1-reader-build-policy.json'
+      - 'tests/ib-u8-e1/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  independent-blocked-receipt:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out exact AI-CI candidate
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Check out FP handoff contract
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: isomorphisms/flexible-pipes
+          ref: ac42b6f18c10758fcc8181265df48fdcdd2b709e
+          path: .deps/flexible-pipes
+          persist-credentials: false
+      - name: Check out pinned Ithon
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: dilapidated-shed/ithon
+          ref: d6e83969f82512e920fb17b44326cb54f31d015c
+          path: .deps/ithon
+          persist-credentials: false
+      - name: Execute independent hostile controls
+        env:
+          PYTHONPATH: ${{ github.workspace }}/.deps/flexible-pipes/scripts:${{ github.workspace }}/validators
+        run: |
+          set -euo pipefail
+          .deps/ithon/ithon tests/ib-u8-e1/check.pi "$GITHUB_WORKSPACE" "$RUNNER_TEMP/ib-u8-e1"
+      - name: Retain independent control result
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ib-u8-e1-pending-receipt-controls
+          path: ${{ runner.temp }}/ib-u8-e1/results.tsv
+          if-no-files-found: warn
