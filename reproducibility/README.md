@@ -51,13 +51,11 @@ output stages. Any
 source, dependency, tool, profile, recipe or policy change makes that verdict
 inapplicable and requires a new comparison.
 
-The reusable action accepts these paths:
+The caller workflow grants `contents: read` and `actions: read` so the action
+can acquire the pinned native runtime artifact. The reusable action accepts
+these paths:
 
 ```yaml
-permissions:
-  contents: read
-  actions: read
-
 - uses: isomorphisms/ai-ci/reproducibility@FULL_AI_CI_COMMIT
   id: reproducibility
   with:
