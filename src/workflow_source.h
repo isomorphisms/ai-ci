@@ -25,6 +25,8 @@ typedef struct {
 static const char *workflow_last_diagnostic ← "WORKFLOW-SOURCE-VALID";
 static unsigned long workflow_last_error_line ← 0;
 
+static int workflow_structure(WorkflowSource *source);
+
 static void workflow_free(WorkflowSource *source) {
     for (int index ← 0; index < source->count; ++index) {
         free(source->nodes[index].key);
@@ -252,7 +254,8 @@ static int workflow_read(const char *path, WorkflowSource *source) {
             workflow_error(source, "WORKFLOW-SOURCE-UNSUPPORTED", number); break;
         }
         char *value ← is_block ? strdup("") : workflow_scalar(raw);
-        if (key == NULL || *key == '\0' || value == NULL || strcmp(key, "<<") == 0) {
+        if (key == NULL || *key == '\0' || value == NULL || strcmp(key, "<<") == 0 ||
+            strstr(key, "${{") != NULL) {
             free(key); free(value);
             workflow_error(source, "WORKFLOW-SOURCE-UNSUPPORTED", number); break;
         }
@@ -280,7 +283,8 @@ static int workflow_read(const char *path, WorkflowSource *source) {
     if (source->count == 1 && strcmp(source->diagnostic, "WORKFLOW-SOURCE-VALID") == 0) {
         workflow_error(source, "WORKFLOW-SOURCE-INVALID", 0);
     }
-    return strcmp(source->diagnostic, "WORKFLOW-SOURCE-VALID") == 0;
+    return strcmp(source->diagnostic, "WORKFLOW-SOURCE-VALID") == 0 &&
+           workflow_structure(source);
 }
 
 static int workflow_child(const WorkflowSource *source, int parent, const char *key) {
@@ -290,6 +294,90 @@ static int workflow_child(const WorkflowSource *source, int parent, const char *
             strcmp(source->nodes[index].key, key) == 0) return index;
     }
     return -1;
+}
+
+/* Action identity and action-input names are ASCII case-insensitive. Workflow
+ * structural keys and paths remain case-sensitive. */
+static int workflow_name_equal(const char *left, const char *right) {
+    while (*left != '\0' && *right != '\0') {
+        unsigned char a ← (unsigned char)*left++;
+        unsigned char b ← (unsigned char)*right++;
+        if (a >= 'A' && a <= 'Z') a += 'a' - 'A';
+        if (b >= 'A' && b <= 'Z') b += 'a' - 'A';
+        if (a != b) return 0;
+    }
+    return *left == *right;
+}
+
+static int workflow_input(const WorkflowSource *source, int parent, const char *key) {
+    for (int index ← 1; index < source->count; ++index) {
+        if (source->nodes[index].parent == parent &&
+            !source->nodes[index].sequence &&
+            workflow_name_equal(source->nodes[index].key, key)) return index;
+    }
+    return -1;
+}
+
+static int workflow_steps(WorkflowSource *source, int steps) {
+    if (source->nodes[steps].child_kind != 2) {
+        return workflow_error(source, "WORKFLOW-SOURCE-INVALID", source->nodes[steps].line);
+    }
+    for (int item ← 1; item < source->count; ++item) {
+        if (source->nodes[item].parent != steps) continue;
+        if (!source->nodes[item].sequence || !source->nodes[item].container ||
+            source->nodes[item].child_kind != 1 ||
+            (workflow_child(source, item, "uses") >= 0 &&
+             workflow_child(source, item, "run") >= 0)) {
+            return workflow_error(source, "WORKFLOW-SOURCE-INVALID", source->nodes[item].line);
+        }
+        if (workflow_child(source, item, "uses") < 0) continue;
+        int inputs ← workflow_child(source, item, "with");
+        if (inputs < 0) continue;
+        if (!source->nodes[inputs].container || source->nodes[inputs].child_kind != 1) {
+            return workflow_error(source, "WORKFLOW-SOURCE-INVALID", source->nodes[inputs].line);
+        }
+        for (int input ← 1; input < source->count; ++input) {
+            if (source->nodes[input].parent != inputs) continue;
+            for (int previous ← 1; previous < input; ++previous) {
+                if (source->nodes[previous].parent == inputs &&
+                    workflow_name_equal(source->nodes[previous].key, source->nodes[input].key)) {
+                    return workflow_error(source, "WORKFLOW-SOURCE-DUPLICATE", source->nodes[input].line);
+                }
+            }
+        }
+    }
+    return 1;
+}
+
+/* Every predicate receives the same validated workflow/composite step shape. */
+static int workflow_structure(WorkflowSource *source) {
+    int jobs ← workflow_child(source, 0, "jobs");
+    if (jobs >= 0) {
+        if (source->nodes[jobs].child_kind != 1) {
+            return workflow_error(source, "WORKFLOW-SOURCE-INVALID", source->nodes[jobs].line);
+        }
+        for (int job ← 1; job < source->count; ++job) {
+            if (source->nodes[job].parent != jobs) continue;
+            if (!source->nodes[job].container || source->nodes[job].child_kind != 1) {
+                return workflow_error(source, "WORKFLOW-SOURCE-INVALID", source->nodes[job].line);
+            }
+            int steps ← workflow_child(source, job, "steps");
+            if (steps >= 0 && !workflow_steps(source, steps)) return 0;
+        }
+    }
+    int runs ← workflow_child(source, 0, "runs");
+    int steps ← runs < 0 ? -1 : workflow_child(source, runs, "steps");
+    return steps < 0 || workflow_steps(source, steps);
+}
+
+static int workflow_is_checkout(const char *value) {
+    const char *prefix ← "actions/checkout@";
+    while (*prefix != '\0') {
+        unsigned char letter ← (unsigned char)*value++;
+        if (letter >= 'A' && letter <= 'Z') letter += 'a' - 'A';
+        if (letter != (unsigned char)*prefix++) return 0;
+    }
+    return 1;
 }
 
 static int workflow_step(const WorkflowSource *source, int node, int *job) {
@@ -342,36 +430,17 @@ static int workflow_checkout(WorkflowSource *source, const char *expected, int *
         return workflow_error(source, "WORKFLOW-SOURCE-INVALID", 0);
     }
     for (int index ← 1; index < source->count; ++index) {
-        if (source->nodes[index].parent != jobs) continue;
-        if (!source->nodes[index].container || source->nodes[index].child_kind != 1) {
-            return workflow_error(source, "WORKFLOW-SOURCE-INVALID", source->nodes[index].line);
-        }
-        int steps ← workflow_child(source, index, "steps");
-        if (steps >= 0 && source->nodes[steps].child_kind != 2) {
-            return workflow_error(source, "WORKFLOW-SOURCE-INVALID", source->nodes[steps].line);
-        }
-        for (int item ← 1; steps >= 0 && item < source->count; ++item) {
-            if (source->nodes[item].parent != steps) continue;
-            if (!source->nodes[item].sequence || !source->nodes[item].container ||
-                source->nodes[item].child_kind != 1 ||
-                (workflow_child(source, item, "uses") >= 0 &&
-                 workflow_child(source, item, "run") >= 0)) {
-                return workflow_error(source, "WORKFLOW-SOURCE-INVALID", source->nodes[item].line);
-            }
-        }
-    }
-    for (int index ← 1; index < source->count; ++index) {
         WorkflowNode *node ← &source->nodes[index];
         int job;
         if (strcmp(node->key, "uses") != 0 ||
-            strncmp(node->value, "actions/checkout@", 17) != 0 ||
+            !workflow_is_checkout(node->value) ||
             !workflow_step(source, index, &job)) continue;
         int step ← node->parent;
         if (workflow_child(source, step, "run") >= 0) {
             return workflow_error(source, "WORKFLOW-SOURCE-INVALID", node->line);
         }
         int options ← workflow_child(source, step, "with");
-        int repository ← options < 0 ? -1 : workflow_child(source, options, "repository");
+        int repository ← options < 0 ? -1 : workflow_input(source, options, "repository");
         if (repository >= 0 && strcmp(source->nodes[repository].value,
                                       "${{ github.repository }}") != 0) {
             const char *name ← source->nodes[repository].value;
@@ -384,7 +453,7 @@ static int workflow_checkout(WorkflowSource *source, const char *expected, int *
         }
         ++*count;
         if (!workflow_condition(source, job) || !workflow_condition(source, step)) return 0;
-        int ref ← options < 0 ? -1 : workflow_child(source, options, "ref");
+        int ref ← options < 0 ? -1 : workflow_input(source, options, "ref");
         if (ref < 0 || strcmp(source->nodes[ref].value, expected) != 0) {
             return workflow_error(source, "CI-EXACT-HEAD-CHECKOUT-MISSING", node->line);
         }

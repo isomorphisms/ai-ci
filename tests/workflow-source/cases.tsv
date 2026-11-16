@@ -1,4 +1,8 @@
 pass	PASS	good
+pass	PASS	case-checkout-good
+fail	CI-EXACT-HEAD-CHECKOUT-MISSING	case-checkout-bad
+fail	WORKFLOW-SOURCE-DUPLICATE	case-input-duplicate
+fail	WORKFLOW-SOURCE-UNSUPPORTED	expression-key
 pass	PASS	quoted-comment-mappings
 pass	PASS	indentless-sequence
 pass	PASS	standalone-item

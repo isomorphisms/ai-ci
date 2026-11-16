@@ -12,6 +12,9 @@ pass	tests/contracts/workflow-pins.contract.tsv	tests/fixtures/workflow-job-acti
 fail	tests/contracts/workflow-pins.contract.tsv	tests/fixtures/workflow-job-action-bad	WORKFLOW-ACTION-PIN
 pass	tests/contracts/workflow-pins.contract.tsv	tests/fixtures/workflow-composite-action-good	-
 fail	tests/contracts/workflow-pins.contract.tsv	tests/fixtures/workflow-composite-action-bad	WORKFLOW-ACTION-PIN
+fail	tests/contracts/workflow-pins.contract.tsv	tests/fixtures/workflow-step-uses-run	WORKFLOW-ACTION-PIN
+fail	tests/contracts/workflow-pins.contract.tsv	tests/fixtures/workflow-steps-mapping	WORKFLOW-ACTION-PIN
+fail	tests/contracts/workflow-pins.contract.tsv	tests/fixtures/workflow-composite-uses-run	WORKFLOW-ACTION-PIN
 pass	contracts/workflow-integrity-v0.contract.tsv	tests/fixtures/workflow-parser-quoted-good	-
 fail	contracts/workflow-integrity-v0.contract.tsv	tests/fixtures/workflow-parser-quoted-run-bad	WORKFLOW-SWALLOW-OR
 fail	contracts/workflow-integrity-v0.contract.tsv	tests/fixtures/workflow-bad-continue	WORKFLOW-CONTINUE

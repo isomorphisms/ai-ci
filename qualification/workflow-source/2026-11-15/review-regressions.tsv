@@ -1,0 +1,24 @@
+key	value
+schema	workflow-source-review-regressions-v1
+job	BC-A07-S01
+reviewed_head	3916301f1eafa632cdcc9d5c4fc0acf154d8c17e
+source_kernel_sha256	c2aaaf4576f1676fd8a90eaf6b65331f8b17e1bed7f4f079c5afcf5a7f33e5c2
+source_reader_sha256	27ce5ec185728faf479a019e48c357c494d5ab1d672deb1e118d79a4522e96c5
+host	Linux x86_64 disposable Debian container
+compiler_driver_sha256	86cdbaf8d405d7d05883f20ddcc0ac21a55a48bae20cc9f11aca78f1710867d3
+compiler_frontend_sha256	5aff3188c58cae7cfffb20bdade56ec3e9ab89667ff6feafcfeed066350f9400
+compiler_identity	same retained older ICK artifact and explicit GCC13 headers/runtime as supplementary-host.tsv; not current pinned hosted compiler
+verifier_before_sha256	eb3581b0d38538d211587142a83165e45ca824a044b0319a1b9ddaec3c39dcf0
+verifier_after_sha256	50ad515ab622718dcffcddcd08155602b535a2534f8216817102db5fabeacde1
+core_self_test	PASS 84 cases; zero failures
+checkout_corpus	PASS 32 cases; direct command, POSIX adapter and core contract agree
+case_checkout_bad_before	false PASS with primary_checkouts=1; uppercase second primary checkout ignored
+case_checkout_good_before	false rejection CI-EXACT-HEAD-PRIMARY-CHECKOUT-MISSING
+case_input_duplicate_before	false PASS for ref and Ref input keys
+expression_key_before	false PASS with primary_checkouts=1; dynamic repository input key ignored
+malformed_standalone_before	false PASS actions_pinned for uses+run workflow step, steps mapping and uses+run composite step
+counterexample_semantics	https://github.com/actions/runner/issues/3731 ; runner PipelineTemplateConverter ConvertToStepInputs blob 0381463f3d57f6e027dbe634cc44eb9135d7280c ; workflow-v1.0 step-with expression-key schema
+hosted_qualification	Not claimed by this supplementary local receipt; exact-head hosted evidence is recorded in the pull request. Earlier head hosted 81-case core and Ike receipt/shadow checks passed run 43747064185.
+checkout_execution	NOT_RUN
+command_behavior	NOT_VERIFIED by source reader
+physical_device	NOT_RUN

@@ -23,7 +23,10 @@ comments and literal/folded block-scalar headers with declared chomping and
 indentation indicators. Expressions in unrelated ordinary scalar values remain
 data. It does not evaluate expressions or shell programs.
 
-Duplicate mapping keys produce `WORKFLOW-SOURCE-DUPLICATE`. Flow collections,
+Duplicate mapping keys produce `WORKFLOW-SOURCE-DUPLICATE`; action input names
+also reject duplicates differing only in ASCII case. Expression-bearing mapping
+keys are unsupported because evaluating them can change the source structure.
+Flow collections,
 anchors, aliases, merge keys, tags, multiple documents, tabs used for indentation
 and unsupported quoted escapes produce an explicit unsupported result. Invalid
 indentation, structural collisions, malformed jobs/steps and steps combining
@@ -39,6 +42,11 @@ proof that a literal names a different repository. Dynamic repository selectors
 are unsupported. Required checkout and parent-job conditions accept only absent
 conditions or literal `true` / `${{ true }}`. Literal false is disabled; other
 conditions require a declared semantic extension and cannot pass by omission.
+
+Checkout action identity and its `ref`/`repository` input names follow GitHub's
+ASCII case-insensitive matching. Workflow structural keys remain case-sensitive.
+Malformed workflow and composite steps fail in the shared reader before any
+predicate can ignore their fields.
 
 The action-pin predicate examines actual step actions, job-level reusable
 workflow calls and composite-action steps, including their quoted keys. It
@@ -56,12 +64,18 @@ shell analysis. BC-A07-S02 owns their migration and BC-A04 owns process results.
 Reader failures also appear as typed source diagnostics and line numbers in
 the core contract's detail field.
 
-`tests/merge-workflow-head.sh` runs the 28 cases in
+`tests/merge-workflow-head.sh` runs the 32 cases in
 `tests/workflow-source/cases.tsv` through the direct command, compatibility
 adapter and core contract, requiring equivalent verdicts and exact intended
 diagnostics. The existing core self-test additionally covers quoted workflow
 keys across all predicates, a quoted failing run key, and pinned/unpinned
 job-level and composite action twins. The old fixtures remain unchanged.
+
+Review counterexamples retain a good lowercase checkout followed by a mixed-case
+checkout with a wrong ref, a valid mixed-case action/input twin, case-colliding
+input names, expression-bearing input keys, and malformed workflow/composite
+steps that previously passed the standalone action-pin assertion. These cases
+exercise the same source boundary rather than claiming checkout execution.
 
 The new owned parser uses Icky C assignment arrows. The composite action,
 self-test compiler, merge-check compiler and Ike shadow recipe select the
