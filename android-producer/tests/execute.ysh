@@ -1,0 +1,11 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+var script = $(/usr/bin/readlink -f "$0")
+var tests = $(/usr/bin/dirname "$script")
+var producer = $(/usr/bin/dirname "$tests")
+source "$producer/release.ysh"
+source "$producer/graph.ysh"
+source "$producer/execution.ysh"
+test "$#" = 3 || reject 'qualification requires RELEASE FRESH_RUN MODE'
+run_graph "$1" "$2" "$3"
+printf 'qualification_execution\tPASS\npromotion\tDISABLED\n'

@@ -1,0 +1,19 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+test "$#" = 0 || exit 2
+var release = '/opt/aici/android-producer/current'
+var anchor = '/opt/aici/keys/android-producer-release.pem'
+test -f "$anchor" && test -f "$release/release.tsv" || { echo 'BLOCKED: independently qualified producer deployment unavailable' >&2; exit 1; }
+var script = $(/usr/bin/readlink -f "$0")
+var producer = $(/usr/bin/dirname "$script")
+source "$producer/release.ysh"
+no_overrides
+verify_release "$release" "$anchor"
+verify_current "$release" '/opt/aici/android-producer/authority/current.tsv' "$anchor"
+require_deployment "$release"
+var source_commit = $(/usr/bin/awk -F '\t' '$1=="source_commit" {n++;v=$2} END{if(n!=1)exit 1;print v}' "$release/release.tsv")
+# A deployed qualification probe must contain real APK bytes and an independently
+# authenticated decision. This command creates neither policy nor credentials.
+var target = $(/usr/bin/awk -F '\t' 'NR==2{print $1}' "$release/obligations.tsv")
+var scope = $(field "$release/release.tsv" acceptance_scope)
+/usr/bin/env -i PATH=/usr/bin:/bin "$release/runtime/ysh" "$release/policy/android-producer/check.ysh" "$release/qualification/decision.tsv" "$release/qualification/payload.apk" "$source_commit" "$target" "$scope"

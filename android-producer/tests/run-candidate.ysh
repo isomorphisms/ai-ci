@@ -1,0 +1,14 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+# Candidate entry point for an independently provisioned qualification runner.
+# Environment setup is data owned by that runner, never application source.
+test "$#" = 2 || exit 2
+var source = "$1"
+var output = "$2"
+source /opt/aici/qualification/materials.env
+var GREASE = ENV.GREASE_BIN
+"$GREASE" "$source/android-producer/build-host-verifiers.ysh" "$output-host"
+setglobal ENV.AICI_HOST_VERIFIERS = "$output-host"
+"$[ENV.AICI_HOST_VERIFIERS]/aici_android_signing" self-test "$source/android-signing/tests/cases.tsv" "$source/android-signing/identities.tsv"
+cd "$source" { "$[ENV.AICI_HOST_VERIFIERS]/aici" self-test tests/cases.tsv }
+"$GREASE" "$source/android-producer/tests/qualify.ysh" "$output"
