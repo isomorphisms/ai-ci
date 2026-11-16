@@ -104,3 +104,20 @@ prepare-only run is not accepted as inference. Fresh hosted execution and
 interpretation quality are reported separately after the actual trial; an
 adapter-written execution receipt alone is not an independent claim about
 model semantics. No additional language gap is established by this observer.
+
+## Uncited wording withdrawal regression
+
+A later review distinguishes the model's declared citations from everything it
+was shown. The actual pre-fix executable retains an uncited summary after
+withdrawing an interpretation. `check_uncited_context` rejects it at the
+intended check, while the repaired candidate passes all 124 named observations.
+The regression also requires the account and unrelated session's reply to
+survive, restart to preserve withdrawal, the next model request to exclude old
+wording, and disclosure revocation to remove an uncited summary. The supplied
+response text is a deliberate fictional control, not model inference.
+
+The repair conservatively clears prior Yenta wording in sessions containing
+withdrawn hypotheses, matching the existing behavior for corrected or revoked
+evidence. Independently supported participant accounts remain. Exact executed
+source and artifact identities, the same journal and before/after model
+requests are retained in Shallow's acceptance/uncited-withdrawal directory.

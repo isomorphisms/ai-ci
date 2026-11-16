@@ -428,6 +428,45 @@ check_reply_retry candidate = do
      not (any (isPrefixOf "YENTA\t") (lines revoked_retry)) &&
      not (has_text "REVOKED-APPROVED-REPLY-TEXT" revoked_retry))
 
+covering
+check_uncited_context : Candidate → IO ()
+check_uncited_context candidate = do
+  initial ← successful_script candidate "uncited-hypothesis" (setup ++ joined
+    [ "say\tprivateA\tAri\treport\t-\tnow\tI visit on Sundays."
+    , "say\tprivateB\tZev\treport\t-\tnow\tI enjoy cooking."
+    , "hypothesis\tprivateA\tguess\tprivateA-e1\t-\tWITHDRAWN-TENTATIVE-CONTROL"
+    , "answer\tprivateA\tsummarize\tWhat was understood\t-\t-\t-\tUNCITED-WITHDRAWN-REPLY"
+    , "answer\tprivateB\tsummarize\tWhat was understood\t-\t-\t-\tUNRELATED-REPLY-CONTROL"
+    ])
+  require "uncited summaries are delivered before withdrawal"
+    (not (has_text "ERR\t" initial) && exact_line "YENTA\tprivateA\tsummarize\tUNCITED-WITHDRAWN-REPLY" initial && exact_line "YENTA\tprivateB\tsummarize\tUNRELATED-REPLY-CONTROL" initial)
+  withdrawn ← successful_script candidate "uncited-hypothesis"
+    "withdraw\tprivateA\tAri\tguess\nshow\tprivateA\nshow\tprivateB\n"
+  require "withdrawing a hypothesis removes uncited replies exposed to it"
+    (exact_line "OK\twithdraw\tguess" withdrawn && not (has_text "UNCITED-WITHDRAWN-REPLY" withdrawn) && not (has_text "WITHDRAWN-TENTATIVE-CONTROL" withdrawn))
+  require "withdrawal preserves underlying account and other session's reply"
+    (has_text "I visit on Sundays." withdrawn && has_text "UNRELATED-REPLY-CONTROL" withdrawn)
+  restarted ← successful_script candidate "uncited-hypothesis" "show\tprivateA\n"
+  require "restart does not reintroduce uncited withdrawn wording"
+    (not (has_text "UNCITED-WITHDRAWN-REPLY" restarted))
+  let request_path = candidate.work_directory ++ "/uncited-after-withdrawal.request"
+  requested ← capture [candidate.executable, "request", candidate.work_directory ++ "/uncited-hypothesis.state", candidate.materials, "privateA", request_path]
+  require "withdrawn-input request succeeds" (requested.process_status ≟ 0)
+  request ← read_required request_path
+  require "uncited withdrawn wording cannot enter a later model conversation"
+    (not (has_text "UNCITED-WITHDRAWN-REPLY" request) && not (has_text "WITHDRAWN-TENTATIVE-CONTROL" request))
+  approved ← successful_script candidate "uncited-revocation" (setup ++ joined
+    [ "proposal\tprivateA\tAri\tretelling\tZev\tprivateB\tAPPROVED-CONTROL-STATEMENT"
+    , "approve\tAri\tretelling\t1\tAPPROVED-CONTROL-STATEMENT"
+    , "deliver\tAri\tretelling\t1\tnow"
+    , "answer\tprivateB\tsummarize\tWhat was understood\t-\t-\t-\tUNCITED-REVOKED-REPLY"
+    ])
+  require "uncited approved-context summary initially delivered"
+    (not (has_text "ERR\t" approved) && exact_line "YENTA\tprivateB\tsummarize\tUNCITED-REVOKED-REPLY" approved)
+  revoked ← successful_script candidate "uncited-revocation" "revoke\tAri\tretelling\nshow\tprivateB\n"
+  require "revocation removes uncited replies exposed to the statement"
+    (exact_line "OK\trevoke\tretelling" revoked && not (has_text "UNCITED-REVOKED-REPLY" revoked) && not (has_text "APPROVED-CONTROL-STATEMENT" revoked))
+
 valid_transcript_line : Text → Bool
 valid_transcript_line line =
   case forget $ split (≟ '\t') line of
@@ -460,6 +499,7 @@ semantic_cases candidate = do
   check_journal candidate
   check_event_retry candidate
   check_reply_retry candidate
+  check_uncited_context candidate
 
 covering
 run : List Text → IO ()
