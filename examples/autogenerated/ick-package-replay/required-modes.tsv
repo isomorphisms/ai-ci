@@ -1,0 +1,5 @@
+bin/arm-linux-gnueabi-gcc	755
+libexec/gcc/arm-linux-gnueabi/17.0.0/cc1	755
+lib/gcc/arm-linux-gnueabi/17.0.0/include/stddef.h	644
+lib/gcc/arm-linux-gnueabi/17.0.0/include/stdarg.h	644
+lib/gcc/arm-linux-gnueabi/17.0.0/include/stdatomic.h	644

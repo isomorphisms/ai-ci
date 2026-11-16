@@ -5,7 +5,7 @@ cd $root
 var paths = $(find . -type f -printf '%P\n' | LC_ALL=C sort).split(u'\n')
 for path in (paths) {
   if (path === 'material.tsv') { continue }
-if ! grep -Eq '^[a-zA-Z0-9][a-zA-Z0-9._/-]*$' <<< $path {
+if ! grep -Eq '^[a-zA-Z0-9][a-zA-Z0-9._/+-]*$' <<< $path {
     write -- 'FAIL CLOSURE-PATH: unsupported material pathname' >&2
     exit 1
   }
