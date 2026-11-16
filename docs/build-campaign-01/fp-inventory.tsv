@@ -1,0 +1,104 @@
+number	kind	state	title	disposition
+1	issue	open	P0: Run discrete programs with explicit model stages and recorded replay	BC-FP02 lifecycle
+2	issue	open	P0: Generate named, self-contained commands from maintained Kitchen recipes	Kitchen exact command generation; BC-FP01 adoption
+3	issue	open	P0: Bootstrap each job with verified tools, including Lua, without assuming root	Cat Food bootstrap/runtime; BC-FP01 qualification
+4	issue	open	P0: Distinguish GitHub access failures and route work through an available execution path	BC-FP01 capability/admission
+5	issue	open	P0: Materialize the exact repository, commit, and files before issuing a job	Root source closure P02; BC-FP04 consumer
+6	issue	open	P0: Budget disk, memory, downloads, and caches before work starts	Cat Food resource facts; BC-FP02 bounded execution
+7	issue	open	P0: Preserve task intent, later corrections, and reuse constraints before execution	AICI intent enforcement; BC-FP01 caller
+8	issue	open	P0: Produce a traceable Crystal preview using the existing repository	Existing Crystal source consumer; BC-FP03 representative
+9	issue	open	P0: Verify the requested executable and toolchain; prohibit silent substitutes	Root compiler P01; BC-FP03 producer
+10	issue	open	P0: Generate completion reports from source-bound execution receipts	AICI evidence; BC-FP02 receipts
+11	issue	open	P0: Test real postconditions and known failures, not just a green wrapper	AICI independent oracles; all FP acceptance
+12	issue	open	P0: Execute a pipeline on a GitHub runner and return its exact run and artifacts	BC-FP01 public route
+13	issue	open	P0: Deliver verified artifacts across sessions instead of reporting local-only success	BC-FP04 transport; BC-FP05 requested surface
+14	issue	open	P1: Resume interrupted jobs safely and preserve the surrounding session	BC-FP02 retry lifecycle; Kitchen session
+15	issue	open	P1: Track source-specific prerequisites and invalidate stale downstream acceptance	Root source closure/dependency transitions; BC-FP02 invalidation
+16	issue	open	P1: Integrate target-specific build, package, and physical-device acceptance	BC-FP03 producer; Cat Food physical delivery
+17	issue	open	P0: Add final model review for whether the output actually satisfies the request	AICI semantic review; BC-FP02 model stage/BC-FP05 review packet
+18	issue	open	P1: Turn August–October failures into a versioned conversation regression suite	BC-FP02 history/replay; AICI oracle
+19	issue	open	P1: Connect cataloged models to real workers with explicit resource and replay contracts	BC-FP02 model worker
+20	issue	open	P1: Use deterministic fast paths and bounded repair attempts for ordinary tasks	BC-FP02 bounded retry/deterministic fastpath
+21	issue	open	P1: Produce fresh repository/job status and reconcile existing work before creating more	Root inventory/status; existing record no new tracker
+22	issue	open	P1: Preserve exact names, Unicode symbols, and project terminology through generation	AICI language/intent boundary; FP preserves exactpayload
+23	issue	open	P1: Separate model proposals from execution permissions and publication authority	BC-FP01 authority; BC-FP06 publication
+24	issue	open	P0: Route real jobs through maintained Kitchen/Cat Food adapters and prove adoption	BC-FP01 canonical adoption
+25	issue	open	P0: August–October reliability backlog — predictable programs with bounded model flexibility	Parent reliability index preserved; families1-24 mapped separately
+26	issue	open	P0: Give pipelines a stable invocation from ChatGPT and the terminal	BC-FP01 intake/results
+27	PR	closed	Add stable pipeline invocation and historical regression smoke	Existing PR inventoried; merged/closed behavior preserved, no new duplicate
+28	issue	open	Add a deterministic Android APK preflight pipeline and Crystal policy-regression case	BC-FP03 Android producer
+29	PR	closed	Add mandatory Android APK preflight entrypoint	Existing PR inventoried; merged/closed behavior preserved, no new duplicate
+30	PR	closed	Define qualified operation execution and preserve FP1 evidence	Existing PR inventoried; merged/closed behavior preserved, no new duplicate
+31	PR	closed	Implement registered Kitchen script execution and preserve FP2 qualification attempts	Retained candidate source inspected; see fp-source-note.md
+32	issue	open	Carry canonical mathematical display vocabulary through registered operations	Existing application display vocabulary; preserve through BC-FP03
+33	PR	closed	Register Android producer and diagnostic operations with actual behavioral replay	Retained candidate source inspected; see fp-source-note.md
+34	issue	open	Replay Kitchen's canonical handoff instead of regenerating equivalent script variants	Kitchen canonical handoff; BC-FP01 adoption
+35	issue	open	P0: Treat human-visible job text as a required handoff artifact	BC-FP05 canonical visible delivery
+36	PR	closed	Bind visible job delivery and dispatch to one stage artifact	Existing PR inventoried; merged/closed behavior preserved, no new duplicate
+37	PR	open	Seed repeatable retained-source and storage transport contracts	Retained candidate source inspected; see fp-source-note.md
+38	PR	open	Replay retained-source qualification through Kitchen and AICI	Retained candidate source inspected; see fp-source-note.md
+39	issue	open	Allow connected workflow artifacts to become direct chat attachments	BC-FP05 exact binary delivery
+40	PR	closed	Deliver exact binary attachments from stage artifacts	Existing PR inventoried; merged/closed behavior preserved, no new duplicate
+41	PR	closed	Register repeatable AZ Amazon product lookup	Existing PR inventoried; merged/closed behavior preserved, no new duplicate
+42	PR	closed	Record canonical AZ source repository	Existing PR inventoried; merged/closed behavior preserved, no new duplicate
+43	PR	closed	Register repeatable Spinor movie pipeline	Existing PR inventoried; merged/closed behavior preserved, no new duplicate
+44	issue	open	Own the repeatable Pauli Android ICK-or-NDK producer path	BC-FP03 canonical producer
+45	issue	open	Own paired A1/C67 GitHub prerelease publishing	BC-FP06 canonical publication
+46	PR	closed	Register compact interpreter source handoff	Existing PR inventoried; merged/closed behavior preserved, no new duplicate
+47	PR	open	Produce paired A1 and C67 conversation runtime builds	Retained candidate source inspected; see fp-source-note.md
+48	PR	closed	Run RHS measurement through a checked causal-model pipeline	Existing PR inventoried; merged/closed behavior preserved, no new duplicate
+49	PR	open	SUN 1: register and execute paired native Android producer through Cat Food and AICI	Retained candidate source inspected; see fp-source-note.md
+50	PR	closed	Register Kitchen-backed GitHub organization pin preflight with receipts	Existing PR inventoried; merged/closed behavior preserved, no new duplicate
+51	issue	open	SUN IL-0: enforce modified Icky Lua runtime and version in C+Lua builds	Existing IL-0 SUN preserved; BC-FP03 runtime qualification
+52	PR	open	Qualify modified Icky Lua interpreter and embedded runtime through exact ICK	Retained candidate source inspected; see fp-source-note.md
+53	PR	closed	How to move a user's GitHub repository: generate, run, verify, and answer with Grease	Existing PR inventoried; merged/closed behavior preserved, no new duplicate
+54	PR	open	Test GPT-OSS on the user's GitHub move commands; prepare Pythia comparisons	Existing PR inventoried; merged/closed behavior preserved, no new duplicate
+55	PR	closed	Fix transfer wrapper's actual Grease runtime, ENV, and error handling	Existing PR inventoried; merged/closed behavior preserved, no new duplicate
+56	PR	closed	Materialize Kitchen transfer programs before the C67 batch preflight	Existing PR inventoried; merged/closed behavior preserved, no new duplicate
+57	PR	closed	Admit the fetched Kitchen generator by an actual C67 read	Existing PR inventoried; merged/closed behavior preserved, no new duplicate
+58	PR	closed	Put Flexible Pipes before one task	Existing PR inventoried; merged/closed behavior preserved, no new duplicate
+59	PR	closed	Pin the C67-readable Kitchen transfer generator	Existing PR inventoried; merged/closed behavior preserved, no new duplicate
+60	PR	closed	Bootstrap Grease for Termux repository transfers	Existing PR inventoried; merged/closed behavior preserved, no new duplicate
+61	PR	closed	Select Grease runtime by Termux ABI	Existing PR inventoried; merged/closed behavior preserved, no new duplicate
+62	PR	closed	Retain the accepted live C67 repository-transfer evidence	Existing PR inventoried; merged/closed behavior preserved, no new duplicate
+63	PR	closed	Add dedicated Walnut & Burgundy transfer batch	Existing PR inventoried; merged/closed behavior preserved, no new duplicate
+64	PR	closed	Add dedicated Walnut & Burgundy transfer batch	Existing PR inventoried; merged/closed behavior preserved, no new duplicate
+65	issue	open	IDK E5M3 native operations: exact oracle and ordered predicates	Existing compiler/domain E5M3 work; corrected by83; root compilerP01 dependencies only
+66	issue	open	Holomorphic: checked Idris shader into actual A1 GLES APK	Existing Holomorphic app work; BC-FP03 producer dependency only
+67	issue	open	Cat Food Python dependency remediation	Cat Food131/FP73 correction; Cat Food runtime owner
+68	issue	open	OpenAI-public accelerator targets as nonblocking shader/compiler followers	Existing nonblocking compiler followers; root compilerP01; no invented targets
+69	issue	open	Audit test generation and semantic parity after Holomorphic z/3 vs z/6 discrepancy	AICI human-found oracle/generator defect; mathematical leaf remains existing
+70	issue	open	Framebuffer art: rotating shaded mathematical surface vertical slice	Existing framebuffer renderer; application scope outside campaign; producer consumption retained
+71	issue	open	SUN K1 — Replace ICK's inherited Bison/Yacc assumptions with a verified ICKY parsing path	Retained SUN K1/K2/K3; root compilerP01/sourceP02; BC-FP01 actual operation admission
+72	issue	open	Dirichlet / Wegert visualization bootstrap — scoped source stub	Existing Dirichlet/Wegert bootstrap; app/research outside campaign
+73	issue	open	EARTH G1 — Audit no-C++ Grease feasibility and block C++ Cat Food delivery	Retained Earth G1; Cat Food no-C++ runtime owner; FP01/02/03/04/06 prerequisites
+74	issue	open	Android framebuffer interaction on MIRO A1: native window and drag rotation	Existing physical framebuffer interaction; application scope; Cat Food target acceptance only
+75	issue	open	Sublixel: 3×3 quadratic curvature neighborhood library	Existing 3x3 app semantics; compiler correction78/79; no duplicate
+76	issue	open	SUN IB-C01 — Restore checked Idriç Long View DEX execution	Existing SUN IB-C01; root compilerP01; BC-FP03 distinct directDEX boundary
+77	issue	open	Sublixel: 5×5 asymmetric cubic curve neighborhoods	Existing 5x5 app semantics; compiler correction78/79; no duplicate
+78	issue	open	ICK-first build enforcement: Sublixel and framebuffer, no silent compiler fallback	Root compilerP01/AICI253; BC-FP03 real producer/admission
+79	issue	open	Use pinned Ike as the default make orchestrator across the five-repo control plane	Ike default current directive; BC-FP01 scopedoperation; Kitchen/CatFood/AICI/Cockswain owners
+80	issue	open	Dirichlet: read the quasi-RH manuscript and record mathematical notes	Mathematical manuscript task outside build campaign
+81	PR	open	Prepare verified Coxeter transfer to Walnut & Burgundy	Existing PR inventoried; merged/closed behavior preserved, no new duplicate
+82	issue	open	AVE Java-free Android migration: ICK native application producer	Existing AVE migration retained; BC-FP03 nativeproducer; no application redesign
+83	issue	open	Correct mistaken E5M3 work to signed OCP E4M3 and E5M2 across compiler targets	Existing signed OCP E4M3/E5M2 correction; rootcompiler dependencies only
+84	issue	open	SUN X2 — Verify and isolate ChatGPTExporter evidence-validation repair	Existing exporter SUN X2 retained; no generic FPdispatch evidence
+85	issue	open	C67 physical Sublixel 3×3/5×5 tester, ICK-owned curve source	Existing physical Sublixel tester; BC-FP03 producer; no new device obligations
+86	issue	open	SUN X3 — Repair exporter retrieval, overlap order and archive identities	Existing exporter SUN X3 retained; actual leafimplementation outside campaign
+87	issue	open	Mostow renderer transfer: Flower and Crystal consumer jobs	Existing renderer leaf jobs; sourceclosure/producer dependency only
+88	issue	open	SUN X4 — Repair ChatGPTExporter inventory termination and uncertainty	Existing exporter SUN X4 retained; leafimplementation outside campaign
+89	issue	open	SUN X5 — Verify and repair physical assets during exporter resume	Existing exporter SUN X5 retained; artifact/retry consumer example only
+90	issue	open	English Major C — define execution index	One-off English Major C definition; outside campaign
+91	issue	open	English Major C — specify ARM Thumb execution machine and closed English operation vocabulary	English Major C ISA design outside campaign; exactsource preserved
+92	issue	open	English Major C — verify and promote the archived R lm x86-64 assembly reference	English Major C archived machinecode reference; outside campaign
+93	issue	open	English Major C: direct-to-Thumb compiler for the unknown-entry sum	English Major C compiler semantics outside campaign; existingjob preserved
+94	issue	open	English Major C — translate archived R QR x86-64 instructions into precise English	English Major C nativeQR translation outside campaign
+95	issue	open	SUN X6 — Canonical ChatGPT export output and linear graph validation	Existing exporter SUN X6; leafgraph semantics outside campaign
+96	issue	open	English Major C: parallel large-model interpretation and discrete Idriç parser	English Major C model/parsing task outside campaign; do not duplicate
+97	issue	open	SUN T3 — Implement verified 24/31-EDO MIDI retuning with explicit spelling	Existing tuning SUN T3; application semantics outside campaign
+98	issue	closed	English Major C — capture actual ARMv7-A A32 disassembly of R QR routines	Explicit user one-off scope correction CLOSED/notplanned; do not force FP routing
+99	issue	open	English Major C — executable ARM and x86-64 examples with separate QEMU receipts	English Major C ARM/x86 examples; existing QEMU receipts separate; outside campaign
+100	issue	open	SUN B1 — Browser acceptance for ChatGPTExporter stacked repairs	Existing exporter browser acceptance; no invented platform access
+101	issue	open	SUN MB-02 — enforce bigmul C ABI and input/protocol boundaries	Existing SUN MB-02 retained; root compilerP01 dependency only
+102	issue	open	English Major C — ARM A32 QR machine bytes to complete first-pass English concordance	English Major C ARM QR concordance outside campaign
+103	issue	open	SUN Offline-1 — ChatGPTExporter offline Drive/GitHub input	Existing exporter offlineinput SUN retained; no parallel Drive protocol

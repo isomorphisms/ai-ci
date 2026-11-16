@@ -1,0 +1,19 @@
+# BC-A03 decision — 2026-10-14
+
+One refreshed reused SUN/Ultra job, **CF-A2-S4**, replaces the packet's tentative four-way split. The retained implementation explicitly names S4; splitting its authority, issuer, execution and plan-admission boundary into new replacement identities would duplicate an existing coherent assignment. This continuation is newly authored from exact durable implementation/scope evidence; the original complete S4 prose was not recovered.
+
+Main [949a60dad5e014cafce2c49619df9bbdbcfaafc0](https://github.com/isomorphisms/ai-ci/tree/949a60dad5e014cafce2c49619df9bbdbcfaafc0) still has the older `android-producer/check.sh` boundary: ancestry-only policy selection, caller-selected policy ref not independently tied to checkout, optional prior receipt and controllable no-DEX claim. The current retained `android-producer-composite-gate` branch is [5c80279dfcee565f4e999d2b1f97feb966b8efd3](https://github.com/isomorphisms/ai-ci/tree/5c80279dfcee565f4e999d2b1f97feb966b8efd3), newer than closed [isomorphisms/ai-ci PR #211, “Bind Android producer execution and diagnostic claims to verified identities”](https://github.com/isomorphisms/ai-ci/pull/211). Its protected anchor, authenticated current-state lookup, deployment checks, stage graph and sealed-output interfaces must be retained.
+
+`qualification/s4/README.md` records implementation 6a90fbb9fac8984fe853924d6f5e7298f2458574, 32 fixture passes, two blocked real-execution controls and eleven killed checker mutants. These are historical authenticated fixtures, not independently observed execution or active isolation. Real tracing/isolation and issuer/store qualification remain blocked; canonical plan projection is COORDINATION_PENDING. This makes source reconciliation ready and production acceptance conditional.
+
+| Disposition | Existing work or remainder | Decision |
+|---|---|---|
+| REUSED_CONTINUATION | CF-A2-S4 | Preserve identity; complete current authority lifecycle, plan binding and actual qualified execution in its existing boundary. |
+| IMPLEMENTED_SOURCE | Retained release/decision/supervisor interfaces | Do not recreate authenticated release, public anchor or fixture separation. |
+| REUSE | [isomorphisms/ai-ci PR #230, “SUN 1: independently verify Cat Food companion plans and signed APK bytes”](https://github.com/isomorphisms/ai-ci/pull/230), head 0699756155d614bb75caeb679d97e40934b7dced | Retain plan/package checks; reconcile obsolete unmerged-Cat-Food premise and weak ancestry/generic-tool assumptions. |
+| OWNER_BOUNDARY | P01/P04, CF07, FP | P01 observes actual compiler descendants; P04 owns finished packaging; CF07 owns matrix/export/update consumers; FP executes registered operations. |
+| BLOCKED_RUNTIME | Current eligible material | Acquisition success in [isomorphisms/catfood PR #137, “Restore RHS Grease acquisition with verified owner provenance”](https://github.com/isomorphisms/catfood/pull/137) supplies a replacement archive expiring October 19 but still pins prohibited C++ executable digest 7e31cd05…; obtainability is not qualification. |
+
+Edit order: reconcile retained S4 source with current main; release the independently checked authority/current-policy artifact and qualified plan interface; P01/CF/P04 consume or supply their artifacts independently; then qualify real process/isolation/issuer/store controls and integrate the actual producer/delivery consumer. No whole-job dependency on CF07 or P04 completion: the versioned interfaces are the dependency. Shared `android-producer/` edits are serialized under S4 with P01's narrow execution-observer additions. Existing K1/K2/K3 compiler history is preserved.
+
+Current policy, source closure, replay and present admission remain distinct. Crystal's missing original key cannot block unrelated approved new installs; it also cannot be silently replaced for Crystal. No activation or live issuer/root installation occurs in this campaign.

@@ -1,0 +1,5 @@
+id	title	owner	canonical_issue	readiness	dependencies	path
+BC-A06-S01	Bind dependency transitions to observed producer and consumer material	isomorphisms/catfood	https://github.com/isomorphisms/catfood/issues/95	SOURCE_READY_ACCEPTANCE_CONDITIONAL	BC-P02-S01 frozen closure;CatFood131 eligible non-C++ Grease;qualified Idriç as needed	jobs/BC-A06-S01.md
+BC-A06-S02	Compute complete obligations and reject unproved transitions	isomorphisms/ai-ci	https://github.com/isomorphisms/ai-ci/issues/190	CONDITIONAL	BC-A06-S01 exact schema/source; qualified implementation runtime/toolchain	jobs/BC-A06-S02.md
+BC-A06-S03	Reconcile AZ through Cat Food's actual consumer path	isomorphisms/catfood	https://github.com/isomorphisms/catfood/issues/95	CONDITIONAL	BC-A06-S01;BC-A06-S02;BC-P02-S01;CatFood131 eligible non-C++ Grease;exact AZ material	jobs/BC-A06-S03.md
+BC-A06-S04	Qualify registered transition execution and durable completion	isomorphisms/flexible-pipes	https://github.com/isomorphisms/flexible-pipes/issues/24	CONDITIONAL	BC-A06-S01;BC-A06-S02;BC-A06-S03;BC-P02-S05 including BC-T01-S01;current FP01 admission contract	jobs/BC-A06-S04.md
