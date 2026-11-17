@@ -12,7 +12,9 @@ for sample in @(seq 1 180) {
   var status = _error.code
   if (status === 0) {
     var pss = $(awk '$1=="TOTAL" && $2=="PSS:" {value=$3} $1=="TOTAL" && $2~/^[0-9]+$/ && value=="" {value=$2} END {print value}' "$evidence/memory.private")
-    if printf '%s\n' "$pss" | rg -q -x '[0-9]+' { printf '%s\t%s\t%s\n' "$sample" "$(date +%s%3N)" "$pss" >> "$evidence/memory-samples.tsv" }
+    try { printf '%s\n' "$pss" | rg -q -x '[0-9]+' }
+    var valid_pss = _error.code
+    if (valid_pss === 0) { printf '%s\t%s\t%s\n' "$sample" "$(date +%s%3N)" "$pss" >> "$evidence/memory-samples.tsv" }
   }
   rm -f "$evidence/memory.private"
   printf 'sample\t%s\n' "$sample" >> "$evidence/process-samples.txt"

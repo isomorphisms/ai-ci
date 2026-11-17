@@ -1,0 +1,24 @@
+control	expected_diagnostic	outcome
+secret	FAIL nonnumeric unknown missing or stale native diagnostics	REJECTED
+unknown	FAIL nonnumeric unknown missing or stale native diagnostics	REJECTED
+missing	FAIL nonnumeric unknown missing or stale native diagnostics	REJECTED
+duplicate	FAIL nonnumeric unknown missing or stale native diagnostics	REJECTED
+stale	FAIL nonnumeric unknown missing or stale native diagnostics	REJECTED
+no-positive	FAIL nonnumeric unknown missing or stale native diagnostics	REJECTED
+unknown-epoch	FAIL nonnumeric unknown missing or stale native diagnostics	REJECTED
+unknown-elapsed	FAIL nonnumeric unknown missing or stale native diagnostics	REJECTED
+metric-epoch	FAIL nonnumeric unknown missing or stale native diagnostics	REJECTED
+marker-unknown	FAIL nonnumeric unknown missing or stale native diagnostics	REJECTED
+marker-secret	FAIL nonnumeric unknown missing or stale native diagnostics	REJECTED
+probe-missing	FAIL lifecycle attribution probe boundary or positive control	REJECTED
+probe-unfinished	FAIL lifecycle attribution probe boundary or positive control	REJECTED
+probe-duplicate	FAIL lifecycle attribution probe boundary or positive control	REJECTED
+probe-host	FAIL lifecycle attribution probe boundary or positive control	REJECTED
+probe-checkpoint	FAIL lifecycle attribution probe boundary or positive control	REJECTED
+probe-attributed	FAIL lifecycle attribution probe boundary or positive control	REJECTED
+probe-measurement	FAIL lifecycle attribution probe boundary or positive control	REJECTED
+probe-count	FAIL lifecycle attribution probe boundary or positive control	REJECTED
+probe-order	FAIL lifecycle attribution probe boundary or positive control	REJECTED
+probe-generation	FAIL lifecycle attribution probe boundary or positive control	REJECTED
+initial-commit	FAIL lifecycle attribution probe boundary or positive control	REJECTED
+fresh-finish	FAIL lifecycle attribution probe boundary or positive control	REJECTED

@@ -16,6 +16,7 @@
 .field private firstUsefulMs:J
 .field private firstActionMs:J
 .field private publicState:I
+.field private storageMetrics:Landroid/os/Bundle;
 
 .method public constructor <init>()V
     .locals 0
@@ -328,6 +329,7 @@
     const/4 v0, 0
     new-array v0, v0, [Ljava/nio/file/OpenOption;
     invoke-static {v2, v1, v0}, Ljava/nio/file/Files;->write(Ljava/nio/file/Path;[B[Ljava/nio/file/OpenOption;)Ljava/nio/file/Path;
+    invoke-static {p0, p1, v1}, Lacceptance/admin/AdminEvidence;->exportArtifact(Landroid/app/Instrumentation;Ljava/lang/String;[B)V
     return-void
 .end method
 
@@ -444,6 +446,11 @@
     move-result v6
     invoke-virtual {v3}, Ljava/io/OutputStream;->close()V
     invoke-virtual {v0}, Landroid/graphics/Bitmap;->recycle()V
+    invoke-virtual {v2}, Ljava/io/File;->toPath()Ljava/nio/file/Path;
+    move-result-object v0
+    invoke-static {v0}, Ljava/nio/file/Files;->readAllBytes(Ljava/nio/file/Path;)[B
+    move-result-object v0
+    invoke-static {p0, p1, v0}, Lacceptance/admin/AdminEvidence;->exportArtifact(Landroid/app/Instrumentation;Ljava/lang/String;[B)V
     const-string v0, "FAIL live source-bound screenshot encoding"
     invoke-static {v6, v0}, Lacceptance/admin/AdminInstrumentation;->require(ZLjava/lang/String;)V
     return-void
@@ -691,11 +698,22 @@
 .method public onStart()V
     .locals 7
   :try_start
-    invoke-direct {p0}, Lacceptance/admin/AdminInstrumentation;->launch()V
+    invoke-static {p0}, Lacceptance/admin/AdminEvidence;->measure(Landroid/app/Instrumentation;)Landroid/os/Bundle;
+    move-result-object v0
+    iput-object v0, p0, Lacceptance/admin/AdminInstrumentation;->storageMetrics:Landroid/os/Bundle;
     iget-object v0, p0, Lacceptance/admin/AdminInstrumentation;->arguments:Landroid/os/Bundle;
     const-string v1, "phase"
     invoke-virtual {v0, v1}, Landroid/os/Bundle;->getString(Ljava/lang/String;)Ljava/lang/String;
     move-result-object v0
+    const-string v1, "preflight"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :launch
+    invoke-static {p0}, Lacceptance/admin/AdminEvidence;->preflight(Landroid/app/Instrumentation;)V
+    const-string v4, "PASS actual target UID observed absent protected namespace"
+    goto :pass
+  :launch
+    invoke-direct {p0}, Lacceptance/admin/AdminInstrumentation;->launch()V
     const-string v1, "public-search"
     invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
     move-result v1
@@ -741,6 +759,9 @@
     const/4 v5, 0
     goto :finish
   :pass
+    invoke-static {p0}, Lacceptance/admin/AdminEvidence;->measure(Landroid/app/Instrumentation;)Landroid/os/Bundle;
+    move-result-object v0
+    iput-object v0, p0, Lacceptance/admin/AdminInstrumentation;->storageMetrics:Landroid/os/Bundle;
     const/4 v5, -1
     goto :finish
   :try_end
@@ -762,6 +783,10 @@
   :finish
     new-instance v0, Landroid/os/Bundle;
     invoke-direct {v0}, Landroid/os/Bundle;-><init>()V
+    iget-object v1, p0, Lacceptance/admin/AdminInstrumentation;->storageMetrics:Landroid/os/Bundle;
+    if-eqz v1, :no_metrics
+    invoke-virtual {v0, v1}, Landroid/os/Bundle;->putAll(Landroid/os/Bundle;)V
+  :no_metrics
     const-string v1, "stream"
     invoke-virtual {v0, v1, v4}, Landroid/os/Bundle;->putString(Ljava/lang/String;Ljava/lang/String;)V
     const-string v1, "first_action_ms"

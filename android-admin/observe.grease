@@ -28,6 +28,8 @@ var sampler_pid = ''
 var safe_records = false
 trap --add EXIT {
   rm -f "$evidence/sampling.active" "$evidence/mutated.task" "$evidence/mutated.log"
+  rm -f "$evidence/.phase-private"
+  rm -rf "$evidence/.export-private"
   if (len(sampler_pid) > 0) { try { wait "$sampler_pid" } }
   if (len(server_pid) > 0) { try { kill -TERM "$server_pid" }; try { wait "$server_pid" } }
   try { "$adb" -s "$serial" reverse --remove tcp:18493 }
@@ -47,6 +49,15 @@ var cpus = $("$adb" -s "$serial" shell nproc | tr -d '\r')
 var memory = $("$adb" -s "$serial" shell cat /proc/meminfo | tr -d '\r' | awk '$1=="MemTotal:"{print $2}')
 printf '%s\n' "$cpus" | rg -q -x '[1-9][0-9]*'
 printf '%s\n' "$memory" | rg -q -x '[1-9][0-9]*'
+var requested_cpus = 2
+var requested_memory = 2048
+if (public_ladder === '1') { setvar requested_cpus = 1; setvar requested_memory = 1024 }
+var low_ram = $("$adb" -s "$serial" shell getprop ro.config.low_ram | tr -d '\r')
+var observed_low_ram = 0
+if (low_ram === 'true') { setvar observed_low_ram = 1 } elif (low_ram !== 'false' and low_ram !== '') {
+  echo 'FAIL malformed guest low-RAM property' >&2; exit 1
+}
+printf 'api\t%s\nabi\tx86_64\nrequested_cpus\t%s\nrequested_memory_mib\t%s\nguest_online_cpus\t%s\nguest_memtotal_kib\t%s\nguest_low_ram\t%s\nrequested_width\t480\nrequested_height\t800\npublic_ladder\t%s\n' "$api" "$requested_cpus" "$requested_memory" "$cpus" "$memory" "$observed_low_ram" "$public_ladder" > "$evidence/target.tsv"
 if (public_ladder === '1') {
   if (api !== '34' or cpus !== '1' or int(memory) < 700000 or int(memory) > 1100000) {
     echo 'FAIL guest does not match declared low-memory lane' >&2; exit 1
@@ -54,7 +65,6 @@ if (public_ladder === '1') {
 } elif (cpus !== '2' or int(memory) < 1500000 or int(memory) > 2200000) {
   echo 'FAIL guest does not match declared 2GiB lane' >&2; exit 1
 }
-printf 'api\t%s\nabi\tx86_64\nguest_online_cpus\t%s\nguest_memtotal_kib\t%s\npublic_ladder\t%s\n' "$api" "$cpus" "$memory" "$public_ladder" > "$evidence/target.tsv"
 var tools = "$sdk/build-tools/35.0.0"
 var certificate = 'de9b1d47c5a65e6d46a204b79dd9ee566b9d3c9832ba81ebc4213d3392e92ff9'
 "$tools/apksigner" verify --print-certs "$candidate" > "$evidence/candidate-signer.txt"
@@ -69,9 +79,7 @@ printf '%s\n' "$installed" | rg -q -x '/data/app/[A-Za-z0-9_./~+=-]+/base\.apk'
 cmp "$candidate" "$evidence/installed.apk"
 var original_uid = $("$adb" -s "$serial" shell pm list packages -U org.isomorphisms.ib.prepaint | tr -d '\r')
 printf '%s\n' "$original_uid" | rg -q -x 'package:org\.isomorphisms\.ib\.prepaint uid:[1-9][0-9]{4,}'
-if "$adb" -s "$serial" shell run-as org.isomorphisms.ib.prepaint test -e files/state/longview-current {
-  echo 'FAIL protected admin namespace already has a task' >&2; exit 1
-}
+var expected_uid = $(printf '%s\n' "$original_uid" | sed 's/.* uid://')
 var controls = "$acceptance/android-admin"
 "$grease" "$controls/build-observer.grease" "$acceptance" "$sdk" "$smali" "$baksmali" "$keystore" "$evidence/observer-build"
 "$adb" -s "$serial" install -r "$evidence/observer-build/observer.apk" > "$evidence/observer-install.txt" 2>&1
@@ -98,47 +106,57 @@ rg -q '(Physical|Override) size: 480x800' "$evidence/viewport.txt"
 "$adb" -s "$serial" shell wm dismiss-keyguard
 "$adb" -s "$serial" shell settings put system screen_off_timeout 1800000
 "$adb" -s "$serial" shell dumpsys webviewupdate > "$evidence/webview.txt"
-"$adb" -s "$serial" shell run-as org.isomorphisms.ib.prepaint du -sk . | tr -d '\r' | awk '{print "before_kib\t"$1}' > "$evidence/app-data-size.tsv"
 touch "$evidence/sampling.active"
 fork { exec "$grease" "$controls/sample-resources.grease" "$adb" "$serial" "$evidence/sampling.active" "$evidence" }
 setglobal sampler_pid = $!
-proc observe(phase, label, marker) {
+proc observe(phase, label, marker, instrumentation_code) {
   try {
     timeout 360 "$adb" -s "$serial" shell am instrument -w -r -e phase "$phase" \
-      org.isomorphisms.ib.admin.acceptance/acceptance.admin.AdminInstrumentation > "$evidence/$label.txt" 2>&1
+      org.isomorphisms.ib.admin.acceptance/acceptance.admin.AdminInstrumentation > "$evidence/.phase-private" 2>&1
   }
   var status = _error.code
   printf '%s\n' "$status" > "$evidence/$label.exit"
-  if rg -q 'IB_SYNTHETIC_ONLY_|IB_UNAPPROVED_INPUT|IBFixtureVerified' "$evidence/$label.txt" {
-    rm -f "$evidence/$label.txt"
-    echo 'FAIL protected value in instrumentation output' >&2; exit 1
+  try { "$grease" "$controls/decode-observation.grease" "$evidence/.phase-private" "$phase" "$expected_uid" "$evidence/.export-private" > "$evidence/$label.transport.txt" 2>&1 }
+  var transport = _error.code
+  rm -f "$evidence/.phase-private"
+  if test -f "$evidence/.export-private/transcript.txt" { mv "$evidence/.export-private/transcript.txt" "$evidence/$label.txt" }
+  if (transport !== 0) {
+    if test -f "$evidence/$label.txt" { cat "$evidence/$label.txt" >&2 }
+    cat "$evidence/$label.transport.txt" >&2
+    echo 'FAIL admin private evidence transport' >&2; exit 1
   }
+  mv "$evidence/.export-private/metrics.tsv" "$evidence/$label.storage.tsv"
+  mv "$evidence/.export-private/artifacts.tsv" "$evidence/$label.artifacts.tsv"
+  for name in @(awk -F '\t' '{print $1}' "$evidence/$label.artifacts.tsv") {
+    var destination = "$name"
+    if (label === 'update' and name === 'admin-after-host.task') { setvar destination = 'admin-after-update.task' }
+    mv "$evidence/.export-private/payload/$name" "$evidence/$destination"
+  }
+  rm -rf "$evidence/.export-private"
   cat "$evidence/$label.txt"
   if (status !== 0) { echo 'FAIL admin instrumentation process' >&2; exit 1 }
-  rg -q -x -F 'INSTRUMENTATION_CODE: -1' "$evidence/$label.txt"
+  rg -q -x -F "INSTRUMENTATION_CODE: $instrumentation_code" "$evidence/$label.txt"
   rg -q -x -F "INSTRUMENTATION_RESULT: stream=$marker" "$evidence/$label.txt"
 }
 proc counts(label) {
   curl --fail --silent --show-error --max-time 5 http://127.0.0.1:18493/counts > "$evidence/$label.counts.tsv"
 }
-observe fake fake 'PASS false interactive marker rejected by usable-control assertion'
+observe preflight preflight 'PASS actual target UID observed absent protected namespace' -1
+awk -F '\t' '$1=="data_bytes"{print "before_data_bytes\t"$2}$1=="cache_bytes"{print "before_cache_bytes\t"$2}' "$evidence/preflight.storage.tsv" > "$evidence/app-data-size.tsv"
+observe fake fake 'PASS false interactive marker rejected by usable-control assertion' -1
 counts fake
 for field in usable_actions verification_actions value_attempts value_deliveries ambiguous_effects {
   test "$(awk -F '\t' -v key="$field" '$1==key{print $2}' "$evidence/fake.counts.tsv")" = 0
 }
-observe exercise exercise 'PASS actual admin touch verification app-switch result and renderer recovery'
+observe preflight existing-task 'FAIL protected admin namespace already has a task' 0
+observe exercise exercise 'PASS actual admin touch verification app-switch result and renderer recovery' -1
 counts exercise
-for name in admin-before-lifecycle.task admin-after-lifecycle.task admin-before-renderer.task admin-after-renderer.task admin-after-activity.task {
-  "$adb" -s "$serial" exec-out run-as org.isomorphisms.ib.prepaint cat "cache/$name" > "$evidence/$name"
-}
 for name in admin-first-action.png admin-after-activity.png {
-  "$adb" -s "$serial" exec-out run-as org.isomorphisms.ib.prepaint cat "cache/$name" > "$evidence/$name"
   file "$evidence/$name" | rg -q 'PNG image data, 480 x 800'
 }
 "$adb" -s "$serial" shell am force-stop org.isomorphisms.ib.prepaint
-observe resume host 'PASS actual admin host recovery requires ordinary root reconstruction'
+observe resume host 'PASS actual admin host recovery requires ordinary root reconstruction' -1
 counts host
-"$adb" -s "$serial" exec-out run-as org.isomorphisms.ib.prepaint cat cache/admin-after-host.task > "$evidence/admin-after-host.task"
 "$grease" "$controls/verify-observations.grease" "$evidence/admin-before-renderer.task" \
   "$evidence/admin-after-renderer.task" "$evidence/admin-after-activity.task" "$evidence/admin-after-host.task" \
   "$evidence/host.counts.tsv" > "$evidence/oracle-positive.txt"
@@ -154,10 +172,9 @@ cat "$evidence/oracle-positive.txt"
 rg -q -x -F Success "$evidence/replacement.txt"
 var updated_uid = $("$adb" -s "$serial" shell pm list packages -U org.isomorphisms.ib.prepaint | tr -d '\r')
 if (updated_uid !== original_uid) { echo 'FAIL replacement changed application UID' >&2; exit 1 }
-observe resume update 'PASS actual admin host recovery requires ordinary root reconstruction'
-counts update
 setvar safe_records = false
-"$adb" -s "$serial" exec-out run-as org.isomorphisms.ib.prepaint cat cache/admin-after-host.task > "$evidence/admin-after-update.task"
+observe resume update 'PASS actual admin host recovery requires ordinary root reconstruction' -1
+counts update
 "$grease" "$controls/verify-observations.grease" "$evidence/admin-before-renderer.task" \
   "$evidence/admin-after-renderer.task" "$evidence/admin-after-activity.task" "$evidence/admin-after-update.task" \
   "$evidence/update.counts.tsv" > "$evidence/oracle-update.txt"
@@ -211,7 +228,7 @@ var first_action = $(sed -n 's/^INSTRUMENTATION_RESULT: first_action_ms=//p' "$e
 for value in "$first_useful" "$first_action" { printf '%s\n' "$value" | rg -q -x '[1-9][0-9]*' }
 if (int(first_action) < int(first_useful)) { echo 'FAIL impossible first useful/action chronology' >&2; exit 1 }
 printf 'first_useful_control_ms\t%s\nfirst_confirmed_action_ms\t%s\n' "$first_useful" "$first_action" > "$evidence/interaction-timing.tsv"
-"$adb" -s "$serial" shell run-as org.isomorphisms.ib.prepaint du -sk . | tr -d '\r' | awk '{print "after_fixture_kib\t"$1}' >> "$evidence/app-data-size.tsv"
+awk -F '\t' '$1=="data_bytes"{print "after_fixture_data_bytes\t"$2}$1=="cache_bytes"{print "after_fixture_cache_bytes\t"$2}' "$evidence/update.storage.tsv" >> "$evidence/app-data-size.tsv"
 printf 'schema\tib-admin-installed-v1\napi\t%s\nabi\tx86_64\nactual_page_control_touch\tPASS\nfalse_interactive_marker\tREJECTED\nmock_verification_and_observed_app_switch\tPASS\none_time_result_without_receipt_copy\tPASS\nactual_secret_in_numeric_callback\tREJECTED\nactual_stale_document_callback\tREJECTED\nactual_stale_renderer_callback\tREJECTED\nrenderer_death_same_task\tPASS\nActivity_recreation_same_task\tPASS\nhost_death_same_task\tPASS\nambiguous_operation_replay\tREJECTED\ndirty_unapproved_form_persistence\tREJECTED\nfalse_session_evidence\tREJECTED\nstale_renderer_evidence\tREJECTED\nsecret_diagnostic_evidence\tREJECTED\nreplacement_install_retains_task\tPASS\nGoogle_Cloud_live\tNOT_RUN\nYouTube_live\tNOT_RUN\nphysical_C67\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"
 printf 'actual_stale_lifecycle_callbacks\tFOUR_UNKNOWN\nprobe_checkpoint_or_measurement\tNONE\nprobe_durable_task_bytes\tUNCHANGED\ninitial_and_fresh_renderer_lifecycle\tPASS\n' >> "$evidence/receipt.tsv"
 cat "$evidence/receipt.tsv"

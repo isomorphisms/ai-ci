@@ -156,3 +156,4 @@ forkwait {
 }
 printf 'schema\tib-admin-oracle-host-v1\npositive_synthetic_records\tPASS\nrecord_negative_controls\t31_REJECTED\npositive_numeric_diagnostics\tPASS\npositive_synthetic_lifecycle_boundaries\tPASS\ndiagnostic_negative_controls\t23_REJECTED\ninstalled_Android\tNOT_RUN\nphysical_C67\tNOT_RUN\n' > "$evidence/receipt.tsv"
 cat "$evidence/receipt.tsv"
+"$grease" "$controls/test-transport.grease" "$acceptance" "$evidence/transport"

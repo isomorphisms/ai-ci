@@ -16,25 +16,37 @@ mkdir -p "$evidence"
 "$adb" -s "$serial" shell getprop ro.build.version.sdk | tr -d '\r' | rg -q -x 34
 "$adb" -s "$serial" shell getprop ro.product.cpu.abi | tr -d '\r' | rg -q -x x86_64
 "$adb" -s "$serial" shell nproc | tr -d '\r' | rg -q -x 1
+var installed_uid = $("$adb" -s "$serial" shell pm list packages -U org.isomorphisms.ib.prepaint | tr -d '\r')
+printf '%s\n' "$installed_uid" | rg -q -x 'package:org\.isomorphisms\.ib\.prepaint uid:[1-9][0-9]{4,}'
+var expected_uid = $(printf '%s\n' "$installed_uid" | sed 's/.* uid://')
 printf 'phase\tstate\treason\n' > "$evidence/receipt.tsv"
 var failed = false
-trap --add EXIT { rm -f "$evidence/raw-events.private" }
+trap --add EXIT { rm -f "$evidence/raw-events.private" "$evidence/.phase-private"; rm -rf "$evidence/.export-private" }
 for phase in public-search public-miwam {
   try {
     timeout 180 "$adb" -s "$serial" shell am instrument -w -r -e phase "$phase" \
-      org.isomorphisms.ib.admin.acceptance/acceptance.admin.AdminInstrumentation > "$evidence/$phase.txt" 2>&1
+      org.isomorphisms.ib.admin.acceptance/acceptance.admin.AdminInstrumentation > "$evidence/.phase-private" 2>&1
   }
   var result = _error.code
   printf '%s\n' "$result" > "$evidence/$phase.exit"
-  if rg -q 'IB_SYNTHETIC_ONLY_|IB_UNAPPROVED_INPUT|IBFixtureVerified' "$evidence/$phase.txt" {
-    rm -f "$evidence/$phase.txt"
-    echo 'FAIL protected value in public observer output' >&2; exit 1
+  try { "$grease" "$acceptance/android-admin/decode-observation.grease" "$evidence/.phase-private" "$phase" "$expected_uid" "$evidence/.export-private" > "$evidence/$phase.transport.txt" 2>&1 }
+  var screenshot_status = _error.code
+  rm -f "$evidence/.phase-private"
+  if test -f "$evidence/.export-private/transcript.txt" { mv "$evidence/.export-private/transcript.txt" "$evidence/$phase.txt" }
+  touch "$evidence/$phase.txt"
+  if (screenshot_status === 0) {
+    mv "$evidence/.export-private/payload/$phase.png" "$evidence/$phase.png"
+    mv "$evidence/.export-private/metrics.tsv" "$evidence/$phase.storage.tsv"
+    mv "$evidence/.export-private/artifacts.tsv" "$evidence/$phase.artifacts.tsv"
   }
+  rm -rf "$evidence/.export-private"
   var actor = $(sed -n 's/^INSTRUMENTATION_RESULT: observed_host_pid=//p' "$evidence/$phase.txt" | tr -d '\r')
   var state = 'UNKNOWN'
   var reason = 'observer_incomplete'
   var numeric = false
-  if printf '%s\n' "$actor" | rg -q -x '[1-9][0-9]*' {
+  try { printf '%s\n' "$actor" | rg -q -x '[1-9][0-9]*' }
+  var valid_actor = _error.code
+  if (valid_actor === 0) {
     "$adb" -s "$serial" logcat -d -v raw -s IBLongView:I '*:S' > "$evidence/raw-events.private"
     try { "$grease" "$acceptance/android-admin/verify-diagnostics.grease" "$evidence/raw-events.private" no > "$evidence/$phase.log-check.txt" 2>&1 }
     var valid = _error.code
@@ -45,9 +57,6 @@ for phase in public-search public-miwam {
     }
     rm -f "$evidence/raw-events.private"
   }
-  try { "$adb" -s "$serial" exec-out run-as org.isomorphisms.ib.prepaint cat "cache/$phase.png" > "$evidence/$phase.png" 2> /dev/null }
-  var screenshot_status = _error.code
-  if (screenshot_status !== 0) { rm -f "$evidence/$phase.png" }
   if (numeric) {
     var events = "$evidence/$phase.events.txt"
     if rg -q '^event=7 ' "$events" {
@@ -57,13 +66,17 @@ for phase in public-search public-miwam {
     } elif rg -q -x -F 'INSTRUMENTATION_RESULT: public_state=-1' "$evidence/$phase.txt" {
       setvar state = 'BLOCKED_SITE'; setvar reason = 'public_verification_or_denial_page'
     } elif (result === 0 and screenshot_status === 0) {
-      if rg -q -x -F 'INSTRUMENTATION_CODE: -1' "$evidence/$phase.txt" \
-        && rg -q -x -F 'INSTRUMENTATION_RESULT: public_state=1' "$evidence/$phase.txt" \
-        && rg -q '^event=3 .* code=0 ' "$events" \
-        && rg -q '^event=5 .* code=0 ' "$events" \
-        && rg -q '^event=6 .* code=0 ' "$events" \
-        && rg -q '^event=10 .* dns_ms=' "$events" \
-        && file "$evidence/$phase.png" | rg -q 'PNG image data, 480 x 800' {
+      try {
+        rg -q -x -F 'INSTRUMENTATION_CODE: -1' "$evidence/$phase.txt"
+        rg -q -x -F 'INSTRUMENTATION_RESULT: public_state=1' "$evidence/$phase.txt"
+        rg -q '^event=3 .* code=0 ' "$events"
+        rg -q '^event=5 .* code=0 ' "$events"
+        rg -q '^event=6 .* code=0 ' "$events"
+        rg -q '^event=10 .* dns_ms=' "$events"
+        file "$evidence/$phase.png" | rg -q 'PNG image data, 480 x 800'
+      }
+      var page_verified = _error.code
+      if (page_verified === 0) {
         setvar state = 'PASS'; setvar reason = 'host_observed_started_committed_finished_timed_visible'
       } else { setvar reason = 'missing_start_commit_finish_timing_or_source_screenshot' }
     }

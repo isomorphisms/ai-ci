@@ -18,6 +18,8 @@ All path arguments are absolute; the caller's current directory is irrelevant.
 | `verify-observations.grease` | `BEFORE_RENDERER AFTER_RENDERER AFTER_ACTIVITY AFTER_HOST COUNTS` |
 | `verify-diagnostics.grease` | `RAW_TAG_LOG REQUIRE_PROBES` (`yes` or `no`) |
 | `public-ladder.grease` | `AICI ADB SERIAL NEW_EVIDENCE` |
+| `decode-observation.grease` | `PRIVATE_TRANSCRIPT PHASE EXPECTED_UID NEW_EVIDENCE` |
+| `test-transport.grease` | `AICI NEW_EVIDENCE` |
 
 Set `IB_GREASE` to the qualified Grease executable. The installed coordinator
 also requires `AICI_EXPECTED_ANDROID_API=29` or `34` and
@@ -25,6 +27,8 @@ also requires `AICI_EXPECTED_ANDROID_API=29` or `34` and
 separate API 34, one CPU, 1 GiB emulator. Guest CPU count, guest memory and the
 480×800 viewport are observed. Normal lanes require two online CPUs and memory
 compatible with the declared 2 GiB guest; ranges allow kernel reservations.
+Requested and measured capacity are retained before the mismatch assertions,
+so a rejected guest still leaves its actual CPU and memory evidence.
 
 ## Actual deterministic path
 
@@ -101,6 +105,43 @@ is `UNKNOWN`. App data size includes test snapshots and screenshots. The
 server's parent-byte counter excludes delayed child responses and is not total
 network transfer.
 
+### Private records under the actual target UID
+
+The candidate remains non-debuggable. The observer uses the existing
+same-signature Android instrumentation boundary and checks that its actual
+process UID equals the target package's application UID. It also checks the
+fixed target package and the absence of `FLAG_DEBUGGABLE`. The coordinator
+still verifies the established signer and compares installed APK bytes with
+the candidate before observation. The reader observer's separate `app_process`
+execution runs under the shell UID and cannot establish this private-data
+boundary.
+
+A preflight phase runs before any Activity launch. Only an actual
+`NoSuchFileException` for the selected-task path establishes absence; access
+errors and an existing selector fail. After the negative page creates a task,
+the same preflight must refuse that existing namespace. Neither preflight
+launches the Activity. Storage measurements use `StorageStatsManager` for the
+observer's verified own UID: `data_bytes` already includes cache, while
+`cache_bytes` is reported separately and is not added again. These are storage
+statistics, not the old `du` allocated-KiB measurement.
+
+Snapshots and screenshots are exported during their original instrumentation
+phase, before that process ends. No extra instrumentation invocation is used
+to pull private files or mutate retained task state. The transport accepts
+only fixed per-phase names, bounded byte and chunk counts, contiguous parts,
+status-code pairs, exact SHA-256 digests and canonical base64. The host checks
+the actual target UID and non-debuggable flag in every completed phase.
+Canonical task selection remains checked inside the target process; the
+independent host oracle still validates the exported task semantics and its
+known-bad mutations.
+
+Raw encoded transport is captured in a private staging path. It is not an
+ordinary transcript. Failed decoding removes payloads; the transcript's
+protected-value check runs even when chunks are malformed or missing, and an
+unsafe transcript is deleted before anything is printed or retained. The
+fixed PNG in `fixtures/` exercises multi-chunk transport only. It is not a
+screenshot or product acceptance evidence.
+
 ## Separate public-page ladder
 
 After deterministic retention assertions pass, the optional public ladder runs
@@ -123,11 +164,16 @@ Changed public selectors require review; an unfamiliar page does not pass.
 
 `host-qualification/` retains exact source digests and Linux x86_64 results:
 oracle positives, 31 targeted record rejections, 23 diagnostic rejections,
-DEX assembly/disassembly, resource packaging and persistent-signature checks.
+22 transport rejections, DEX assembly/disassembly, resource packaging and
+persistent-signature checks.
 These are host results only.
 The initial published observer's receipts remain under
 `host-qualification/initial-40ff487/`; they describe that earlier source.
-The current receipt and source digests bind the lifecycle-control update.
+The lifecycle revision remains under `host-qualification/lifecycle-81b9fe7/`.
+The current receipt and source digests bind the actual-target-UID transport
+repair. The exact hosted API 29 private-access failure is retained separately
+in `host-qualification/installed-api29-before.tsv`; its successful installation
+does not become a successful admin runtime observation.
 
 The test-only instrumentation DEX is separate from the candidate and uses
 existing Android platform/test interfaces. It never replaces IB's checked

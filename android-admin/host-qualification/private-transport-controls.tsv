@@ -1,0 +1,23 @@
+control	expected_diagnostic	outcome
+missing	FAIL malformed missing or out-of-phase observer artifact transport	REJECTED
+filename	FAIL malformed missing or out-of-phase observer artifact transport	REJECTED
+path	FAIL malformed missing or out-of-phase observer artifact transport	REJECTED
+phase	FAIL malformed missing or out-of-phase observer artifact transport	REJECTED
+order	FAIL malformed missing or out-of-phase observer artifact transport	REJECTED
+duplicate	FAIL malformed missing or out-of-phase observer artifact transport	REJECTED
+chunks	FAIL malformed missing or out-of-phase observer artifact transport	REJECTED
+size	FAIL observer artifact byte count changed	REJECTED
+digest	FAIL observer artifact digest changed	REJECTED
+base64	FAIL malformed missing or out-of-phase observer artifact transport	REJECTED
+canonical	FAIL (corrupt|noncanonical) observer artifact encoding	REJECTED
+uid	FAIL observer target UID debug flag or storage metrics	REJECTED
+debug	FAIL observer target UID debug flag or storage metrics	REJECTED
+metric-suffix	FAIL observer target UID debug flag or storage metrics	REJECTED
+metric-missing	FAIL observer target UID debug flag or storage metrics	REJECTED
+encoded-secret	FAIL protected value in exported task artifact	REJECTED
+raw-secret-missing	FAIL protected value in observer transcript	REJECTED
+status-missing	FAIL malformed missing or out-of-phase observer artifact transport	REJECTED
+header-mismatch	FAIL malformed missing or out-of-phase observer artifact transport	REJECTED
+short-chunk	FAIL malformed missing or out-of-phase observer artifact transport	REJECTED
+oversized	FAIL malformed missing or out-of-phase observer artifact transport	REJECTED
+png-shape	FAIL observer screenshot shape	REJECTED
