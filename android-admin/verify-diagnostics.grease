@@ -1,0 +1,41 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 2) { echo 'usage: grease verify-diagnostics.grease RAW_TAG_LOG REQUIRE_PROBES' >&2; exit 2 }
+var log = ARGV[0]
+var probes = ARGV[1]
+if (probes !== 'yes' and probes !== 'no') { echo 'FAIL unknown diagnostic contract' >&2; exit 2 }
+test -f "$log"
+test "$(stat -c %s "$log")" -le 1048576
+# This is a closed numeric receipt: an unknown field is never treated as safe.
+if ! awk -v probes="$probes" '
+  /^--------- beginning of (main|system|crash)$/ {next}
+  {
+    delete values
+    for(i=1;i<=NF;i++) {
+      if(split($i,pair,"=")!=2 || pair[2] !~ /^-?[0-9]+$/ || length(pair[2])>14 || pair[2]+0 < -1000000000000 || pair[2]+0 > 1000000000000 || pair[1] in values) exit 1
+      values[pair[1]]=pair[2]
+    }
+    if(!("event" in values) || !("host_pid" in values) || values["host_pid"]+0<1 || !("host_generation" in values) || !("activity_generation" in values) || !("renderer_generation" in values) || !("document_epoch" in values))exit 1
+    if(values["event"]+0<1 || values["event"]+0>12)exit 1
+    common="^(event|host_pid|host_generation|activity_generation|renderer_generation|document_epoch|"
+    if("code" in values) {
+      if(NF!=8 || !("elapsed_ms" in values))exit 1
+      allowed=common "code|elapsed_ms)$"
+      if(values["event"]==10 && values["code"]==1 && values["elapsed_ms"]==-1)rejected++
+    } else if(values["event"]==10) {
+      if(NF!=14)exit 1
+      allowed=common "dns_ms|connect_ms|tls_ms|first_byte_ms|transfer_ms|dom_ms|load_ms|transfer_bytes)$"
+      if(values["dns_ms"]==10001 && values["transfer_bytes"]==10008)positive++
+      if(values["dns_ms"]==20001 || values["dns_ms"]==30001)stale++
+    } else if(values["event"]==11) {
+      if(NF!=10)exit 1
+      allowed=common "first_paint_ms|first_contentful_paint_ms|observed_resource_count|observed_resource_transfer_bytes)$"
+      if(values["first_paint_ms"]==10009 && values["observed_resource_transfer_bytes"]==10012)paint++
+      if(values["first_paint_ms"]==20009 || values["first_paint_ms"]==30009)stale++
+    } else exit 1
+    for(key in values)if(key !~ allowed)exit 1
+    events++
+  }
+  END {if(events<1 || (probes=="yes" && (positive!=1 || paint!=1 || rejected<1 || stale>0)))exit 1}
+' "$log" { echo 'FAIL nonnumeric unknown missing or stale native diagnostics' >&2; exit 1 }
+echo 'PASS closed numeric native diagnostics'
