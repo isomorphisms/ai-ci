@@ -28,7 +28,7 @@ var sampler_pid = ''
 var safe_records = false
 trap --add EXIT {
   rm -f "$evidence/sampling.active" "$evidence/mutated.task" "$evidence/mutated.log"
-  rm -f "$evidence/.phase-private"
+  rm -f "$evidence/.phase-private" "$evidence/.http-events-private" "$evidence/.failure-events-private"
   rm -rf "$evidence/.export-private"
   if (len(sampler_pid) > 0) { try { wait "$sampler_pid" } }
   if (len(server_pid) > 0) { try { kill -TERM "$server_pid" }; try { wait "$server_pid" } }
@@ -109,6 +109,24 @@ rg -q '(Physical|Override) size: 480x800' "$evidence/viewport.txt"
 touch "$evidence/sampling.active"
 fork { exec "$grease" "$controls/sample-resources.grease" "$adb" "$serial" "$evidence/sampling.active" "$evidence" }
 setglobal sampler_pid = $!
+proc capture_failure_events(label) {
+  var retained = false
+  try {
+    timeout 10 "$adb" -s "$serial" logcat -d -v raw -t 4096 -s IBLongView:I '*:S' 2> /dev/null \
+      | head -c 1048577 > "$evidence/.failure-events-private"
+    "$grease" "$controls/verify-diagnostics.grease" "$evidence/.failure-events-private" no \
+      > "$evidence/$label.failure-events-check.txt" 2>&1
+    mv "$evidence/.failure-events-private" "$evidence/$label.failure-native-events.txt"
+    setvar retained = true
+  }
+  if (not retained) {
+    try { rm -f "$evidence/.failure-events-private" }
+    try {
+      printf 'UNAVAILABLE native event tail was absent incomplete oversized or outside the closed numeric contract\n' \
+        > "$evidence/$label.failure-events-check.txt"
+    }
+  }
+}
 proc observe(phase, label, marker, instrumentation_code) {
   try {
     timeout 360 "$adb" -s "$serial" shell am instrument -w -r -e phase "$phase" \
@@ -120,7 +138,17 @@ proc observe(phase, label, marker, instrumentation_code) {
   var transport = _error.code
   rm -f "$evidence/.phase-private"
   if test -f "$evidence/.export-private/transcript.txt" { mv "$evidence/.export-private/transcript.txt" "$evidence/$label.txt" }
+  if (status === 124) {
+    rm -rf "$evidence/.export-private"
+    try { timeout 10 "$adb" -s "$serial" shell am force-stop org.isomorphisms.ib.prepaint > /dev/null 2>&1 }
+    var stopped = _error.code
+    printf 'reason\tbounded_360_second_observer_timeout\noriginal_exit\t124\nforce_stop_exit\t%s\n' "$stopped" \
+      > "$evidence/$label.timeout.tsv"
+    capture_failure_events "$label"
+    echo 'FAIL admin instrumentation exceeded its 360-second process timeout' >&2; exit 1
+  }
   if (transport !== 0) {
+    capture_failure_events "$label"
     if test -f "$evidence/$label.txt" { cat "$evidence/$label.txt" >&2 }
     cat "$evidence/$label.transport.txt" >&2
     echo 'FAIL admin private evidence transport' >&2; exit 1
@@ -134,9 +162,19 @@ proc observe(phase, label, marker, instrumentation_code) {
   }
   rm -rf "$evidence/.export-private"
   cat "$evidence/$label.txt"
-  if (status !== 0) { echo 'FAIL admin instrumentation process' >&2; exit 1 }
-  rg -q -x -F "INSTRUMENTATION_CODE: $instrumentation_code" "$evidence/$label.txt"
-  rg -q -x -F "INSTRUMENTATION_RESULT: stream=$marker" "$evidence/$label.txt"
+  if (status !== 0) {
+    capture_failure_events "$label"
+    echo 'FAIL admin instrumentation process' >&2; exit 1
+  }
+  try {
+    rg -q -x -F "INSTRUMENTATION_CODE: $instrumentation_code" "$evidence/$label.txt"
+    rg -q -x -F "INSTRUMENTATION_RESULT: stream=$marker" "$evidence/$label.txt"
+  }
+  var expected_phase = _error.code
+  if (expected_phase !== 0) {
+    capture_failure_events "$label"
+    echo 'FAIL admin instrumentation phase result' >&2; exit 1
+  }
 }
 proc counts(label) {
   curl --fail --silent --show-error --max-time 5 http://127.0.0.1:18493/counts > "$evidence/$label.counts.tsv"
@@ -229,8 +267,35 @@ for value in "$first_useful" "$first_action" { printf '%s\n' "$value" | rg -q -x
 if (int(first_action) < int(first_useful)) { echo 'FAIL impossible first useful/action chronology' >&2; exit 1 }
 printf 'first_useful_control_ms\t%s\nfirst_confirmed_action_ms\t%s\n' "$first_useful" "$first_action" > "$evidence/interaction-timing.tsv"
 awk -F '\t' '$1=="data_bytes"{print "after_fixture_data_bytes\t"$2}$1=="cache_bytes"{print "after_fixture_cache_bytes\t"$2}' "$evidence/update.storage.tsv" >> "$evidence/app-data-size.tsv"
+# HTTP response controls run only after the retained-task journey and its
+# independent semantic/refusal checks have completed.
+proc http_counts(label) {
+  curl --fail --silent --show-error --max-time 5 http://127.0.0.1:18493/http-error-counts > "$evidence/$label.http-counts.tsv"
+}
+http_counts http-before
+observe http-mainframe http-mainframe 'PASS actual selected HTTP response document observed' -1
+http_counts http-mainframe
+observe http-subresource http-subresource 'PASS actual selected HTTP response document observed' -1
+http_counts http-subresource
+var main_http_pid = $(sed -n 's/^INSTRUMENTATION_RESULT: observed_host_pid=//p' "$evidence/http-mainframe.txt" | tr -d '\r')
+var subresource_http_pid = $(sed -n 's/^INSTRUMENTATION_RESULT: observed_host_pid=//p' "$evidence/http-subresource.txt" | tr -d '\r')
+"$adb" -s "$serial" logcat -d -v raw -s IBLongView:I '*:S' > "$evidence/.http-events-private"
+try {
+  "$grease" "$controls/verify-diagnostics.grease" "$evidence/.http-events-private" http \
+    "$main_http_pid" "$subresource_http_pid" "$evidence/http-before.http-counts.tsv" \
+    "$evidence/http-mainframe.http-counts.tsv" "$evidence/http-subresource.http-counts.tsv" > "$evidence/http-response-check.txt" 2>&1
+}
+var http_result = _error.code
+if (http_result !== 0) {
+  rm -f "$evidence/.http-events-private"
+  cat "$evidence/http-response-check.txt" >&2
+  echo 'FAIL actual HTTP response controls did not establish main-frame discrimination' >&2; exit 1
+}
+mv "$evidence/.http-events-private" "$evidence/http-response-events.txt"
+cat "$evidence/http-response-check.txt"
 printf 'schema\tib-admin-installed-v1\napi\t%s\nabi\tx86_64\nactual_page_control_touch\tPASS\nfalse_interactive_marker\tREJECTED\nmock_verification_and_observed_app_switch\tPASS\none_time_result_without_receipt_copy\tPASS\nactual_secret_in_numeric_callback\tREJECTED\nactual_stale_document_callback\tREJECTED\nactual_stale_renderer_callback\tREJECTED\nrenderer_death_same_task\tPASS\nActivity_recreation_same_task\tPASS\nhost_death_same_task\tPASS\nambiguous_operation_replay\tREJECTED\ndirty_unapproved_form_persistence\tREJECTED\nfalse_session_evidence\tREJECTED\nstale_renderer_evidence\tREJECTED\nsecret_diagnostic_evidence\tREJECTED\nreplacement_install_retains_task\tPASS\nGoogle_Cloud_live\tNOT_RUN\nYouTube_live\tNOT_RUN\nphysical_C67\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"
 printf 'actual_stale_lifecycle_callbacks\tFOUR_UNKNOWN\nprobe_checkpoint_or_measurement\tNONE\nprobe_durable_task_bytes\tUNCHANGED\ninitial_and_fresh_renderer_lifecycle\tPASS\n' >> "$evidence/receipt.tsv"
+printf 'actual_main_frame_HTTP_503\tOBSERVED\nactual_subresource_HTTP_404\tIGNORED_AS_MAIN_FRAME\nHTTP_response_server_counters\tPASS\n' >> "$evidence/receipt.tsv"
 cat "$evidence/receipt.tsv"
 var public_result = 0
 if (public_ladder === '1') {

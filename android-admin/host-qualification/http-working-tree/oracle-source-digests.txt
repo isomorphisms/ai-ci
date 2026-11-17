@@ -1,0 +1,3 @@
+a60ec7629c7c363d5aa8af01b556bdafa5c80b0997711789305b5c158f668049  verify-observations.grease
+4322ac8d72ce3a18210dde6541ae5909baf73d5b94efab7114304d12f92acd94  verify-diagnostics.grease
+22fb5ce253eedb48fe8c09d83f0ec4975965772cd1471abc346a80edf311e16d  self-test.grease

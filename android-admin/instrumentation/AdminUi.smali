@@ -48,8 +48,7 @@
     invoke-virtual {v4}, Landroid/webkit/WebView;->getScale()F
     move-result v5
     iput v5, v0, Lacceptance/admin/AdminInstrumentation;->webScale:F
-    new-instance v5, Lacceptance/admin/AdminCallback;
-    invoke-direct {v5, v0}, Lacceptance/admin/AdminCallback;-><init>(Lacceptance/admin/AdminInstrumentation;)V
+    iget-object v5, v0, Lacceptance/admin/AdminInstrumentation;->evaluation:Lacceptance/admin/AdminCallback;
     invoke-virtual {v4, v3, v5}, Landroid/webkit/WebView;->evaluateJavascript(Ljava/lang/String;Landroid/webkit/ValueCallback;)V
     return-void
   :diagnostic
@@ -132,8 +131,11 @@
     invoke-virtual {v1}, Landroid/app/Activity;->recreate()V
     return-void
   :missing
+    iget-object v5, v0, Lacceptance/admin/AdminInstrumentation;->evaluation:Lacceptance/admin/AdminCallback;
+    if-eqz v5, :missing_done
     const-string v4, "null"
-    iput-object v4, v0, Lacceptance/admin/AdminInstrumentation;->value:Ljava/lang/String;
+    invoke-virtual {v5, v4}, Lacceptance/admin/AdminCallback;->onReceiveValue(Ljava/lang/Object;)V
+  :missing_done
     return-void
   :failed_click
     const-string v4, "FAIL native protected control did not dispatch"

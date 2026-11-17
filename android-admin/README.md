@@ -17,6 +17,7 @@ All path arguments are absolute; the caller's current directory is irrelevant.
 | `observe.grease` | `AICI IB APK SDK SMALI BAKSMALI KEYSTORE ICK ADB SERIAL NEW_EVIDENCE` |
 | `verify-observations.grease` | `BEFORE_RENDERER AFTER_RENDERER AFTER_ACTIVITY AFTER_HOST COUNTS` |
 | `verify-diagnostics.grease` | `RAW_TAG_LOG REQUIRE_PROBES` (`yes` or `no`) |
+| `verify-diagnostics.grease` | `RAW_TAG_LOG http MAIN_PID SUBRESOURCE_PID COUNTS_BEFORE COUNTS_MAIN COUNTS_AFTER` |
 | `public-ladder.grease` | `AICI ADB SERIAL NEW_EVIDENCE` |
 | `decode-observation.grease` | `PRIVATE_TRANSCRIPT PHASE EXPECTED_UID NEW_EVIDENCE` |
 | `test-transport.grease` | `AICI NEW_EVIDENCE` |
@@ -82,6 +83,74 @@ controls without altering the live store. Host-side receipt validation rejects
 unknown or duplicated fields, impossible Int32 generations, wrong identities,
 stale lifetimes, false authentication/heap/form claims and repeated operations.
 
+### Main-frame HTTP errors
+
+Two separate phases run after the retained-task, replacement-installation and
+privacy assertions. Each uses the actual native Open control and waits for its
+fixed document marker and `document.readyState === 'complete'`. The first opens
+`/mainframe-503`; the second opens `/subresource-404`, a successful document
+whose stylesheet returns HTTP 404. These phases export no private artifacts.
+
+The fixture's separate `/http-error-counts` records completed response writes.
+Its three counters must progress from zero, to one main-frame 503 response,
+to that same count plus one control document and one missing stylesheet.
+The closed numeric oracle binds the native events to the distinct observed
+host PIDs and matching lifetime generations. It requires an actual HTTP 503
+main-frame error and a completed control document, and rejects any main-frame
+error from the subresource phase. Unrelated process errors cannot satisfy it.
+
+An error attributed to document epoch 1 must follow the corresponding start.
+The successful subresource document's finish must also follow its start.
+An HTTP error with unknown document attribution keeps epoch 0 and elapsed
+time -1; it may precede the start without inventing a document measurement.
+These checks use the existing numeric event 7 and leave public-page
+`BLOCKED_SITE` classification unchanged. They do not treat an error page as
+an authenticated or usable admin application.
+
+### Installed polling and app-switch repair
+
+The [retained installed failures](host-qualification/installed-2121828-before.tsv)
+bind IB `2121828` and observer `f6a6e4` to their actual APK, targets and WebView
+versions. All three lanes passed measured target bounds and same-UID,
+non-debuggable namespace preflight. API29 passed the fake-control refusal and
+reached the real action before failing to observe Activity pause. Both API34
+lanes stopped at the fake page's evaluation timeout. The cause of the missing
+reply or old HOME stimulus remains unproved.
+
+Each evaluation now owns its result callback. A late reply to an abandoned
+request cannot supply a value for a different expression. Read-only predicates
+may retry an absent reply within their 60-second fixture or 120-second public
+acceptance budget; each attempt accepts results for at most five seconds.
+The actual predicates are unchanged. Side-effecting evaluations remain
+single-shot and fail on timeout.
+
+These are predicate acceptance budgets, not guaranteed whole-method return
+times. Existing synchronous Open/UI dispatch can overrun a budget or hang.
+Elapsed time is checked before accepting a returned result. The coordinator's
+360-second and public ladder's 180-second process timeouts remain the outer
+limits; neither timeout establishes success. There is no retained evidence
+that a hung dispatch caused these installed failures.
+An admin process timeout keeps its original exit 124, removes incomplete private
+exports and attempts to force-stop the fixed target package. Its fixed timeout
+reason and force-stop exit are retained before the run fails; a secondary
+incomplete-export refusal does not replace that timeout classification.
+
+App switching requests
+[UiAutomation's system HOME action](https://developer.android.com/reference/android/app/UiAutomation#performGlobalAction(int))
+and requires its returned success. It still requires actual target pause and
+resume within their unchanged five-second waits and the same Activity object.
+The old focused-window key API discarded the injection result in the inspected
+[Android 10 implementation](https://github.com/aosp-mirror/platform_frameworks_base/blob/57bb140be9e48cf08acba131f7463e461777bb8e/core/java/android/app/Instrumentation.java).
+That source finding does not prove why the hosted key stimulus produced no
+observed pause.
+
+An early phase failure now attempts to retain a bounded `IBLongView` event tail
+without another instrumentation invocation. It stages at most 1 MiB plus one
+byte privately and keeps only a complete tail accepted by the existing closed
+numeric verifier. Missing, oversized, incomplete or invalid output is removed
+and replaced by a fixed unavailable result. A retained tail can include earlier
+phases and is not automatically attributed to the failed phase or renderer.
+
 ## Evidence and privacy
 
 Screenshots are captured inside the live observer before the result appears
@@ -102,8 +171,8 @@ A bounded sampler records host PSS and `USER PID PPID NAME`, with no process
 arguments. Its maximum is the maximum of those samples, not an unobserved peak.
 The association between an OS renderer PID and an opaque durable renderer ID
 is `UNKNOWN`. App data size includes test snapshots and screenshots. The
-server's parent-byte counter excludes delayed child responses and is not total
-network transfer.
+server's parent-byte counter excludes delayed child responses and the separate
+HTTP diagnostic responses. It is not total network transfer.
 
 ### Private records under the actual target UID
 
@@ -164,14 +233,20 @@ Changed public selectors require review; an unfamiliar page does not pass.
 
 `host-qualification/` retains exact source digests and Linux x86_64 results:
 oracle positives, 31 targeted record rejections, 23 diagnostic rejections,
-22 transport rejections, DEX assembly/disassembly, resource packaging and
+23 transport rejections, 15 HTTP response rejections, DEX assembly/disassembly, resource packaging and
 persistent-signature checks.
 These are host results only.
 The initial published observer's receipts remain under
 `host-qualification/initial-40ff487/`; they describe that earlier source.
 The lifecycle revision remains under `host-qualification/lifecycle-81b9fe7/`.
-The current receipt and source digests bind the actual-target-UID transport
-repair. The exact hosted API 29 private-access failure is retained separately
+The actual-target-UID transport revision remains under
+`host-qualification/private-io-f6a6e4/`. The current receipt and source digests
+bind the polling and system-HOME correction, retaining the HTTP controls. The
+frozen HTTP-only qualification remains under `host-qualification/http-working-tree/`.
+The HTTP host inputs are synthetic; actual response
+callbacks require the installed phase to execute. The ordering receipt retains
+the two previously accepted reordered-event counterexamples and their repair.
+The exact hosted API 29 private-access failure is retained separately
 in `host-qualification/installed-api29-before.tsv`; its successful installation
 does not become a successful admin runtime observation.
 

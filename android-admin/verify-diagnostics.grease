@@ -1,8 +1,25 @@
 #!/usr/bin/env grease
 set -eu -o pipefail
-if (len(ARGV) !== 2) { echo 'usage: grease verify-diagnostics.grease RAW_TAG_LOG REQUIRE_PROBES' >&2; exit 2 }
+if (len(ARGV) !== 2 and len(ARGV) !== 7) { echo 'usage: grease verify-diagnostics.grease RAW_TAG_LOG yes|no; or RAW_TAG_LOG http MAIN_PID SUBRESOURCE_PID COUNTS_BEFORE COUNTS_MAIN COUNTS_AFTER' >&2; exit 2 }
 var log = ARGV[0]
 var probes = ARGV[1]
+var http = false
+var main_pid = ''
+var subresource_pid = ''
+if (len(ARGV) === 7) {
+  if (probes !== 'http') { echo 'FAIL unknown diagnostic contract' >&2; exit 2 }
+  setvar http = true
+  setvar probes = 'no'
+  setvar main_pid = ARGV[2]
+  setvar subresource_pid = ARGV[3]
+  for pid in "$main_pid" "$subresource_pid" {
+    try { printf '%s\n' "$pid" | rg -q -x '[1-9][0-9]{0,9}' }
+    var numeric = _error.code
+    if (numeric !== 0) { echo 'FAIL HTTP fixture host identities are invalid or reused' >&2; exit 1 }
+    if (int(pid) > 2147483647) { echo 'FAIL HTTP fixture host identities are invalid or reused' >&2; exit 1 }
+  }
+  if (main_pid === subresource_pid) { echo 'FAIL HTTP fixture host identities are invalid or reused' >&2; exit 1 }
+}
 if (probes !== 'yes' and probes !== 'no') { echo 'FAIL unknown diagnostic contract' >&2; exit 2 }
 test -f "$log"
 test "$(stat -c %s "$log")" -le 1048576
@@ -86,3 +103,58 @@ if (result === 2) { echo 'FAIL lifecycle attribution probe boundary or positive 
 if (result !== 0) { echo 'FAIL nonnumeric unknown missing or stale native diagnostics' >&2; exit 1 }
 echo 'PASS closed numeric native diagnostics'
 if (probes === 'yes') { echo 'PASS initial and fresh lifecycle positives with four bounded UNKNOWN callbacks and no checkpoint or measurement' }
+if (http) {
+  var counts_before = ARGV[4]
+  var counts_main = ARGV[5]
+  var counts_after = ARGV[6]
+  for counts in "$counts_before" "$counts_main" "$counts_after" {
+    test -f "$counts"
+    test "$(stat -c %s "$counts")" -le 4096
+  }
+  try { awk -F '\t' '
+    function fail(){failed=1;exit 1}
+    FNR==1 {stage++}
+    NF!=2 || $1!~/^(mainframe_503|subresource_page|subresource_404)$/ || $2!~/^[01]$/ {fail()}
+    seen[stage SUBSEP $1]++ {fail()}
+    {expected=stage==1?0:(stage==2?($1=="mainframe_503"?1:0):1);if($2!=expected)fail()}
+    END {if(failed || stage!=3 || NR!=9)exit 1}
+  ' "$counts_before" "$counts_main" "$counts_after" }
+  var counters = _error.code
+  if (counters !== 0) { echo 'FAIL HTTP fixture response counters did not follow selected requests' >&2; exit 1 }
+  try { awk -v main_pid="$main_pid" -v sub_pid="$subresource_pid" '
+    function fail(code){failed=code;exit code}
+    /^--------- beginning of (main|system|crash)$/ {next}
+    {
+      delete values
+      for(i=1;i<=NF;i++){split($i,pair,"=");values[pair[1]]=pair[2]}
+      pid=values["host_pid"]
+      if(pid!=main_pid && pid!=sub_pid)next
+      if(values["host_generation"]+0<1 || values["activity_generation"]+0<1 || values["renderer_generation"]+0<1 || values["host_generation"]+0>2147483647 || values["activity_generation"]+0>2147483647 || values["renderer_generation"]+0>2147483647)fail(1)
+      key=pid ":" values["host_generation"] ":" values["activity_generation"] ":" values["renderer_generation"]
+      if(values["event"]==3 && values["code"]==0 && values["document_epoch"]==1 && values["elapsed_ms"]+0>=0)starts[key]=1
+      if(pid==main_pid && values["event"]==7) {
+        if(values["code"]!=503 || (values["document_epoch"]!=0 && values["document_epoch"]!=1))fail(1)
+        if((values["document_epoch"]==0 && values["elapsed_ms"]!=-1) || (values["document_epoch"]==1 && values["elapsed_ms"]+0<0))fail(1)
+        if(values["document_epoch"]==1 && !starts[key])fail(1)
+        main_errors++;errors[key]++
+      }
+      if(pid==sub_pid && values["event"]==7)fail(2)
+      if(pid==sub_pid && values["event"]==6 && values["code"]==0 && values["document_epoch"]==1) {
+        if(!starts[key])fail(3)
+        finishes[key]=1
+      }
+    }
+    END {
+      if(failed)exit failed
+      if(main_errors<1)exit 1
+      for(key in errors)if(!starts[key])exit 1
+      for(key in finishes)if(starts[key])complete++
+      if(complete<1)exit 3
+    }
+  ' "$log" }
+  var observed = _error.code
+  if (observed === 2) { echo 'FAIL subresource-only error became a main-frame failure' >&2; exit 1 }
+  if (observed === 3) { echo 'FAIL subresource control did not complete its current main document' >&2; exit 1 }
+  if (observed !== 0) { echo 'FAIL real main-frame HTTP 503 was not observed for selected host' >&2; exit 1 }
+  echo 'PASS real main-frame HTTP 503 and ignored subresource 404 bound to selected hosts and server responses'
+}

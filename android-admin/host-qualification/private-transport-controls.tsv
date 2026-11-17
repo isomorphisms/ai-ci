@@ -3,6 +3,7 @@ missing	FAIL malformed missing or out-of-phase observer artifact transport	REJEC
 filename	FAIL malformed missing or out-of-phase observer artifact transport	REJECTED
 path	FAIL malformed missing or out-of-phase observer artifact transport	REJECTED
 phase	FAIL malformed missing or out-of-phase observer artifact transport	REJECTED
+http-export	FAIL malformed missing or out-of-phase observer artifact transport	REJECTED
 order	FAIL malformed missing or out-of-phase observer artifact transport	REJECTED
 duplicate	FAIL malformed missing or out-of-phase observer artifact transport	REJECTED
 chunks	FAIL malformed missing or out-of-phase observer artifact transport	REJECTED

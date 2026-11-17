@@ -2,7 +2,7 @@
 .super Landroid/app/Instrumentation;
 
 .field public volatile activity:Landroid/app/Activity;
-.field public volatile value:Ljava/lang/String;
+.field public volatile evaluation:Lacceptance/admin/AdminCallback;
 .field public volatile uiFailure:Ljava/lang/String;
 .field public webX:I
 .field public webY:I
@@ -79,43 +79,93 @@
     return-void
 .end method
 
-.method private eval(Ljava/lang/String;)Ljava/lang/String;
-    .locals 5
-    const/4 v0, 0
-    iput-object v0, p0, Lacceptance/admin/AdminInstrumentation;->value:Ljava/lang/String;
-    const/4 v0, 1
-    invoke-direct {p0, v0, p1}, Lacceptance/admin/AdminInstrumentation;->ui(ILjava/lang/String;)V
-    const/16 v1, 100
+.method private evalUntil(Ljava/lang/String;J)Ljava/lang/String;
+    .locals 8
+    invoke-static {}, Landroid/os/SystemClock;->elapsedRealtime()J
+    move-result-wide v0
+    cmp-long v4, v0, p2
+    if-gez v4, :expired
+    const-wide/16 v2, 5000
+    add-long/2addr v0, v2
+    cmp-long v4, v0, p2
+    if-lez v4, :bounded
+    move-wide v0, p2
+  :bounded
+    new-instance v4, Lacceptance/admin/AdminCallback;
+    invoke-direct {v4}, Lacceptance/admin/AdminCallback;-><init>()V
+    iput-object v4, p0, Lacceptance/admin/AdminInstrumentation;->evaluation:Lacceptance/admin/AdminCallback;
+    const/4 v5, 1
+    invoke-direct {p0, v5, p1}, Lacceptance/admin/AdminInstrumentation;->ui(ILjava/lang/String;)V
   :wait
-    iget-object v0, p0, Lacceptance/admin/AdminInstrumentation;->value:Ljava/lang/String;
-    if-nez v0, :received
-    const-wide/16 v2, 50
+    invoke-static {}, Landroid/os/SystemClock;->elapsedRealtime()J
+    move-result-wide v2
+    cmp-long v5, v2, v0
+    if-gez v5, :expired
+    iget-object v5, v4, Lacceptance/admin/AdminCallback;->value:Ljava/lang/String;
+    if-nez v5, :received
+    sub-long v2, v0, v2
+    const-wide/16 v6, 50
+    cmp-long v5, v2, v6
+    if-lez v5, :sleep
+    move-wide v2, v6
+  :sleep
     invoke-static {v2, v3}, Landroid/os/SystemClock;->sleep(J)V
-    add-int/lit8 v1, v1, -1
-    if-gtz v1, :wait
-    const/4 v0, 0
+    goto :wait
+  :expired
+    const/4 v5, 0
+  :received
+    return-object v5
+.end method
+
+.method private eval(Ljava/lang/String;)Ljava/lang/String;
+    .locals 4
+    invoke-static {}, Landroid/os/SystemClock;->elapsedRealtime()J
+    move-result-wide v0
+    const-wide/16 v2, 5000
+    add-long/2addr v0, v2
+    invoke-direct {p0, p1, v0, v1}, Lacceptance/admin/AdminInstrumentation;->evalUntil(Ljava/lang/String;J)Ljava/lang/String;
+    move-result-object v0
+    if-nez v0, :received
+    const/4 v2, 0
     const-string v1, "FAIL independent page observation timeout"
-    invoke-static {v0, v1}, Lacceptance/admin/AdminInstrumentation;->require(ZLjava/lang/String;)V
+    invoke-static {v2, v1}, Lacceptance/admin/AdminInstrumentation;->require(ZLjava/lang/String;)V
   :received
     return-object v0
 .end method
 
 .method private await(Ljava/lang/String;Ljava/lang/String;)V
-    .locals 5
-    const/16 v0, 300
+    .locals 8
+    invoke-static {}, Landroid/os/SystemClock;->elapsedRealtime()J
+    move-result-wide v0
+    const-wide/32 v2, 60000
+    add-long/2addr v0, v2
   :again
-    invoke-direct {p0, p1}, Lacceptance/admin/AdminInstrumentation;->eval(Ljava/lang/String;)Ljava/lang/String;
-    move-result-object v1
-    const-string v2, "true"
-    invoke-virtual {v2, v1}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
-    move-result v1
-    if-nez v1, :pass
-    const-wide/16 v2, 200
+    invoke-static {}, Landroid/os/SystemClock;->elapsedRealtime()J
+    move-result-wide v2
+    cmp-long v4, v2, v0
+    if-gez v4, :expired
+    invoke-direct {p0, p1, v0, v1}, Lacceptance/admin/AdminInstrumentation;->evalUntil(Ljava/lang/String;J)Ljava/lang/String;
+    move-result-object v4
+    const-string v5, "true"
+    invoke-virtual {v5, v4}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v4
+    if-nez v4, :pass
+    invoke-static {}, Landroid/os/SystemClock;->elapsedRealtime()J
+    move-result-wide v2
+    sub-long v2, v0, v2
+    const-wide/16 v6, 0
+    cmp-long v4, v2, v6
+    if-lez v4, :expired
+    const-wide/16 v6, 200
+    cmp-long v4, v2, v6
+    if-lez v4, :sleep
+    move-wide v2, v6
+  :sleep
     invoke-static {v2, v3}, Landroid/os/SystemClock;->sleep(J)V
-    add-int/lit8 v0, v0, -1
-    if-gtz v0, :again
-    const/4 v0, 0
-    invoke-static {v0, p2}, Lacceptance/admin/AdminInstrumentation;->require(ZLjava/lang/String;)V
+    goto :again
+  :expired
+    const/4 v4, 0
+    invoke-static {v4, p2}, Lacceptance/admin/AdminInstrumentation;->require(ZLjava/lang/String;)V
   :pass
     return-void
 .end method
@@ -355,8 +405,13 @@
     iget-object v0, p0, Lacceptance/admin/AdminInstrumentation;->activity:Landroid/app/Activity;
     iget v4, p0, Lacceptance/admin/AdminInstrumentation;->resumeCount:I
     iget v5, p0, Lacceptance/admin/AdminInstrumentation;->pauseCount:I
-    const/4 v1, 3
-    invoke-virtual {p0, v1}, Landroid/app/Instrumentation;->sendKeyDownUpSync(I)V
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->getUiAutomation()Landroid/app/UiAutomation;
+    move-result-object v1
+    const/4 v2, 2
+    invoke-virtual {v1, v2}, Landroid/app/UiAutomation;->performGlobalAction(I)Z
+    move-result v1
+    const-string v2, "FAIL system HOME action was not accepted"
+    invoke-static {v1, v2}, Lacceptance/admin/AdminInstrumentation;->require(ZLjava/lang/String;)V
     const/16 v6, 100
   :wait_pause
     iget v7, p0, Lacceptance/admin/AdminInstrumentation;->pauseCount:I
@@ -631,7 +686,7 @@
 .end method
 
 .method private publicPage(Ljava/lang/String;)I
-    .locals 8
+    .locals 10
     const-string v0, "public-search"
     invoke-virtual {v0, p1}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
     move-result v0
@@ -645,10 +700,12 @@
   :open
     invoke-static {}, Landroid/os/SystemClock;->elapsedRealtime()J
     move-result-wide v4
+    const-wide/32 v8, 120000
+    add-long/2addr v8, v4
     const/4 v0, 0
     invoke-direct {p0, v0, v1}, Lacceptance/admin/AdminInstrumentation;->ui(ILjava/lang/String;)V
   :poll
-    invoke-direct {p0, v3}, Lacceptance/admin/AdminInstrumentation;->eval(Ljava/lang/String;)Ljava/lang/String;
+    invoke-direct {p0, v3, v8, v9}, Lacceptance/admin/AdminInstrumentation;->evalUntil(Ljava/lang/String;J)Ljava/lang/String;
     move-result-object v0
     const-string v1, "1"
     invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
@@ -660,11 +717,14 @@
     if-nez v1, :blocked
     invoke-static {}, Landroid/os/SystemClock;->elapsedRealtime()J
     move-result-wide v0
-    sub-long/2addr v0, v4
-    const-wide/32 v6, 120000
-    cmp-long v0, v0, v6
-    if-gez v0, :unknown
-    const-wide/16 v0, 200
+    cmp-long v2, v0, v8
+    if-gez v2, :unknown
+    sub-long v0, v8, v0
+    const-wide/16 v6, 200
+    cmp-long v2, v0, v6
+    if-lez v2, :sleep
+    move-wide v0, v6
+  :sleep
     invoke-static {v0, v1}, Landroid/os/SystemClock;->sleep(J)V
     goto :poll
   :ready
@@ -695,6 +755,27 @@
     return v2
 .end method
 
+.method private httpResponse(Ljava/lang/String;)V
+    .locals 3
+    const-string v0, "http-mainframe"
+    invoke-virtual {v0, p1}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v0
+    if-eqz v0, :subresource
+    const-string v1, "http://127.0.0.1:18493/mainframe-503"
+    const-string v2, "location.origin==='http://127.0.0.1:18493'&&location.pathname==='/mainframe-503'&&document.readyState==='complete'&&!!document.getElementById('mainframe-http-error')"
+    goto :open
+  :subresource
+    const-string v1, "http://127.0.0.1:18493/subresource-404"
+    const-string v2, "location.origin==='http://127.0.0.1:18493'&&location.pathname==='/subresource-404'&&document.readyState==='complete'&&!!document.getElementById('subresource-control')"
+  :open
+    const/4 v0, 0
+    invoke-direct {p0, v0, v1}, Lacceptance/admin/AdminInstrumentation;->ui(ILjava/lang/String;)V
+    const-string v1, "FAIL actual HTTP response fixture did not finish its selected document"
+    invoke-direct {p0, v2, v1}, Lacceptance/admin/AdminInstrumentation;->await(Ljava/lang/String;Ljava/lang/String;)V
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->waitForIdleSync()V
+    return-void
+.end method
+
 .method public onStart()V
     .locals 7
   :try_start
@@ -722,6 +803,14 @@
     invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
     move-result v1
     if-nez v1, :public_page
+    const-string v1, "http-mainframe"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-nez v1, :http_response
+    const-string v1, "http-subresource"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-nez v1, :http_response
     const-string v1, "fake"
     invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
     move-result v1
@@ -745,6 +834,10 @@
   :resume
     invoke-direct {p0}, Lacceptance/admin/AdminInstrumentation;->resume()V
     const-string v4, "PASS actual admin host recovery requires ordinary root reconstruction"
+    goto :pass
+  :http_response
+    invoke-direct {p0, v0}, Lacceptance/admin/AdminInstrumentation;->httpResponse(Ljava/lang/String;)V
+    const-string v4, "PASS actual selected HTTP response document observed"
     goto :pass
   :public_page
     invoke-direct {p0, v0}, Lacceptance/admin/AdminInstrumentation;->publicPage(Ljava/lang/String;)I

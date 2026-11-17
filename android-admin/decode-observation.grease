@@ -9,7 +9,7 @@ for path in "$raw" "$evidence" {
   if (len(path) === 0 or path[0] !== '/') { echo 'FAIL absolute transport path required' >&2; exit 2 }
 }
 printf '%s\n' "$uid" | rg -q -x '[1-9][0-9]{4,}'
-if (phase !== 'preflight' and phase !== 'fake' and phase !== 'exercise' and phase !== 'resume' and phase !== 'public-search' and phase !== 'public-miwam') {
+if (phase !== 'preflight' and phase !== 'fake' and phase !== 'exercise' and phase !== 'resume' and phase !== 'public-search' and phase !== 'public-miwam' and phase !== 'http-mainframe' and phase !== 'http-subresource') {
   echo 'FAIL unknown artifact phase' >&2; exit 2
 }
 if test -e "$evidence" { echo 'FAIL reused transport evidence' >&2; exit 2 }
