@@ -32,7 +32,8 @@ trap --add EXIT {
   if (len(server_pid) > 0) { try { kill -TERM "$server_pid" }; try { wait "$server_pid" } }
   try { "$adb" -s "$serial" reverse --remove tcp:18493 }
   if (not safe_records) {
-    rm -f "$evidence/admin-before-renderer.task" "$evidence/admin-after-renderer.task" \
+    rm -f "$evidence/admin-before-lifecycle.task" "$evidence/admin-after-lifecycle.task" \
+      "$evidence/admin-before-renderer.task" "$evidence/admin-after-renderer.task" \
       "$evidence/admin-after-activity.task" "$evidence/admin-after-host.task" "$evidence/admin-after-update.task"
   }
 }
@@ -127,7 +128,7 @@ for field in usable_actions verification_actions value_attempts value_deliveries
 }
 observe exercise exercise 'PASS actual admin touch verification app-switch result and renderer recovery'
 counts exercise
-for name in admin-before-renderer.task admin-after-renderer.task admin-after-activity.task {
+for name in admin-before-lifecycle.task admin-after-lifecycle.task admin-before-renderer.task admin-after-renderer.task admin-after-activity.task {
   "$adb" -s "$serial" exec-out run-as org.isomorphisms.ib.prepaint cat "cache/$name" > "$evidence/$name"
 }
 for name in admin-first-action.png admin-after-activity.png {
@@ -141,6 +142,12 @@ counts host
 "$grease" "$controls/verify-observations.grease" "$evidence/admin-before-renderer.task" \
   "$evidence/admin-after-renderer.task" "$evidence/admin-after-activity.task" "$evidence/admin-after-host.task" \
   "$evidence/host.counts.tsv" > "$evidence/oracle-positive.txt"
+"$grease" "$controls/verify-observations.grease" "$evidence/admin-before-lifecycle.task" \
+  "$evidence/admin-after-renderer.task" "$evidence/admin-after-activity.task" "$evidence/admin-after-host.task" \
+  "$evidence/host.counts.tsv" > "$evidence/oracle-lifecycle-record.txt"
+if ! cmp -s "$evidence/admin-before-lifecycle.task" "$evidence/admin-after-lifecycle.task" {
+  echo 'FAIL lifecycle callbacks changed durable task bytes' >&2; exit 1
+}
 setvar safe_records = true
 cat "$evidence/oracle-positive.txt"
 "$adb" -s "$serial" install -r "$candidate" > "$evidence/replacement.txt" 2>&1
@@ -185,7 +192,7 @@ for mutation in session generation secret replay {
   if (result !== 1) { echo 'FAIL independent admin mutation was not rejected' >&2; exit 1 }
   rg -q -x -F "$expected" "$evidence/oracle-$mutation.txt"
 }
-"$adb" -s "$serial" logcat -d -v raw -s IBLongView:I '*:S' > "$evidence/longview-events.txt"
+"$adb" -s "$serial" logcat -d -v raw -s IBLongView:I IBAdminProbe:I '*:S' > "$evidence/longview-events.txt"
 try { "$grease" "$controls/verify-diagnostics.grease" "$evidence/longview-events.txt" yes > "$evidence/diagnostic-positive.txt" 2>&1 }
 var diagnostic_result = _error.code
 if (diagnostic_result !== 0) {
@@ -206,6 +213,7 @@ if (int(first_action) < int(first_useful)) { echo 'FAIL impossible first useful/
 printf 'first_useful_control_ms\t%s\nfirst_confirmed_action_ms\t%s\n' "$first_useful" "$first_action" > "$evidence/interaction-timing.tsv"
 "$adb" -s "$serial" shell run-as org.isomorphisms.ib.prepaint du -sk . | tr -d '\r' | awk '{print "after_fixture_kib\t"$1}' >> "$evidence/app-data-size.tsv"
 printf 'schema\tib-admin-installed-v1\napi\t%s\nabi\tx86_64\nactual_page_control_touch\tPASS\nfalse_interactive_marker\tREJECTED\nmock_verification_and_observed_app_switch\tPASS\none_time_result_without_receipt_copy\tPASS\nactual_secret_in_numeric_callback\tREJECTED\nactual_stale_document_callback\tREJECTED\nactual_stale_renderer_callback\tREJECTED\nrenderer_death_same_task\tPASS\nActivity_recreation_same_task\tPASS\nhost_death_same_task\tPASS\nambiguous_operation_replay\tREJECTED\ndirty_unapproved_form_persistence\tREJECTED\nfalse_session_evidence\tREJECTED\nstale_renderer_evidence\tREJECTED\nsecret_diagnostic_evidence\tREJECTED\nreplacement_install_retains_task\tPASS\nGoogle_Cloud_live\tNOT_RUN\nYouTube_live\tNOT_RUN\nphysical_C67\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"
+printf 'actual_stale_lifecycle_callbacks\tFOUR_UNKNOWN\nprobe_checkpoint_or_measurement\tNONE\nprobe_durable_task_bytes\tUNCHANGED\ninitial_and_fresh_renderer_lifecycle\tPASS\n' >> "$evidence/receipt.tsv"
 cat "$evidence/receipt.tsv"
 var public_result = 0
 if (public_ladder === '1') {

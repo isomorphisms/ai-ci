@@ -53,6 +53,8 @@
     invoke-virtual {v4, v3, v5}, Landroid/webkit/WebView;->evaluateJavascript(Ljava/lang/String;Landroid/webkit/ValueCallback;)V
     return-void
   :diagnostic
+    const/16 v5, 10
+    if-eq v2, v5, :lifecycle
     const/4 v5, 7
     if-eq v2, v5, :stale
     const/16 v5, 9
@@ -95,6 +97,11 @@
     new-instance v6, Lacceptance/admin/AdminDiagnosticCallback;
     invoke-direct {v6, v5, v0}, Lacceptance/admin/AdminDiagnosticCallback;-><init>(Landroid/webkit/ValueCallback;Lacceptance/admin/AdminInstrumentation;)V
     invoke-virtual {v4, v3, v6}, Landroid/webkit/WebView;->evaluateJavascript(Ljava/lang/String;Landroid/webkit/ValueCallback;)V
+    return-void
+  :lifecycle
+    invoke-static {v4}, Lacceptance/admin/AdminUi;->lifecycleProbe(Landroid/webkit/WebView;)V
+    const/4 v5, 1
+    iput v5, v0, Lacceptance/admin/AdminInstrumentation;->diagnosticDone:I
     return-void
   :open
     const v4, 0x7f030001
@@ -147,6 +154,57 @@
     const-string v4, "FAIL independent UI operation exception"
     iput-object v4, v0, Lacceptance/admin/AdminInstrumentation;->uiFailure:Ljava/lang/String;
     return-void
+.end method
+
+.method private static probeBoundary(I)V
+    .locals 3
+    new-instance v0, Ljava/lang/StringBuilder;
+    invoke-direct {v0}, Ljava/lang/StringBuilder;-><init>()V
+    const-string v1, "observer_probe=1 boundary="
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v0, p0}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    const-string v1, " host_pid="
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-static {}, Landroid/os/Process;->myPid()I
+    move-result v1
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    invoke-virtual {v0}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+    move-result-object v0
+    const-string v1, "IBAdminProbe"
+    invoke-static {v1, v0}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
+    return-void
+.end method
+
+.method private static lifecycleProbe(Landroid/webkit/WebView;)V
+    .locals 3
+    invoke-virtual {p0}, Landroid/webkit/WebView;->getWebViewClient()Landroid/webkit/WebViewClient;
+    move-result-object v0
+    invoke-static {v0}, Lacceptance/admin/AdminUi;->epoch(Ljava/lang/Object;)I
+    move-result v1
+    const/4 v2, 1
+    if-le v1, v2, :failed
+    invoke-virtual {p0}, Landroid/webkit/WebView;->getUrl()Ljava/lang/String;
+    move-result-object v1
+    const-string v2, "http://127.0.0.1:18493/"
+    invoke-virtual {v2, v1}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v1
+    if-eqz v1, :failed
+    const/4 v1, 1
+    invoke-static {v1}, Lacceptance/admin/AdminUi;->probeBoundary(I)V
+    const-string v1, "http://127.0.0.1:18493/verify"
+    invoke-virtual {v0, p0, v1}, Landroid/webkit/WebViewClient;->onPageCommitVisible(Landroid/webkit/WebView;Ljava/lang/String;)V
+    invoke-virtual {v0, p0, v1}, Landroid/webkit/WebViewClient;->onPageFinished(Landroid/webkit/WebView;Ljava/lang/String;)V
+    const-string v1, "http://127.0.0.1:18493/"
+    invoke-virtual {v0, p0, v1}, Landroid/webkit/WebViewClient;->onPageCommitVisible(Landroid/webkit/WebView;Ljava/lang/String;)V
+    invoke-virtual {v0, p0, v1}, Landroid/webkit/WebViewClient;->onPageFinished(Landroid/webkit/WebView;Ljava/lang/String;)V
+    const/4 v1, 2
+    invoke-static {v1}, Lacceptance/admin/AdminUi;->probeBoundary(I)V
+    return-void
+  :failed
+    new-instance v0, Ljava/lang/AssertionError;
+    const-string v1, "FAIL lifecycle probe lacked repeated current document"
+    invoke-direct {v0, v1}, Ljava/lang/AssertionError;-><init>(Ljava/lang/Object;)V
+    throw v0
 .end method
 
 .method private static epoch(Ljava/lang/Object;)I

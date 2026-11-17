@@ -505,6 +505,11 @@
     iput-wide v2, p0, Lacceptance/admin/AdminInstrumentation;->firstActionMs:J
     const-string v0, "admin-first-action.png"
     invoke-direct {p0, v0}, Lacceptance/admin/AdminInstrumentation;->screenshot(Ljava/lang/String;)V
+    const-string v0, "document.readyState==='complete'"
+    const-string v1, "FAIL initial fixture did not finish its document"
+    invoke-direct {p0, v0, v1}, Lacceptance/admin/AdminInstrumentation;->await(Ljava/lang/String;Ljava/lang/String;)V
+    const/4 v0, 6
+    invoke-direct {p0, v0}, Lacceptance/admin/AdminInstrumentation;->diagnostic(I)V
     const-string v0, "verify"
     invoke-direct {p0, v0}, Lacceptance/admin/AdminInstrumentation;->press(Ljava/lang/String;)V
     const-string v0, "!!document.getElementById('approve-verification')"
@@ -516,8 +521,6 @@
     const-string v0, "!!document.getElementById('create-value')&&!document.getElementById('create-value').disabled"
     const-string v1, "FAIL verification return control"
     invoke-direct {p0, v0, v1}, Lacceptance/admin/AdminInstrumentation;->await(Ljava/lang/String;Ljava/lang/String;)V
-    const/4 v0, 6
-    invoke-direct {p0, v0}, Lacceptance/admin/AdminInstrumentation;->diagnostic(I)V
     const-string v0, "create-value"
     invoke-direct {p0, v0}, Lacceptance/admin/AdminInstrumentation;->press(Ljava/lang/String;)V
     const-string v0, "!!document.getElementById('one-time')&&/^IB_SYNTHETIC_ONLY_[0-9a-f]{32}\\n$/.test(document.getElementById('one-time').textContent)"
@@ -537,6 +540,12 @@
     invoke-direct {p0, v0, v1}, Lacceptance/admin/AdminInstrumentation;->await(Ljava/lang/String;Ljava/lang/String;)V
     const/16 v0, 9
     invoke-direct {p0, v0}, Lacceptance/admin/AdminInstrumentation;->diagnostic(I)V
+    const-string v0, "admin-before-lifecycle.task"
+    invoke-direct {p0, v0}, Lacceptance/admin/AdminInstrumentation;->snapshot(Ljava/lang/String;)V
+    const/16 v0, 10
+    invoke-direct {p0, v0}, Lacceptance/admin/AdminInstrumentation;->diagnostic(I)V
+    const-string v0, "admin-after-lifecycle.task"
+    invoke-direct {p0, v0}, Lacceptance/admin/AdminInstrumentation;->snapshot(Ljava/lang/String;)V
     const/16 v0, 8
     invoke-direct {p0, v0}, Lacceptance/admin/AdminInstrumentation;->diagnostic(I)V
     const-string v0, "ambiguous"
@@ -554,7 +563,7 @@
     const/4 v0, 3
     const-string v1, ""
     invoke-direct {p0, v0, v1}, Lacceptance/admin/AdminInstrumentation;->ui(ILjava/lang/String;)V
-    const-string v0, "!!document.getElementById('unapproved')&&document.getElementById('unapproved').value===''&&document.getElementById('one-time').textContent===''&&!document.getElementById('confirm-control').disabled"
+    const-string v0, "document.readyState==='complete'&&!!document.getElementById('unapproved')&&document.getElementById('unapproved').value===''&&document.getElementById('one-time').textContent===''&&!document.getElementById('confirm-control').disabled"
     const-string v1, "FAIL renderer recovery did not reconstruct ordinary root"
     invoke-direct {p0, v0, v1}, Lacceptance/admin/AdminInstrumentation;->await(Ljava/lang/String;Ljava/lang/String;)V
     const-string v0, "admin-after-renderer.task"

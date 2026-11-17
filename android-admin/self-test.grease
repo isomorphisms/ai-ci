@@ -72,11 +72,24 @@ reject replay counts.tsv ambiguous_effects 2 'FAIL missing control action or rep
 reject malformed-count counts.tsv value_attempts secret 'FAIL malformed independent server counters'
 printf '%s\n' \
   'event=1 host_pid=42 document_epoch=1 host_generation=1 activity_generation=1 renderer_generation=1 code=0 elapsed_ms=0' \
+  'event=5 host_pid=42 document_epoch=1 host_generation=1 activity_generation=1 renderer_generation=1 code=0 elapsed_ms=700' \
+  'event=6 host_pid=42 document_epoch=1 host_generation=1 activity_generation=1 renderer_generation=1 code=0 elapsed_ms=1600' \
   'event=10 host_pid=42 document_epoch=1 host_generation=1 activity_generation=1 renderer_generation=1 dns_ms=10001 connect_ms=10002 tls_ms=10003 first_byte_ms=10004 transfer_ms=10005 dom_ms=10006 load_ms=10007 transfer_bytes=10008' \
   'event=11 host_pid=42 document_epoch=1 host_generation=1 activity_generation=1 renderer_generation=1 first_paint_ms=10009 first_contentful_paint_ms=10010 observed_resource_count=10011 observed_resource_transfer_bytes=10012' \
-  'event=10 host_pid=42 document_epoch=1 host_generation=1 activity_generation=1 renderer_generation=1 code=1 elapsed_ms=-1' > "$evidence/numeric.log"
+  'event=10 host_pid=42 document_epoch=0 host_generation=1 activity_generation=1 renderer_generation=1 code=1 elapsed_ms=-1' \
+  'observer_probe=1 boundary=1 host_pid=42' \
+  'event=5 host_pid=42 document_epoch=0 host_generation=1 activity_generation=1 renderer_generation=1 code=2 elapsed_ms=-1' \
+  'event=6 host_pid=42 document_epoch=0 host_generation=1 activity_generation=1 renderer_generation=1 code=2 elapsed_ms=-1' \
+  'event=5 host_pid=42 document_epoch=0 host_generation=1 activity_generation=1 renderer_generation=1 code=2 elapsed_ms=-1' \
+  'event=6 host_pid=42 document_epoch=0 host_generation=1 activity_generation=1 renderer_generation=1 code=2 elapsed_ms=-1' \
+  'observer_probe=1 boundary=2 host_pid=42' \
+  'event=5 host_pid=42 document_epoch=1 host_generation=1 activity_generation=1 renderer_generation=2 code=0 elapsed_ms=700' \
+  'event=6 host_pid=42 document_epoch=1 host_generation=1 activity_generation=1 renderer_generation=2 code=0 elapsed_ms=1600' > "$evidence/numeric.log"
 "$grease" "$controls/verify-diagnostics.grease" "$evidence/numeric.log" yes > "$evidence/diagnostic-positive.txt"
-for mutation in secret unknown missing duplicate stale no-positive {
+printf 'control\texpected_diagnostic\toutcome\n' > "$evidence/diagnostic-controls.tsv"
+for mutation in secret unknown missing duplicate stale no-positive unknown-epoch unknown-elapsed metric-epoch marker-unknown marker-secret \
+  probe-missing probe-unfinished probe-duplicate probe-host probe-checkpoint probe-attributed probe-measurement probe-count probe-order probe-generation initial-commit fresh-finish {
+  var expected = 'FAIL nonnumeric unknown missing or stale native diagnostics'
   if (mutation === 'secret') {
     sed 's/dns_ms=10001/dns_ms=IB_SYNTHETIC_ONLY_MUTATION/' "$evidence/numeric.log" > "$evidence/mutant.log"
   } elif (mutation === 'unknown') {
@@ -88,8 +101,45 @@ for mutation in secret unknown missing duplicate stale no-positive {
   } elif (mutation === 'stale') {
     cp "$evidence/numeric.log" "$evidence/mutant.log"
     sed -n 's/dns_ms=10001/dns_ms=20001/p' "$evidence/numeric.log" >> "$evidence/mutant.log"
-  } else {
+  } elif (mutation === 'no-positive') {
     sed 's/dns_ms=10001/dns_ms=100/' "$evidence/numeric.log" > "$evidence/mutant.log"
+  } elif (mutation === 'unknown-epoch') {
+    sed '/code=2/s/document_epoch=0/document_epoch=1/' "$evidence/numeric.log" > "$evidence/mutant.log"
+  } elif (mutation === 'unknown-elapsed') {
+    sed '/code=2/s/elapsed_ms=-1/elapsed_ms=0/' "$evidence/numeric.log" > "$evidence/mutant.log"
+  } elif (mutation === 'metric-epoch') {
+    sed '/dns_ms=/s/document_epoch=1/document_epoch=0/' "$evidence/numeric.log" > "$evidence/mutant.log"
+  } elif (mutation === 'marker-unknown') {
+    sed '/observer_probe=/s/$/ unreviewed=1/' "$evidence/numeric.log" > "$evidence/mutant.log"
+  } elif (mutation === 'marker-secret') {
+    sed 's/boundary=1/boundary=IB_SYNTHETIC_ONLY_MUTATION/' "$evidence/numeric.log" > "$evidence/mutant.log"
+  } else {
+    setvar expected = 'FAIL lifecycle attribution probe boundary or positive control'
+    if (mutation === 'probe-missing') {
+      sed '/observer_probe=/d' "$evidence/numeric.log" > "$evidence/mutant.log"
+    } elif (mutation === 'probe-unfinished') {
+      sed '/boundary=2/d' "$evidence/numeric.log" > "$evidence/mutant.log"
+    } elif (mutation === 'probe-duplicate') {
+      awk '{print}/observer_probe=1 boundary=1/{print}' "$evidence/numeric.log" > "$evidence/mutant.log"
+    } elif (mutation === 'probe-host') {
+      sed '/boundary=2/s/host_pid=42/host_pid=43/' "$evidence/numeric.log" > "$evidence/mutant.log"
+    } elif (mutation === 'probe-checkpoint') {
+      awk '{print}/boundary=1/{print "event=4 host_pid=42 document_epoch=0 host_generation=1 activity_generation=1 renderer_generation=1 code=0 elapsed_ms=-1"}' "$evidence/numeric.log" > "$evidence/mutant.log"
+    } elif (mutation === 'probe-attributed') {
+      sed '/code=2/{s/document_epoch=0/document_epoch=1/;s/code=2/code=0/;s/elapsed_ms=-1/elapsed_ms=1/;}' "$evidence/numeric.log" > "$evidence/mutant.log"
+    } elif (mutation === 'probe-measurement') {
+      awk '/dns_ms=/{sample=$0;sub(/dns_ms=10001/,"dns_ms=9",sample)}{print}/boundary=1/{print sample}' "$evidence/numeric.log" > "$evidence/mutant.log"
+    } elif (mutation === 'probe-count') {
+      awk '/code=2/{if(++calls==4)next}{print}' "$evidence/numeric.log" > "$evidence/mutant.log"
+    } elif (mutation === 'probe-order') {
+      sed '/code=2/s/event=5/event=6/' "$evidence/numeric.log" > "$evidence/mutant.log"
+    } elif (mutation === 'probe-generation') {
+      sed '/^event=6.*code=2/s/activity_generation=1/activity_generation=2/' "$evidence/numeric.log" > "$evidence/mutant.log"
+    } elif (mutation === 'initial-commit') {
+      sed '/^event=5.*renderer_generation=1 code=0/d' "$evidence/numeric.log" > "$evidence/mutant.log"
+    } elif (mutation === 'fresh-finish') {
+      sed '/^event=6.*renderer_generation=2 code=0/d' "$evidence/numeric.log" > "$evidence/mutant.log"
+    } else { echo 'FAIL unimplemented diagnostic control' >&2; exit 1 }
   }
   try {
     "$grease" "$controls/verify-diagnostics.grease" "$evidence/mutant.log" yes > "$evidence/diagnostic-$mutation.txt" 2>&1
@@ -97,11 +147,12 @@ for mutation in secret unknown missing duplicate stale no-positive {
   var result = _error.code
   rm -f "$evidence/mutant.log"
   if (result !== 1) { echo "FAIL diagnostic negative $mutation did not reject" >&2; exit 1 }
-  rg -q -x -F 'FAIL nonnumeric unknown missing or stale native diagnostics' "$evidence/diagnostic-$mutation.txt"
+  rg -q -x -F "$expected" "$evidence/diagnostic-$mutation.txt"
+  printf '%s\t%s\tREJECTED\n' "$mutation" "$expected" >> "$evidence/diagnostic-controls.tsv"
 }
 forkwait {
   cd "$controls"
   sha256sum verify-observations.grease verify-diagnostics.grease self-test.grease > "$evidence/digests.txt"
 }
-printf 'schema\tib-admin-oracle-host-v1\npositive_synthetic_records\tPASS\nrecord_negative_controls\t31_REJECTED\npositive_numeric_diagnostics\tPASS\ndiagnostic_negative_controls\t6_REJECTED\ninstalled_Android\tNOT_RUN\nphysical_C67\tNOT_RUN\n' > "$evidence/receipt.tsv"
+printf 'schema\tib-admin-oracle-host-v1\npositive_synthetic_records\tPASS\nrecord_negative_controls\t31_REJECTED\npositive_numeric_diagnostics\tPASS\npositive_synthetic_lifecycle_boundaries\tPASS\ndiagnostic_negative_controls\t23_REJECTED\ninstalled_Android\tNOT_RUN\nphysical_C67\tNOT_RUN\n' > "$evidence/receipt.tsv"
 cat "$evidence/receipt.tsv"

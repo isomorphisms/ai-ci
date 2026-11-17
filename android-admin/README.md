@@ -44,10 +44,24 @@ the result and observes its absence before taking any screenshot.
 The real native timing callback also receives the actual synthetic result in
 an otherwise numeric array. A captured current record and boxed document epoch
 bind it to the real WebView. Acceptance requires its fixed numeric rejection
-event. A positive numeric callback proves the parser path was reached. Saved
+event. A positive numeric callback on the initial document proves the parser
+path was reached while attribution is valid. Saved
 callbacks are submitted after a same-WebView document replacement and after
 actual renderer termination; both submissions must complete without emitting
 stale timings. There is no production test-ready flag or test callback.
+
+After the same-WebView navigation, a single observer UI-thread operation calls
+the actual product client's visible-commit and finished methods with the old
+verification URL, then with the repeated current root URL. Its independent
+`IBAdminProbe` tag contains only fixed numeric begin/end markers and the actual
+host PID. Between those markers the closed verifier requires exactly four
+UNKNOWN results (`code=2`, `document_epoch=0`, `elapsed_ms=-1`), in call order
+and under unchanged host, Activity and renderer generations. Every checkpoint,
+accepted lifecycle callback or timing measurement inside the interval fails.
+Canonical task snapshots must also remain byte-identical. Byte equality alone
+does not establish that no checkpoint was attempted; the bounded event check
+supplies that assertion. Real initial-document and replacement-renderer commit
+and finish events remain required positive controls.
 
 The fixture commits an ambiguous operation and closes a truncated response.
 The observer sees the uncertainty, writes and observes unapproved form input,
@@ -72,8 +86,10 @@ and installed APK digests, package/version, persistent signer, API/ABI and
 WebView implementation. Screenshots are not deferred until Instrumentation
 has terminated the target process.
 
-Only the fixed `IBLongView` tag is collected. Its closed contract admits only
-declared numeric keys, including `host_pid` and `document_epoch`. Unsafe raw
+Only the fixed `IBLongView` tag and observer-owned `IBAdminProbe` boundaries are
+collected. Their closed contracts admit only declared numeric keys, including
+`host_pid` and `document_epoch`. The marker payload is never product evidence
+of readiness or success. Unsafe raw
 diagnostics and unvalidated task snapshots are withheld. No cookie, response
 body, URL query or terminal value belongs in an ordinary receipt.
 
@@ -106,9 +122,12 @@ Changed public selectors require review; an unfamiliar page does not pass.
 ## Qualification boundary
 
 `host-qualification/` retains exact source digests and Linux x86_64 results:
-oracle positives, 31 targeted record rejections, six diagnostic rejections,
+oracle positives, 31 targeted record rejections, 23 diagnostic rejections,
 DEX assembly/disassembly, resource packaging and persistent-signature checks.
 These are host results only.
+The initial published observer's receipts remain under
+`host-qualification/initial-40ff487/`; they describe that earlier source.
+The current receipt and source digests bind the lifecycle-control update.
 
 The test-only instrumentation DEX is separate from the candidate and uses
 existing Android platform/test interfaces. It never replaces IB's checked
