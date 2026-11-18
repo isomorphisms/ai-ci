@@ -1,0 +1,93 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 7) { echo 'requires ADB SERIAL API CANDIDATE LEGACY_APK INDEPENDENT_INPUTS NEW_EVIDENCE' >&2; exit 2 }
+var adb = ARGV[0]
+var serial = ARGV[1]
+var api = ARGV[2]
+var apk = ARGV[3]
+var legacy = ARGV[4]
+var input = ARGV[5]
+var output = ARGV[6]
+if test -e "$output" { echo 'refusing reused migration evidence' >&2; exit 2 }
+mkdir -p "$output"
+var grease = ENV.GREASE
+"$grease" "$input/guards/observe-provenance.grease" "$input" "$apk" "$output"
+var oracle = "$input/oracle/pasteboard-oracle"
+var package = 'com.isomorphisms.pasteboard'
+var component = 'com.isomorphisms.pasteboard/android.app.NativeActivity'
+var fixture = 'org.isomorphisms.aici.clipboardfixture/android.app.NativeActivity'
+proc private_absent(path, label) {
+  try { "$adb" -s "$serial" shell -T run-as "$package" /system/bin/ls -ld "$path" > "$output/$label.absence.txt" 2>&1 }
+  var result = _error.code
+  if (result === 0) { echo 'FAIL private history path unexpectedly exists' >&2; exit 1 }
+  rg -q -F 'No such file or directory' "$output/$label.absence.txt"
+}
+"$adb" -s "$serial" shell getprop ro.kernel.qemu | tr -d '\r' | rg -x 1
+"$adb" -s "$serial" shell getprop ro.build.version.sdk | tr -d '\r' | rg -x -F "$api"
+"$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 2000
+var existing = $("$adb" -s "$serial" shell pm list packages "$package" | tr -d '\r')
+if (existing !== '') { echo 'FAIL migration requires fresh emulator package namespace' >&2; exit 1 }
+printf '%s  %s\n' ad9682546857efc2c8876de5ae5a76844a5e79a8599f23e6fff07db2d1e2162a "$legacy" | sha256sum -c -
+sha256sum "$apk" "$legacy" "$input/copy-fixture.apk" > "$output/sha256.txt"
+printf 'legacy_source\t4289fbc56e3d9112494b7ac12a1509254da49e65\nlegacy_build_run\t41315218239\nlegacy_version_code\t2\n' > "$output/legacy-source.tsv"
+"$adb" -s "$serial" shell getprop ro.build.fingerprint > "$output/fingerprint.txt"
+cp "$input/observer-commit.txt" "$output/"
+"$adb" -s "$serial" shell wm size 480x960
+"$adb" -s "$serial" shell wm density 160
+"$adb" -s "$serial" install -r "$input/copy-fixture.apk" > "$output/fixture-install.txt"
+"$adb" -s "$serial" install "$legacy" > "$output/legacy-install.txt"
+var uid = $("$adb" -s "$serial" shell pm list packages -U "$package" | tr -d '\r')
+"$adb" -s "$serial" shell am start -W -n "$component" > "$output/legacy.launch.txt"
+sleep 2
+for row in @(seq 0 2) {
+  "$adb" -s "$serial" shell am start -W -n "$fixture" > "$output/legacy-$row.fixture.txt"
+  sleep 0.6
+  "$adb" -s "$serial" logcat -c
+  var y = 70 + int(row) * 90
+  "$adb" -s "$serial" shell input tap 240 "$y"
+  sleep 0.5
+  "$adb" -s "$serial" logcat -d -s CopyFixture:I > "$output/legacy-$row.clipboard.txt"
+  rg -q -F "visible button $row SDK clipboard effect PASS" "$output/legacy-$row.clipboard.txt"
+  rg -q -F "present=1 items=1 text=1 sensitive=0 exact fixture=$row origin=0" "$output/legacy-$row.clipboard.txt"
+  "$adb" -s "$serial" shell am start -W -n "$component" > "$output/legacy-$row.capture.txt"
+  sleep 1
+}
+"$adb" -s "$serial" install -r "$apk" > "$output/upgrade-install.txt"
+var upgraded_uid = $("$adb" -s "$serial" shell pm list packages -U "$package" | tr -d '\r')
+if (upgraded_uid !== uid) { echo 'FAIL migration upgrade changed UID' >&2; exit 1 }
+"$adb" -s "$serial" shell am start -W -n "$component" > "$output/upgrade.launch.txt"
+sleep 2
+"$adb" -s "$serial" exec-out run-as "$package" cat files/history.v2 > "$output/migrated.bin"
+"$adb" -s "$serial" exec-out run-as "$package" cat files/history.previous > "$output/migrated-backup.bin"
+"$oracle" board "$output/migrated.bin" 1 3 "$input/fixtures/textC.txt" "$input/fixtures/textB.txt" "$input/fixtures/textA.txt"
+"$oracle" board "$output/migrated-backup.bin" 1 3 "$input/fixtures/textC.txt" "$input/fixtures/textB.txt" "$input/fixtures/textA.txt"
+private_absent files/pasteboard.bin retired-legacy
+printf 'real_version_2_to_current_upgrade\tPASS\nlegacy_UTF8_whitespace_migration\tPASS\nupgrade_preserves_UID_and_history\tPASS\nlegacy_retired_after_two_modern_copies\tPASS\n' > "$output/result.tsv"
+
+# This positively verified emulator namespace contains only the synthetic data
+# created above. Reset it to exercise a corrupt legacy record independently.
+"$adb" -s "$serial" shell am force-stop "$package"
+"$adb" -s "$serial" shell pm clear "$package" > "$output/synthetic-positive-reset.txt"
+"$adb" -s "$serial" shell run-as "$package" mkdir files
+"$adb" -s "$serial" shell -T run-as "$package" tee files/pasteboard.bin \
+  < "$input/fixtures/legacy-corrupt.bin" > "$output/corrupt-seed.bin"
+cmp "$input/fixtures/legacy-corrupt.bin" "$output/corrupt-seed.bin"
+"$adb" -s "$serial" shell am start -W -n "$component" > "$output/corrupt.launch.txt"
+sleep 2
+"$adb" -s "$serial" shell pidof "$package" > "$output/corrupt.pid.txt"
+private_absent files/history.v2 refused-modern-history
+"$adb" -s "$serial" exec-out run-as "$package" cat files/pasteboard.bin > "$output/corrupt-preserved.bin"
+cmp "$input/fixtures/legacy-corrupt.bin" "$output/corrupt-preserved.bin"
+"$adb" -s "$serial" exec-out screencap -p > "$output/corrupt-screen.png"
+printf 'corrupt_legacy_refused_and_original_preserved\tPASS\n' >> "$output/result.tsv"
+"$adb" -s "$serial" shell am force-stop "$package"
+"$adb" -s "$serial" shell pm clear "$package" > "$output/synthetic-negative-reset.txt"
+"$adb" -s "$serial" shell am start -W -n "$fixture" > "$output/final-clear.fixture.txt"
+sleep 0.6
+"$adb" -s "$serial" logcat -c
+"$adb" -s "$serial" shell input tap 240 700
+sleep 0.5
+"$adb" -s "$serial" logcat -d -s CopyFixture:I > "$output/final-clear.clipboard.txt"
+rg -q -F 'visible button 7 SDK clipboard effect PASS' "$output/final-clear.clipboard.txt"
+rg -q -F 'present=0 items=0 text=0 sensitive=0 exact fixture=-1 origin=0' "$output/final-clear.clipboard.txt"
+cat "$output/result.tsv"

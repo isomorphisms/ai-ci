@@ -19,6 +19,8 @@ r29; it does not claim all Clang `overloadable` or `pass_object_size` behavior.
 | `read` | Bionic `__read_chk` | destination, mode 0 |
 | `write` | Bionic `__write_chk` | source, mode 0 |
 | `poll` | Bionic `__poll_chk` | descriptor array, mode 1 |
+| `open`, `open64` | compile-time argument checks; Bionic `__open_2` without mode | creation flags |
+| `openat`, `openat64` | compile-time argument checks; Bionic `__openat_2` without mode | creation flags |
 
 Always-inlined GNU functions evaluate public arguments once and propagate
 object sizes after argument side effects. A function-like macro was rejected
@@ -35,11 +37,11 @@ Fortified functions outside that table are poisoned at compilation:
   `strncat`, `stpncpy`, `strncpy`, `strlcpy`, `strlcat`, `strrchr`.
 - Standard I/O: `fread`, `fgets`, `sprintf`, `vsprintf`.
 - File I/O: `getcwd`, `pread`, `pread64`, `pwrite`, `pwrite64`, `readlink`,
-  `readlinkat`, `open`, `open64`, `openat`, `openat64`.
+  `readlinkat`.
 - Polling, paths and permissions: `ppoll`, `ppoll64`, `realpath`, `umask`.
 - Sockets and legacy memory: `recv`, `recvfrom`, `send`, `sendto`, `bcopy`, `bzero`.
 
-Each of these thirty-seven names has its own required poisoned-identifier negative
+Each of these thirty-three names has its own required poisoned-identifier negative
 test. Applications needing one must extend and qualify the profile or keep
 their migration blocked. Do not erase the rejection, redefine Fortify, or
 route glyph-bearing C through a different compiler. Explicit function-pointer
@@ -54,6 +56,18 @@ unfortified `read` on an invalid descriptor; the fixture must reject it with
 exit 55. ARMv7 and AArch64 fixtures receive compile, assembly, static-link and
 ELF checks; they are not executed by this host gate. Retained `-g`, DWARF 4,
 stack protection and warnings-as-errors exercise the real NDK assembly boundary.
+
+The file-opening extension keeps the same public NDK declarations. Always-inline
+GNU varargs check argument count before forwarding an explicitly supplied mode.
+No absent mode is read. Constant `O_CREAT`/`O_TMPFILE` without mode and extra
+arguments are compile errors, each independently exercised for all four names.
+Dynamic flags without a mode use the actual Bionic checked entry points and must
+abort on either creation flag. The runtime fixture exercises valid two/three
+argument calls, explicit modes and single evaluation of path/flags/mode/directory
+expressions. Eight missing-mode children must abort at each O1/O2/O3/Os level.
+An intentionally unfortified source control must fail that oracle with exit 55.
+This removes the original blanket rejection only with a stronger executable
+contract; it does not disable Fortify or claim Clang's superfluous-mode warning.
 
 At O0, Bionic's existing headers do not enable Fortify. The adapter does not
 silently alter that upstream optimization boundary. The profile requires
