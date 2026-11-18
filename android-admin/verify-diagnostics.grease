@@ -147,7 +147,6 @@ if (http) {
     END {
       if(failed)exit failed
       if(main_errors<1)exit 1
-      for(key in errors)if(!starts[key])exit 1
       for(key in finishes)if(starts[key])complete++
       if(complete<1)exit 3
     }

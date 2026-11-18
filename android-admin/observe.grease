@@ -287,7 +287,16 @@ try {
 }
 var http_result = _error.code
 if (http_result !== 0) {
-  rm -f "$evidence/.http-events-private"
+  # Retain failure observations only after independently validating their
+  # bounded closed numeric schema. Never retain unvalidated logcat output.
+  try {
+    "$grease" "$controls/verify-diagnostics.grease" "$evidence/.http-events-private" no \
+      > "$evidence/http-response-failure-events-check.txt" 2>&1
+  }
+  var safe_http_events = _error.code
+  if (safe_http_events === 0) {
+    mv "$evidence/.http-events-private" "$evidence/http-response-failure-events.txt"
+  } else { rm -f "$evidence/.http-events-private" }
   cat "$evidence/http-response-check.txt" >&2
   echo 'FAIL actual HTTP response controls did not establish main-frame discrimination' >&2; exit 1
 }

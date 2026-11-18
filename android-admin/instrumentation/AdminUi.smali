@@ -131,6 +131,8 @@
     invoke-virtual {v1}, Landroid/app/Activity;->recreate()V
     return-void
   :missing
+    const/4 v5, 3
+    if-eq v2, v5, :failed_renderer
     iget-object v5, v0, Lacceptance/admin/AdminInstrumentation;->evaluation:Lacceptance/admin/AdminCallback;
     if-eqz v5, :missing_done
     const-string v4, "null"

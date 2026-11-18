@@ -177,6 +177,9 @@ awk 'NR==1{start=$0;next} NR==2{print;print start;next} {print}' \
   "$evidence/http/unknown-attribution.log" > "$evidence/http/unknown-before-start.log"
 "$grease" "$controls/verify-diagnostics.grease" "$evidence/http/unknown-before-start.log" http 201 202 \
   "$evidence/http/before.tsv" "$evidence/http/main.tsv" "$evidence/http/after.tsv" > "$evidence/http/unknown-before-start.txt"
+sed '/^event=3 host_pid=201 /d' "$evidence/http/unknown-before-start.log" > "$evidence/http/unknown-without-start.log"
+"$grease" "$controls/verify-diagnostics.grease" "$evidence/http/unknown-without-start.log" http 201 202 \
+  "$evidence/http/before.tsv" "$evidence/http/main.tsv" "$evidence/http/after.tsv" > "$evidence/http/unknown-without-start.txt"
 printf 'control\texpected_diagnostic\toutcome\n' > "$evidence/http/controls.tsv"
 for mutation in missing-main wrong-host wrong-status stale-generation invented-epoch invented-elapsed reordered-known-error subresource-error missing-finish reordered-finish reused-host missing-subresource-response stale-baseline duplicate-counter unknown-counter {
   var http_log = "$evidence/http/positive.log"
