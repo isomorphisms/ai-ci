@@ -28,6 +28,8 @@ no_suffix      CODE  root-path  comma-separated-suffixes
 suffix_first_line CODE root-path suffix exact-first-line
 actions_pinned CODE  workflow-path
 yaml_forbid_key CODE workflow-path key
+yaml_run_lexically_excludes CODE workflow-path literal
+yaml_run_not_contains CODE workflow-path literal  # compatibility alias
 script_runner  CODE  workflow-path script-path exact-runner
 ```
 
@@ -44,6 +46,15 @@ any command other than the declared runner. It proves declared invocation, not
 successful runtime behavior. A predicate does not pass when its input is
 missing. Recursive predicates reject
 matching symlinks, and do not pass when they scan zero matching regular files.
+
+`yaml_run_lexically_excludes` inspects actual supported workflow/composite `run`
+scalars through the shared reader. It excludes bytes, including quoted literal
+bytes; it does not interpret commands or prove failure propagation. The old
+`yaml_run_not_contains` alias emits an explicit compatibility notice and keeps
+caller-owned diagnostic codes. The maintained workflow contract migrated
+`WORKFLOW-SWALLOW-OR/SET` to `WORKFLOW-LEXICAL-OR/SET`; see
+[`workflow-source.md`](../docs/workflow-source.md) for the mapping and distinct
+core-action process observations.
 
 `scoped_contains` and `scoped_not_contains` read tab-separated evidence records
 whose first field is an exact process, job, service, or actor identity and whose
