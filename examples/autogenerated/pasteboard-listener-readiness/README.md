@@ -5,6 +5,14 @@ The original caller-identity predicate is corrected in
 does not establish that listener registration failed: the old predicate rejects
 the actual shell identity after the worker clears Binder calling identity.
 
+Fresh run43786811357 at 4a127a0251bdbd69283d7116cb7deed446560402 passes
+the complete API29 and API34 workflows. API35 also passes listener readiness,
+server restart and exact durable delivery, then preserves history across a
+verified new Android boot. It fails at the subsequent UI stage's initial ADB
+identity check with `device offline`. The next repair is bounded same-kernel
+transport recovery between these stages; see
+[reboot-transport.md](reboot-transport.md). No clipboard assertion is relaxed.
+
 The unchanged current Pasteboard candidate fails its API35 server-restart control when fixture copies precede observer startup. The retained native failure also shows an official worker handshake failure; this lane does not assume that waiting fixes it. The 32-second connect deadline is distinct from the five-second heartbeat threshold. Product and compiled Idriç history oracle are unchanged.
 
 The control clears old native logs before restarting the official server, then waits at most90 bounded polls for an actual current worker: one live shell worker, one live application process, one installed owner UID, that exact app PID's accepted current-epoch UID2000 connection, the worker's successful initialization for that installed owner, and that exact worker PID's actual SDK-listener registration or retained-configuration success under shell UID2000. A second fresh ps snapshot must give the identical identities. These are native registration evidence, not injected heartbeat calls, private capabilities or fixed sleeps. Integer readiness latency is recorded separately; a slow or initially failed handshake is not presented as unchanged startup performance.
