@@ -1,0 +1,88 @@
+name: Independent IB exact-equation acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'scientific-equation/**'
+      - '.github/workflows/scientific-equation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  independent-oracle:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      IDRIC_REF: 7050c116326c9c8e8d0a56c2db7baf2119cbae19
+    steps:
+      - name: Checkout actual independent AICI head
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Checkout reviewed IB source (not AICI fixture reimplementation)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: isomorphisms/ib
+          ref: 20711f085b18c0ffb3ab90ec5b4e958f716fe52b
+          path: source
+          submodules: true
+          persist-credentials: false
+
+      - name: Checkout real pinned SURFER native implementation
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: isomorphismes/algebraic-variety-explorer-mobile
+          ref: 9113596d732f1c44db7d6e11ad8a12df3dc8d369
+          path: source/.tools/surfer
+          persist-credentials: false
+
+      - name: Assert independent source identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C source rev-parse HEAD)" = 20711f085b18c0ffb3ab90ec5b4e958f716fe52b
+          test "$(git -C source/.tools/surfer rev-parse HEAD)" = 9113596d732f1c44db7d6e11ad8a12df3dc8d369
+          git rev-parse HEAD
+          sha256sum scientific-equation/verify.sh scientific-equation/self-test.sh
+
+      - name: Install IB's declared scientific source dependencies
+        run: sh source/bin/ci_browser_foundation.grease install-dependencies
+
+      - name: Restore pinned Idriç for source mathematical-policy compiler
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
+        with:
+          path: /tmp/idric
+          key: idric-relocatable-v2-${{ runner.os }}-7050c116326c9c8e8d0a56c2db7baf2119cbae19
+
+      - name: Produce host oracle from real IB Idriç and SURFER sources
+        run: |
+          set -eu
+          sh source/bin/ci_browser_foundation.grease exercise-exact-math
+
+      - name: Independently verify the equation and mutation killers
+        shell: bash
+        run: |
+          set -euo pipefail
+          export IB_SURFER_PROBE=/tmp/ib-surfer-equation-probe
+          export IB_EXACT_SURFACE_POLICY="$GITHUB_WORKSPACE/source/src/build/exec/ib-exact-surface"
+          sh -n scientific-equation/verify.sh
+          sh -n scientific-equation/self-test.sh
+          sh scientific-equation/self-test.sh "$GITHUB_WORKSPACE/source" | tee independent-ib160-verdict.txt
+          grep -Fx 'PASS: independent mutation controls and image impersonation refusal' independent-ib160-verdict.txt
+          grep -Fx 'NOT_RUN: finished still, movie, Android exact-restore, physical device' independent-ib160-verdict.txt
+
+      - name: Preserve independent evidence and exact revisions
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: independent-ib160-exact-equation-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            independent-ib160-verdict.txt
+            /tmp/ib-exact-math-acceptance.txt
+            /tmp/ib-exact-math-input-hashes.txt
+            /tmp/ib-exact-math-idric-compile.txt
+          if-no-files-found: warn
