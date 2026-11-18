@@ -1,0 +1,26 @@
+name: Independent reading backup integrity
+
+on:
+  pull_request:
+    paths:
+      - 'reading-backup/**'
+      - '.github/workflows/reading-backup.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'reading-backup/**'
+      - '.github/workflows/reading-backup.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  independent-archive-oracle:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Exercise positive and intentionally broken ZIP exports
+        run: python3 -m unittest discover -s reading-backup -p 'test_*.py' -v
