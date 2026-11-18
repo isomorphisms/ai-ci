@@ -129,7 +129,11 @@ if (http) {
       for(i=1;i<=NF;i++){split($i,pair,"=");values[pair[1]]=pair[2]}
       pid=values["host_pid"]
       if(pid!=main_pid && pid!=sub_pid)next
-      if(values["host_generation"]+0<1 || values["activity_generation"]+0<1 || values["renderer_generation"]+0<1 || values["host_generation"]+0>2147483647 || values["activity_generation"]+0>2147483647 || values["renderer_generation"]+0>2147483647)fail(1)
+      if(values["host_generation"]+0<1 || values["activity_generation"]+0<1 || values["host_generation"]+0>2147483647 || values["activity_generation"]+0>2147483647)fail(1)
+      # Opening a new protected task checkpoints its record before attaching
+      # its first renderer. This closed row cannot attribute any HTTP event.
+      if(values["renderer_generation"]==0 && values["event"]==4 && values["code"]==0 && values["document_epoch"]==0 && values["elapsed_ms"]+0>=-1)next
+      if(values["renderer_generation"]+0<1 || values["renderer_generation"]+0>2147483647)fail(1)
       key=pid ":" values["host_generation"] ":" values["activity_generation"] ":" values["renderer_generation"]
       if(values["event"]==3 && values["code"]==0 && values["document_epoch"]==1 && values["elapsed_ms"]+0>=0)starts[key]=1
       if(pid==main_pid && values["event"]==7) {

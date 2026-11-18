@@ -132,7 +132,7 @@
     return-void
   :missing
     const/4 v5, 3
-    if-eq v2, v5, :failed_renderer
+    if-eq v2, v5, :missing_renderer
     iget-object v5, v0, Lacceptance/admin/AdminInstrumentation;->evaluation:Lacceptance/admin/AdminCallback;
     if-eqz v5, :missing_done
     const-string v4, "null"
@@ -145,6 +145,10 @@
     return-void
   :failed_renderer
     const-string v4, "FAIL independent renderer termination"
+    iput-object v4, v0, Lacceptance/admin/AdminInstrumentation;->uiFailure:Ljava/lang/String;
+    return-void
+  :missing_renderer
+    const-string v4, "FAIL independent renderer termination: protected WebView is absent"
     iput-object v4, v0, Lacceptance/admin/AdminInstrumentation;->uiFailure:Ljava/lang/String;
     return-void
   :failed_document

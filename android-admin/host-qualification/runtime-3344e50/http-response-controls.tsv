@@ -1,0 +1,16 @@
+control	expected_diagnostic	outcome
+missing-main	FAIL real main-frame HTTP 503 was not observed for selected host	REJECTED
+wrong-host	FAIL real main-frame HTTP 503 was not observed for selected host	REJECTED
+wrong-status	FAIL real main-frame HTTP 503 was not observed for selected host	REJECTED
+stale-generation	FAIL real main-frame HTTP 503 was not observed for selected host	REJECTED
+invented-epoch	FAIL real main-frame HTTP 503 was not observed for selected host	REJECTED
+invented-elapsed	FAIL real main-frame HTTP 503 was not observed for selected host	REJECTED
+reordered-known-error	FAIL real main-frame HTTP 503 was not observed for selected host	REJECTED
+subresource-error	FAIL subresource-only error became a main-frame failure	REJECTED
+missing-finish	FAIL subresource control did not complete its current main document	REJECTED
+reordered-finish	FAIL subresource control did not complete its current main document	REJECTED
+reused-host	FAIL HTTP fixture host identities are invalid or reused	REJECTED
+missing-subresource-response	FAIL HTTP fixture response counters did not follow selected requests	REJECTED
+stale-baseline	FAIL HTTP fixture response counters did not follow selected requests	REJECTED
+duplicate-counter	FAIL HTTP fixture response counters did not follow selected requests	REJECTED
+unknown-counter	FAIL HTTP fixture response counters did not follow selected requests	REJECTED

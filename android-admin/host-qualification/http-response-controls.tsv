@@ -14,3 +14,11 @@ missing-subresource-response	FAIL HTTP fixture response counters did not follow 
 stale-baseline	FAIL HTTP fixture response counters did not follow selected requests	REJECTED
 duplicate-counter	FAIL HTTP fixture response counters did not follow selected requests	REJECTED
 unknown-counter	FAIL HTTP fixture response counters did not follow selected requests	REJECTED
+checkpoint-event	FAIL real main-frame HTTP 503 was not observed for selected host	REJECTED
+checkpoint-code	FAIL real main-frame HTTP 503 was not observed for selected host	REJECTED
+checkpoint-epoch	FAIL real main-frame HTTP 503 was not observed for selected host	REJECTED
+checkpoint-elapsed	FAIL real main-frame HTTP 503 was not observed for selected host	REJECTED
+checkpoint-host	FAIL real main-frame HTTP 503 was not observed for selected host	REJECTED
+checkpoint-activity	FAIL real main-frame HTTP 503 was not observed for selected host	REJECTED
+checkpoint-overflow	FAIL real main-frame HTTP 503 was not observed for selected host	REJECTED
+zero-renderer-error	FAIL real main-frame HTTP 503 was not observed for selected host	REJECTED

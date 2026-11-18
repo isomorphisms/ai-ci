@@ -133,6 +133,27 @@
     return-object v0
 .end method
 
+.method private readOnly(Ljava/lang/String;)Ljava/lang/String;
+    .locals 6
+    invoke-static {}, Landroid/os/SystemClock;->elapsedRealtime()J
+    move-result-wide v0
+    const-wide/32 v2, 60000
+    add-long/2addr v0, v2
+  :again
+    invoke-direct {p0, p1, v0, v1}, Lacceptance/admin/AdminInstrumentation;->evalUntil(Ljava/lang/String;J)Ljava/lang/String;
+    move-result-object v4
+    if-nez v4, :received
+    invoke-static {}, Landroid/os/SystemClock;->elapsedRealtime()J
+    move-result-wide v2
+    cmp-long v4, v2, v0
+    if-ltz v4, :again
+    const/4 v4, 0
+    const-string v5, "FAIL independent read-only page observation timeout"
+    invoke-static {v4, v5}, Lacceptance/admin/AdminInstrumentation;->require(ZLjava/lang/String;)V
+  :received
+    return-object v4
+.end method
+
 .method private await(Ljava/lang/String;Ljava/lang/String;)V
     .locals 8
     invoke-static {}, Landroid/os/SystemClock;->elapsedRealtime()J
@@ -202,6 +223,28 @@
     const-string v1, "(function(){var e=document.getElementById('"
     invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
     invoke-virtual {v0, p1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    const-string v1, "');if(!e||e.disabled||e.hidden)return false;var r=e.getBoundingClientRect();return r.width>0&&r.height>0;})()"
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v0}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+    move-result-object v0
+    invoke-direct {p0, v0}, Lacceptance/admin/AdminInstrumentation;->readOnly(Ljava/lang/String;)Ljava/lang/String;
+    move-result-object v0
+    const-string v1, "false"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v2
+    const-string v1, "true"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v0
+    or-int/2addr v2, v0
+    const-string v1, "FAIL independent page control observation was not boolean"
+    invoke-static {v2, v1}, Lacceptance/admin/AdminInstrumentation;->require(ZLjava/lang/String;)V
+    const-string v1, "FAIL no usable page control"
+    invoke-static {v0, v1}, Lacceptance/admin/AdminInstrumentation;->require(ZLjava/lang/String;)V
+    new-instance v0, Ljava/lang/StringBuilder;
+    invoke-direct {v0}, Ljava/lang/StringBuilder;-><init>()V
+    const-string v1, "(function(){var e=document.getElementById('"
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v0, p1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
     const-string v1, "');if(!e||e.disabled||e.hidden)return 'unusable';e.scrollIntoView({block:'center'});var r=e.getBoundingClientRect();if(r.width<=0||r.height<=0)return 'unusable';return (r.left+r.width/2)+','+(r.top+r.height/2);})()"
     invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
     invoke-virtual {v0}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
@@ -213,13 +256,14 @@
     invoke-virtual {v1}, Lorg/json/JSONTokener;->nextValue()Ljava/lang/Object;
     move-result-object v0
     instance-of v1, v0, Ljava/lang/String;
-    const-string v2, "FAIL no usable page control"
+    const-string v2, "FAIL independent page control coordinates were not text"
     invoke-static {v1, v2}, Lacceptance/admin/AdminInstrumentation;->require(ZLjava/lang/String;)V
     check-cast v0, Ljava/lang/String;
     const-string v1, "unusable"
     invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
     move-result v1
     xor-int/lit8 v1, v1, 1
+    const-string v2, "FAIL no usable page control"
     invoke-static {v1, v2}, Lacceptance/admin/AdminInstrumentation;->require(ZLjava/lang/String;)V
     const-string v1, ","
     invoke-virtual {v0, v1}, Ljava/lang/String;->split(Ljava/lang/String;)[Ljava/lang/String;
@@ -424,17 +468,18 @@
     const-string v2, "FAIL app switch never paused the target Activity"
     invoke-static {v1, v2}, Lacceptance/admin/AdminInstrumentation;->require(ZLjava/lang/String;)V
   :paused
-    new-instance v1, Landroid/content/Intent;
-    const-string v2, "android.intent.action.MAIN"
-    invoke-direct {v1, v2}, Landroid/content/Intent;-><init>(Ljava/lang/String;)V
-    const-string v2, "org.isomorphisms.ib.prepaint"
-    const-string v3, "Idric.Generated"
-    invoke-virtual {v1, v2, v3}, Landroid/content/Intent;->setClassName(Ljava/lang/String;Ljava/lang/String;)Landroid/content/Intent;
-    const v2, 0x10020000
-    invoke-virtual {v1, v2}, Landroid/content/Intent;->addFlags(I)Landroid/content/Intent;
-    invoke-virtual {p0}, Landroid/app/Instrumentation;->getTargetContext()Landroid/content/Context;
-    move-result-object v2
-    invoke-virtual {v2, v1}, Landroid/content/Context;->startActivity(Landroid/content/Intent;)V
+    invoke-virtual {p0}, Landroid/app/Instrumentation;->getUiAutomation()Landroid/app/UiAutomation;
+    move-result-object v1
+    const-string v2, "/system/bin/am start --user current -a android.intent.action.MAIN -n org.isomorphisms.ib.prepaint/Idric.Generated -f 0x10020000"
+    invoke-virtual {v1, v2}, Landroid/app/UiAutomation;->executeShellCommand(Ljava/lang/String;)Landroid/os/ParcelFileDescriptor;
+    move-result-object v3
+    if-nez v3, :return_started
+    const/4 v1, 0
+    const-string v2, "FAIL system return command descriptor unavailable"
+    invoke-static {v1, v2}, Lacceptance/admin/AdminInstrumentation;->require(ZLjava/lang/String;)V
+    return-void
+  :return_started
+  :try_return_start
     const/16 v6, 100
   :wait_resume
     iget v7, p0, Lacceptance/admin/AdminInstrumentation;->resumeCount:I
@@ -450,12 +495,26 @@
     invoke-virtual {p0}, Landroid/app/Instrumentation;->waitForIdleSync()V
     iget-object v1, p0, Lacceptance/admin/AdminInstrumentation;->activity:Landroid/app/Activity;
     if-ne v0, v1, :changed
-    return-void
+    goto :return_checked
   :changed
-    const/4 v0, 0
-    const-string v1, "FAIL app switch replaced live fixture Activity"
-    invoke-static {v0, v1}, Lacceptance/admin/AdminInstrumentation;->require(ZLjava/lang/String;)V
+    const/4 v1, 0
+    const-string v2, "FAIL app switch replaced live fixture Activity"
+    invoke-static {v1, v2}, Lacceptance/admin/AdminInstrumentation;->require(ZLjava/lang/String;)V
+  :return_checked
+  :try_return_end
+    .catchall {:try_return_start .. :try_return_end} :return_failed
+    invoke-virtual {v3}, Landroid/os/ParcelFileDescriptor;->close()V
     return-void
+  :return_failed
+    move-exception v0
+  :try_return_close_start
+    invoke-virtual {v3}, Landroid/os/ParcelFileDescriptor;->close()V
+  :try_return_close_end
+    .catchall {:try_return_close_start .. :try_return_close_end} :return_close_failed
+    throw v0
+  :return_close_failed
+    move-exception v1
+    throw v0
 .end method
 
 .method private recreate()V
@@ -645,6 +704,25 @@
 
 .method private fake()V
     .locals 4
+  :missing_renderer_try_start
+    const/4 v0, 3
+    const-string v1, ""
+    invoke-direct {p0, v0, v1}, Lacceptance/admin/AdminInstrumentation;->ui(ILjava/lang/String;)V
+  :missing_renderer_try_end
+    .catch Ljava/lang/AssertionError; {:missing_renderer_try_start .. :missing_renderer_try_end} :missing_renderer_rejected
+    const/4 v0, 0
+    const-string v1, "FAIL renderer termination accepted without protected WebView"
+    invoke-static {v0, v1}, Lacceptance/admin/AdminInstrumentation;->require(ZLjava/lang/String;)V
+    return-void
+  :missing_renderer_rejected
+    move-exception v0
+    invoke-virtual {v0}, Ljava/lang/Throwable;->getMessage()Ljava/lang/String;
+    move-result-object v0
+    const-string v1, "FAIL independent renderer termination: protected WebView is absent"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v0
+    const-string v1, "FAIL missing-WebView negative failed outside absence assertion"
+    invoke-static {v0, v1}, Lacceptance/admin/AdminInstrumentation;->require(ZLjava/lang/String;)V
     const/4 v0, 0
     const-string v1, "http://127.0.0.1:18493/fake-interactive"
     invoke-direct {p0, v0, v1}, Lacceptance/admin/AdminInstrumentation;->ui(ILjava/lang/String;)V
@@ -661,15 +739,40 @@
     invoke-static {v0, v1}, Lacceptance/admin/AdminInstrumentation;->require(ZLjava/lang/String;)V
     return-void
   :rejected
-    move-exception v0
-    invoke-virtual {v0}, Ljava/lang/Throwable;->getMessage()Ljava/lang/String;
+    move-exception v3
+    invoke-virtual {v3}, Ljava/lang/Throwable;->getMessage()Ljava/lang/String;
     move-result-object v0
     const-string v1, "FAIL no usable page control"
     invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
-    move-result v0
+    move-result v2
+    if-nez v2, :fake_done
+    const-string v1, "FAIL independent read-only page observation timeout"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v2
+    if-nez v2, :fixed_observation_failure
+    const-string v1, "FAIL independent page observation timeout"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v2
+    if-nez v2, :fixed_observation_failure
+    const-string v1, "FAIL independent UI operation exception"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v2
+    if-nez v2, :fixed_observation_failure
+    const-string v1, "FAIL independent page control observation was not boolean"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v2
+    if-nez v2, :fixed_observation_failure
+    const-string v1, "FAIL independent page control coordinates were not text"
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v2
+    if-nez v2, :fixed_observation_failure
+    const/4 v0, 0
     const-string v1, "FAIL negative fixture failed outside usability assertion"
     invoke-static {v0, v1}, Lacceptance/admin/AdminInstrumentation;->require(ZLjava/lang/String;)V
+  :fake_done
     return-void
+  :fixed_observation_failure
+    throw v3
 .end method
 
 .method private resume()V

@@ -24,10 +24,13 @@ All path arguments are absolute; the caller's current directory is irrelevant.
 
 Set `IB_GREASE` to the qualified Grease executable. The installed coordinator
 also requires `AICI_EXPECTED_ANDROID_API=29` or `34` and
-`AICI_ADMIN_PUBLIC_LADDER=0` or `1`. The public ladder is selected only for the
-separate API 34, one CPU, 1 GiB emulator. Guest CPU count, guest memory and the
-480×800 viewport are observed. Normal lanes require two online CPUs and memory
-compatible with the declared 2 GiB guest; ranges allow kernel reservations.
+`AICI_ADMIN_PUBLIC_LADDER=0` or `1`. `AICI_ADMIN_MODE` selects `admin`, `public`
+or `combined`; an unset mode retains the previous combined behavior. Public
+mode requires API 34 and the low-memory selector `AICI_ADMIN_PUBLIC_LADDER=1`.
+That selector also retains the capacity checks when an admin-only row uses
+the one CPU, 1 GiB target. Guest CPU count, guest memory and the 480×800 viewport
+are observed. Normal lanes require two online CPUs and memory compatible with
+the declared 2 GiB guest; ranges allow kernel reservations.
 Requested and measured capacity are retained before the mismatch assertions,
 so a rejected guest still leaves its actual CPU and memory evidence.
 
@@ -39,6 +42,13 @@ It never substitutes JavaScript `.click()` or a ready marker for the usable
 action. The HTTP server independently counts that action. The negative page
 must itself be loaded with its known title, origin, path and disabled control
 before the same action assertion is required to reject it.
+
+Before opening that negative page, the fresh Activity must also reject renderer
+termination because its protected WebView is absent. This control accepts only
+the dedicated absence assertion. A missing renderer process, a false return
+from `terminate()`, another assertion or a silent return cannot satisfy it.
+The shared missing-view path still returns a null observation for read-only
+evaluation; only termination requires the distinct refusal.
 
 The main path observes the control's server confirmation, follows the mock
 verification detour, observes Activity pause and resume during an app switch,
@@ -107,6 +117,14 @@ These checks use the existing numeric event 7 and leave public-page
 `BLOCKED_SITE` classification unchanged. They do not treat an error page as
 an authenticated or usable admin application.
 
+A new task can emit its initial checkpoint before a renderer is attached.
+The HTTP oracle admits renderer generation zero only for event 4, code 0,
+document epoch 0 and elapsed time at least -1, with positive host and Activity
+generations. That row does not establish an HTTP error, document start or
+finish. All other selected-host events still require a positive renderer
+generation. The [checkpoint regression](host-qualification/http-checkpoint.tsv)
+binds the old refusal and corrected result to the same synthetic input.
+
 ### Installed polling and app-switch repair
 
 The [retained installed failures](host-qualification/installed-2121828-before.tsv)
@@ -117,12 +135,31 @@ reached the real action before failing to observe Activity pause. Both API34
 lanes stopped at the fake page's evaluation timeout. The cause of the missing
 reply or old HOME stimulus remains unproved.
 
+The later [installed `f342b09` / `3344e50` evidence](host-qualification/installed-f342b09-before.tsv)
+has different boundaries: API29 observed HOME and pause but did not observe
+resume; normal API34 reached a fixed wrapper error in the negative fixture,
+which did not retain its inner assertion. The low-memory lane reached the
+HTTP phases and their completed-response counts, but its native HTTP oracle
+failed and the private HTTP log was deleted. Those observations do not prove
+the underlying cause or an installed false pass. The following changes require
+new installed acceptance.
+
 Each evaluation now owns its result callback. A late reply to an abandoned
 request cannot supply a value for a different expression. Read-only predicates
 may retry an absent reply within their 60-second fixture or 120-second public
 acceptance budget; each attempt accepts results for at most five seconds.
-The actual predicates are unchanged. Side-effecting evaluations remain
+Existing awaited page predicates are unchanged. Side-effecting evaluations remain
 single-shot and fail on timeout.
+
+Before `press` performs its original scroll, coordinate query and touch, a pure
+availability query uses the correlated read-only retry path. Its result must
+be exactly Boolean true or false. A missing reply, JSON null or a different
+type cannot satisfy the disabled-control negative. The coordinate query still
+runs once; a non-text coordinate result has its own fixed observation error.
+Only Boolean false or the explicit text `unusable` can satisfy the negative's
+no-usable-control assertion. Known observation failures are rethrown through
+a fixed message allowlist; unknown assertion text remains hidden by the fixed
+wrapper error.
 
 These are predicate acceptance budgets, not guaranteed whole-method return
 times. Existing synchronous Open/UI dispatch can overrun a budget or hang.
@@ -144,12 +181,26 @@ The old focused-window key API discarded the injection result in the inspected
 That source finding does not prove why the hosted key stimulus produced no
 observed pause.
 
+Return from HOME now uses a fixed system `am start` command through
+`UiAutomation.executeShellCommand`, with the original target, action and flags.
+Its descriptor stays open through the unchanged resume and same-Activity
+checks, then closes. Failure cleanup attempts to close it and preserves the
+original exception. No command output is read, and no force-stop, clear-data
+or wait-for-launch option is added. This system return stimulus requires new
+installed acceptance; it does not establish which condition caused the retained
+API29 no-resume failure.
+
 An early phase failure now attempts to retain a bounded `IBLongView` event tail
 without another instrumentation invocation. It stages at most 1 MiB plus one
 byte privately and keeps only a complete tail accepted by the existing closed
 numeric verifier. Missing, oversized, incomplete or invalid output is removed
 and replaced by a fixed unavailable result. A retained tail can include earlier
 phases and is not automatically attributed to the failed phase or renderer.
+The final HTTP-oracle refusal separately validates its exact failed event input
+against the same closed numeric contract and 1 MiB limit. Only a valid input is
+retained as `http-response-failure-events.txt`; invalid or oversized input is
+removed. This preserves the published `f3c4009` failure capture and leaves the
+HTTP verdict unchanged.
 
 ## Evidence and privacy
 
@@ -213,8 +264,16 @@ screenshot or product acceptance evidence.
 
 ## Separate public-page ladder
 
-After deterministic retention assertions pass, the optional public ladder runs
-these fixed pages, each with a 180-second outer bound:
+The consumer's dedicated fresh API34, one CPU, 1 GiB, 480×800 matrix row selects
+public mode. It shares the candidate signer and installed-byte comparison,
+observer build/sign/install, measured target and viewport, actual target UID,
+non-debuggable flag and absent-namespace preflight. It then branches before
+any local fixture build, server startup or port forwarding. An admin failure
+cannot skip this separate row or become a public success. Admin rows explicitly
+select admin mode; the unset legacy combined mode still runs public pages only
+after its deterministic assertions pass.
+
+Public mode runs these fixed pages, each with a 180-second outer bound:
 
 1. `https://duckduckgo.com/?q=Michigan+unemployment+insurance&ia=web`
 2. `https://miwam.unemployment.state.mi.us/ClmMiWAM/_/`
@@ -225,23 +284,29 @@ and a visible enabled login/claimant entry control; a branded error page with
 a generic home link is insufficient. Both require an observed host PID, page
 start, visible commit, finish, numeric navigation timing, a source-bound
 screenshot and no main-frame error. Failures receive separate
-`BLOCKED_NETWORK`, `BLOCKED_SITE` or `UNKNOWN` results. An incomplete ladder
-makes that lane nonzero while retaining the deterministic fixture result.
+`BLOCKED_NETWORK`, `BLOCKED_SITE` or `UNKNOWN` results. Public mode records
+`admin_fixture=NOT_SELECTED`, stops its sampler and retains the typed public
+result. An incomplete ladder makes that lane nonzero. Legacy combined mode
+retains its separately completed deterministic result.
 Changed public selectors require review; an unfamiliar page does not pass.
 
 ## Qualification boundary
 
 `host-qualification/` retains exact source digests and Linux x86_64 results:
 oracle positives, 31 targeted record rejections, 23 diagnostic rejections,
-23 transport rejections, 15 HTTP response rejections, DEX assembly/disassembly, resource packaging and
-persistent-signature checks.
+23 transport rejections, 23 HTTP response rejections, eight coordinator-mode
+guards, DEX assembly/disassembly, resource packaging and persistent-signature
+checks.
 These are host results only.
 The initial published observer's receipts remain under
 `host-qualification/initial-40ff487/`; they describe that earlier source.
 The lifecycle revision remains under `host-qualification/lifecycle-81b9fe7/`.
 The actual-target-UID transport revision remains under
-`host-qualification/private-io-f6a6e4/`. The current receipt and source digests
-bind the polling and system-HOME correction, retaining the HTTP controls. The
+`host-qualification/private-io-f6a6e4/`. The committed `3344e50` qualification is
+preserved byte-for-byte under `host-qualification/runtime-3344e50/`; it is
+historical evidence for that revision. The current receipt and source digests
+bind the actual restored working-tree bytes over `f3c4009`, their newly executed
+host checks and new observer package. The
 frozen HTTP-only qualification remains under `host-qualification/http-working-tree/`.
 The HTTP host inputs are synthetic; actual response
 callbacks require the installed phase to execute. The ordering receipt retains
@@ -249,6 +314,13 @@ the two previously accepted reordered-event counterexamples and their repair.
 The exact hosted API 29 private-access failure is retained separately
 in `host-qualification/installed-api29-before.tsv`; its successful installation
 does not become a successful admin runtime observation.
+
+The [restored build inputs](host-qualification/restored-build-inputs.tsv) identify
+the executed Grease entrypoint, SDK, independent assembler/disassembler and
+established public test signer. Lost intermediate scratch artifacts are not
+reconstructed or reused as qualification. The [current package receipt](host-qualification/package-receipt.tsv)
+is the result of a fresh maintained build and independent decoded-method review;
+assembly and decoded source inspection do not establish ART execution.
 
 The test-only instrumentation DEX is separate from the candidate and uses
 existing Android platform/test interfaces. It never replaces IB's checked
