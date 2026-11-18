@@ -58,11 +58,46 @@ event eligibility remains BC-A07-S04's separate obligation.
 
 A source PASS establishes this supported configuration only. It proves neither
 checkout execution nor that a required command ran, propagated failure, or
-produced a valid artifact. The existing `WORKFLOW-SWALLOW-*` names remain
-compatibility diagnostics for lexical run-scalar exclusions, not behavioral
-shell analysis. BC-A07-S02 owns their migration and BC-A04 owns process results.
+produced a valid artifact. The maintained contract now uses
+`yaml_run_lexically_excludes` with `WORKFLOW-LEXICAL-OR` and
+`WORKFLOW-LEXICAL-SET`. These names describe byte exclusions, including harmless
+quoted bytes. They do not diagnose swallowed failures.
+
+`yaml_run_not_contains` remains a compatibility alias with identical source
+judgments. An executing non-quiet caller gets `AICI-LEXICAL-COMPAT` on stderr,
+and every assertion's detail says `source-policy` and `execution not established`.
+Caller-owned diagnostic codes are preserved, including the historical
+`WORKFLOW-SWALLOW-OR` / `WORKFLOW-SWALLOW-SET`; migrate those expectations to
+`WORKFLOW-LEXICAL-OR` / `WORKFLOW-LEXICAL-SET` when adopting the updated maintained
+contract. No shell semantics were added or weakened by this migration.
 Reader failures also appear as typed source diagnostics and line numbers in
 the core contract's detail field.
+
+## Core action observations
+
+The published core action compiles its verifiers with its selected ICK compiler,
+then calls the existing core verifier's `action-suite` owner hook. It writes a
+fresh A04 `plan.tsv` before execution, selecting the source-layout guard and
+every contract row (up to 63). Each selected contract gets an explicit case ID
+and its contract/root in the claim. It invokes the actual layout checker, then
+the actual core `verify` command for each case, capturing combined raw output,
+raw exit or signal, source identity, executable SHA-256 and log SHA-256 into
+A04's existing observation schema. The existing stage-verdict executable alone
+normalizes these records and computes the aggregate and first required failure.
+The action preserves the original nonzero process status, including exit seven.
+A failed layout guard leaves dependent selected cases without observations;
+A04 renders them `NOT_RUN / INCOMPLETE`. A later passing contract does not erase
+an earlier failure. Existing `suite` callers remain compatible and continue to
+emit source-only results without inventing execution receipts.
+
+The hook observes only these local core-action invocations. It is trusted
+owner instrumentation, not an independent attestation or a security sandbox;
+the source label is caller-supplied and host `sha256sum` is an explicit runtime
+dependency. It does not observe arbitrary shell internals, nested delegates,
+other jobs, or remote actions. A skipped whole job cannot produce this witness;
+external policy must still require its receipt. S04 retains workflow trigger
+and delegate adoption. A02 retains ingestion invocation provenance. No copied
+log or echoed case name can replace A04 observations for a selected plan.
 
 `tests/merge-workflow-head.sh` runs the 32 cases in
 `tests/workflow-source/cases.tsv` through the direct command, compatibility

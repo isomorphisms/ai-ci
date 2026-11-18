@@ -1,0 +1,2 @@
+yaml_run_lexically_excludes	WORKFLOW-LEXICAL-OR	workflow.yml	||
+yaml_run_lexically_excludes	WORKFLOW-LEXICAL-SET	workflow.yml	set +e

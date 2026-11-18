@@ -38,10 +38,22 @@ jobs:
           "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici src/aici.c
           "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-build-preflight tests/build_preflight_oracle.c
           "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-defect-registration src/aici_defect_registration.c
+          "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-stage-verdict stage-verdict/src/aici_stage_verdict.c
+          "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-action-suite-test tests/action_suite_test.c
           cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-host-context src/aici_host_context.c
       - name: Prove bad fixtures are rejected
         shell: sh
         run: /tmp/aici self-test tests/cases.tsv
+      - name: Prove actual core-action observations preserve failure and missing cases
+        shell: sh
+        run: /tmp/aici-action-suite-test /tmp/aici /tmp/aici-stage-verdict /tmp/aici-action-suite-test "$RUNNER_TEMP/action-suite-controls"
+      - name: Retain actual core-action control observations
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: aici-core-action-controls-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/action-suite-controls
+          if-no-files-found: error
       - name: Register the retained defect and reject registration mutants
         shell: sh
         run: |
@@ -117,10 +129,18 @@ jobs:
           trace: tests/operational-host-context/good-present.trace.tsv
 
       - name: Exercise the published composite action
+        id: core_action
         uses: ./
         with:
           suite: tests/good-suite.tsv
           root: .
+      - name: Retain the published core action's actual selected-case observations
+        if: always() && steps.core_action.outputs.evidence != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: aici-core-action-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ steps.core_action.outputs.evidence }}
+          if-no-files-found: error
 
   biology-self-test:
     name: ${{ github.event_name == 'pull_request' && 'biology-self-test' || format('biology-self-test-{0}', github.event_name) }}

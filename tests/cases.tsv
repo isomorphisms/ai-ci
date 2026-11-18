@@ -1,4 +1,9 @@
 # Every contract has a positive fixture and deliberately broken fixtures.
+fail	tests/contracts/workflow-lexical.contract.tsv	tests/fixtures/workflow-quoted-literal	WORKFLOW-LEXICAL-OR
+fail	tests/contracts/workflow-lexical.contract.tsv	tests/fixtures/workflow-quoted-literal-reordered	WORKFLOW-LEXICAL-OR
+fail	tests/contracts/workflow-lexical-compat.contract.tsv	tests/fixtures/workflow-quoted-literal	WORKFLOW-SWALLOW-OR
+pass	tests/contracts/workflow-lexical-compat.contract.tsv	tests/fixtures/workflow-good	-
+fail	tests/contracts/workflow-lexical-compat.contract.tsv	tests/fixtures/workflow-bad-set-plus-e	WORKFLOW-SWALLOW-SET
 pass	contracts/narrative-sync-v0.contract.tsv	tests/fixtures/narrative-good	-
 fail	contracts/narrative-sync-v0.contract.tsv	tests/fixtures/narrative-empty-script	NARRATIVE-SCRIPT-EMPTY
 fail	contracts/narrative-sync-v0.contract.tsv	tests/fixtures/narrative-bad-voiceover	NARRATIVE-SCRIPT-VOICEOVER
@@ -16,12 +21,12 @@ fail	tests/contracts/workflow-pins.contract.tsv	tests/fixtures/workflow-step-use
 fail	tests/contracts/workflow-pins.contract.tsv	tests/fixtures/workflow-steps-mapping	WORKFLOW-ACTION-PIN
 fail	tests/contracts/workflow-pins.contract.tsv	tests/fixtures/workflow-composite-uses-run	WORKFLOW-ACTION-PIN
 pass	contracts/workflow-integrity-v0.contract.tsv	tests/fixtures/workflow-parser-quoted-good	-
-fail	contracts/workflow-integrity-v0.contract.tsv	tests/fixtures/workflow-parser-quoted-run-bad	WORKFLOW-SWALLOW-OR
+fail	contracts/workflow-integrity-v0.contract.tsv	tests/fixtures/workflow-parser-quoted-run-bad	WORKFLOW-LEXICAL-OR
 fail	contracts/workflow-integrity-v0.contract.tsv	tests/fixtures/workflow-bad-continue	WORKFLOW-CONTINUE
 fail	contracts/workflow-integrity-v0.contract.tsv	tests/fixtures/workflow-bad-continue-expression	WORKFLOW-CONTINUE
 fail	contracts/workflow-integrity-v0.contract.tsv	tests/fixtures/workflow-bad-continue-spacing	WORKFLOW-CONTINUE
-fail	contracts/workflow-integrity-v0.contract.tsv	tests/fixtures/workflow-bad-swallow	WORKFLOW-SWALLOW-OR
-fail	contracts/workflow-integrity-v0.contract.tsv	tests/fixtures/workflow-bad-set-plus-e	WORKFLOW-SWALLOW-SET
+fail	contracts/workflow-integrity-v0.contract.tsv	tests/fixtures/workflow-bad-swallow	WORKFLOW-LEXICAL-OR
+fail	contracts/workflow-integrity-v0.contract.tsv	tests/fixtures/workflow-bad-set-plus-e	WORKFLOW-LEXICAL-SET
 fail	contracts/workflow-integrity-v0.contract.tsv	tests/fixtures/workflow-bad-pin	WORKFLOW-ACTION-PIN
 fail	contracts/workflow-integrity-v0.contract.tsv	tests/fixtures/workflow-bad-key-spacing	WORKFLOW-ACTION-PIN
 fail	contracts/workflow-integrity-v0.contract.tsv	tests/fixtures/workflow-bad-docker	WORKFLOW-ACTION-PIN
@@ -33,7 +38,7 @@ fail	contracts/workflow-integrity-v0.contract.tsv	tests/fixtures/workflow-bad-ne
 fail	contracts/workflow-integrity-v0.contract.tsv	tests/fixtures/workflow-bad-default-checkout	WORKFLOW-PR-HEAD-CHECKOUT
 fail	contracts/workflow-integrity-v0.contract.tsv	tests/fixtures/workflow-bad-checkout-env-ref	WORKFLOW-PR-HEAD-CHECKOUT
 fail	contracts/workflow-integrity-v0.contract.tsv	tests/fixtures/workflow-bad-checkout-env-repository	WORKFLOW-PR-HEAD-CHECKOUT
-fail	contracts/workflow-integrity-v0.contract.tsv	tests/fixtures/workflow-bad-swallow-block-header	WORKFLOW-SWALLOW-OR
+fail	contracts/workflow-integrity-v0.contract.tsv	tests/fixtures/workflow-bad-swallow-block-header	WORKFLOW-LEXICAL-OR
 pass	contracts/language-boundary-v0.contract.tsv	tests/fixtures/language-good	-
 fail	contracts/language-boundary-v0.contract.tsv	tests/fixtures/language-bad-python	LANGUAGE-FORBIDDEN
 fail	contracts/language-boundary-v0.contract.tsv	tests/fixtures/language-bad-shebang	GREASE-SHEBANG

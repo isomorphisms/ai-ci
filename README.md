@@ -46,8 +46,8 @@ runs the verifier against the finished repository or artifact tree.
 - narrative synchronization: canonical script text, voiceover input text, and
   caption text remain byte-identical;
 - asset provenance manifest schema and nonempty required attribution fields;
-- workflow integrity: rejection of `continue-on-error`, shell `||`, and
-  `set +e`; full-SHA action pins; explicit PR-head checkout for primary source
+- workflow source policy: rejection of the `continue-on-error` key and lexical
+  `||` / `set +e` bytes in run scalars; full-SHA action pins; explicit PR-head checkout for primary source
   when exact-head evidence is required; and event-scoped coverage of critical paths;
 - language boundaries, including detecting shell files mislabeled as Grease.
 - evaluation-case manifests with explicit objectives, oracles, evidence,
@@ -181,6 +181,9 @@ results, and workflow wiring.
 
 See [supported workflow source](docs/workflow-source.md) for the shared reader,
 exact-checkout compatibility entrypoint, diagnostics and source-only limits.
+The core action separately captures selected-case process observations and
+passes them to the existing stage-verdict checker. Source-policy acceptance
+alone never establishes arbitrary command execution or failure propagation.
 
 ## Finished-video acceptance
 

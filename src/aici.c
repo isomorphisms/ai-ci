@@ -7,6 +7,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #define AICI_PATH_MAX 4096
 #define AICI_LINE_MAX (1024 * 1024)
@@ -916,12 +919,16 @@ static int verify_contract(const char *contract_path, const char *root,
                         !join_path(left, sizeof(left), root, fields[2]);
             if (!malformed) ok = file_contains(left, fields[3], 0);
             snprintf(detail, sizeof(detail), "%s :: %s", fields[2], fields[3]);
-        } else if (strcmp(operation, "yaml_run_not_contains") == 0 &&
+        } else if ((strcmp(operation, "yaml_run_lexically_excludes") == 0 ||
+                    strcmp(operation, "yaml_run_not_contains") == 0) &&
                    count == 4) {
             malformed = fields[3][0] == '\0' ||
                         !join_path(left, sizeof(left), root, fields[2]);
             if (!malformed) ok = yaml_run_lacks(left, fields[3]);
-            snprintf(detail, sizeof(detail), "%s run blocks exclude %s",
+            if (strcmp(operation, "yaml_run_not_contains") == 0 && !quiet) {
+                fprintf(stderr, "AICI-LEXICAL-COMPAT: yaml_run_not_contains is a source-policy alias for yaml_run_lexically_excludes; no command execution or failure propagation is established\n");
+            }
+            snprintf(detail, sizeof(detail), "%s source-policy: run scalars lexically exclude %s; execution not established",
                      fields[2], fields[3]);
         } else if (strcmp(operation, "scoped_contains") == 0 && count == 5) {
             malformed = fields[3][0] == '\0' || fields[4][0] == '\0' ||
@@ -1288,6 +1295,8 @@ static int run_suite(const char *suite_path, const char *base_root) {
     return failures == 0;
 }
 
+#include "action_suite.h"
+
 static void usage(const char *program) {
     fprintf(stderr,
             "usage:\n"
@@ -1299,6 +1308,9 @@ static void usage(const char *program) {
 
 int main(int argc, char **argv) {
     VerifyResult result;
+    if (argc == 8 && strcmp(argv[1], "action-suite") == 0) {
+        return action_suite(argv[0], argv[2], argv[3], argv[4], argv[5], argv[6], argv[7]);
+    }
     if (argc >= 3 && strcmp(argv[1], "workflow-head") == 0) {
         int status ← 0;
         for (int index ← 2; index < argc; ++index) {

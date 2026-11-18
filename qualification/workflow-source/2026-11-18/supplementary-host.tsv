@@ -1,0 +1,27 @@
+key	value
+schema	workflow-source-supplementary-host-v1
+job	BC-A07-S02
+source_base	3c1f98b63edcc21bec130ce38dc2b5ea8d661a87
+host	Debian GNU/Linux 13.6; Linux x86_64 disposable container
+compiler_source_revision_recorded	34a463354975cdc8dfce4d96edb8d0aa17300968
+compiler_owner_run	https://github.com/isomorphisms/ick/actions/runs/43746161176
+compiler_parts	14175600166;14174793284
+compiler_part_00_zip_sha256	fda4b6a13bf1be2e60361619a0cdf35efea9a558e76734f7e850d6d30e223160
+compiler_part_01_zip_sha256	2c902bee1c5ee9189e19cf8fc9fc3d18e5ccf5bb68295994214c3bea2043fe03
+compiler_archive_sha256	8b74fe6725efd8972cb11493f3cb1ae3b8e9005059c010a6e5b7fc4f70f9600e
+compiler_driver_sha256	009492538481013f48c8a726a6d857027db7e7c5b995b385ba1124ad6723fe21
+compiler_frontend_sha256	8af71b60d0432c2c9e430333df729c84aa39f180aaa3c6fe262e319082848f31
+compiler_binding	archive/part hashes and producer-recorded source identity; not an independently witnessed compiler build
+glyph_qualification	PASS actual assignment/multiplication/division fixture at O0 and O2
+compile_flags	-fno-link-libatomic -std=c17 -Wall -Wextra -Werror -pedantic -O2
+core_binary_sha256	4824390dc55074f260db06b3b7b2ec47a262248d9bf9d2e13aa95e7b7116a58d
+stage_binary_sha256	32584485f551b6cc305bd5f9ddb9fb9fb19595410aad9632d115840a45bfb3d9
+control_binary_sha256	2b72d0824b50563adc015e5159b8378fc886e902d70a8043b3d339267e810cd0
+core_self_test	PASS 89 cases; zero failures
+checkout_corpus	PASS unchanged 32 paired direct/adapter/core-contract cases
+actual_action_hook	PASS all eight selected good-suite contracts; raw exit 7; separate signal 15; first failure retained after later pass; fresh directory refuses overwrite
+missing_execution	PASS selected plan with no observations holds; echoed command/case names supply no observations
+literal_twin	PASS actual POSIX sh declared bootstrap fixture prints || and exits 0; source policy separately refuses its operator bytes
+compatibility	PASS old operation preserves historical caller-owned diagnostics with explicit lexical notice
+maintained_selected_compiler	c61e448251744a2f40ad743ebef1a027bdcd2f9d; exact-head hosted qualification required separately
+evidence_limit	trusted local core-action owner; no arbitrary-shell interpretation, independent attestation, ingestion provenance or external job/delegate adoption
