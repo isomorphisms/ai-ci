@@ -72,6 +72,41 @@ mutate() {
     ' "$work/good.tsv" > "$receipt"
     reject "$name"
 }
+# A new source can carry response-owner redirect observations. Their framing
+# is decoded by this independent oracle rather than by the IB native parser.
+resolved=https://example.com/after-one-redirect
+chain="R1 ${#url} ${url}302 ${#resolved} $resolved"
+cp "$work/good.tsv" "$receipt"
+printf 'redirect_chain\t%s\n' "$chain" >> "$receipt"
+cp "$receipt" "$work/chain.tsv"
+sh "$oracle" "$root" "$request" "$generation" "$url" > "$work/chain-positive"
+cmp -s "$work/positive" "$work/chain-positive"
+for spelling in https://example.com:0443/starting https://example.com/starting\#anchor; do
+    awk -F '\t' -v OFS='\t' -v request="$spelling" '$1=="requested_url"{$2=request}{print}' \
+        "$work/chain.tsv" > "$receipt"
+    sh "$oracle" "$root" "$request" "$generation" "$spelling" > "$work/projected-positive"
+    cmp -s "$work/positive" "$work/projected-positive"
+done
+chain_mutation() {
+    name=$1 replacement=$2
+    cp "$work/good.tsv" "$receipt"
+    printf 'redirect_chain\t%s\n' "$replacement" >> "$receipt"
+    reject "$name"
+}
+chain_mutation wrong-chain-origin "R1 20 https://example.net/302 ${#resolved} $resolved"
+chain_mutation wrong-chain-final "R1 ${#url} ${url}302 20 https://example.net/"
+chain_mutation wrong-chain-status "R1 ${#url} ${url}200 ${#resolved} $resolved"
+chain_mutation wrong-chain-length "R1 1 ${url}302 ${#resolved} $resolved"
+chain_mutation noncanonical-chain-length "R1 0${#url} ${url}302 ${#resolved} $resolved"
+chain_mutation trailing-chain-bytes "$chain trailing"
+chain_mutation credential-chain "R1 ${#url} ${url}302 28 https://user@example.com/end"
+cp "$work/chain.tsv" "$receipt"
+printf 'redirect_chain\t%s\n' "$chain" >> "$receipt"
+reject duplicate-chain
+awk -F '\t' '$1!="mime_type"{print}' "$work/chain.tsv" > "$receipt"
+reject chain-cannot-mask-missing-field
+awk -F '\t' -v OFS='\t' '$1=="redirect_count"{$2="0"}{print}' "$work/chain.tsv" > "$receipt"
+reject wrong-chain-count
 mutate legacy-schema schema ib-icu-arena-v1
 mutate wrong-request request_id other
 mutate wrong-source-key source_key arena:other
@@ -135,5 +170,5 @@ reject root-readable-by-other-user
 chmod 700 "$root"
 sh "$oracle" "$root" "$request" "$generation" "$url" > "$work/recovered"
 cmp -s "$work/recovered" "$work/positive"
-printf 'PASS: independent IB v2 oracle plus negative field, source-generation, commit-pointer, digest, and permission controls\n'
+printf 'PASS: independent IB v2 oracle plus ordered redirect, field, source-generation, commit-pointer, digest, and permission controls\n'
 printf 'NOT_RUN: real phone, Binder/PFD and independent HTTP origin attestation\n'
