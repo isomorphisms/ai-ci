@@ -1,0 +1,9 @@
+control	mode	api	low_memory	actual_exit	expected_diagnostic	scope
+invalid	unknown	34	1	2	FAIL undeclared admin observation mode	INVALID_MODE_REJECTED
+empty		34	1	2	FAIL undeclared admin observation mode	INVALID_MODE_REJECTED
+wrong-api	public	29	1	2	FAIL public mode requires API34 and the declared low-memory lane	PUBLIC_PREREQUISITE_REJECTED
+wrong-capacity-lane	public	34	0	2	FAIL public mode requires API34 and the declared low-memory lane	PUBLIC_PREREQUISITE_REJECTED
+legacy-default	UNSET	29	0	2	FAIL absolute path required	MODE_ACCEPTED_THEN_EXISTING_PATH_GUARD_REFUSED
+explicit-combined	combined	34	1	2	FAIL absolute path required	MODE_ACCEPTED_THEN_EXISTING_PATH_GUARD_REFUSED
+admin	admin	29	0	2	FAIL absolute path required	MODE_ACCEPTED_THEN_EXISTING_PATH_GUARD_REFUSED
+public	public	34	1	2	FAIL absolute path required	MODE_ACCEPTED_THEN_EXISTING_PATH_GUARD_REFUSED

@@ -1,0 +1,7 @@
+schema	ib-admin-observer-build-v1
+smali_assemble	PASS
+baksmali_decode	PASS
+Android_resource_package	PASS
+established_signer	PASS
+ART_verification	NOT_RUN
+installed_Android	NOT_RUN

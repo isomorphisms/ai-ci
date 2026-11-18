@@ -1,0 +1,38 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 6) { echo 'requires AICI SDK SMALI BAKSMALI KEYSTORE NEW_EVIDENCE' >&2; exit 2 }
+var acceptance = ARGV[0]
+var sdk = ARGV[1]
+var smali = ARGV[2]
+var baksmali = ARGV[3]
+var keystore = ARGV[4]
+var evidence = ARGV[5]
+for path in "$acceptance" "$sdk" "$smali" "$baksmali" "$keystore" "$evidence" {
+  if (len(path) === 0 or path[0] !== '/') { echo 'FAIL absolute path required' >&2; exit 2 }
+}
+if test -e "$evidence" { echo 'FAIL reused observer build evidence' >&2; exit 2 }
+umask 077
+mkdir -p "$evidence"
+printf '32fa0e88a6c397b3922201adf5f3e534fbaed5a663c71d0c558c3ddce0af844a  %s\n37ae4a41a8886e15c20b8362fa4250f96bbdb55e1a608199ad8b5dff068b588f  %s\n' "$smali" "$baksmali" | sha256sum -c -
+var tools = "$sdk/build-tools/35.0.0"
+var controls = "$acceptance/android-admin"
+java -jar "$smali" assemble "$controls/instrumentation" -o "$evidence/classes.dex"
+test -s "$evidence/classes.dex"
+java -jar "$baksmali" disassemble "$evidence/classes.dex" -o "$evidence/decoded-observer"
+"$tools/aapt2" link -I "$sdk/platforms/android-34/android.jar" --manifest "$controls/AndroidManifest.xml" -o "$evidence/base.apk"
+cp "$evidence/base.apk" "$evidence/unaligned.apk"
+forkwait { cd "$evidence"; zip -q unaligned.apk classes.dex }
+"$tools/zipalign" -f -p 4 "$evidence/unaligned.apk" "$evidence/aligned.apk"
+"$tools/apksigner" sign --ks "$keystore" --ks-key-alias wegert-debug --ks-pass pass:wegert-debug --key-pass pass:wegert-debug \
+  --out "$evidence/observer.apk" "$evidence/aligned.apk"
+"$tools/apksigner" verify --print-certs "$evidence/observer.apk" > "$evidence/signer.txt"
+rg -q -x -F 'Signer #1 certificate SHA-256 digest: de9b1d47c5a65e6d46a204b79dd9ee566b9d3c9832ba81ebc4213d3392e92ff9' "$evidence/signer.txt"
+"$tools/aapt2" dump badging "$evidence/observer.apk" > "$evidence/package.txt"
+rg -q "^package: name='org.isomorphisms.ib.admin.acceptance'" "$evidence/package.txt"
+forkwait {
+  cd "$controls"
+  sha256sum AndroidManifest.xml build-observer.grease instrumentation/*.smali > "$evidence/source-digests.txt"
+}
+sha256sum "$evidence/classes.dex" "$evidence/observer.apk" "$smali" "$baksmali" > "$evidence/artifact-digests.txt"
+printf 'schema\tib-admin-observer-build-v1\nsmali_assemble\tPASS\nbaksmali_decode\tPASS\nAndroid_resource_package\tPASS\nestablished_signer\tPASS\nART_verification\tNOT_RUN\ninstalled_Android\tNOT_RUN\n' > "$evidence/receipt.tsv"
+cat "$evidence/receipt.tsv"

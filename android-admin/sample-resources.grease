@@ -1,0 +1,25 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 4) { echo 'requires ADB SERIAL ACTIVE_FILE EVIDENCE' >&2; exit 2 }
+var adb = ARGV[0]
+var serial = ARGV[1]
+var active = ARGV[2]
+var evidence = ARGV[3]
+printf 'sample\tunix_ms\thost_pss_kib\n' > "$evidence/memory-samples.tsv"
+for sample in @(seq 1 180) {
+  if ! test -f "$active" { break }
+  try { timeout 8 "$adb" -s "$serial" shell dumpsys meminfo org.isomorphisms.ib.prepaint > "$evidence/memory.private" 2> /dev/null }
+  var status = _error.code
+  if (status === 0) {
+    var pss = $(awk '$1=="TOTAL" && $2=="PSS:" {value=$3} $1=="TOTAL" && $2~/^[0-9]+$/ && value=="" {value=$2} END {print value}' "$evidence/memory.private")
+    try { printf '%s\n' "$pss" | rg -q -x '[0-9]+' }
+    var valid_pss = _error.code
+    if (valid_pss === 0) { printf '%s\t%s\t%s\n' "$sample" "$(date +%s%3N)" "$pss" >> "$evidence/memory-samples.tsv" }
+  }
+  rm -f "$evidence/memory.private"
+  printf 'sample\t%s\n' "$sample" >> "$evidence/process-samples.txt"
+  try { timeout 8 "$adb" -s "$serial" shell ps -A -o USER,PID,PPID,NAME >> "$evidence/process-samples.txt" 2> /dev/null }
+  sleep 5
+}
+awk -F '\t' 'NR>1 {count++;if($3>max)max=$3} END {printf "samples\t%d\nmaximum_observed_host_pss_kib\t%d\n",count,max}' "$evidence/memory-samples.tsv" > "$evidence/memory-summary.tsv"
+printf 'scope\ttarget_host_process_only\nrenderer_pid_association\tUNKNOWN\nsampling_limit\t180\nsampling_interval_seconds\t5_plus_bounded_probe_time\npeak_memory_claim\tNO\n' >> "$evidence/memory-summary.tsv"

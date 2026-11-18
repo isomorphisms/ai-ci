@@ -1,0 +1,136 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 2) { echo 'requires AICI NEW_EVIDENCE' >&2; exit 2 }
+var acceptance = ARGV[0]
+var evidence = ARGV[1]
+var grease = ENV.IB_GREASE
+if test -e "$evidence" { echo 'FAIL reused transport controls' >&2; exit 2 }
+umask 077
+mkdir -p "$evidence"
+var decoder = "$acceptance/android-admin/decode-observation.grease"
+trap --add EXIT { rm -f "$evidence/mutant.private" "$evidence/secret.private" }
+printf 'schema\tib-long-view-task-v1\ntask_id\ttask-transport\ntab_id\ttab-transport\nnavigation_id\tnavigation-transport\nneutral_url\thttp://127.0.0.1:18493/\norigin\thttp://127.0.0.1:18493/\naddress_reconstruction\texact-neutral\ncontinuity\thost-process-restart\nsession_result\tnot-proven\nform_result\trepeat-required\nheap_result\tnot-available\nreconstruction_result\tpage-not-confirmed\nrenderer_id\trenderer-transport\nhost_process_id\thost-transport\nhost_generation\t2\nactivity_generation\t3\nrenderer_generation\t4\nauthorization_adapter\tnone\n' > "$evidence/task.tsv"
+base64 --decode "$acceptance/android-admin/fixtures/transport.png.base64" > "$evidence/fixture.png"
+file "$evidence/fixture.png" | rg -q 'PNG image data, 480 x 800'
+test "$(stat -c %s "$evidence/fixture.png")" -gt 9000
+proc append_export(name, payload, transcript) {
+  var bytes = $(stat -c %s "$payload")
+  var digest = $(sha256sum "$payload" | cut -d ' ' -f 1)
+  base64 -w 0 "$payload" | awk -v name="$name" -v bytes="$bytes" -v digest="$digest" '
+    {chunks=int((length($0)+11999)/12000);for(part=0;part<chunks;part++) {
+      printf "INSTRUMENTATION_STATUS: ib_admin_chunk=1\t%s\t%d\t%d\t%s\t%s\t%s\n",name,part,chunks,bytes,digest,substr($0,part*12000+1,12000)
+      print "INSTRUMENTATION_STATUS_CODE: 0"
+    }}' >> "$transcript"
+}
+proc metrics(transcript) {
+  printf 'INSTRUMENTATION_RESULT: stream=PASS synthetic transport control\nINSTRUMENTATION_RESULT: target_uid=10001\nINSTRUMENTATION_RESULT: target_debuggable=0\nINSTRUMENTATION_RESULT: data_bytes=4096\nINSTRUMENTATION_RESULT: cache_bytes=1024\nINSTRUMENTATION_CODE: -1\n' >> "$transcript"
+}
+touch "$evidence/resume.private"
+append_export admin-after-host.task "$evidence/task.tsv" "$evidence/resume.private"
+metrics "$evidence/resume.private"
+"$grease" "$decoder" "$evidence/resume.private" resume 10001 "$evidence/resume-positive" > "$evidence/resume-positive.txt"
+cmp "$evidence/task.tsv" "$evidence/resume-positive/payload/admin-after-host.task"
+metrics "$evidence/preflight.private"
+"$grease" "$decoder" "$evidence/preflight.private" preflight 10001 "$evidence/preflight-positive" > "$evidence/preflight-positive.txt"
+for http_phase in http-mainframe http-subresource {
+  "$grease" "$decoder" "$evidence/preflight.private" "$http_phase" 10001 "$evidence/$http_phase-positive" > "$evidence/$http_phase-positive.txt"
+}
+touch "$evidence/public.private"
+append_export public-search.png "$evidence/fixture.png" "$evidence/public.private"
+metrics "$evidence/public.private"
+"$grease" "$decoder" "$evidence/public.private" public-search 10001 "$evidence/public-positive" > "$evidence/public-positive.txt"
+cmp "$evidence/fixture.png" "$evidence/public-positive/payload/public-search.png"
+touch "$evidence/exercise.private"
+for name in admin-before-lifecycle.task admin-after-lifecycle.task admin-before-renderer.task admin-after-renderer.task admin-after-activity.task {
+  append_export "$name" "$evidence/task.tsv" "$evidence/exercise.private"
+}
+for name in admin-first-action.png admin-after-activity.png { append_export "$name" "$evidence/fixture.png" "$evidence/exercise.private" }
+metrics "$evidence/exercise.private"
+"$grease" "$decoder" "$evidence/exercise.private" exercise 10001 "$evidence/exercise-positive" > "$evidence/exercise-positive.txt"
+printf 'control\texpected_diagnostic\toutcome\n' > "$evidence/controls.tsv"
+for mutation in missing filename path phase http-export order duplicate chunks size digest base64 canonical uid debug metric-suffix metric-missing encoded-secret raw-secret-missing status-missing header-mismatch short-chunk oversized png-shape {
+  var phase = 'resume'
+  var expected = 'FAIL malformed missing or out-of-phase observer artifact transport'
+  if (mutation === 'missing') {
+    sed '/^INSTRUMENTATION_STATUS/d' "$evidence/resume.private" > "$evidence/mutant.private"
+  } elif (mutation === 'filename') {
+    sed 's/admin-after-host.task/unknown.task/g' "$evidence/resume.private" > "$evidence/mutant.private"
+  } elif (mutation === 'path') {
+    sed 's@admin-after-host.task@../../outside.task@g' "$evidence/resume.private" > "$evidence/mutant.private"
+  } elif (mutation === 'phase' or mutation === 'http-export') {
+    cp "$evidence/resume.private" "$evidence/mutant.private"
+    setvar phase = 'fake'
+    if (mutation === 'http-export') { setvar phase = 'http-mainframe' }
+  } elif (mutation === 'order') {
+    awk -F '\t' 'BEGIN{OFS="\t"}/ib_admin_chunk=/{ $3=1 }{print}' "$evidence/resume.private" > "$evidence/mutant.private"
+  } elif (mutation === 'duplicate') {
+    awk '{print}/ib_admin_chunk=/{copy=$0}/^INSTRUMENTATION_STATUS_CODE/{print copy;print}' "$evidence/resume.private" > "$evidence/mutant.private"
+  } elif (mutation === 'chunks') {
+    awk -F '\t' 'BEGIN{OFS="\t"}/ib_admin_chunk=/{ $4=2 }{print}' "$evidence/resume.private" > "$evidence/mutant.private"
+  } elif (mutation === 'size') {
+    awk -F '\t' 'BEGIN{OFS="\t"}/ib_admin_chunk=/{ $5+=1 }{print}' "$evidence/resume.private" > "$evidence/mutant.private"
+    setvar expected = 'FAIL observer artifact byte count changed'
+  } elif (mutation === 'digest') {
+    awk -F '\t' 'BEGIN{OFS="\t"}/ib_admin_chunk=/{ $6="0000000000000000000000000000000000000000000000000000000000000000" }{print}' "$evidence/resume.private" > "$evidence/mutant.private"
+    setvar expected = 'FAIL observer artifact digest changed'
+  } elif (mutation === 'base64') {
+    awk -F '\t' 'BEGIN{OFS="\t"}/ib_admin_chunk=/{ $7="!"$7 }{print}' "$evidence/resume.private" > "$evidence/mutant.private"
+  } elif (mutation === 'canonical') {
+    printf x > "$evidence/secret.private"
+    touch "$evidence/mutant.private"
+    append_export admin-after-host.task "$evidence/secret.private" "$evidence/mutant.private"
+    metrics "$evidence/mutant.private"
+    sed -i 's/eA==$/eB==/' "$evidence/mutant.private"
+    setvar expected = 'FAIL (corrupt|noncanonical) observer artifact encoding'
+  } elif (mutation === 'uid' or mutation === 'debug' or mutation === 'metric-suffix' or mutation === 'metric-missing') {
+    setvar expected = 'FAIL observer target UID debug flag or storage metrics'
+    if (mutation === 'uid') { sed 's/target_uid=10001/target_uid=10002/' "$evidence/resume.private" > "$evidence/mutant.private" }
+    if (mutation === 'debug') { sed 's/target_debuggable=0/target_debuggable=1/' "$evidence/resume.private" > "$evidence/mutant.private" }
+    if (mutation === 'metric-suffix') { sed 's/data_bytes=4096/data_bytes=4096=extra/' "$evidence/resume.private" > "$evidence/mutant.private" }
+    if (mutation === 'metric-missing') { sed '/cache_bytes=/d' "$evidence/resume.private" > "$evidence/mutant.private" }
+  } elif (mutation === 'encoded-secret') {
+    cp "$evidence/task.tsv" "$evidence/secret.private"
+    printf 'IB_SYNTHETIC_ONLY_TRANSPORT_MUTATION\n' >> "$evidence/secret.private"
+    touch "$evidence/mutant.private"
+    append_export admin-after-host.task "$evidence/secret.private" "$evidence/mutant.private"
+    metrics "$evidence/mutant.private"
+    setvar expected = 'FAIL protected value in exported task artifact'
+  } elif (mutation === 'raw-secret-missing') {
+    sed 's/PASS synthetic transport control/IB_SYNTHETIC_ONLY_TRANSPORT_MUTATION/' "$evidence/preflight.private" > "$evidence/mutant.private"
+    setvar expected = 'FAIL protected value in observer transcript'
+  } else {
+    setvar phase = 'public-search'
+    if (mutation === 'status-missing') {
+      sed '/^INSTRUMENTATION_STATUS_CODE/d' "$evidence/public.private" > "$evidence/mutant.private"
+    } elif (mutation === 'header-mismatch') {
+      awk -F '\t' 'BEGIN{OFS="\t"}/ib_admin_chunk=/&&$3==1{$6="0000000000000000000000000000000000000000000000000000000000000000"}{print}' "$evidence/public.private" > "$evidence/mutant.private"
+    } elif (mutation === 'short-chunk') {
+      awk -F '\t' 'BEGIN{OFS="\t"}/ib_admin_chunk=/&&$3==0{$7=substr($7,2)}{print}' "$evidence/public.private" > "$evidence/mutant.private"
+    } elif (mutation === 'oversized') {
+      awk -F '\t' 'BEGIN{OFS="\t"}/ib_admin_chunk=/{$5=2097153}{print}' "$evidence/public.private" > "$evidence/mutant.private"
+    } elif (mutation === 'png-shape') {
+      printf 'not a PNG\n' > "$evidence/secret.private"
+      touch "$evidence/mutant.private"
+      append_export public-search.png "$evidence/secret.private" "$evidence/mutant.private"
+      metrics "$evidence/mutant.private"
+      setvar expected = 'FAIL observer screenshot shape'
+    }
+  }
+  try { "$grease" "$decoder" "$evidence/mutant.private" "$phase" 10001 "$evidence/rejected-$mutation" > "$evidence/$mutation.txt" 2>&1 }
+  var result = _error.code
+  rm -f "$evidence/mutant.private" "$evidence/secret.private"
+  if (result !== 1) { echo "FAIL transport negative $mutation did not reject" >&2; exit 1 }
+  if (mutation === 'canonical') {
+    # Coreutils versions differ on rejecting nonzero padding bits at decode.
+    # Either decode refusal or the canonical re-encode comparison must reject.
+    rg -q -x "$expected" "$evidence/$mutation.txt"
+  } else {
+    rg -q -x -F "$expected" "$evidence/$mutation.txt"
+  }
+  test ! -e "$evidence/rejected-$mutation/payload"
+  test ! -e "$evidence/rejected-$mutation/encoded.private"
+  if (mutation === 'raw-secret-missing') { test ! -e "$evidence/rejected-$mutation/transcript.txt" }
+  printf '%s\t%s\tREJECTED\n' "$mutation" "$expected" >> "$evidence/controls.tsv"
+}
+printf 'schema\tib-admin-transport-host-v1\npositive_preflight_and_record\tPASS\npositive_multi_chunk_PNG\tPASS\npositive_exercise_phase_set\tPASS\npositive_HTTP_phases_without_private_exports\tPASS\nnegative_controls\t23_REJECTED\nfailed_transport_payload_cleanup\tPASS\nsecret_in_incomplete_transcript\tREJECTED_AND_REMOVED\nactual_target_UID_execution\tNOT_RUN\ninstalled_Android\tNOT_RUN\n' > "$evidence/receipt.tsv"
+cat "$evidence/receipt.tsv"

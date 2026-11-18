@@ -1,0 +1,37 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 2) { echo 'requires AICI NEW_EVIDENCE' >&2; exit 2 }
+var acceptance = ARGV[0]
+var evidence = ARGV[1]
+var grease = ENV.IB_GREASE
+if test -e "$evidence" { echo 'FAIL reused mode control evidence' >&2; exit 2 }
+mkdir -p "$evidence"
+proc observe_mode(label, mode, api, low_memory, diagnostic, classification) {
+  try {
+    if (mode === 'UNSET') {
+      env -u AICI_ADMIN_MODE IB_GREASE="$grease" AICI_EXPECTED_ANDROID_API="$api" AICI_ADMIN_PUBLIC_LADDER="$low_memory" \
+        "$grease" "$acceptance/android-admin/observe.grease" relative /unused /unused /unused /unused /unused /unused /unused /unused emulator-5554 "$evidence/uncreated-$label" > "$evidence/$label.txt" 2>&1
+    } else {
+      env IB_GREASE="$grease" AICI_EXPECTED_ANDROID_API="$api" AICI_ADMIN_PUBLIC_LADDER="$low_memory" AICI_ADMIN_MODE="$mode" \
+        "$grease" "$acceptance/android-admin/observe.grease" relative /unused /unused /unused /unused /unused /unused /unused /unused emulator-5554 "$evidence/uncreated-$label" > "$evidence/$label.txt" 2>&1
+    }
+  }
+  var status = _error.code
+  if (status !== 2) { echo "FAIL mode control $label unexpected exit" >&2; exit 1 }
+  rg -q -x -F "$diagnostic" "$evidence/$label.txt"
+  if test -e "$evidence/uncreated-$label" { echo "FAIL mode control $label reached evidence mutation" >&2; exit 1 }
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$label" "$mode" "$api" "$low_memory" "$status" "$diagnostic" "$classification" >> "$evidence/controls.tsv"
+}
+printf 'control\tmode\tapi\tlow_memory\tactual_exit\texpected_diagnostic\tscope\n' > "$evidence/controls.tsv"
+observe_mode invalid unknown 34 1 'FAIL undeclared admin observation mode' INVALID_MODE_REJECTED
+observe_mode empty '' 34 1 'FAIL undeclared admin observation mode' INVALID_MODE_REJECTED
+observe_mode wrong-api public 29 1 'FAIL public mode requires API34 and the declared low-memory lane' PUBLIC_PREREQUISITE_REJECTED
+observe_mode wrong-capacity-lane public 34 0 'FAIL public mode requires API34 and the declared low-memory lane' PUBLIC_PREREQUISITE_REJECTED
+observe_mode legacy-default UNSET 29 0 'FAIL absolute path required' MODE_ACCEPTED_THEN_EXISTING_PATH_GUARD_REFUSED
+observe_mode explicit-combined combined 34 1 'FAIL absolute path required' MODE_ACCEPTED_THEN_EXISTING_PATH_GUARD_REFUSED
+observe_mode admin admin 29 0 'FAIL absolute path required' MODE_ACCEPTED_THEN_EXISTING_PATH_GUARD_REFUSED
+observe_mode public public 34 1 'FAIL absolute path required' MODE_ACCEPTED_THEN_EXISTING_PATH_GUARD_REFUSED
+sha256sum "$acceptance/android-admin/observe.grease" "$grease" > "$evidence/source-digests.txt"
+cat "$evidence/controls.tsv"
+printf 'schema\tib-admin-mode-host-controls-v1\nmode_refusals\t4_VERIFIED\naccepted_modes_reach_existing_path_guard\t4_VERIFIED\nAndroid_execution\tNOT_RUN\n' > "$evidence/receipt.tsv"
+cat "$evidence/receipt.tsv"

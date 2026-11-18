@@ -1,0 +1,91 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 5) { echo 'usage: grease verify-observations.grease BEFORE_RENDERER AFTER_RENDERER AFTER_ACTIVITY AFTER_HOST COUNTS' >&2; exit 2 }
+var before = ARGV[0]
+var renderer = ARGV[1]
+var activity = ARGV[2]
+var host = ARGV[3]
+var counts = ARGV[4]
+for file in "$before" "$renderer" "$activity" "$host" "$counts" {
+  test -f "$file"
+  test "$(stat -c %s "$file")" -le 8192
+  if rg -q 'IB_SYNTHETIC_ONLY_|IB_UNAPPROVED_INPUT|IBFixtureVerified|password=|access_token=|id_token=|code=|cookie=' "$file" {
+    echo 'FAIL protected value in ordinary acceptance evidence' >&2; exit 1
+  }
+}
+proc exact(file, key, expected, diagnostic) {
+  var observed = $(awk -F '\t' -v key="$key" '$1==key{print $2}' "$file")
+  if (observed !== expected) { echo "$diagnostic" >&2; exit 1 }
+}
+for file in "$before" "$renderer" "$activity" "$host" {
+  if ! awk -F '\t' '
+    NF!=2 {exit 1}
+    seen[$1]++ {exit 1}
+    $1 !~ /^(schema|task_id|tab_id|navigation_id|neutral_url|origin|address_reconstruction|continuity|session_result|form_result|heap_result|reconstruction_result|renderer_id|host_process_id|host_generation|activity_generation|renderer_generation|authorization_adapter)$/ {exit 1}
+    $1 ~ /^(task_id|tab_id|navigation_id|renderer_id|host_process_id)$/ && $2 !~ /^[A-Za-z0-9_-]+$/ {exit 1}
+    $1 ~ /^(host_generation|activity_generation|renderer_generation)$/ && ($2 !~ /^[1-9][0-9]*$/ || length($2)>10 || $2+0>2147483647) {exit 1}
+    $1=="address_reconstruction" && $2 !~ /^(exact-neutral|path-query-or-fragment-redacted|unavailable)$/ {exit 1}
+    $1=="continuity" && $2 !~ /^(live-renderer-survival|activity-recreation|renderer-replacement|host-process-restart|remote-site-blocked)$/ {exit 1}
+    $1=="heap_result" && $2 !~ /^(live-observed|recreated-observed|not-available)$/ {exit 1}
+    $1=="reconstruction_result" && $2 !~ /^(live-page|pending|page-not-confirmed|confirmed|incomplete)$/ {exit 1}
+    END {if(NR!=18)exit 1}
+  ' "$file" { echo 'FAIL malformed or unknown task evidence fields' >&2; exit 1 }
+  exact "$file" schema ib-long-view-task-v1 'FAIL wrong fixture schema origin or adapter'
+  exact "$file" neutral_url http://127.0.0.1:18493/ 'FAIL wrong fixture schema origin or adapter'
+  exact "$file" origin http://127.0.0.1:18493/ 'FAIL wrong fixture schema origin or adapter'
+  exact "$file" authorization_adapter none 'FAIL wrong fixture schema origin or adapter'
+  exact "$file" session_result not-proven 'FAIL profile presence became authenticated-session evidence'
+}
+for key in task_id tab_id navigation_id {
+  var first = $(awk -F '\t' -v key="$key" '$1==key{print $2}' "$before")
+  for file in "$renderer" "$activity" "$host" {
+    exact "$file" "$key" "$first" 'FAIL task identity changed across renderer activity or host loss'
+  }
+}
+var old_host = $(awk -F '\t' '$1=="host_process_id"{print $2}' "$before")
+for file in "$renderer" "$activity" {
+  exact "$file" host_process_id "$old_host" 'FAIL renderer and Activity replacement changed host identity'
+}
+var new_host = $(awk -F '\t' '$1=="host_process_id"{print $2}' "$host")
+if (new_host === old_host) { echo 'FAIL host restart retained dead host identity' >&2; exit 1 }
+var old_renderer = $(awk -F '\t' '$1=="renderer_id"{print $2}' "$before")
+var new_renderer = $(awk -F '\t' '$1=="renderer_id"{print $2}' "$renderer")
+if (old_renderer === new_renderer) { echo 'FAIL dead renderer identity reused' >&2; exit 1 }
+var activity_renderer = $(awk -F '\t' '$1=="renderer_id"{print $2}' "$activity")
+var host_renderer = $(awk -F '\t' '$1=="renderer_id"{print $2}' "$host")
+if (activity_renderer === new_renderer or host_renderer === activity_renderer) { echo 'FAIL Activity or host reused dead renderer identity' >&2; exit 1 }
+proc advances(older, newer, field, diagnostic) {
+  var a = $(awk -F '\t' -v key="$field" '$1==key{print $2}' "$older")
+  var b = $(awk -F '\t' -v key="$field" '$1==key{print $2}' "$newer")
+  if (int(b) <= int(a)) { echo "$diagnostic" >&2; exit 1 }
+}
+proc unchanged(older, newer, field) {
+  var a = $(awk -F '\t' -v key="$field" '$1==key{print $2}' "$older")
+  exact "$newer" "$field" "$a" 'FAIL independent lifecycle generation changed'
+}
+advances "$before" "$renderer" renderer_generation 'FAIL stale renderer generation accepted'
+unchanged "$before" "$renderer" host_generation
+unchanged "$before" "$renderer" activity_generation
+advances "$renderer" "$activity" activity_generation 'FAIL stale Activity generation accepted'
+advances "$renderer" "$activity" renderer_generation 'FAIL Activity reused dead renderer generation'
+unchanged "$renderer" "$activity" host_generation
+advances "$activity" "$host" host_generation 'FAIL stale host generation accepted'
+advances "$activity" "$host" activity_generation 'FAIL host restart reused Activity generation'
+advances "$activity" "$host" renderer_generation 'FAIL host restart reused renderer generation'
+for file in "$renderer" "$activity" "$host" {
+  exact "$file" form_result repeat-required 'FAIL unapproved form claimed recoverable'
+  exact "$file" heap_result not-available 'FAIL lost heap claimed available'
+}
+exact "$renderer" continuity renderer-replacement 'FAIL incorrect renderer continuity cause'
+exact "$activity" continuity activity-recreation 'FAIL incorrect Activity continuity cause'
+exact "$host" continuity host-process-restart 'FAIL incorrect host continuity cause'
+if ! awk -F '\t' '
+  NF!=2 || $2 !~ /^[0-9]+$/ || length($2)>12 {exit 1}
+  seen[$1]++ {exit 1}
+  $1 !~ /^(usable_actions|verification_actions|value_attempts|value_deliveries|ambiguous_effects|page_requests|slow_assets_requested|parent_served_bytes)$/ {exit 1}
+  END {if(NR!=8)exit 1}
+' "$counts" { echo 'FAIL malformed independent server counters' >&2; exit 1 }
+for key in usable_actions verification_actions value_attempts value_deliveries ambiguous_effects {
+  exact "$counts" "$key" 1 'FAIL missing control action or repeated remote operation'
+}
+echo 'PASS independent protected identity generations uncertainty and no replay'

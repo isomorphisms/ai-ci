@@ -1,0 +1,341 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 11) { echo 'requires AICI IB APK SDK SMALI BAKSMALI KEYSTORE ICK ADB SERIAL NEW_EVIDENCE' >&2; exit 2 }
+var acceptance = ARGV[0]
+var repository = ARGV[1]
+var candidate = ARGV[2]
+var sdk = ARGV[3]
+var smali = ARGV[4]
+var baksmali = ARGV[5]
+var keystore = ARGV[6]
+var compiler = ARGV[7]
+var adb = ARGV[8]
+var serial = ARGV[9]
+var evidence = ARGV[10]
+var grease = ENV.IB_GREASE
+var api = ENV.AICI_EXPECTED_ANDROID_API
+var public_ladder = ENV.AICI_ADMIN_PUBLIC_LADDER
+var mode = get(ENV, 'AICI_ADMIN_MODE', 'combined')
+if (api !== '29' and api !== '34') { echo 'FAIL undeclared Android API' >&2; exit 2 }
+if (public_ladder !== '0' and public_ladder !== '1') { echo 'FAIL undeclared public ladder lane' >&2; exit 2 }
+if (mode !== 'admin' and mode !== 'public' and mode !== 'combined') { echo 'FAIL undeclared admin observation mode' >&2; exit 2 }
+if (mode === 'public' and (api !== '34' or public_ladder !== '1')) {
+  echo 'FAIL public mode requires API34 and the declared low-memory lane' >&2; exit 2
+}
+for path in "$acceptance" "$repository" "$candidate" "$sdk" "$smali" "$baksmali" "$keystore" "$compiler" "$adb" "$evidence" {
+  if (len(path) === 0 or path[0] !== '/') { echo 'FAIL absolute path required' >&2; exit 2 }
+}
+if test -e "$evidence" { echo 'FAIL reused admin evidence' >&2; exit 2 }
+umask 077
+mkdir -p "$evidence"
+var server_pid = ''
+var sampler_pid = ''
+var safe_records = false
+trap --add EXIT {
+  rm -f "$evidence/sampling.active" "$evidence/mutated.task" "$evidence/mutated.log"
+  rm -f "$evidence/.phase-private" "$evidence/.http-events-private" "$evidence/.failure-events-private"
+  rm -rf "$evidence/.export-private"
+  if (len(sampler_pid) > 0) { try { wait "$sampler_pid" } }
+  if (len(server_pid) > 0) {
+    try { kill -TERM "$server_pid" }; try { wait "$server_pid" }
+    try { "$adb" -s "$serial" reverse --remove tcp:18493 }
+  }
+  if (not safe_records) {
+    rm -f "$evidence/admin-before-lifecycle.task" "$evidence/admin-after-lifecycle.task" \
+      "$evidence/admin-before-renderer.task" "$evidence/admin-after-renderer.task" \
+      "$evidence/admin-after-activity.task" "$evidence/admin-after-host.task" "$evidence/admin-after-update.task"
+  }
+}
+git -C "$repository" rev-parse HEAD > "$evidence/ib-source-head.txt"
+git -C "$acceptance" rev-parse HEAD > "$evidence/observer-source-head.txt"
+"$adb" -s "$serial" shell getprop ro.kernel.qemu | tr -d '\r' | rg -q -x 1
+"$adb" -s "$serial" shell getprop ro.product.cpu.abi | tr -d '\r' | rg -q -x x86_64
+"$adb" -s "$serial" shell id -u | tr -d '\r' | rg -q -x 2000
+test "$("$adb" -s "$serial" shell getprop ro.build.version.sdk | tr -d '\r')" = "$api"
+var cpus = $("$adb" -s "$serial" shell nproc | tr -d '\r')
+var memory = $("$adb" -s "$serial" shell cat /proc/meminfo | tr -d '\r' | awk '$1=="MemTotal:"{print $2}')
+printf '%s\n' "$cpus" | rg -q -x '[1-9][0-9]*'
+printf '%s\n' "$memory" | rg -q -x '[1-9][0-9]*'
+var requested_cpus = 2
+var requested_memory = 2048
+if (public_ladder === '1') { setvar requested_cpus = 1; setvar requested_memory = 1024 }
+var low_ram = $("$adb" -s "$serial" shell getprop ro.config.low_ram | tr -d '\r')
+var observed_low_ram = 0
+if (low_ram === 'true') { setvar observed_low_ram = 1 } elif (low_ram !== 'false' and low_ram !== '') {
+  echo 'FAIL malformed guest low-RAM property' >&2; exit 1
+}
+printf 'api\t%s\nabi\tx86_64\nrequested_cpus\t%s\nrequested_memory_mib\t%s\nguest_online_cpus\t%s\nguest_memtotal_kib\t%s\nguest_low_ram\t%s\nrequested_width\t480\nrequested_height\t800\npublic_ladder\t%s\n' "$api" "$requested_cpus" "$requested_memory" "$cpus" "$memory" "$observed_low_ram" "$public_ladder" > "$evidence/target.tsv"
+printf 'observation_mode\t%s\n' "$mode" >> "$evidence/target.tsv"
+if (public_ladder === '1') {
+  if (api !== '34' or cpus !== '1' or int(memory) < 700000 or int(memory) > 1100000) {
+    echo 'FAIL guest does not match declared low-memory lane' >&2; exit 1
+  }
+} elif (cpus !== '2' or int(memory) < 1500000 or int(memory) > 2200000) {
+  echo 'FAIL guest does not match declared 2GiB lane' >&2; exit 1
+}
+var tools = "$sdk/build-tools/35.0.0"
+var certificate = 'de9b1d47c5a65e6d46a204b79dd9ee566b9d3c9832ba81ebc4213d3392e92ff9'
+"$tools/apksigner" verify --print-certs "$candidate" > "$evidence/candidate-signer.txt"
+rg -q -x -F "Signer #1 certificate SHA-256 digest: $certificate" "$evidence/candidate-signer.txt"
+"$tools/aapt2" dump badging "$candidate" > "$evidence/candidate-package.txt"
+rg -q "^package: name='org.isomorphisms.ib.prepaint'" "$evidence/candidate-package.txt"
+"$adb" -s "$serial" install -r "$candidate" > "$evidence/candidate-install.txt" 2>&1
+rg -q -x -F Success "$evidence/candidate-install.txt"
+var installed = $("$adb" -s "$serial" shell pm path org.isomorphisms.ib.prepaint | tr -d '\r' | sed -n 's/^package://p')
+printf '%s\n' "$installed" | rg -q -x '/data/app/[A-Za-z0-9_./~+=-]+/base\.apk'
+"$adb" -s "$serial" pull "$installed" "$evidence/installed.apk" > "$evidence/installed-pull.txt" 2>&1
+cmp "$candidate" "$evidence/installed.apk"
+var original_uid = $("$adb" -s "$serial" shell pm list packages -U org.isomorphisms.ib.prepaint | tr -d '\r')
+printf '%s\n' "$original_uid" | rg -q -x 'package:org\.isomorphisms\.ib\.prepaint uid:[1-9][0-9]{4,}'
+var expected_uid = $(printf '%s\n' "$original_uid" | sed 's/.* uid://')
+var controls = "$acceptance/android-admin"
+"$grease" "$controls/build-observer.grease" "$acceptance" "$sdk" "$smali" "$baksmali" "$keystore" "$evidence/observer-build"
+"$adb" -s "$serial" install -r "$evidence/observer-build/observer.apk" > "$evidence/observer-install.txt" 2>&1
+rg -q -x -F Success "$evidence/observer-install.txt"
+sha256sum "$candidate" "$evidence/installed.apk" "$evidence/observer-build/observer.apk" "$evidence/observer-build/classes.dex" > "$evidence/digests.txt"
+"$adb" -s "$serial" shell wm size 480x800
+"$adb" -s "$serial" shell wm density 160
+"$adb" -s "$serial" shell wm size > "$evidence/viewport.txt"
+rg -q '(Physical|Override) size: 480x800' "$evidence/viewport.txt"
+"$adb" -s "$serial" shell input keyevent KEYCODE_WAKEUP
+"$adb" -s "$serial" shell wm dismiss-keyguard
+"$adb" -s "$serial" shell settings put system screen_off_timeout 1800000
+"$adb" -s "$serial" shell dumpsys webviewupdate > "$evidence/webview.txt"
+touch "$evidence/sampling.active"
+fork { exec "$grease" "$controls/sample-resources.grease" "$adb" "$serial" "$evidence/sampling.active" "$evidence" }
+setglobal sampler_pid = $!
+proc capture_failure_events(label) {
+  var retained = false
+  try {
+    timeout 10 "$adb" -s "$serial" logcat -d -v raw -t 4096 -s IBLongView:I '*:S' 2> /dev/null \
+      | head -c 1048577 > "$evidence/.failure-events-private"
+    "$grease" "$controls/verify-diagnostics.grease" "$evidence/.failure-events-private" no \
+      > "$evidence/$label.failure-events-check.txt" 2>&1
+    mv "$evidence/.failure-events-private" "$evidence/$label.failure-native-events.txt"
+    setvar retained = true
+  }
+  if (not retained) {
+    try { rm -f "$evidence/.failure-events-private" }
+    try {
+      printf 'UNAVAILABLE native event tail was absent incomplete oversized or outside the closed numeric contract\n' \
+        > "$evidence/$label.failure-events-check.txt"
+    }
+  }
+}
+proc observe(phase, label, marker, instrumentation_code) {
+  try {
+    timeout 360 "$adb" -s "$serial" shell am instrument -w -r -e phase "$phase" \
+      org.isomorphisms.ib.admin.acceptance/acceptance.admin.AdminInstrumentation > "$evidence/.phase-private" 2>&1
+  }
+  var status = _error.code
+  printf '%s\n' "$status" > "$evidence/$label.exit"
+  try { "$grease" "$controls/decode-observation.grease" "$evidence/.phase-private" "$phase" "$expected_uid" "$evidence/.export-private" > "$evidence/$label.transport.txt" 2>&1 }
+  var transport = _error.code
+  rm -f "$evidence/.phase-private"
+  if test -f "$evidence/.export-private/transcript.txt" { mv "$evidence/.export-private/transcript.txt" "$evidence/$label.txt" }
+  if (status === 124) {
+    rm -rf "$evidence/.export-private"
+    try { timeout 10 "$adb" -s "$serial" shell am force-stop org.isomorphisms.ib.prepaint > /dev/null 2>&1 }
+    var stopped = _error.code
+    printf 'reason\tbounded_360_second_observer_timeout\noriginal_exit\t124\nforce_stop_exit\t%s\n' "$stopped" \
+      > "$evidence/$label.timeout.tsv"
+    capture_failure_events "$label"
+    echo 'FAIL admin instrumentation exceeded its 360-second process timeout' >&2; exit 1
+  }
+  if (transport !== 0) {
+    capture_failure_events "$label"
+    if test -f "$evidence/$label.txt" { cat "$evidence/$label.txt" >&2 }
+    cat "$evidence/$label.transport.txt" >&2
+    echo 'FAIL admin private evidence transport' >&2; exit 1
+  }
+  mv "$evidence/.export-private/metrics.tsv" "$evidence/$label.storage.tsv"
+  mv "$evidence/.export-private/artifacts.tsv" "$evidence/$label.artifacts.tsv"
+  for name in @(awk -F '\t' '{print $1}' "$evidence/$label.artifacts.tsv") {
+    var destination = "$name"
+    if (label === 'update' and name === 'admin-after-host.task') { setvar destination = 'admin-after-update.task' }
+    mv "$evidence/.export-private/payload/$name" "$evidence/$destination"
+  }
+  rm -rf "$evidence/.export-private"
+  cat "$evidence/$label.txt"
+  if (status !== 0) {
+    capture_failure_events "$label"
+    echo 'FAIL admin instrumentation process' >&2; exit 1
+  }
+  try {
+    rg -q -x -F "INSTRUMENTATION_CODE: $instrumentation_code" "$evidence/$label.txt"
+    rg -q -x -F "INSTRUMENTATION_RESULT: stream=$marker" "$evidence/$label.txt"
+  }
+  var expected_phase = _error.code
+  if (expected_phase !== 0) {
+    capture_failure_events "$label"
+    echo 'FAIL admin instrumentation phase result' >&2; exit 1
+  }
+}
+proc counts(label) {
+  curl --fail --silent --show-error --max-time 5 http://127.0.0.1:18493/counts > "$evidence/$label.counts.tsv"
+}
+proc stop_sampling() {
+  rm -f "$evidence/sampling.active"
+  wait "$sampler_pid"
+  setglobal sampler_pid = ''
+  awk -F '\t' '$1=="samples"{found=1;if($2<1)exit 1}END{if(!found)exit 1}' "$evidence/memory-summary.tsv"
+}
+observe preflight preflight 'PASS actual target UID observed absent protected namespace' -1
+awk -F '\t' '$1=="data_bytes"{print "before_data_bytes\t"$2}$1=="cache_bytes"{print "before_cache_bytes\t"$2}' "$evidence/preflight.storage.tsv" > "$evidence/app-data-size.tsv"
+if (mode === 'public') {
+  try { "$grease" "$controls/public-ladder.grease" "$acceptance" "$adb" "$serial" "$evidence/public-ladder" }
+  var public_only_result = _error.code
+  printf 'schema\tib-public-installed-v1\nobservation_mode\tpublic\napi\t34\nabi\tx86_64\nshared_identity_capacity_viewport_preflight\tPASS\nadmin_fixture\tNOT_SELECTED\npublic_ladder_exit\t%s\npublic_ladder_receipt\tpublic-ladder/receipt.tsv\nphysical_C67\tNOT_RUN\n' "$public_only_result" > "$evidence/receipt.tsv"
+  if (public_only_result === 0) { printf 'public_ladder\tPASS\n' >> "$evidence/receipt.tsv" } else {
+    printf 'public_ladder\tINCOMPLETE\n' >> "$evidence/receipt.tsv"
+  }
+  cat "$evidence/receipt.tsv"
+  stop_sampling
+  if (public_only_result !== 0) { echo 'FAIL public-only ladder remains incomplete' >&2; exit 1 }
+  exit 0
+}
+var fixture = "$repository/examples/autogenerated/admin-longview-fixture"
+"$compiler" -fno-link-libatomic -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror "$fixture/server.c" -o "$evidence/fixture-server"
+sha256sum "$compiler" "$evidence/fixture-server" "$fixture/server.c" "$fixture/admin.html" "$fixture/ready.js" \
+  "$fixture/verify.html" "$fixture/fake-interactive.html" >> "$evidence/digests.txt"
+fork { exec "$evidence/fixture-server" 18493 "$fixture" > "$evidence/server.stdout" 2> "$evidence/server.stderr" }
+setglobal server_pid = $!
+var ready = false
+for attempt in @(seq 1 50) {
+  if rg -q -x -F 'READY 18493' "$evidence/server.stdout" { setvar ready = true; break }
+  sleep 0.1
+}
+if (not ready) { echo 'FAIL admin HTTP fixture did not bind' >&2; exit 1 }
+"$adb" -s "$serial" reverse tcp:18493 tcp:18493
+observe fake fake 'PASS false interactive marker rejected by usable-control assertion' -1
+counts fake
+for field in usable_actions verification_actions value_attempts value_deliveries ambiguous_effects {
+  test "$(awk -F '\t' -v key="$field" '$1==key{print $2}' "$evidence/fake.counts.tsv")" = 0
+}
+observe preflight existing-task 'FAIL protected admin namespace already has a task' 0
+observe exercise exercise 'PASS actual admin touch verification app-switch result and renderer recovery' -1
+counts exercise
+for name in admin-first-action.png admin-after-activity.png {
+  file "$evidence/$name" | rg -q 'PNG image data, 480 x 800'
+}
+"$adb" -s "$serial" shell am force-stop org.isomorphisms.ib.prepaint
+observe resume host 'PASS actual admin host recovery requires ordinary root reconstruction' -1
+counts host
+"$grease" "$controls/verify-observations.grease" "$evidence/admin-before-renderer.task" \
+  "$evidence/admin-after-renderer.task" "$evidence/admin-after-activity.task" "$evidence/admin-after-host.task" \
+  "$evidence/host.counts.tsv" > "$evidence/oracle-positive.txt"
+"$grease" "$controls/verify-observations.grease" "$evidence/admin-before-lifecycle.task" \
+  "$evidence/admin-after-renderer.task" "$evidence/admin-after-activity.task" "$evidence/admin-after-host.task" \
+  "$evidence/host.counts.tsv" > "$evidence/oracle-lifecycle-record.txt"
+if ! cmp -s "$evidence/admin-before-lifecycle.task" "$evidence/admin-after-lifecycle.task" {
+  echo 'FAIL lifecycle callbacks changed durable task bytes' >&2; exit 1
+}
+setvar safe_records = true
+cat "$evidence/oracle-positive.txt"
+"$adb" -s "$serial" install -r "$candidate" > "$evidence/replacement.txt" 2>&1
+rg -q -x -F Success "$evidence/replacement.txt"
+var updated_uid = $("$adb" -s "$serial" shell pm list packages -U org.isomorphisms.ib.prepaint | tr -d '\r')
+if (updated_uid !== original_uid) { echo 'FAIL replacement changed application UID' >&2; exit 1 }
+setvar safe_records = false
+observe resume update 'PASS actual admin host recovery requires ordinary root reconstruction' -1
+counts update
+"$grease" "$controls/verify-observations.grease" "$evidence/admin-before-renderer.task" \
+  "$evidence/admin-after-renderer.task" "$evidence/admin-after-activity.task" "$evidence/admin-after-update.task" \
+  "$evidence/update.counts.tsv" > "$evidence/oracle-update.txt"
+setvar safe_records = true
+for mutation in session generation secret replay {
+  var observed = "$evidence/mutated.task"
+  var mutated_counts = "$evidence/update.counts.tsv"
+  var expected = ''
+  if (mutation === 'session') {
+    sed 's/session_result\tnot-proven/session_result\tauthenticated-confirmed/' "$evidence/admin-after-renderer.task" > "$observed"
+    setvar expected = 'FAIL profile presence became authenticated-session evidence'
+  } elif (mutation === 'generation') {
+    var prior = $(awk -F '\t' '$1=="renderer_generation"{print $2}' "$evidence/admin-before-renderer.task")
+    awk -F '\t' -v value="$prior" 'BEGIN{OFS="\t"}$1=="renderer_generation"{$2=value}{print}' "$evidence/admin-after-renderer.task" > "$observed"
+    setvar expected = 'FAIL stale renderer generation accepted'
+  } elif (mutation === 'secret') {
+    cp "$evidence/admin-after-renderer.task" "$observed"
+    printf 'IB_SYNTHETIC_ONLY_TEST_MUTATION\n' >> "$observed"
+    setvar expected = 'FAIL protected value in ordinary acceptance evidence'
+  } else {
+    cp "$evidence/admin-after-renderer.task" "$observed"
+    setvar mutated_counts = "$evidence/replayed.counts.tsv"
+    awk -F '\t' 'BEGIN{OFS="\t"}$1=="ambiguous_effects"{$2=2}{print}' "$evidence/update.counts.tsv" > "$mutated_counts"
+    setvar expected = 'FAIL missing control action or repeated remote operation'
+  }
+  try {
+    "$grease" "$controls/verify-observations.grease" "$evidence/admin-before-renderer.task" "$observed" \
+      "$evidence/admin-after-activity.task" "$evidence/admin-after-update.task" "$mutated_counts" > "$evidence/oracle-$mutation.txt" 2>&1
+  }
+  var result = _error.code
+  rm -f "$observed"
+  if (result !== 1) { echo 'FAIL independent admin mutation was not rejected' >&2; exit 1 }
+  rg -q -x -F "$expected" "$evidence/oracle-$mutation.txt"
+}
+"$adb" -s "$serial" logcat -d -v raw -s IBLongView:I IBAdminProbe:I '*:S' > "$evidence/longview-events.txt"
+try { "$grease" "$controls/verify-diagnostics.grease" "$evidence/longview-events.txt" yes > "$evidence/diagnostic-positive.txt" 2>&1 }
+var diagnostic_result = _error.code
+if (diagnostic_result !== 0) {
+  rm -f "$evidence/longview-events.txt"
+  cat "$evidence/diagnostic-positive.txt" >&2
+  echo 'FAIL native diagnostics rejected; unsafe raw content withheld' >&2; exit 1
+}
+sed 's/dns_ms=10001/dns_ms=IB_SYNTHETIC_ONLY_TEST_MUTATION/' "$evidence/longview-events.txt" > "$evidence/mutated.log"
+try { "$grease" "$controls/verify-diagnostics.grease" "$evidence/mutated.log" yes > "$evidence/diagnostic-secret.txt" 2>&1 }
+var rejected = _error.code
+rm -f "$evidence/mutated.log"
+if (rejected !== 1) { echo 'FAIL secret-bearing numeric evidence mutation not rejected' >&2; exit 1 }
+rg -q -x -F 'FAIL nonnumeric unknown missing or stale native diagnostics' "$evidence/diagnostic-secret.txt"
+var first_useful = $(sed -n 's/^INSTRUMENTATION_RESULT: first_useful_ms=//p' "$evidence/exercise.txt" | tr -d '\r')
+var first_action = $(sed -n 's/^INSTRUMENTATION_RESULT: first_action_ms=//p' "$evidence/exercise.txt" | tr -d '\r')
+for value in "$first_useful" "$first_action" { printf '%s\n' "$value" | rg -q -x '[1-9][0-9]*' }
+if (int(first_action) < int(first_useful)) { echo 'FAIL impossible first useful/action chronology' >&2; exit 1 }
+printf 'first_useful_control_ms\t%s\nfirst_confirmed_action_ms\t%s\n' "$first_useful" "$first_action" > "$evidence/interaction-timing.tsv"
+awk -F '\t' '$1=="data_bytes"{print "after_fixture_data_bytes\t"$2}$1=="cache_bytes"{print "after_fixture_cache_bytes\t"$2}' "$evidence/update.storage.tsv" >> "$evidence/app-data-size.tsv"
+# HTTP response controls run only after the retained-task journey and its
+# independent semantic/refusal checks have completed.
+proc http_counts(label) {
+  curl --fail --silent --show-error --max-time 5 http://127.0.0.1:18493/http-error-counts > "$evidence/$label.http-counts.tsv"
+}
+http_counts http-before
+observe http-mainframe http-mainframe 'PASS actual selected HTTP response document observed' -1
+http_counts http-mainframe
+observe http-subresource http-subresource 'PASS actual selected HTTP response document observed' -1
+http_counts http-subresource
+var main_http_pid = $(sed -n 's/^INSTRUMENTATION_RESULT: observed_host_pid=//p' "$evidence/http-mainframe.txt" | tr -d '\r')
+var subresource_http_pid = $(sed -n 's/^INSTRUMENTATION_RESULT: observed_host_pid=//p' "$evidence/http-subresource.txt" | tr -d '\r')
+"$adb" -s "$serial" logcat -d -v raw -s IBLongView:I '*:S' > "$evidence/.http-events-private"
+try {
+  "$grease" "$controls/verify-diagnostics.grease" "$evidence/.http-events-private" http \
+    "$main_http_pid" "$subresource_http_pid" "$evidence/http-before.http-counts.tsv" \
+    "$evidence/http-mainframe.http-counts.tsv" "$evidence/http-subresource.http-counts.tsv" > "$evidence/http-response-check.txt" 2>&1
+}
+var http_result = _error.code
+if (http_result !== 0) {
+  # Retain failure observations only after independently validating their
+  # bounded closed numeric schema. Never retain unvalidated logcat output.
+  try {
+    "$grease" "$controls/verify-diagnostics.grease" "$evidence/.http-events-private" no \
+      > "$evidence/http-response-failure-events-check.txt" 2>&1
+  }
+  var safe_http_events = _error.code
+  if (safe_http_events === 0) {
+    mv "$evidence/.http-events-private" "$evidence/http-response-failure-events.txt"
+  } else { rm -f "$evidence/.http-events-private" }
+  cat "$evidence/http-response-check.txt" >&2
+  echo 'FAIL actual HTTP response controls did not establish main-frame discrimination' >&2; exit 1
+}
+mv "$evidence/.http-events-private" "$evidence/http-response-events.txt"
+cat "$evidence/http-response-check.txt"
+printf 'schema\tib-admin-installed-v1\napi\t%s\nabi\tx86_64\nactual_page_control_touch\tPASS\nfalse_interactive_marker\tREJECTED\nmock_verification_and_observed_app_switch\tPASS\none_time_result_without_receipt_copy\tPASS\nactual_secret_in_numeric_callback\tREJECTED\nactual_stale_document_callback\tREJECTED\nactual_stale_renderer_callback\tREJECTED\nrenderer_death_same_task\tPASS\nActivity_recreation_same_task\tPASS\nhost_death_same_task\tPASS\nambiguous_operation_replay\tREJECTED\ndirty_unapproved_form_persistence\tREJECTED\nfalse_session_evidence\tREJECTED\nstale_renderer_evidence\tREJECTED\nsecret_diagnostic_evidence\tREJECTED\nreplacement_install_retains_task\tPASS\nGoogle_Cloud_live\tNOT_RUN\nYouTube_live\tNOT_RUN\nphysical_C67\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"
+printf 'actual_stale_lifecycle_callbacks\tFOUR_UNKNOWN\nprobe_checkpoint_or_measurement\tNONE\nprobe_durable_task_bytes\tUNCHANGED\ninitial_and_fresh_renderer_lifecycle\tPASS\n' >> "$evidence/receipt.tsv"
+printf 'actual_main_frame_HTTP_503\tOBSERVED\nactual_subresource_HTTP_404\tIGNORED_AS_MAIN_FRAME\nHTTP_response_server_counters\tPASS\n' >> "$evidence/receipt.tsv"
+cat "$evidence/receipt.tsv"
+var public_result = 0
+if (mode === 'combined' and public_ladder === '1') {
+  try { "$grease" "$controls/public-ladder.grease" "$acceptance" "$adb" "$serial" "$evidence/public-ladder" }
+  setvar public_result = _error.code
+} else { printf 'public_ladder\tNOT_SELECTED\n' > "$evidence/public-ladder.tsv" }
+stop_sampling
+if (public_result !== 0) { echo 'FAIL deterministic fixture passed but public ladder remains incomplete' >&2; exit 1 }

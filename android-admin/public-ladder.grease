@@ -1,0 +1,92 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 4) { echo 'requires AICI ADB SERIAL NEW_EVIDENCE' >&2; exit 2 }
+var acceptance = ARGV[0]
+var adb = ARGV[1]
+var serial = ARGV[2]
+var evidence = ARGV[3]
+var grease = ENV.IB_GREASE
+for path in "$acceptance" "$adb" "$evidence" "$grease" {
+  if (len(path) === 0 or path[0] !== '/') { echo 'FAIL absolute path required' >&2; exit 2 }
+}
+if test -e "$evidence" { echo 'FAIL reused public ladder evidence' >&2; exit 2 }
+umask 077
+mkdir -p "$evidence"
+"$adb" -s "$serial" shell getprop ro.kernel.qemu | tr -d '\r' | rg -q -x 1
+"$adb" -s "$serial" shell getprop ro.build.version.sdk | tr -d '\r' | rg -q -x 34
+"$adb" -s "$serial" shell getprop ro.product.cpu.abi | tr -d '\r' | rg -q -x x86_64
+"$adb" -s "$serial" shell nproc | tr -d '\r' | rg -q -x 1
+var installed_uid = $("$adb" -s "$serial" shell pm list packages -U org.isomorphisms.ib.prepaint | tr -d '\r')
+printf '%s\n' "$installed_uid" | rg -q -x 'package:org\.isomorphisms\.ib\.prepaint uid:[1-9][0-9]{4,}'
+var expected_uid = $(printf '%s\n' "$installed_uid" | sed 's/.* uid://')
+printf 'phase\tstate\treason\n' > "$evidence/receipt.tsv"
+var failed = false
+trap --add EXIT { rm -f "$evidence/raw-events.private" "$evidence/.phase-private"; rm -rf "$evidence/.export-private" }
+for phase in public-search public-miwam {
+  try {
+    timeout 180 "$adb" -s "$serial" shell am instrument -w -r -e phase "$phase" \
+      org.isomorphisms.ib.admin.acceptance/acceptance.admin.AdminInstrumentation > "$evidence/.phase-private" 2>&1
+  }
+  var result = _error.code
+  printf '%s\n' "$result" > "$evidence/$phase.exit"
+  try { "$grease" "$acceptance/android-admin/decode-observation.grease" "$evidence/.phase-private" "$phase" "$expected_uid" "$evidence/.export-private" > "$evidence/$phase.transport.txt" 2>&1 }
+  var screenshot_status = _error.code
+  rm -f "$evidence/.phase-private"
+  if test -f "$evidence/.export-private/transcript.txt" { mv "$evidence/.export-private/transcript.txt" "$evidence/$phase.txt" }
+  touch "$evidence/$phase.txt"
+  if (screenshot_status === 0) {
+    mv "$evidence/.export-private/payload/$phase.png" "$evidence/$phase.png"
+    mv "$evidence/.export-private/metrics.tsv" "$evidence/$phase.storage.tsv"
+    mv "$evidence/.export-private/artifacts.tsv" "$evidence/$phase.artifacts.tsv"
+  }
+  rm -rf "$evidence/.export-private"
+  var actor = $(sed -n 's/^INSTRUMENTATION_RESULT: observed_host_pid=//p' "$evidence/$phase.txt" | tr -d '\r')
+  var state = 'UNKNOWN'
+  var reason = 'observer_incomplete'
+  var numeric = false
+  try { printf '%s\n' "$actor" | rg -q -x '[1-9][0-9]*' }
+  var valid_actor = _error.code
+  if (valid_actor === 0) {
+    "$adb" -s "$serial" logcat -d -v raw -s IBLongView:I '*:S' > "$evidence/raw-events.private"
+    try { "$grease" "$acceptance/android-admin/verify-diagnostics.grease" "$evidence/raw-events.private" no > "$evidence/$phase.log-check.txt" 2>&1 }
+    var valid = _error.code
+    if (valid === 0) {
+      awk -v wanted="host_pid=$actor" '{for(i=1;i<=NF;i++)if($i==wanted){print;break}}' \
+        "$evidence/raw-events.private" > "$evidence/$phase.events.txt"
+      setvar numeric = true
+    }
+    rm -f "$evidence/raw-events.private"
+  }
+  if (numeric) {
+    var events = "$evidence/$phase.events.txt"
+    if rg -q '^event=7 ' "$events" {
+      if rg -q ' code=-(2|6|7|8|11) ' "$events" { setvar state = 'BLOCKED_NETWORK'; setvar reason = 'main_frame_network_or_tls_error' } else {
+        setvar state = 'BLOCKED_SITE'; setvar reason = 'main_frame_rejected'
+      }
+    } elif rg -q -x -F 'INSTRUMENTATION_RESULT: public_state=-1' "$evidence/$phase.txt" {
+      setvar state = 'BLOCKED_SITE'; setvar reason = 'public_verification_or_denial_page'
+    } elif (result === 0 and screenshot_status === 0) {
+      try {
+        rg -q -x -F 'INSTRUMENTATION_CODE: -1' "$evidence/$phase.txt"
+        rg -q -x -F 'INSTRUMENTATION_RESULT: public_state=1' "$evidence/$phase.txt"
+        rg -q '^event=3 .* code=0 ' "$events"
+        rg -q '^event=5 .* code=0 ' "$events"
+        rg -q '^event=6 .* code=0 ' "$events"
+        rg -q '^event=10 .* dns_ms=' "$events"
+        file "$evidence/$phase.png" | rg -q 'PNG image data, 480 x 800'
+      }
+      var page_verified = _error.code
+      if (page_verified === 0) {
+        setvar state = 'PASS'; setvar reason = 'host_observed_started_committed_finished_timed_visible'
+      } else { setvar reason = 'missing_start_commit_finish_timing_or_source_screenshot' }
+    }
+  }
+  if (result === 124) {
+    setvar reason = 'bounded_180_second_observer_timeout'
+    "$adb" -s "$serial" shell am force-stop org.isomorphisms.ib.prepaint
+  }
+  printf '%s\t%s\t%s\n' "$phase" "$state" "$reason" >> "$evidence/receipt.tsv"
+  if (state !== 'PASS') { setvar failed = true }
+}
+cat "$evidence/receipt.tsv"
+if (failed) { echo 'FAIL public ladder has a separately classified incomplete boundary' >&2; exit 1 }

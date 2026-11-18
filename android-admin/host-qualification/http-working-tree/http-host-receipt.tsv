@@ -1,0 +1,8 @@
+schema	ib-admin-http-host-v1
+positive_HTTP_503_with_subresource_404	PASS
+unknown_document_attribution	PRESERVED
+unknown_error_before_start	ACCEPTED_WITHOUT_TIMING_ATTRIBUTION
+unrelated_host_error	IGNORED
+HTTP_negative_controls	15_REJECTED
+actual_HTTP_response_execution	NOT_RUN
+installed_Android	NOT_RUN

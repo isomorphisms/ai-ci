@@ -1,0 +1,298 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 2) { echo 'usage: grease self-test.grease AICI NEW_EVIDENCE' >&2; exit 2 }
+var acceptance = ARGV[0]
+var evidence = ARGV[1]
+var grease = ENV.IB_GREASE
+for path in "$acceptance" "$evidence" "$grease" {
+  if (len(path) === 0 or path[0] !== '/') { echo 'FAIL absolute path required' >&2; exit 2 }
+}
+if test -e "$evidence" { echo 'FAIL reused oracle evidence' >&2; exit 2 }
+umask 077
+mkdir -p "$evidence"
+var controls = "$acceptance/android-admin"
+trap --add EXIT { rm -f "$evidence/mutant.task" "$evidence/mutant.log" }
+proc record(file, host, host_generation, activity_generation, renderer_generation, renderer, cause) {
+  printf 'schema\tib-long-view-task-v1\ntask_id\ttask-001\ntab_id\ttab-001\nnavigation_id\tnavigation-001\nneutral_url\thttp://127.0.0.1:18493/\norigin\thttp://127.0.0.1:18493/\naddress_reconstruction\texact-neutral\ncontinuity\t%s\nsession_result\tnot-proven\nform_result\trepeat-required\nheap_result\tnot-available\nreconstruction_result\tpage-not-confirmed\nrenderer_id\t%s\nhost_process_id\t%s\nhost_generation\t%s\nactivity_generation\t%s\nrenderer_generation\t%s\nauthorization_adapter\tnone\n' "$cause" "$renderer" "$host" "$host_generation" "$activity_generation" "$renderer_generation" > "$file"
+}
+record "$evidence/before.task" host-001 1 1 1 renderer-001 live-renderer-survival
+record "$evidence/renderer.task" host-001 1 1 2 renderer-002 renderer-replacement
+record "$evidence/activity.task" host-001 1 2 3 renderer-003 activity-recreation
+record "$evidence/host.task" host-002 2 3 4 renderer-004 host-process-restart
+printf 'usable_actions\t1\nverification_actions\t1\nvalue_attempts\t1\nvalue_deliveries\t1\nambiguous_effects\t1\npage_requests\t5\nslow_assets_requested\t20\nparent_served_bytes\t8192\n' > "$evidence/counts.tsv"
+"$grease" "$controls/verify-observations.grease" "$evidence/before.task" "$evidence/renderer.task" "$evidence/activity.task" "$evidence/host.task" "$evidence/counts.tsv" > "$evidence/positive.txt"
+proc reject(name, target, field, value, expected) {
+  awk -F '\t' -v key="$field" -v value="$value" 'BEGIN{OFS="\t"}$1==key{$2=value}{print}' "$evidence/$target" > "$evidence/mutant.task"
+  var renderer = "$evidence/renderer.task"
+  var activity = "$evidence/activity.task"
+  var host = "$evidence/host.task"
+  var counts = "$evidence/counts.tsv"
+  if (target === 'renderer.task') { setvar renderer = "$evidence/mutant.task" }
+  if (target === 'activity.task') { setvar activity = "$evidence/mutant.task" }
+  if (target === 'host.task') { setvar host = "$evidence/mutant.task" }
+  if (target === 'counts.tsv') { setvar counts = "$evidence/mutant.task" }
+  try {
+    "$grease" "$controls/verify-observations.grease" "$evidence/before.task" "$renderer" "$activity" "$host" "$counts" > "$evidence/$name.txt" 2>&1
+  }
+  var result = _error.code
+  rm -f "$evidence/mutant.task"
+  if (result !== 1) { echo "FAIL oracle negative $name did not reject" >&2; exit 1 }
+  rg -q -x -F "$expected" "$evidence/$name.txt"
+}
+reject secret renderer.task continuity IB_SYNTHETIC_ONLY_MUTATION 'FAIL protected value in ordinary acceptance evidence'
+reject unknown renderer.task schema unknown 'FAIL wrong fixture schema origin or adapter'
+reject unknown-enum renderer.task continuity hidden-material 'FAIL malformed or unknown task evidence fields'
+reject malformed-generation renderer.task renderer_generation 2x 'FAIL malformed or unknown task evidence fields'
+reject overflow-generation renderer.task renderer_generation 2147483648 'FAIL malformed or unknown task evidence fields'
+reject false-session renderer.task session_result authenticated-confirmed 'FAIL profile presence became authenticated-session evidence'
+reject wrong-task renderer.task task_id task-999 'FAIL task identity changed across renderer activity or host loss'
+reject wrong-tab renderer.task tab_id tab-999 'FAIL task identity changed across renderer activity or host loss'
+reject wrong-navigation renderer.task navigation_id navigation-999 'FAIL task identity changed across renderer activity or host loss'
+reject renderer-new-host renderer.task host_process_id host-999 'FAIL renderer and Activity replacement changed host identity'
+reject host-same-identity host.task host_process_id host-001 'FAIL host restart retained dead host identity'
+reject renderer-same-identity renderer.task renderer_id renderer-001 'FAIL dead renderer identity reused'
+reject activity-same-identity activity.task renderer_id renderer-002 'FAIL Activity or host reused dead renderer identity'
+reject host-same-renderer host.task renderer_id renderer-003 'FAIL Activity or host reused dead renderer identity'
+reject renderer-stale renderer.task renderer_generation 1 'FAIL stale renderer generation accepted'
+reject renderer-changes-host renderer.task host_generation 2 'FAIL independent lifecycle generation changed'
+reject renderer-changes-activity renderer.task activity_generation 2 'FAIL independent lifecycle generation changed'
+reject activity-stale activity.task activity_generation 1 'FAIL stale Activity generation accepted'
+reject activity-old-renderer activity.task renderer_generation 2 'FAIL Activity reused dead renderer generation'
+reject activity-changes-host activity.task host_generation 2 'FAIL independent lifecycle generation changed'
+reject host-stale host.task host_generation 1 'FAIL stale host generation accepted'
+reject host-old-activity host.task activity_generation 2 'FAIL host restart reused Activity generation'
+reject host-old-renderer host.task renderer_generation 3 'FAIL host restart reused renderer generation'
+reject unapproved-form renderer.task form_result permitted-restored 'FAIL unapproved form claimed recoverable'
+reject lost-heap renderer.task heap_result live-observed 'FAIL lost heap claimed available'
+reject renderer-cause renderer.task continuity live-renderer-survival 'FAIL incorrect renderer continuity cause'
+reject activity-cause activity.task continuity renderer-replacement 'FAIL incorrect Activity continuity cause'
+reject host-cause host.task continuity renderer-replacement 'FAIL incorrect host continuity cause'
+reject no-action counts.tsv usable_actions 0 'FAIL missing control action or repeated remote operation'
+reject replay counts.tsv ambiguous_effects 2 'FAIL missing control action or repeated remote operation'
+reject malformed-count counts.tsv value_attempts secret 'FAIL malformed independent server counters'
+printf '%s\n' \
+  'event=1 host_pid=42 document_epoch=1 host_generation=1 activity_generation=1 renderer_generation=1 code=0 elapsed_ms=0' \
+  'event=5 host_pid=42 document_epoch=1 host_generation=1 activity_generation=1 renderer_generation=1 code=0 elapsed_ms=700' \
+  'event=6 host_pid=42 document_epoch=1 host_generation=1 activity_generation=1 renderer_generation=1 code=0 elapsed_ms=1600' \
+  'event=10 host_pid=42 document_epoch=1 host_generation=1 activity_generation=1 renderer_generation=1 dns_ms=10001 connect_ms=10002 tls_ms=10003 first_byte_ms=10004 transfer_ms=10005 dom_ms=10006 load_ms=10007 transfer_bytes=10008' \
+  'event=11 host_pid=42 document_epoch=1 host_generation=1 activity_generation=1 renderer_generation=1 first_paint_ms=10009 first_contentful_paint_ms=10010 observed_resource_count=10011 observed_resource_transfer_bytes=10012' \
+  'event=10 host_pid=42 document_epoch=0 host_generation=1 activity_generation=1 renderer_generation=1 code=1 elapsed_ms=-1' \
+  'observer_probe=1 boundary=1 host_pid=42' \
+  'event=5 host_pid=42 document_epoch=0 host_generation=1 activity_generation=1 renderer_generation=1 code=2 elapsed_ms=-1' \
+  'event=6 host_pid=42 document_epoch=0 host_generation=1 activity_generation=1 renderer_generation=1 code=2 elapsed_ms=-1' \
+  'event=5 host_pid=42 document_epoch=0 host_generation=1 activity_generation=1 renderer_generation=1 code=2 elapsed_ms=-1' \
+  'event=6 host_pid=42 document_epoch=0 host_generation=1 activity_generation=1 renderer_generation=1 code=2 elapsed_ms=-1' \
+  'observer_probe=1 boundary=2 host_pid=42' \
+  'event=5 host_pid=42 document_epoch=1 host_generation=1 activity_generation=1 renderer_generation=2 code=0 elapsed_ms=700' \
+  'event=6 host_pid=42 document_epoch=1 host_generation=1 activity_generation=1 renderer_generation=2 code=0 elapsed_ms=1600' > "$evidence/numeric.log"
+"$grease" "$controls/verify-diagnostics.grease" "$evidence/numeric.log" yes > "$evidence/diagnostic-positive.txt"
+printf 'control\texpected_diagnostic\toutcome\n' > "$evidence/diagnostic-controls.tsv"
+for mutation in secret unknown missing duplicate stale no-positive unknown-epoch unknown-elapsed metric-epoch marker-unknown marker-secret \
+  probe-missing probe-unfinished probe-duplicate probe-host probe-checkpoint probe-attributed probe-measurement probe-count probe-order probe-generation initial-commit fresh-finish {
+  var expected = 'FAIL nonnumeric unknown missing or stale native diagnostics'
+  if (mutation === 'secret') {
+    sed 's/dns_ms=10001/dns_ms=IB_SYNTHETIC_ONLY_MUTATION/' "$evidence/numeric.log" > "$evidence/mutant.log"
+  } elif (mutation === 'unknown') {
+    sed 's/dns_ms=10001/unreviewed=10001/' "$evidence/numeric.log" > "$evidence/mutant.log"
+  } elif (mutation === 'missing') {
+    sed 's/ host_pid=42//' "$evidence/numeric.log" > "$evidence/mutant.log"
+  } elif (mutation === 'duplicate') {
+    sed 's/dns_ms=10001/connect_ms=10001/' "$evidence/numeric.log" > "$evidence/mutant.log"
+  } elif (mutation === 'stale') {
+    cp "$evidence/numeric.log" "$evidence/mutant.log"
+    sed -n 's/dns_ms=10001/dns_ms=20001/p' "$evidence/numeric.log" >> "$evidence/mutant.log"
+  } elif (mutation === 'no-positive') {
+    sed 's/dns_ms=10001/dns_ms=100/' "$evidence/numeric.log" > "$evidence/mutant.log"
+  } elif (mutation === 'unknown-epoch') {
+    sed '/code=2/s/document_epoch=0/document_epoch=1/' "$evidence/numeric.log" > "$evidence/mutant.log"
+  } elif (mutation === 'unknown-elapsed') {
+    sed '/code=2/s/elapsed_ms=-1/elapsed_ms=0/' "$evidence/numeric.log" > "$evidence/mutant.log"
+  } elif (mutation === 'metric-epoch') {
+    sed '/dns_ms=/s/document_epoch=1/document_epoch=0/' "$evidence/numeric.log" > "$evidence/mutant.log"
+  } elif (mutation === 'marker-unknown') {
+    sed '/observer_probe=/s/$/ unreviewed=1/' "$evidence/numeric.log" > "$evidence/mutant.log"
+  } elif (mutation === 'marker-secret') {
+    sed 's/boundary=1/boundary=IB_SYNTHETIC_ONLY_MUTATION/' "$evidence/numeric.log" > "$evidence/mutant.log"
+  } else {
+    setvar expected = 'FAIL lifecycle attribution probe boundary or positive control'
+    if (mutation === 'probe-missing') {
+      sed '/observer_probe=/d' "$evidence/numeric.log" > "$evidence/mutant.log"
+    } elif (mutation === 'probe-unfinished') {
+      sed '/boundary=2/d' "$evidence/numeric.log" > "$evidence/mutant.log"
+    } elif (mutation === 'probe-duplicate') {
+      awk '{print}/observer_probe=1 boundary=1/{print}' "$evidence/numeric.log" > "$evidence/mutant.log"
+    } elif (mutation === 'probe-host') {
+      sed '/boundary=2/s/host_pid=42/host_pid=43/' "$evidence/numeric.log" > "$evidence/mutant.log"
+    } elif (mutation === 'probe-checkpoint') {
+      awk '{print}/boundary=1/{print "event=4 host_pid=42 document_epoch=0 host_generation=1 activity_generation=1 renderer_generation=1 code=0 elapsed_ms=-1"}' "$evidence/numeric.log" > "$evidence/mutant.log"
+    } elif (mutation === 'probe-attributed') {
+      sed '/code=2/{s/document_epoch=0/document_epoch=1/;s/code=2/code=0/;s/elapsed_ms=-1/elapsed_ms=1/;}' "$evidence/numeric.log" > "$evidence/mutant.log"
+    } elif (mutation === 'probe-measurement') {
+      awk '/dns_ms=/{sample=$0;sub(/dns_ms=10001/,"dns_ms=9",sample)}{print}/boundary=1/{print sample}' "$evidence/numeric.log" > "$evidence/mutant.log"
+    } elif (mutation === 'probe-count') {
+      awk '/code=2/{if(++calls==4)next}{print}' "$evidence/numeric.log" > "$evidence/mutant.log"
+    } elif (mutation === 'probe-order') {
+      sed '/code=2/s/event=5/event=6/' "$evidence/numeric.log" > "$evidence/mutant.log"
+    } elif (mutation === 'probe-generation') {
+      sed '/^event=6.*code=2/s/activity_generation=1/activity_generation=2/' "$evidence/numeric.log" > "$evidence/mutant.log"
+    } elif (mutation === 'initial-commit') {
+      sed '/^event=5.*renderer_generation=1 code=0/d' "$evidence/numeric.log" > "$evidence/mutant.log"
+    } elif (mutation === 'fresh-finish') {
+      sed '/^event=6.*renderer_generation=2 code=0/d' "$evidence/numeric.log" > "$evidence/mutant.log"
+    } else { echo 'FAIL unimplemented diagnostic control' >&2; exit 1 }
+  }
+  try {
+    "$grease" "$controls/verify-diagnostics.grease" "$evidence/mutant.log" yes > "$evidence/diagnostic-$mutation.txt" 2>&1
+  }
+  var result = _error.code
+  rm -f "$evidence/mutant.log"
+  if (result !== 1) { echo "FAIL diagnostic negative $mutation did not reject" >&2; exit 1 }
+  rg -q -x -F "$expected" "$evidence/diagnostic-$mutation.txt"
+  printf '%s\t%s\tREJECTED\n' "$mutation" "$expected" >> "$evidence/diagnostic-controls.tsv"
+}
+forkwait {
+  cd "$controls"
+  sha256sum verify-observations.grease verify-diagnostics.grease self-test.grease > "$evidence/digests.txt"
+}
+printf 'schema\tib-admin-oracle-host-v1\npositive_synthetic_records\tPASS\nrecord_negative_controls\t31_REJECTED\npositive_numeric_diagnostics\tPASS\npositive_synthetic_lifecycle_boundaries\tPASS\ndiagnostic_negative_controls\t23_REJECTED\ninstalled_Android\tNOT_RUN\nphysical_C67\tNOT_RUN\n' > "$evidence/receipt.tsv"
+cat "$evidence/receipt.tsv"
+"$grease" "$controls/test-transport.grease" "$acceptance" "$evidence/transport"
+mkdir -p "$evidence/http"
+printf 'mainframe_503\t0\nsubresource_page\t0\nsubresource_404\t0\n' > "$evidence/http/before.tsv"
+printf 'mainframe_503\t1\nsubresource_page\t0\nsubresource_404\t0\n' > "$evidence/http/main.tsv"
+printf 'mainframe_503\t1\nsubresource_page\t1\nsubresource_404\t1\n' > "$evidence/http/after.tsv"
+printf '%s\n' \
+  'event=3 host_pid=201 host_generation=1 activity_generation=1 renderer_generation=1 document_epoch=1 code=0 elapsed_ms=0' \
+  'event=7 host_pid=201 host_generation=1 activity_generation=1 renderer_generation=1 document_epoch=1 code=503 elapsed_ms=25' \
+  'event=3 host_pid=202 host_generation=2 activity_generation=2 renderer_generation=2 document_epoch=1 code=0 elapsed_ms=0' \
+  'event=6 host_pid=202 host_generation=2 activity_generation=2 renderer_generation=2 document_epoch=1 code=0 elapsed_ms=50' \
+  'event=7 host_pid=203 host_generation=1 activity_generation=1 renderer_generation=1 document_epoch=1 code=404 elapsed_ms=40' > "$evidence/http/positive.log"
+"$grease" "$controls/verify-diagnostics.grease" "$evidence/http/positive.log" http 201 202 \
+  "$evidence/http/before.tsv" "$evidence/http/main.tsv" "$evidence/http/after.tsv" > "$evidence/http/positive.txt"
+sed '/^event=7 host_pid=201 /s/document_epoch=1 code=503 elapsed_ms=25/document_epoch=0 code=503 elapsed_ms=-1/' \
+  "$evidence/http/positive.log" > "$evidence/http/unknown-attribution.log"
+"$grease" "$controls/verify-diagnostics.grease" "$evidence/http/unknown-attribution.log" http 201 202 \
+  "$evidence/http/before.tsv" "$evidence/http/main.tsv" "$evidence/http/after.tsv" > "$evidence/http/unknown-attribution.txt"
+awk 'NR==1{start=$0;next} NR==2{print;print start;next} {print}' \
+  "$evidence/http/unknown-attribution.log" > "$evidence/http/unknown-before-start.log"
+"$grease" "$controls/verify-diagnostics.grease" "$evidence/http/unknown-before-start.log" http 201 202 \
+  "$evidence/http/before.tsv" "$evidence/http/main.tsv" "$evidence/http/after.tsv" > "$evidence/http/unknown-before-start.txt"
+sed '/^event=3 host_pid=201 /d' "$evidence/http/unknown-before-start.log" > "$evidence/http/unknown-without-start.log"
+"$grease" "$controls/verify-diagnostics.grease" "$evidence/http/unknown-without-start.log" http 201 202 \
+  "$evidence/http/before.tsv" "$evidence/http/main.tsv" "$evidence/http/after.tsv" > "$evidence/http/unknown-without-start.txt"
+awk '
+  /^event=3 host_pid=201 / {print "event=4 host_pid=201 host_generation=1 activity_generation=1 renderer_generation=0 document_epoch=0 code=0 elapsed_ms=0"}
+  /^event=3 host_pid=202 / {print "event=4 host_pid=202 host_generation=2 activity_generation=2 renderer_generation=0 document_epoch=0 code=0 elapsed_ms=0"}
+  {print}
+' "$evidence/http/positive.log" > "$evidence/http/pre-attachment.log"
+"$grease" "$controls/verify-diagnostics.grease" "$evidence/http/pre-attachment.log" http 201 202 \
+  "$evidence/http/before.tsv" "$evidence/http/main.tsv" "$evidence/http/after.tsv" > "$evidence/http/pre-attachment.txt"
+sed '/^event=4 /s/elapsed_ms=0/elapsed_ms=-1/' "$evidence/http/pre-attachment.log" > "$evidence/http/pre-attachment-clock-unavailable.log"
+"$grease" "$controls/verify-diagnostics.grease" "$evidence/http/pre-attachment-clock-unavailable.log" http 201 202 \
+  "$evidence/http/before.tsv" "$evidence/http/main.tsv" "$evidence/http/after.tsv" > "$evidence/http/pre-attachment-clock-unavailable.txt"
+printf 'control\texpected_diagnostic\toutcome\n' > "$evidence/http/controls.tsv"
+for mutation in missing-main wrong-host wrong-status stale-generation invented-epoch invented-elapsed reordered-known-error subresource-error missing-finish reordered-finish reused-host missing-subresource-response stale-baseline duplicate-counter unknown-counter {
+  var http_log = "$evidence/http/positive.log"
+  var http_before = "$evidence/http/before.tsv"
+  var http_after = "$evidence/http/after.tsv"
+  var http_sub_pid = '202'
+  var expected_http = 'FAIL real main-frame HTTP 503 was not observed for selected host'
+  if (mutation === 'missing-main') {
+    sed '/^event=7 host_pid=201 /d' "$http_log" > "$evidence/mutant.log"
+    setvar http_log = "$evidence/mutant.log"
+  } elif (mutation === 'wrong-host') {
+    sed '/^event=7 host_pid=201 /s/host_pid=201/host_pid=203/' "$http_log" > "$evidence/mutant.log"
+    setvar http_log = "$evidence/mutant.log"
+  } elif (mutation === 'wrong-status') {
+    sed '/^event=7 host_pid=201 /s/code=503/code=404/' "$http_log" > "$evidence/mutant.log"
+    setvar http_log = "$evidence/mutant.log"
+  } elif (mutation === 'stale-generation') {
+    sed '/^event=7 host_pid=201 /s/renderer_generation=1/renderer_generation=2/' "$http_log" > "$evidence/mutant.log"
+    setvar http_log = "$evidence/mutant.log"
+  } elif (mutation === 'invented-epoch') {
+    sed '/^event=7 host_pid=201 /s/document_epoch=1/document_epoch=2/' "$http_log" > "$evidence/mutant.log"
+    setvar http_log = "$evidence/mutant.log"
+  } elif (mutation === 'invented-elapsed') {
+    sed '/^event=7 host_pid=201 /s/document_epoch=1/document_epoch=0/' "$http_log" > "$evidence/mutant.log"
+    setvar http_log = "$evidence/mutant.log"
+  } elif (mutation === 'reordered-known-error') {
+    awk 'NR==1{start=$0;next} NR==2{print;print start;next} {print}' "$http_log" > "$evidence/mutant.log"
+    setvar http_log = "$evidence/mutant.log"
+  } elif (mutation === 'subresource-error') {
+    cp "$http_log" "$evidence/mutant.log"
+    printf '%s\n' 'event=7 host_pid=202 host_generation=2 activity_generation=2 renderer_generation=2 document_epoch=1 code=404 elapsed_ms=40' >> "$evidence/mutant.log"
+    setvar http_log = "$evidence/mutant.log"
+    setvar expected_http = 'FAIL subresource-only error became a main-frame failure'
+  } elif (mutation === 'missing-finish') {
+    sed '/^event=6 host_pid=202 /d' "$http_log" > "$evidence/mutant.log"
+    setvar http_log = "$evidence/mutant.log"
+    setvar expected_http = 'FAIL subresource control did not complete its current main document'
+  } elif (mutation === 'reordered-finish') {
+    awk 'NR==3{start=$0;next} NR==4{print;print start;next} {print}' "$http_log" > "$evidence/mutant.log"
+    setvar http_log = "$evidence/mutant.log"
+    setvar expected_http = 'FAIL subresource control did not complete its current main document'
+  } elif (mutation === 'reused-host') {
+    setvar http_sub_pid = '201'
+    setvar expected_http = 'FAIL HTTP fixture host identities are invalid or reused'
+  } else {
+    setvar expected_http = 'FAIL HTTP fixture response counters did not follow selected requests'
+    if (mutation === 'missing-subresource-response') {
+      sed 's/subresource_404\t1/subresource_404\t0/' "$http_after" > "$evidence/mutant.task"
+      setvar http_after = "$evidence/mutant.task"
+    } elif (mutation === 'stale-baseline') {
+      cp "$evidence/http/main.tsv" "$evidence/mutant.task"
+      setvar http_before = "$evidence/mutant.task"
+    } elif (mutation === 'duplicate-counter') {
+      cp "$http_after" "$evidence/mutant.task"
+      printf 'subresource_404\t1\n' >> "$evidence/mutant.task"
+      setvar http_after = "$evidence/mutant.task"
+    } else {
+      sed 's/subresource_404/unknown_counter/' "$http_after" > "$evidence/mutant.task"
+      setvar http_after = "$evidence/mutant.task"
+    }
+  }
+  try {
+    "$grease" "$controls/verify-diagnostics.grease" "$http_log" http 201 "$http_sub_pid" \
+      "$http_before" "$evidence/http/main.tsv" "$http_after" > "$evidence/http/$mutation.txt" 2>&1
+  }
+  var http_status = _error.code
+  rm -f "$evidence/mutant.log" "$evidence/mutant.task"
+  if (http_status !== 1) { echo "FAIL HTTP diagnostic negative $mutation did not reject" >&2; exit 1 }
+  rg -q -x -F "$expected_http" "$evidence/http/$mutation.txt"
+  printf '%s\t%s\tREJECTED\n' "$mutation" "$expected_http" >> "$evidence/http/controls.tsv"
+}
+for mutation in checkpoint-event checkpoint-code checkpoint-epoch checkpoint-elapsed checkpoint-host checkpoint-activity checkpoint-overflow zero-renderer-error {
+  var seed = "$evidence/http/pre-attachment.log"
+  var edit = ''
+  if (mutation === 'checkpoint-event') {
+    setvar edit = '/^event=4 host_pid=201 /s/event=4/event=2/'
+  } elif (mutation === 'checkpoint-code') {
+    setvar edit = '/^event=4 host_pid=201 /s/code=0/code=1/'
+  } elif (mutation === 'checkpoint-epoch') {
+    setvar edit = '/^event=4 host_pid=201 /s/document_epoch=0/document_epoch=1/'
+  } elif (mutation === 'checkpoint-elapsed') {
+    setvar edit = '/^event=4 host_pid=201 /s/elapsed_ms=0/elapsed_ms=-2/'
+  } elif (mutation === 'checkpoint-host') {
+    setvar edit = '/^event=4 host_pid=201 /s/host_generation=1/host_generation=0/'
+  } elif (mutation === 'checkpoint-activity') {
+    setvar edit = '/^event=4 host_pid=201 /s/activity_generation=1/activity_generation=0/'
+  } elif (mutation === 'checkpoint-overflow') {
+    setvar edit = '/^event=4 host_pid=201 /s/host_generation=1/host_generation=2147483648/'
+  } else {
+    setvar seed = "$evidence/http/unknown-without-start.log"
+    setvar edit = '/^event=7 host_pid=201 /s/renderer_generation=1/renderer_generation=0/'
+  }
+  sed "$edit" "$seed" > "$evidence/mutant.log"
+  try {
+    "$grease" "$controls/verify-diagnostics.grease" "$evidence/mutant.log" http 201 202 \
+      "$evidence/http/before.tsv" "$evidence/http/main.tsv" "$evidence/http/after.tsv" > "$evidence/http/$mutation.txt" 2>&1
+  }
+  var checkpoint_status = _error.code
+  rm -f "$evidence/mutant.log"
+  if (checkpoint_status !== 1) { echo "FAIL HTTP diagnostic negative $mutation did not reject" >&2; exit 1 }
+  var checkpoint_diagnostic = 'FAIL real main-frame HTTP 503 was not observed for selected host'
+  rg -q -x -F "$checkpoint_diagnostic" "$evidence/http/$mutation.txt"
+  printf '%s\t%s\tREJECTED\n' "$mutation" "$checkpoint_diagnostic" >> "$evidence/http/controls.tsv"
+}
+printf 'schema\tib-admin-http-host-v1\npositive_HTTP_503_with_subresource_404\tPASS\nunknown_document_attribution\tPRESERVED\nunknown_error_before_start\tACCEPTED_WITHOUT_TIMING_ATTRIBUTION\nunknown_error_without_start\tACCEPTED_WITHOUT_TIMING_ATTRIBUTION\npre_attachment_checkpoint_both_hosts\tACCEPTED_WITHOUT_HTTP_ATTRIBUTION\npre_attachment_unavailable_clock\tACCEPTED_WITHOUT_HTTP_ATTRIBUTION\nunrelated_host_error\tIGNORED\nHTTP_negative_controls\t23_REJECTED\nactual_HTTP_response_execution\tNOT_RUN\ninstalled_Android\tNOT_RUN\n' > "$evidence/http/receipt.tsv"
+cat "$evidence/http/receipt.tsv"

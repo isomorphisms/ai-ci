@@ -1,0 +1,123 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 4) { echo 'requires PRIVATE_TRANSCRIPT PHASE EXPECTED_UID NEW_EVIDENCE' >&2; exit 2 }
+var raw = ARGV[0]
+var phase = ARGV[1]
+var uid = ARGV[2]
+var evidence = ARGV[3]
+for path in "$raw" "$evidence" {
+  if (len(path) === 0 or path[0] !== '/') { echo 'FAIL absolute transport path required' >&2; exit 2 }
+}
+printf '%s\n' "$uid" | rg -q -x '[1-9][0-9]{4,}'
+if (phase !== 'preflight' and phase !== 'fake' and phase !== 'exercise' and phase !== 'resume' and phase !== 'public-search' and phase !== 'public-miwam' and phase !== 'http-mainframe' and phase !== 'http-subresource') {
+  echo 'FAIL unknown artifact phase' >&2; exit 2
+}
+if test -e "$evidence" { echo 'FAIL reused transport evidence' >&2; exit 2 }
+test -f "$raw"
+test "$(stat -c %s "$raw")" -le 8388608
+umask 077
+mkdir -p "$evidence/payload" "$evidence/encoded.private"
+var valid = false
+var transcript_safe = false
+trap --add EXIT {
+  rm -rf "$evidence/encoded.private"
+  if (not valid) { rm -rf "$evidence/payload" }
+  if (not transcript_safe) { rm -f "$evidence/transcript.txt" }
+}
+try { awk -v phase="$phase" -v out="$evidence" '
+  function fail() {failed=1;exit 1}
+  BEGIN {
+    if(phase=="exercise") {
+      n=split("admin-before-lifecycle.task admin-after-lifecycle.task admin-before-renderer.task admin-after-renderer.task admin-after-activity.task admin-first-action.png admin-after-activity.png",names," ")
+      for(i=1;i<=n;i++)allowed[names[i]]=1
+    } else if(phase=="resume")allowed["admin-after-host.task"]=1
+    else if(phase=="public-search" || phase=="public-miwam")allowed[phase ".png"]=1
+    printf "" > out "/transcript.txt"
+    printf "" > out "/artifacts.tsv"
+  }
+  {sub(/\r$/,"")}
+  /^INSTRUMENTATION_STATUS: ib_admin_chunk=/ {
+    if(pending_status)fail()
+    sub(/^INSTRUMENTATION_STATUS: ib_admin_chunk=/,"")
+    if(split($0,f,"\t")!=7 || f[1]!="1" || !(f[2] in allowed))fail()
+    name=f[2]
+    if(f[3]!~/^[0-9]+$/ || f[4]!~/^[1-9][0-9]*$/ || f[5]!~/^[1-9][0-9]*$/ || length(f[3])>3 || length(f[4])>3 || length(f[5])>7)fail()
+    part=f[3]+0;chunks=f[4]+0;bytes=f[5]+0
+    if(chunks>256 || part>=chunks || bytes>2097152 || (name~/\.task$/ && bytes>8192) || length(f[6])!=64 || f[6]~/[^a-f0-9]/)fail()
+    if(length(f[7])<1 || length(f[7])>12000 || f[7]!~/^[A-Za-z0-9+\/=]+$/ || (part<chunks-1 && (length(f[7])!=12000 || f[7]~/=/)))fail()
+    if(part!=next_chunk[name] || done[name])fail()
+    if(part==0) {
+      total_bytes+=bytes
+      if(total_bytes>5242880)fail()
+      expected_chunks[name]=chunks;expected_bytes[name]=bytes;expected_hash[name]=f[6]
+    } else if(chunks!=expected_chunks[name] || bytes!=expected_bytes[name] || f[6]!=expected_hash[name])fail()
+    printf "%s",f[7] > out "/encoded.private/" name
+    next_chunk[name]++
+    pending_status=1
+    if(next_chunk[name]==chunks) {
+      close(out "/encoded.private/" name)
+      done[name]=1
+      printf "%s\t%d\t%s\n",name,bytes,f[6] >> out "/artifacts.tsv"
+    }
+    next
+  }
+  /^INSTRUMENTATION_STATUS_CODE: 0$/ {if(!pending_status)fail();pending_status=0;next}
+  /^INSTRUMENTATION_STATUS/ {fail()}
+  {print > out "/transcript.txt"}
+  END {
+    if(failed || pending_status)exit 1
+    for(name in allowed)if(!done[name])exit 1
+  }
+' "$raw" }
+var transport = _error.code
+if rg -q 'IB_SYNTHETIC_ONLY_|IB_UNAPPROVED_INPUT|IBFixtureVerified' "$evidence/transcript.txt" {
+  rm -f "$evidence/transcript.txt"
+  echo 'FAIL protected value in observer transcript' >&2; exit 1
+}
+setvar transcript_safe = true
+if (transport !== 0) { echo 'FAIL malformed missing or out-of-phase observer artifact transport' >&2; exit 1 }
+if ! awk -v uid="$uid" '
+  /^INSTRUMENTATION_RESULT: (target_uid|target_debuggable|data_bytes|cache_bytes)=/ {
+    sub(/^INSTRUMENTATION_RESULT: /,"");if(split($0,pair,"=")!=2)exit 1
+    if(seen[pair[1]]++ || pair[2]!~/^[0-9]+$/ || length(pair[2])>13 || pair[2]+0>1000000000000)exit 1
+    value[pair[1]]=pair[2]
+  }
+  END {if(length(seen)!=4 || value["target_uid"]!=uid || value["target_debuggable"]!=0)exit 1}
+' "$evidence/transcript.txt" { echo 'FAIL observer target UID debug flag or storage metrics' >&2; exit 1 }
+var expected_names = []
+if (phase === 'exercise') { setvar expected_names = ['admin-before-lifecycle.task', 'admin-after-lifecycle.task', 'admin-before-renderer.task', 'admin-after-renderer.task', 'admin-after-activity.task', 'admin-first-action.png', 'admin-after-activity.png'] }
+if (phase === 'resume') { setvar expected_names = ['admin-after-host.task'] }
+if (phase === 'public-search' or phase === 'public-miwam') { setvar expected_names = ["$phase.png"] }
+for name in @expected_names {
+  var bytes = $(awk -F '\t' -v name="$name" '$1==name{print $2}' "$evidence/artifacts.tsv")
+  var digest = $(awk -F '\t' -v name="$name" '$1==name{print $3}' "$evidence/artifacts.tsv")
+  if ! base64 --decode "$evidence/encoded.private/$name" > "$evidence/payload/$name" {
+    echo 'FAIL corrupt observer artifact encoding' >&2; exit 1
+  }
+  var observed_bytes = $(stat -c %s "$evidence/payload/$name")
+  if (observed_bytes !== bytes) {
+    echo 'FAIL observer artifact byte count changed' >&2; exit 1
+  }
+  var observed_digest = $(sha256sum "$evidence/payload/$name" | cut -d ' ' -f 1)
+  if (observed_digest !== digest) {
+    echo 'FAIL observer artifact digest changed' >&2; exit 1
+  }
+  base64 -w 0 "$evidence/payload/$name" > "$evidence/encoded.private/canonical"
+  if ! cmp -s "$evidence/encoded.private/$name" "$evidence/encoded.private/canonical" {
+    echo 'FAIL noncanonical observer artifact encoding' >&2; exit 1
+  }
+  var suffix = $(printf '%s\n' "$name" | sed 's/.*\.//')
+  if (suffix === 'task') {
+    if rg -q 'IB_SYNTHETIC_ONLY_|IB_UNAPPROVED_INPUT|IBFixtureVerified|password=|access_token=|id_token=|code=|cookie=' "$evidence/payload/$name" {
+      echo 'FAIL protected value in exported task artifact' >&2; exit 1
+    }
+  } else {
+    file "$evidence/payload/$name" > "$evidence/encoded.private/shape.txt"
+    if ! rg -q 'PNG image data, 480 x 800' "$evidence/encoded.private/shape.txt" {
+      echo 'FAIL observer screenshot shape' >&2; exit 1
+    }
+  }
+}
+awk '/^INSTRUMENTATION_RESULT: (target_uid|target_debuggable|data_bytes|cache_bytes)=/{sub(/^INSTRUMENTATION_RESULT: /,"");sub(/=/,"\t");print}' "$evidence/transcript.txt" > "$evidence/metrics.tsv"
+setvar valid = true
+echo 'PASS bounded same-UID observer artifact transport'
