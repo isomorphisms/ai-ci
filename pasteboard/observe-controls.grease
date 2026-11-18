@@ -21,6 +21,8 @@ var fixture = 'org.isomorphisms.aici.clipboardfixture/android.app.NativeActivity
 "$adb" -s "$serial" shell getprop ro.build.fingerprint > "$output/fingerprint.txt"
 sha256sum "$apk" "$input/guards/controls.apk" "$input/guards/exposed-provider.apk" "$input/guards/uid-bypass.apk" "$input/guards/capability-bypass.apk" > "$output/sha256.txt"
 cp "$input/observer-commit.txt" "$output/"
+var controller_root = $(realpath "$(dirname "$0")/..")
+git -C "$controller_root" rev-parse HEAD > "$output/controller-commit.txt"
 proc snapshot(label) {
   "$adb" -s "$serial" exec-out run-as "$package" cat files/history.v2 > "$output/$label.bin"
   "$oracle" validate "$output/$label.bin" > "$output/$label.integrity.txt"
@@ -91,6 +93,32 @@ proc copy_three(label) {
 proc observer_pid(label) {
   "$adb" -s "$serial" shell ps -A -o USER,PID,NAME > "$output/$label.processes.txt"
   awk '$1 == "shell" && $3 ~ /:pasteboard_observer$/ {print $2}' "$output/$label.processes.txt"
+}
+proc wait_for_listener(label) {
+  var suite = $(realpath "$(dirname "$0")")
+  var began = $(date +%s)
+  "$adb" -s "$serial" shell cmd package list packages -U "$package" | tr -d '\r' > "$output/$label.uid.txt"
+  var ready = false
+  for attempt in @(seq 1 90) {
+    "$adb" -s "$serial" logcat -d -v threadtime | tr -d '\r' > "$output/$label.readiness.logcat.txt"
+    "$adb" -s "$serial" shell ps -A -o USER,PID,NAME | tr -d '\r' > "$output/$label.readiness.processes.txt"
+    try { "$grease" "$suite/require-listener-ready.grease" "$output/$label.readiness.processes.txt" "$output/$label.uid.txt" "$output/$label.readiness.logcat.txt" > "$output/$label.ready-first.tsv" }
+    if (_error.code === 0) {
+      "$adb" -s "$serial" shell ps -A -o USER,PID,NAME | tr -d '\r' > "$output/$label.readiness.recheck.txt"
+      try { "$grease" "$suite/require-listener-ready.grease" "$output/$label.readiness.recheck.txt" "$output/$label.uid.txt" "$output/$label.readiness.logcat.txt" > "$output/$label.ready-second.tsv" }
+      if (_error.code === 0) {
+        try { cmp "$output/$label.ready-first.tsv" "$output/$label.ready-second.tsv" }
+        if (_error.code === 0) { setvar ready = true; break }
+      }
+    }
+    sleep 1
+  }
+  var ended = $(date +%s)
+  var elapsed = int(ended) - int(began)
+  printf 'elapsed_seconds\t%s\nready\t%s\n' "$elapsed" "$ready" > "$output/$label.readiness-timing.tsv"
+  cat "$output/$label.readiness-timing.tsv"
+  if (not ready) { diagnose "$label-not-ready"; echo 'FAIL actual current SDK listener not ready after server restart' >&2; exit 1 }
+  cat "$output/$label.ready-second.tsv"
 }
 proc manager_node(field, value, label) {
   var found = false
@@ -271,9 +299,11 @@ if (not manual_retained) { diagnose foreground-manual; echo 'FAIL actual visible
 "$oracle" board "$output/foreground-manual.bin" 1 4 "$input/fixtures/textA.txt" "$input/fixtures/textC.txt" "$input/fixtures/textB.txt" "$input/fixtures/long.txt"
 var starter = "/data/local/tmp/pasteboard-shizuku-$api/start"
 var manager_path = $("$adb" -s "$serial" shell pm path moe.shizuku.privileged.api | tr -d '\r' | sed -n 's/^package://p')
+"$adb" -s "$serial" logcat -c
 "$adb" -s "$serial" shell "$starter" "--apk=$manager_path" > "$output/server-restart.txt" 2>&1
 sleep 3
 automatic server-restored
+wait_for_listener after-server-restored
 copy_three after-server-restored
 printf 'server_disconnect_does_not_fabricate_automatic_history\tPASS\nexplicit_foreground_mode_still_operates\tPASS\nvisible_manual_capture_uses_actual_SDK_value\tPASS\nserver_restart_restores_authorized_observer\tPASS\n' >> "$output/result.tsv"
 

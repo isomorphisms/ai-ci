@@ -1,0 +1,60 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 5 and len(ARGV) !== 6) { echo 'requires ADB SERIAL API ACCEPTED_BOOT_ID FRESH_OUTPUT [ATTEMPTS]' >&2; exit 2 }
+var adb = ARGV[0]
+var serial = ARGV[1]
+var api = ARGV[2]
+var witness = ARGV[3]
+var output = ARGV[4]
+var limit = 60
+if (len(ARGV) === 6) { setvar limit = int(ARGV[5]) }
+if (limit < 2 or limit > 60) { echo 'requires 2 through 60 attempts' >&2; exit 2 }
+printf '%s\n' "$api" | rg -q -x '(29|34|35)'
+var expected = $(tr -d '\r\n' < "$witness")
+printf '%s\n' "$expected" | rg -q -x '[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}'
+if test -e "$output" { echo 'refusing reused recovery evidence' >&2; exit 2 }
+mkdir -p "$output"
+printf '%s\n' "$expected" > "$output/expected-boot-id.txt"
+var began = $(date +%s)
+var consecutive = 0
+var attempt = 0
+var ready = false
+for candidate_attempt in @(seq 1 "$limit") {
+  setvar attempt = int(candidate_attempt)
+  var admitted = false
+  try { timeout 5 "$adb" -s "$serial" get-state > "$output/state-$attempt.txt" 2>&1 }
+  var state_status = _error.code
+  if (state_status === 0) {
+    var state = $(tr -d '\r' < "$output/state-$attempt.txt")
+    if (state !== 'device') { setvar state_status = 1 }
+  }
+  if (state_status === 0) {
+    # Fixed Android shell interface: no task input is interpolated into code.
+    try { timeout 5 "$adb" -s "$serial" shell 'printf "qemu=%s\napi=%s\nuid=%s\nboot=%s\nkernel=%s\n" "$(getprop ro.kernel.qemu)" "$(getprop ro.build.version.sdk)" "$(id -u)" "$(getprop sys.boot_completed)" "$(cat /proc/sys/kernel/random/boot_id)"' > "$output/probe-$attempt.txt" 2>&1 }
+    if (_error.code === 0) {
+      tr -d '\r' < "$output/probe-$attempt.txt" > "$output/identity-$attempt.txt"
+      try {
+        awk -v api="$api" -v kernel="$expected" '
+          $0 == "qemu=1" { qemu++; next }
+          $0 == "api=" api { sdk++; next }
+          $0 == "uid=2000" { uid++; next }
+          $0 == "boot=1" { boot++; next }
+          $0 == "kernel=" kernel { identity++; next }
+          { bad++ }
+          END { if (bad || qemu != 1 || sdk != 1 || uid != 1 || boot != 1 || identity != 1) exit 1 }
+        ' "$output/identity-$attempt.txt"
+      }
+      if (_error.code === 0) { setvar admitted = true }
+    }
+  }
+  if (admitted) {
+    setvar consecutive = consecutive + 1
+    if (consecutive === 2) { setvar ready = true; break }
+  } else { setvar consecutive = 0 }
+  if (attempt < limit) { sleep 1 }
+}
+var ended = $(date +%s)
+var elapsed = int(ended) - int(began)
+printf 'api\t%s\nattempts\t%s\nelapsed_seconds\t%s\nready\t%s\n' "$api" "$attempt" "$elapsed" "$ready" > "$output/result.tsv"
+cat "$output/result.tsv"
+if (not ready) { echo 'FAIL post-reboot ADB transport and same-kernel emulator identity readiness' >&2; exit 1 }

@@ -1,0 +1,31 @@
+#!/usr/bin/env grease
+# Current ps snapshot, installed-package UID snapshot, post-restart native log.
+set -eu -o pipefail
+test "$#" -eq 3
+var processes = ARGV[0]
+var owners = ARGV[1]
+var log = ARGV[2]
+awk '
+FILENAME == ARGV[1] {
+  if ($3 == "com.isomorphisms.pasteboard" && $2 ~ /^[1-9][0-9]*$/) { app = $2; apps++ }
+  if ($1 == "shell" && $3 ~ /:pasteboard_observer$/ && $2 ~ /^[1-9][0-9]*$/) { worker = $2; workers++ }
+  next
+}
+FILENAME == ARGV[2] {
+  if ($1 == "package:com.isomorphisms.pasteboard" && $2 ~ /^uid:[0-9]+$/) {
+    uid = $2; sub(/^uid:/, "", uid); owners++
+  }
+  next
+}
+FILENAME == ARGV[3] {
+  if ($3 == app && index($0, "worker connection callback ") &&
+      index($0, "uid=2000 current=1 ") && $0 ~ /accepted=1$/) connection = 1
+  if ($3 == worker &&
+      (index($0, "clipboard listener registration accepted=1 ") ||
+       index($0, "clipboard listener configuration retained=1 ")) &&
+      $0 ~ ("caller_uid=" uid "$")) listener = 1
+}
+END {
+  if (apps != 1 || workers != 1 || owners != 1 || uid < 10000 || uid >= 100000 || !connection || !listener) exit 1
+  printf "app_pid\t%s\nworker_pid\t%s\napp_uid\t%s\ncurrent_connection_and_SDK_listener\tPASS\n", app, worker, uid
+}' "$processes" "$owners" "$log"

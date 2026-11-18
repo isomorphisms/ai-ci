@@ -26,4 +26,6 @@ if (suite === 'migration') {
   "$workspace/downloaded-evidence/pasteboard-checked/wrong-order.dex" "$input" "$workspace/build/art-evidence"
 "$grease" "$observer/observe-installed.grease" "$adb" "$serial" "$api" "$apk" "$input" "$workspace/build/clipboard-evidence"
 "$grease" "$observer/observe-controls.grease" "$adb" "$serial" "$api" "$apk" "$input" "$workspace/build/control-evidence"
+"$grease" "$observer/await-adb-after-reboot.grease" "$adb" "$serial" "$api" \
+  "$workspace/build/control-evidence/reboot/after.txt" "$workspace/build/post-reboot-adb-evidence"
 "$grease" "$observer/observe-ui.grease" "$adb" "$serial" "$api" "$apk" "$input" "$workspace/build/ui-evidence"

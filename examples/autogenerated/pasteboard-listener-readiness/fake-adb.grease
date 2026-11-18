@@ -1,0 +1,17 @@
+#!/usr/bin/env grease
+# Host fixture only; never executes an Android command.
+set -eu -o pipefail
+if (len(ARGV) !== 3 and len(ARGV) !== 4) { exit 2 }
+if (ARGV[0] !== '-s' or ARGV[1] !== 'emulator-test') { exit 2 }
+var root = ENV.PB_REBOOT_FIXTURE
+var attempt = 0
+if test -f "$root/attempt.txt" { setvar attempt = int($(cat "$root/attempt.txt")) }
+if (ARGV[2] === 'get-state') {
+  setvar attempt = attempt + 1
+  printf '%s\n' "$attempt" > "$root/attempt.txt"
+  cat "$root/state-$attempt.txt"
+  exit $(cat "$root/state-$attempt.status")
+}
+if (ARGV[2] !== 'shell' or len(ARGV) !== 4) { exit 2 }
+cat "$root/probe-$attempt.txt"
+exit $(cat "$root/probe-$attempt.status")
