@@ -13,8 +13,6 @@ mkdir -p "$output/bin"
 cp "$here/fixtures/transfer-handoff/gh" "$output/bin/gh"
 chmod 700 "$output/bin/gh"
 ln -s "$grease" "$output/bin/grease"
-runtime_directory=$(dirname "$grease")
-ln -s "$runtime_directory/ysh" "$output/bin/ysh"
 setglobal ENV.PATH = "$output/bin:$[ENV.PATH]"
 setglobal ENV.GREASE_BINARY = grease
 generator=$kitchen/tasks/github-repository-transfer/render-standalone-github-repository-organization-transfer.ysh
@@ -176,7 +174,7 @@ if (_error.code === 0) { echo 'FAIL nonfork accepted changed fork flag'; exit 1 
 grep -F 'independent nonfork identity mismatch' "$output/nonfork/bad.stderr" >/dev/null
 printf 'PASS\tindependent-observer-identity-upstream-and-fork-controls\n'
 # The original 404 response and exit must both survive successful transfer.
-find "$output/normal/job" -type f -exec grep -l -F '"status":"404"' {} + > "$output/404-files.txt"
+find "$output/normal/job" -type f -exec grep -l -F '"status":"404"' '{}' + > "$output/404-files.txt"
 test -s "$output/404-files.txt"
 printf 'PASS\tFP-session-rerun-and-byte-mutations\tposts=1\n'
-sha256sum "$output/program.grease" "$grease" "$runtime_directory/ysh"
+sha256sum "$output/program.grease" "$grease"

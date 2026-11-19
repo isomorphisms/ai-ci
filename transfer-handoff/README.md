@@ -1,8 +1,9 @@
 # Independent transfer handoff checks
 
-`tests/transfer-handoff.grease` runs the actual native Grease interpreter and
-Kitchen-generated program. GitHub responses are synthetic; mutation counts
-are observed by the external fixture. It exercises the FP session twice and
+`tests/transfer-handoff.grease` runs the partial native D Grease executable
+from the shared [source build](../grease-fixtures/README.md) and the
+Kitchen-generated program. The external fixture supplies GitHub responses and
+records the effects of each synthetic request. It exercises the FP session twice and
 requires one total POST, plus identity, upstream, login, redirect, collision,
 interrupted transport, late convergence, missing-envelope and changed-byte
 rejections. `tests/grease-package-payloads.grease` checks genuine published ARM

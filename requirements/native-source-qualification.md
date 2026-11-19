@@ -1,5 +1,8 @@
 # Native request-binding source checks
 
+The recurring workflow now uses the shared [source build](../grease-fixtures/README.md).
+The artifact identities and observations below record the original qualification.
+
 This continuation executes the existing public `tests/job-delivery/check.pi`
 entrypoint without skipping its FP/Kitchen generation, controller validation,
 69 original delivery cases or nine existing rejection transitions. It is a
@@ -43,6 +46,6 @@ weakened.
 The owner still reports incomplete inherited language behavior and conditional
 package admission. Independent whole-language, issuer, static/transitive
 closure, Cat Food/FP managed admission and trusted ChatGPT delivery remain
-NOT_RUN/NOT_VERIFIED. The original delivery/native-handoff jobs still request
-expired historical C++ artifact `12192502970`; this new scoped job neither
-renews those excluded bytes nor promotes that managed boundary to PASS.
+NOT_RUN/NOT_VERIFIED. The original delivery and native handoff jobs used
+historical C++ artifact `12192502970`. Their current fixture build comes from
+the pinned native source.
