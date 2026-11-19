@@ -14,4 +14,10 @@ For AICI evaluation, the useful invariant is therefore:
 normalized_IRK_RHS_verdict(case) == normalized_RHS_validator_verdict(case)
 ```
 
-for every case inside the shared contract domain. Cases outside that shared domain should be reported explicitly rather than coerced into agreement.
+for every case inside the shared contract domain. Establish the common
+normalization and executed coverage before comparison. Equality in that
+domain establishes agreement for the observed fields. Correctness and
+implementation approval need independent expected results and applicable
+authority. Preserve both observations on a disagreement and leave diagnosis
+open until there is evidence for it. Report cases outside the domain as
+unsupported.

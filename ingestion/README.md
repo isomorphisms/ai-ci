@@ -105,5 +105,29 @@ provenance file is itself hash-bound, and the two executables must differ.
 Production evidence additionally needs the approved BC-A03 authority,
 BC-P02 material closure and the Flexible Pipes observer.
 
-The current document boundary is deliberately named
-`document_log_subset_v0`. It is not a claim of browser DOM compatibility.
+### Supported comparison scope
+
+| Receipt scope | Reported scope | Compared fields |
+| --- | --- | --- |
+| `document_log_subset_v0` | `document_log_subset_v0` | Network, decompression, decoding and document construction |
+| `network-through-document` (legacy) | `document_log_subset_v0` | The same four stages |
+
+The pair must declare the same supported scope. Issuers can migrate both
+receipts together to `document_log_subset_v0`. The legacy declaration stays
+valid for paired existing issuers. The historical recovery row
+`document_log_subset_v0` is a stage code, so it does not select a scope by
+itself. The fixed mapping is part of the pinned action version.
+
+The comparator checks status and, for passing stages, the exact stage evidence
+field. It reports the number and last stage actually compared. A shared
+terminal failure reports agreement through that failed stage, then the
+stage-verdict adapter rejects the failed candidate scope. A skipped required
+comparison stage reports incomplete coverage. Unknown and extraction scopes
+report unsupported evidence before comparison. Recovery strategy labels and
+downstream extraction remain outside the compared fields.
+
+When valid observations disagree, both original captured streams remain in
+the bundle and the report identifies the two stage observations. The diagnosis
+stays `UNKNOWN`. A covered comparison establishes agreement or disagreement
+on those fields. Browser DOM compatibility and ICU extraction need their own
+executed, independently specified checks.

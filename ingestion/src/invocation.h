@@ -359,6 +359,5 @@ static int verify_execution(const char *corpus, const char *bundle, const char *
     if (compare && !compare_receipts(&selected[0], &selected[1], out)) return 0;
     printf("PASS\tinvocation\thost-fixture-v1\t%s\tselected_cases=%d\tfixture=%s\n",
            attempt, policy.case_count, fixture);
-    if (compare) printf("PASS\tcompare-four-stage-fields\t%s\n", fixture);
     return 1;
 }

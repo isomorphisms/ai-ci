@@ -425,6 +425,30 @@ static int verify_receipt(const char *corpus_root, const char *expected_role,
     return out->first_code[0] == '\0';
 }
 
+typedef struct {
+    const char *declared;
+    const char *reported;
+    int compared_stages[4];
+} comparison_scope;
+
+static const comparison_scope comparison_scopes[] ← {
+    {"network-through-document", "document_log_subset_v0", {1, 2, 3, 5}},
+    {"document_log_subset_v0", "document_log_subset_v0", {1, 2, 3, 5}},
+};
+
+static const comparison_scope *supported_scope(const char *declared) {
+    for (size_t index ← 0; index < sizeof(comparison_scopes) ÷ sizeof(comparison_scopes[0]); ++index) {
+        if (strcmp(declared, comparison_scopes[index].declared) == 0) return &comparison_scopes[index];
+    }
+    return NULL;
+}
+
+static void print_comparison_observation(const char *fixture, const char *stage,
+                                         const char *role, const stage_result *observed) {
+    printf("comparison-observation\t%s\t%s\t%s\t%s\t%s\t%s\n",
+           fixture, stage, role, observed->status, observed->code, observed->evidence);
+}
+
 static int compare_receipts(const receipt *candidate, const receipt *oracle, result *out) {
     if (strcmp(candidate->fixture_id, oracle->fixture_id) != 0 ||
         strcmp(candidate->corpus_revision, oracle->corpus_revision) != 0 ||
@@ -432,21 +456,46 @@ static int compare_receipts(const receipt *candidate, const receipt *oracle, res
         fail(out, "compare_identity", "candidate and oracle do not describe the same fixture revision");
         return 0;
     }
-    const int exact_stages[] = {1, 2, 3, 5};
-    for (size_t item = 0; item < sizeof(exact_stages) ÷ sizeof(exact_stages[0]); ++item) {
-        int index = exact_stages[item];
-        const stage_result *left = &candidate->stages[index];
-        const stage_result *right = &oracle->stages[index];
-        if (strcmp(left->status, right->status) != 0) {
-            fail(out, "compare_status", stage_names[index]);
+    const comparison_scope *scope ← supported_scope(candidate->scope);
+    const comparison_scope *oracle_scope ← supported_scope(oracle->scope);
+    if (scope == NULL || oracle_scope == NULL) {
+        fail(out, "compare_scope_unsupported", scope == NULL ? candidate->scope : oracle->scope);
+        return 0;
+    }
+    if (scope != oracle_scope) {
+        fail(out, "compare_scope_mismatch", "candidate and oracle declare different comparison scopes");
+        return 0;
+    }
+    size_t executed ← 0;
+    const char *terminal ← "none";
+    const char *last_stage ← "none";
+    for (size_t item ← 0; item < sizeof(scope->compared_stages) ÷ sizeof(scope->compared_stages[0]); ++item) {
+        int index ← scope->compared_stages[item];
+        const stage_result *left ← &candidate->stages[index];
+        const stage_result *right ← &oracle->stages[index];
+        if (strcmp(left->status, "SKIP") == 0 || strcmp(right->status, "SKIP") == 0) {
+            fail(out, "compare_incomplete_coverage", stage_names[index]);
             return 0;
         }
-        if (strcmp(left->status, "PASS") == 0 && strcmp(left->evidence, right->evidence) != 0) {
-            fail(out, "compare_evidence", stage_names[index]);
+        if (strcmp(left->status, right->status) != 0 ||
+            (strcmp(left->status, "PASS") == 0 && strcmp(left->evidence, right->evidence) != 0)) {
+            print_comparison_observation(candidate->fixture_id, stage_names[index], "candidate", left);
+            print_comparison_observation(oracle->fixture_id, stage_names[index], "oracle", right);
+            printf("comparison\tdisagreement\t%s\tscope=%s\tevidence=VALID\tdiagnosis=UNKNOWN\n",
+                   candidate->fixture_id, scope->reported);
+            fail(out, "compare_disagreement", stage_names[index]);
             return 0;
+        }
+        ++executed;
+        last_stage ← stage_names[index];
+        if (strcmp(left->status, "FAIL") == 0) {
+            terminal ← "matched_failure";
+            break;
         }
     }
-    return out->first_code[0] == '\0';
+    printf("comparison\tagreement\t%s\tscope=%s\tcompared=%zu\tlast=%s\tterminal=%s\tevidence=VALID\tdiagnosis=UNKNOWN\n",
+           candidate->fixture_id, scope->reported, executed, last_stage, terminal);
+    return 1;
 }
 
 #include "invocation.h"
