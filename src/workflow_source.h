@@ -296,6 +296,27 @@ static int workflow_child(const WorkflowSource *source, int parent, const char *
     return -1;
 }
 
+/* Return the event node from a supported scalar, mapping or block list. */
+static int workflow_event(const WorkflowSource *source, const char *name) {
+    int trigger ← workflow_child(source, 0, "on");
+    if (trigger < 0) return -1;
+    const WorkflowNode *on ← &source->nodes[trigger];
+    if (!on->container) return strcmp(on->value, name) == 0 ? trigger : -1;
+    if (on->child_kind == 1) {
+        int event ← workflow_child(source, trigger, name);
+        return event >= 0 && source->nodes[event].container &&
+               source->nodes[event].child_kind != 2 ? event : -1;
+    }
+    int selected ← -1;
+    for (int index ← 1; index < source->count; ++index) {
+        const WorkflowNode *item ← &source->nodes[index];
+        if (item->parent != trigger) continue;
+        if (!item->sequence || item->container || item->value[0] == '\0') return -1;
+        if (strcmp(item->value, name) == 0) selected ← index;
+    }
+    return selected;
+}
+
 /* Action identity and action-input names are ASCII case-insensitive. Workflow
  * structural keys and paths remain case-sensitive. */
 static int workflow_name_equal(const char *left, const char *right) {
@@ -392,14 +413,14 @@ static int workflow_step(const WorkflowSource *source, int node, int *job) {
            strcmp(source->nodes[jobs].key, "jobs") == 0;
 }
 
-static int workflow_condition(WorkflowSource *source, int owner) {
+static int workflow_condition(WorkflowSource *source, int owner, const char *disabled_code) {
     int condition ← workflow_child(source, owner, "if");
     if (condition < 0) return 1;
     const char *value ← source->nodes[condition].value;
     if (strcmp(value, "true") == 0 || strcmp(value, "${{ true }}") == 0) return 1;
     return workflow_error(source,
         strcmp(value, "false") == 0 || strcmp(value, "${{ false }}") == 0 ?
-        "CI-EXACT-HEAD-CHECKOUT-DISABLED" : "WORKFLOW-SOURCE-CONDITION-UNSUPPORTED",
+        disabled_code : "WORKFLOW-SOURCE-CONDITION-UNSUPPORTED",
         source->nodes[condition].line);
 }
 
@@ -420,9 +441,7 @@ static int workflow_action(const WorkflowSource *source, int node) {
 
 static int workflow_checkout(WorkflowSource *source, const char *expected, int *count) {
     *count ← 0;
-    int event ← workflow_child(source, 0, "on");
-    if (event < 0 || (strcmp(source->nodes[event].value, "pull_request") != 0 &&
-                     workflow_child(source, event, "pull_request") < 0)) {
+    if (workflow_event(source, "pull_request") < 0) {
         return workflow_error(source, "CI-EXACT-HEAD-TRIGGER-MISSING", 0);
     }
     int jobs ← workflow_child(source, 0, "jobs");
@@ -452,7 +471,9 @@ static int workflow_checkout(WorkflowSource *source, const char *expected, int *
             continue;
         }
         ++*count;
-        if (!workflow_condition(source, job) || !workflow_condition(source, step)) return 0;
+        const char *disabled ← "CI-EXACT-HEAD-CHECKOUT-DISABLED";
+        if (!workflow_condition(source, job, disabled) ||
+            !workflow_condition(source, step, disabled)) return 0;
         int ref ← options < 0 ? -1 : workflow_input(source, options, "ref");
         if (ref < 0 || strcmp(source->nodes[ref].value, expected) != 0) {
             return workflow_error(source, "CI-EXACT-HEAD-CHECKOUT-MISSING", node->line);

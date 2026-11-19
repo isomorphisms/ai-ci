@@ -33,8 +33,9 @@ indentation, structural collisions, malformed jobs/steps and steps combining
 `uses` with `run` fail. Limits are 128 container levels, 8,192 nodes, one MiB per
 line and 32 MiB per file; oversized or allocation/I/O failures never pass.
 
-The required trigger must declare `pull_request` as a scalar event or a member
-of the block `on` mapping. Primary checkout fields must be actual children of
+The required trigger must declare `pull_request` as a scalar event, a member
+of the block `on` mapping, or an item in a block event list. Primary checkout
+fields must be actual children of
 that step's `with` mapping. An absent `repository`, or the exact expression
 `${{ github.repository }}`, identifies primary source. A literal `owner/repo`
 continues the existing contract's explicit-dependency convention; this is not
@@ -50,9 +51,17 @@ predicate can ignore their fields.
 
 The action-pin predicate examines actual step actions, job-level reusable
 workflow calls and composite-action steps, including their quoted keys. It
-does not inspect action-shaped text in `env` values or run scalars. Event-path
-checking retains literal inclusion and negative-pattern refusal; unfiltered
-event eligibility remains BC-A07-S04's separate obligation.
+does not inspect action-shaped text in `env` values or run scalars. The path
+check accepts a declared event without path filters. With `paths`, it
+requires literal inclusion and refuses negative patterns. It also refuses
+`paths-ignore` and unsupported filter structures. Branch, tag and activity
+filters still define which occurrences of the event are eligible.
+
+`yaml_required_job_action` checks that a named job contains exactly one
+enabled step with the declared action and pin. An absent step, a different
+pin, a disabled job or step, and unsupported conditions fail. This verifies
+the direct delegate declaration. Hosted case execution still needs its
+own observations.
 
 ## Evidence boundary
 

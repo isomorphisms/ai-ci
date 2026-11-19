@@ -3,7 +3,7 @@ description: Check newly added Idriç-facing source for established hard stops a
 
 inputs:
   base:
-    description: Base commit to compare against. If omitted, infer it from the GitHub event and fall back to HEAD^.
+    description: Base commit for non-PR comparisons. On pull requests an explicit base must match the event base.
     required: false
     default: ''
   head:
@@ -22,27 +22,4 @@ runs:
         AICI_EVENT_NAME: ${{ github.event_name }}
         AICI_PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         AICI_PUSH_BEFORE_SHA: ${{ github.event.before }}
-      run: |
-        set -eu
-
-        base=$AICI_IDRIC_STYLE_BASE
-        head=$AICI_IDRIC_STYLE_HEAD
-
-        if [ -z "$base" ]; then
-          base=$AICI_PUSH_BEFORE_SHA
-          if [ "$AICI_EVENT_NAME" = "pull_request" ]; then
-            base=$AICI_PR_BASE_SHA
-          fi
-        fi
-
-        case "$base" in
-          ""|0000000000000000000000000000000000000000)
-            base="$(git rev-parse "$head^")"
-            ;;
-        esac
-
-        if ! git cat-file -e "$base^{commit}" 2>/dev/null; then
-          base="$(git rev-parse "$head^")"
-        fi
-
-        sh "$GITHUB_ACTION_PATH/check_added_source" "$base" "$head"
+      run: sh "$GITHUB_ACTION_PATH/check_event_range"
