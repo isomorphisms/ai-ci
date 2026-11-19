@@ -18,7 +18,7 @@ int main(int argc, char **argv) {
         fputs("observer marker was writable\n", stderr);
         return 3;
     }
-    if (errno != EROFS) return 3;
+    if (errno != EROFS && (geteuid() != 65534 || errno != EACCES)) return 3;
     /* The observer's status channel must disappear across exec. */
     for (int fd ← 3; fd < 256; ++fd) {
         if (fcntl(fd, F_GETFD) == -1) continue;

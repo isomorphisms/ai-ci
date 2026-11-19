@@ -89,11 +89,12 @@ Roles are
 nanoseconds. Exit is the launcher-reported status. Observation and material
 files must be frozen through verification and subsequent stage verdict use.
 
-The checked-in qualification uses the pinned Ithon frontend, a host sandbox
-and an observer-owned status channel. It mounts only the selected fixture
-transport, its own inputs and a read-only marker. The observer captures pipe
-output outside the sandbox, validates the launcher start and terminal status,
-and binds both transports to independent candidate/reference input files.
+The checked-in qualification uses the pinned Ithon frontend with isolation
+outside the fixture's write authority. The hosted lane uses a restricted
+root directory, a separate unprivileged user and a protected kernel trace.
+The local lane uses read-only Bubblewrap mounts and its observer-only status
+descriptor. Both capture output through pipes and present only the selected
+fixture transport, its own input and a write-protected marker.
 This proves the host adapter for the two selected fixture IDs and their
 identity controls. The separate ten-case curl/libxml2 loop still exercises
 the actual corpus oracle.

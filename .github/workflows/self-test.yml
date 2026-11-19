@@ -272,7 +272,7 @@ jobs:
         shell: sh
         run: |
           sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends libxml2-utils bubblewrap
+          sudo apt-get install --yes --no-install-recommends libxml2-utils strace
       - name: Check out the pinned Ithon frontend for fixture observation
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -359,7 +359,7 @@ jobs:
           _ingestion-ithon/ithon ingestion/tests/observe_invocations.pi
           ingestion/corpus-v1 ingestion/tests/fixtures /tmp/aici-ingestion
           /tmp/aici-invocation-candidate /tmp/aici-invocation-reference
-          "$(git rev-parse HEAD)" /usr/bin/bwrap "$RUNNER_TEMP/ingestion-invocations"
+          "$(git rev-parse HEAD)" /usr/sbin/chroot "$RUNNER_TEMP/ingestion-invocations"
       - name: Run all ten fixtures through the external oracle
         shell: sh
         run: |

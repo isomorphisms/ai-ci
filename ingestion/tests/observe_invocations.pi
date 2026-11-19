@@ -30,14 +30,16 @@ def copy(source ∈ str, target ∈ str) → None:
     os.chmod(target, 0o500)
 
 args ∈ list[str] ← sys.argv
-require(len(args) == 9, "usage: observe_invocations.pi CORPUS FIXTURES VERIFIER CANDIDATE ORACLE REVISION BWRAP OUTPUT")
+require(len(args) == 9, "usage: observe_invocations.pi CORPUS FIXTURES VERIFIER CANDIDATE ORACLE REVISION BWRAP_OR_CHROOT OUTPUT")
 corpus ∈ str ← str(Path(args[1]).resolve(strict=True))
 fixtures ∈ str ← str(Path(args[2]).resolve(strict=True))
 verifier ∈ str ← str(Path(args[3]).resolve(strict=True))
 candidate_binary ∈ str ← str(Path(args[4]).resolve(strict=True))
 oracle_binary ∈ str ← str(Path(args[5]).resolve(strict=True))
 source_revision ∈ str ← args[6]
-bwrap ∈ str ← str(Path(args[7]).resolve(strict=True))
+launcher ∈ str ← str(Path(args[7]).resolve(strict=True))
+hosted ∈ bool ← launcher.endswith("/chroot")
+require(hosted or launcher.endswith("/bwrap"), "expected an explicit host fixture boundary")
 root ∈ str ← str(Path(args[8]).absolute())
 Path(root).mkdir(mode=0o700)
 roles ∈ list[str] ← ["candidate", "oracle"]
@@ -70,6 +72,81 @@ def receipt_input(role ∈ str, fixture ∈ str, path ∈ str) → None:
     encoded ∈ str ← "\n".join(output)
     write(path, encoded + "\n")
 
+def capture_bwrap(program ∈ str, payload ∈ str, stem ∈ str, arguments ∈ list[str]) → tuple[int, int]:
+    boundary_path ∈ str ← stem + ".boundary.jsonl"
+    with open(boundary_path, "xb") as status_stream:
+        descriptor ∈ int ← status_stream.fileno()
+        command ∈ list[str] ← [
+            launcher, "--unshare-user", "--unshare-pid", "--disable-userns",
+            "--new-session", "--die-with-parent", "--clearenv", "--chdir", "/",
+            "--ro-bind", program, "/fixture",
+            "--ro-bind", payload, "/selected-receipt",
+            "--ro-bind", marker, "/protected-marker",
+            "--json-status-fd", str(descriptor), "--",
+        ]
+        command.extend(arguments)
+        child ∈ object ← subprocess.run(command, stdin=subprocess.DEVNULL, capture_output=True,
+                                       timeout=15, pass_fds=(descriptor,))
+    output ∈ bytes ← child.stdout
+    error ∈ bytes ← child.stderr
+    Path(stem + ".stdout").write_bytes(output)
+    Path(stem + ".stderr").write_bytes(error)
+    boundary ∈ list[str] ← read(boundary_path).splitlines()
+    error_text ∈ str ← error.decode(errors="replace")
+    require(len(boundary) == 2, "observer did not report start and completion: " + error_text)
+    begin ∈ dict[str, int] ← json.loads(boundary[0])
+    finish ∈ dict[str, int] ← json.loads(boundary[1])
+    process_exit ∈ int ← child.returncode
+    require(begin["child-pid"] > 0 and finish["exit-code"] == process_exit,
+            "observer status differs from recorded exit")
+    return (begin["child-pid"], process_exit)
+
+def capture_chroot(program ∈ str, payload ∈ str, stem ∈ str, arguments ∈ list[str]) → tuple[int, int]:
+    # GitHub-hosted fixture lane. The external launcher drops to nobody
+    # before executing. Only the tracer can access the observer's trace file.
+    jail ∈ str ← stem + ".jail"
+    Path(jail).mkdir(mode=0o755)
+    shutil.copyfile(program, jail + "/fixture")
+    shutil.copyfile(payload, jail + "/selected-receipt")
+    shutil.copyfile(marker, jail + "/protected-marker")
+    os.chmod(jail + "/fixture", 0o555)
+    os.chmod(jail + "/selected-receipt", 0o444)
+    os.chmod(jail + "/protected-marker", 0o444)
+    fixture_sha ∈ str ← digest(jail + "/fixture")
+    require(fixture_sha == digest(program), "isolated executable differs from observed program")
+    trace ∈ str ← stem + ".boundary.exec"
+    with open(trace, "xb") as empty_trace:
+        empty_trace.write(b"")
+    command ∈ list[str] ← ["/usr/bin/sudo", "-n", "/usr/bin/env", "-i", "/usr/bin/strace",
+        "-f", "-e", "trace=execve,execveat", "-s", "4096", "-o", trace, "--",
+        launcher, "--userspec=65534:65534", "--groups=65534", jail]
+    command.extend(arguments)
+    child ∈ object ← subprocess.run(command, stdin=subprocess.DEVNULL, capture_output=True, timeout=15)
+    output ∈ bytes ← child.stdout
+    error ∈ bytes ← child.stderr
+    Path(stem + ".stdout").write_bytes(output)
+    Path(stem + ".stderr").write_bytes(error)
+    process_exit ∈ int ← child.returncode
+    trace_rows ∈ list[str] ← read(trace).splitlines()
+    encoded_args ∈ str ← json.dumps(arguments)
+    launch_prefix ∈ str ← "execve(\"/fixture\", " + encoded_args + ", "
+    pid ∈ int ← 0
+    completion ∈ str ← "+++ exited with " + str(process_exit) + " +++"
+    finished ∈ bool ← False
+    for line in trace_rows:
+        words ∈ list[str] ← line.split(maxsplit=1)
+        if len(words) == 2:
+            if words[1].startswith(launch_prefix) and words[1].endswith("= 0"):
+                require(pid == 0, "duplicate successful fixture exec")
+                pid ← int(words[0])
+            if pid > 0 and words[0] == str(pid) and words[1] == completion:
+                finished ← True
+    error_text ∈ str ← error.decode(errors="replace")
+    require(pid > 0 and finished, "protected trace lacks the selected exec and exit: " + error_text)
+    require(digest(jail + "/fixture") == fixture_sha, "executed fixture material changed")
+    require(read(jail + "/protected-marker") == read(marker), "fixture modified its protected copy")
+    return (pid, process_exit)
+
 def observe(directory ∈ str, names ∈ list[str], variant ∈ str) → str:
     Path(directory).mkdir(mode=0o700)
     copy(candidate_binary, directory + "/candidate.program")
@@ -81,7 +158,7 @@ def observe(directory ∈ str, names ∈ list[str], variant ∈ str) → str:
     provenance ∈ str ← directory + "/oracle-provenance.tsv"
     write(provenance, "schema\taici-ingestion-host-oracle-v1\n"
           + "basis\tchecked-in good-oracle.tsv\t" + digest(fixtures + "/good-oracle.tsv") + "\n"
-          + "observer-launcher\t" + digest(bwrap) + "\n")
+          + "observer-launcher\t" + digest(launcher) + "\n")
     policy ∈ str ← directory + "/policy.tsv"
     selection ∈ str ← "schema\taici-ingestion-selection-v1\n" + observer
     selection ← selection + "corpus\t" + source_revision + "\t" + digest(corpus + "/CORPUS.sha256") + "\t" + digest(corpus + "/fixtures.tsv") + "\n"
@@ -104,42 +181,18 @@ def observe(directory ∈ str, names ∈ list[str], variant ∈ str) → str:
             payload ∈ str ← stem + ".input"
             receipt_input(role, fixture, payload)
             program_sha ∈ str ← digest(program)
-            with open(stem + ".boundary.jsonl", "xb") as status_stream:
-                descriptor ∈ int ← status_stream.fileno()
-                command ∈ list[str] ← [
-                    bwrap, "--unshare-user", "--unshare-pid", "--disable-userns",
-                    "--new-session", "--die-with-parent", "--clearenv", "--chdir", "/",
-                    "--ro-bind", program, "/fixture",
-                    "--ro-bind", payload, "/selected-receipt",
-                    "--ro-bind", marker, "/protected-marker",
-                    "--json-status-fd", str(descriptor), "--",
-                ]
-                arguments ∈ list[str] ← ["/fixture", fixture]
-                if variant == "exit-seven" and fixture == "valid_utf8" and role == "candidate":
-                    arguments.append("exit-seven")
-                command.extend(arguments)
-                argument_text ∈ str ← "\n".join(arguments)
-                write(stem + ".argv", argument_text + "\n")
-                started ∈ int ← time.monotonic_ns()
-                child ∈ object ← subprocess.run(command, stdin=subprocess.DEVNULL, capture_output=True,
-                                               timeout=15, pass_fds=(descriptor,))
-                ended ∈ int ← time.monotonic_ns()
-            output ∈ bytes ← child.stdout
-            error ∈ bytes ← child.stderr
-            Path(stem + ".stdout").write_bytes(output)
-            Path(stem + ".stderr").write_bytes(error)
-            boundary ∈ list[str] ← read(stem + ".boundary.jsonl").splitlines()
-            error_text ∈ str ← error.decode(errors="replace")
-            require(len(boundary) == 2, "observer did not report start and completion: " + error_text)
-            begin ∈ dict[str, int] ← json.loads(boundary[0])
-            finish ∈ dict[str, int] ← json.loads(boundary[1])
-            process_exit ∈ int ← child.returncode
-            require(begin["child-pid"] > 0 and finish["exit-code"] == process_exit,
-                    "observer status differs from recorded exit")
+            arguments ∈ list[str] ← ["/fixture", fixture]
+            if variant == "exit-seven" and fixture == "valid_utf8" and role == "candidate":
+                arguments.append("exit-seven")
+            argument_text ∈ str ← "\n".join(arguments)
+            write(stem + ".argv", argument_text + "\n")
+            started ∈ int ← time.monotonic_ns()
+            execution ∈ tuple[int, int] ← capture_chroot(program, payload, stem, arguments) if hosted else capture_bwrap(program, payload, stem, arguments)
+            ended ∈ int ← time.monotonic_ns()
             require(program_sha == digest(program), "executed material changed")
             require(read(marker) == "only observer writes here\n", "fixture changed observer material")
-            row ∈ str ← "\t".join(["invoke", role, fixture, program_sha, str(begin["child-pid"]),
-                                   str(started), str(ended), str(finish["exit-code"]),
+            row ∈ str ← "\t".join(["invoke", role, fixture, program_sha, str(execution[0]),
+                                   str(started), str(ended), str(execution[1]),
                                    digest(stem + ".argv"), digest(stem + ".stdout"), digest(stem + ".stderr")])
             records ← records + row + "\n"
     write(directory + "/observations.tsv", records)
