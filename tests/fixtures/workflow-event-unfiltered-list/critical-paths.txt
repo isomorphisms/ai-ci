@@ -1,0 +1,3 @@
+compiler/source.idr
+compiler/emit.idr
+.github/workflows/ci.yml

@@ -444,27 +444,40 @@ static int tsv_header_is(const char *path, const char *expected_csv) {
     return ok;
 }
 
-static int workflow_has_declared_path(const char *workflow_path,
-                                      const char *required_path,
-                                      const char *event_name) {
-    WorkflowSource source;
-    int ok ← workflow_read(workflow_path, &source);
-    int included ← 0;
-    if (ok) {
-        int event_map ← workflow_child(&source, 0, "on");
-        int event ← event_map < 0 ? -1 : workflow_child(&source, event_map, event_name);
-        int paths ← event < 0 ? -1 : workflow_child(&source, event, "paths");
-        if (paths >= 0 && source.nodes[paths].child_kind == 2) {
-            for (int index ← 1; index < source.count; ++index) {
-                WorkflowNode *node ← &source.nodes[index];
-                if (node->parent != paths) continue;
-                if (!node->sequence || node->container || node->value[0] == '!') ok ← 0;
-                if (strcmp(node->value, required_path) == 0) included ← 1;
+static int workflow_event_filters(WorkflowSource *source, int event, int *paths) {
+    *paths ← -1;
+    for (int index ← 1; index < source->count; ++index) {
+        const WorkflowNode *filter ← &source->nodes[index];
+        if (filter->parent != event) continue;
+        const char *key ← filter->key;
+        if (filter->child_kind != 2 ||
+            (strcmp(key, "paths") != 0 && strcmp(key, "branches") != 0 &&
+             strcmp(key, "branches-ignore") != 0 && strcmp(key, "types") != 0 &&
+             strcmp(key, "tags") != 0 && strcmp(key, "tags-ignore") != 0)) {
+            return workflow_error(source, "WORKFLOW-UNSUPPORTED-EVENT-FILTER", filter->line);
+        }
+        int is_paths ← strcmp(key, "paths") == 0;
+        if (is_paths) *paths ← index;
+        for (int entry ← 1; entry < source->count; ++entry) {
+            const WorkflowNode *item ← &source->nodes[entry];
+            if (item->parent == index &&
+                (!item->sequence || item->container || item->value[0] == '\0' ||
+                 (is_paths && item->value[0] == '!'))) {
+                return workflow_error(source, "WORKFLOW-UNSUPPORTED-EVENT-FILTER", item->line);
             }
         }
     }
-    workflow_free(&source);
-    return ok && included;
+    return 1;
+}
+
+static int workflow_path_eligible(const WorkflowSource *source, int paths,
+                                  const char *required_path) {
+    if (paths < 0) return 1;
+    for (int index ← 1; index < source->count; ++index) {
+        const WorkflowNode *item ← &source->nodes[index];
+        if (item->parent == paths && strcmp(item->value, required_path) == 0) return 1;
+    }
+    return 0;
 }
 
 static int every_yaml_path_is_declared(const char *list_path,
@@ -480,7 +493,13 @@ static int every_yaml_path_is_declared(const char *list_path,
         if (list != NULL) fclose(list);
         return 0;
     }
-    while ((length = getline(&line, &capacity, list)) >= 0) {
+    WorkflowSource source;
+    ok ← workflow_read(workflow_path, &source);
+    int event ← ok ? workflow_event(&source, event_name) : -1;
+    int paths ← -1;
+    if (ok && event < 0) ok ← workflow_error(&source, "WORKFLOW-EVENT-MISSING", 0);
+    if (ok) ok ← workflow_event_filters(&source, event, &paths);
+    while (ok && (length = getline(&line, &capacity, list)) >= 0) {
         char *item;
         if (length > AICI_LINE_MAX) {
             ok = 0;
@@ -489,11 +508,13 @@ static int every_yaml_path_is_declared(const char *list_path,
         item = trim(line);
         if (*item == '\0' || *item == '#') continue;
         ++items;
-        if (!workflow_has_declared_path(workflow_path, item, event_name)) {
+        if (!workflow_path_eligible(&source, paths, item)) {
             ok = 0;
             break;
         }
     }
+    if (ferror(list)) ok ← 0;
+    workflow_free(&source);
     free(line);
     fclose(list);
     return ok && items > 0;
@@ -657,6 +678,27 @@ static int yaml_lacks_key(const char *path, const char *key) {
     }
     workflow_free(&source);
     return ok;
+}
+
+static int required_job_action(const char *path, const char *job_name,
+                               const char *expected_action) {
+    WorkflowSource source;
+    int ok ← workflow_read(path, &source);
+    int matched ← 0;
+    for (int index ← 1; ok && index < source.count; ++index) {
+        const WorkflowNode *node ← &source.nodes[index];
+        int job;
+        if (strcmp(node->key, "uses") != 0 ||
+            strcmp(node->value, expected_action) != 0 ||
+            !workflow_step(&source, index, &job) ||
+            strcmp(source.nodes[job].key, job_name) != 0) continue;
+        const char *disabled ← "WORKFLOW-REQUIRED-ACTION-DISABLED";
+        ok ← workflow_condition(&source, job, disabled) &&
+            workflow_condition(&source, node->parent, disabled);
+        ++matched;
+    }
+    workflow_free(&source);
+    return ok && matched == 1;
 }
 
 static int yaml_block_scalar_header(const char *value) {
@@ -965,7 +1007,7 @@ static int verify_contract(const char *contract_path, const char *root,
                         !join_path(right, sizeof(right), root, fields[3]) ||
                         fields[4][0] == '\0';
             if (!malformed) ok = every_yaml_path_is_declared(left, right, fields[4]);
-            snprintf(detail, sizeof(detail), "%s in %s.paths of %s",
+            snprintf(detail, sizeof(detail), "%s eligible on event %s of %s",
                      fields[2], fields[4], fields[3]);
         } else if (strcmp(operation, "yaml_primary_checkout_ref") == 0 &&
                    count == 4) {
@@ -989,6 +1031,12 @@ static int verify_contract(const char *contract_path, const char *root,
             malformed = !join_path(left, sizeof(left), root, fields[2]);
             if (!malformed) ok = all_actions_pinned(left);
             snprintf(detail, sizeof(detail), "%s", fields[2]);
+        } else if (strcmp(operation, "yaml_required_job_action") == 0 && count == 5) {
+            malformed = fields[3][0] == '\0' || fields[4][0] == '\0' ||
+                        !join_path(left, sizeof(left), root, fields[2]);
+            if (!malformed) ok = required_job_action(left, fields[3], fields[4]);
+            snprintf(detail, sizeof(detail), "%s job=%s requires %s",
+                     fields[2], fields[3], fields[4]);
         } else if (strcmp(operation, "yaml_forbid_key") == 0 && count == 4) {
             malformed = fields[3][0] == '\0' ||
                         !join_path(left, sizeof(left), root, fields[2]);

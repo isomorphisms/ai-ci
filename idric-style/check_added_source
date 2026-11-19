@@ -13,7 +13,10 @@ head=${2:-HEAD}
 # only added Idriç source lines. The frontend selects the Idriç vocabulary by
 # .idric filename; .idr is inherited Idris/bootstrap source, where Number and
 # the source-facing vocabulary are not aliases supplied by the frontend.
-git diff --unified=0 --no-color "$base" "$head" -- '*.idric' |
+patch=$(mktemp)
+trap 'rm -f -- "$patch"' EXIT
+trap 'exit 2' HUP INT TERM
+git diff --unified=0 --no-color --no-ext-diff --no-textconv --text "$base" "$head" -- '*.idric' > "$patch"
 awk '
 function annotation(level, message) {
   if (path == "") {
@@ -76,4 +79,4 @@ END {
   if (errors > 0)
     exit 1
 }
-'
+' "$patch"

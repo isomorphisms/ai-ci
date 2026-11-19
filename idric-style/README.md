@@ -32,14 +32,24 @@ exact reviewed `ai-ci` commit SHA:
 ```yaml
 - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
   with:
+    ref: ${{ github.event.pull_request.head.sha || github.sha }}
     fetch-depth: 0
 - uses: isomorphisms/ai-ci/idric-style@0123456789abcdef0123456789abcdef01234567
 ```
 
 Do not copy the placeholder SHA. Pin the exact reviewed revision.
 
-The action infers the comparison base from pull-request or push metadata. `base` and
-`head` inputs are available when a caller needs to specify the range explicitly.
+A pull request checks the changes since the common ancestor of the event's base
+and submitted head. The selected `head` must match the event's submitted PR head.
+The event base and its history must be available locally. An explicit `base`
+on a pull request must resolve to the same base commit as the event. A missing
+endpoint or common ancestor fails the action.
+The check reads added lines from the committed `.idric` text even when Git
+attributes select another diff format for that file.
+
+Pushes use their `before` commit unless a caller supplies `base`. On other events,
+an explicit `base` can select the range. Outside pull requests an absent or
+unavailable comparison base falls back to the selected `head`'s parent.
 
 ## Command line
 
