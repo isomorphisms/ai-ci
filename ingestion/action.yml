@@ -1,27 +1,46 @@
 name: AICI hostile-ingestion receipt
-description: Verify the canonical hostile-web corpus and a stage-level receipt
+description: Verify hostile-ingestion receipts against the selected observer-owned attempt
 
 inputs:
   receipt:
-    description: Candidate, oracle, or consumer receipt TSV
-    required: true
+    description: Standalone oracle or consumer receipt TSV
+    required: false
   role:
     description: implementation-under-test, oracle, or consumer
     required: true
   exec_trace:
-    description: execve trace; required for implementation-under-test
+    description: Deprecated historical trace input. Candidate acceptance requires an execution bundle.
     required: false
     default: '-'
   oracle_receipt:
-    description: Optional oracle receipt to compare with an implementation-under-test
+    description: Deprecated oracle path. Comparison uses the observed oracle from the bundle.
     required: false
     default: ''
+  execution_bundle:
+    description: Frozen observer-owned invocation bundle for the candidate
+    required: false
+  selection_sha256:
+    description: Selection digest supplied by approved host fixture policy
+    required: false
+  observations_sha256:
+    description: Observation digest supplied by the trusted observer
+    required: false
+  attempt:
+    description: Current attempt identifier supplied by the trusted caller
+    required: false
+  fixture:
+    description: Selected candidate fixture to report through the stage verdict
+    required: false
+  compare_observed_oracle:
+    description: Compare selected stage fields with the observed oracle (true or false)
+    required: false
+    default: 'false'
 
 runs:
   using: composite
   steps:
     - name: Select the qualified ICK C compiler
-      uses: isomorphisms/ai-ci/ick-host@903b2cb27ea572c9c6cb2ffa9f39e0fbf06ec9f8
+      uses: isomorphisms/ai-ci/ick-host@2197c6f466e3f11d73acaf8a3814663ec6e9734a
       id: ick
     - name: Compile hostile-ingestion verifier
       shell: sh
@@ -42,15 +61,30 @@ runs:
         ROLE: ${{ inputs.role }}
         EXEC_TRACE: ${{ inputs.exec_trace }}
         ORACLE_RECEIPT: ${{ inputs.oracle_receipt }}
+        EXECUTION_BUNDLE: ${{ inputs.execution_bundle }}
+        SELECTION_SHA: ${{ inputs.selection_sha256 }}
+        OBSERVATIONS_SHA: ${{ inputs.observations_sha256 }}
+        ATTEMPT: ${{ inputs.attempt }}
+        FIXTURE: ${{ inputs.fixture }}
+        COMPARE_OBSERVED: ${{ inputs.compare_observed_oracle }}
       run: |
+        set -eu
         (cd "$GITHUB_ACTION_PATH/corpus-v1" && sha256sum -c CORPUS.sha256)
         "$RUNNER_TEMP/aici-ingestion" verify-corpus "$GITHUB_ACTION_PATH/corpus-v1"
-        if [ -n "$ORACLE_RECEIPT" ]; then
-          test "$ROLE" = implementation-under-test
-          "$RUNNER_TEMP/aici-ingestion" compare \
-            "$GITHUB_ACTION_PATH/corpus-v1" "$RECEIPT" "$EXEC_TRACE" "$ORACLE_RECEIPT"
+        if [ "$ROLE" = implementation-under-test ]; then
+          if [ "$EXEC_TRACE" != '-' ] || [ -n "$ORACLE_RECEIPT" ] || [ -n "$RECEIPT" ]; then
+            echo 'invocation_required: use the observer-owned bundle and fixture instead of legacy receipt/trace paths' >&2
+            exit 1
+          fi
+          case "$COMPARE_OBSERVED" in
+            true) set -- compare ;;
+            false) set -- ;;
+            *) exit 2 ;;
+          esac
+          "$RUNNER_TEMP/aici-ingestion" verify-execution "$GITHUB_ACTION_PATH/corpus-v1" \
+            "$EXECUTION_BUNDLE" "$SELECTION_SHA" "$OBSERVATIONS_SHA" "$ATTEMPT" "$FIXTURE" "$@"
+          RECEIPT="$EXECUTION_BUNDLE/$FIXTURE.candidate.stdout"
         else
-          "$RUNNER_TEMP/aici-ingestion" verify \
-            "$GITHUB_ACTION_PATH/corpus-v1" "$RECEIPT" "$ROLE" "$EXEC_TRACE"
+          "$RUNNER_TEMP/aici-ingestion" audit-receipt "$GITHUB_ACTION_PATH/corpus-v1" "$RECEIPT" "$ROLE"
         fi
         "$RUNNER_TEMP/aici-stage-verdict" ingestion "$RECEIPT"

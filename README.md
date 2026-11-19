@@ -232,10 +232,10 @@ extraction separate; rejects a later success after the first real failure; and
 requires `SKIP` to say why the stage did not run.
 
 An implementation-under-test receipt must name its executable and exact source
-revision, state `fallback=none`, and include an `execve` trace. The verifier
-rejects traces that invoke the side-by-side curl/libxml2 oracle. See
-[`ingestion/README.md`](ingestion/README.md) for the schema and current
-`document_log_subset_v0` boundary.
+revision, state `fallback=none`, and match a frozen observer-owned invocation
+bundle for the approved selection and current attempt. The old `execve` text
+serves as a historical naming audit. See [`ingestion/README.md`](ingestion/README.md)
+for the host fixture profile and current `document_log_subset_v0` boundary.
 
 The optional [`stage-verdict/`](stage-verdict/) action maps owner receipts into
 lossless stage and attempt verdicts. It preserves raw process fields and invalid

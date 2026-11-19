@@ -268,13 +268,20 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
-      - name: Install the explicit HTML oracle
+      - name: Install the explicit HTML oracle and host fixture isolation
         shell: sh
         run: |
           sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends libxml2-utils
+          sudo apt-get install --yes --no-install-recommends libxml2-utils strace
+      - name: Check out the pinned Ithon frontend for fixture observation
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: dilapidated-shed/ithon
+          ref: 74ab6d6044b07b76a910978437a34a6b5ac6acda
+          path: _ingestion-ithon
+          persist-credentials: false
       - name: Select the qualified ICK C compiler
-        uses: isomorphisms/ai-ci/ick-host@903b2cb27ea572c9c6cb2ffa9f39e0fbf06ec9f8
+        uses: isomorphisms/ai-ci/ick-host@2197c6f466e3f11d73acaf8a3814663ec6e9734a
         id: ick
       - name: Compile verifier and deterministic fixture server
         shell: sh
@@ -285,6 +292,10 @@ jobs:
             -o /tmp/aici-ingestion-server ingestion/src/fixture_server.c
           "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2 \
             -o /tmp/aici-stage-verdict stage-verdict/src/aici_stage_verdict.c
+          "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2 -static \
+            -o /tmp/aici-invocation-candidate ingestion/tests/invocation_fixture.c ${{ steps.ick.outputs.static_runtime_flags }}
+          "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2 -static \
+            -DAICI_REFERENCE_FIXTURE -o /tmp/aici-invocation-reference ingestion/tests/invocation_fixture.c ${{ steps.ick.outputs.static_runtime_flags }}
       - name: Prove lossless stage verdicts and independent expected bytes
         shell: sh
         run: |
@@ -295,7 +306,7 @@ jobs:
             > "$RUNNER_TEMP/ingestion-good.verdict.tsv"
           cmp stage-verdict/tests/expected/ingestion-good.tsv \
             "$RUNNER_TEMP/ingestion-good.verdict.tsv"
-          /tmp/aici-ingestion verify ingestion/corpus-v1 \
+          /tmp/aici-ingestion audit-receipt ingestion/corpus-v1 \
             stage-verdict/tests/fixtures/ingestion-failed.tsv \
             implementation-under-test \
             ingestion/tests/fixtures/good-candidate.execve
@@ -312,38 +323,43 @@ jobs:
       - name: Prove fallback and boundary lies are rejected
         shell: sh
         run: |
-          /tmp/aici-ingestion verify ingestion/corpus-v1 \
+          /tmp/aici-ingestion audit-receipt ingestion/corpus-v1 \
             ingestion/tests/fixtures/good-candidate.tsv implementation-under-test \
             ingestion/tests/fixtures/good-candidate.execve
           /tmp/aici-ingestion verify ingestion/corpus-v1 \
             ingestion/tests/fixtures/good-oracle.tsv oracle
-          /tmp/aici-ingestion compare ingestion/corpus-v1 \
-            ingestion/tests/fixtures/good-candidate.tsv \
-            ingestion/tests/fixtures/good-candidate.execve \
-            ingestion/tests/fixtures/good-oracle.tsv
-          if /tmp/aici-ingestion verify ingestion/corpus-v1 \
+          if /tmp/aici-ingestion audit-receipt ingestion/corpus-v1 \
               ingestion/tests/fixtures/bad-fallback.tsv implementation-under-test \
               ingestion/tests/fixtures/good-candidate.execve; then
             echo 'candidate oracle fallback was accepted' >&2
             exit 1
           fi
-          if /tmp/aici-ingestion verify ingestion/corpus-v1 \
+          if /tmp/aici-ingestion audit-receipt ingestion/corpus-v1 \
               ingestion/tests/fixtures/bad-after-failure.tsv implementation-under-test \
               ingestion/tests/fixtures/good-candidate.execve; then
             echo 'later PASS erased an earlier failure' >&2
             exit 1
           fi
-          if /tmp/aici-ingestion verify ingestion/corpus-v1 \
+          if /tmp/aici-ingestion audit-receipt ingestion/corpus-v1 \
               ingestion/tests/fixtures/good-candidate.tsv implementation-under-test \
               ingestion/tests/fixtures/bad-candidate.execve; then
             echo 'candidate oracle execution was accepted' >&2
             exit 1
           fi
           if /tmp/aici-ingestion verify ingestion/corpus-v1 \
-              ingestion/tests/fixtures/good-candidate.tsv implementation-under-test -; then
-            echo 'candidate without an exec trace was accepted' >&2
+              ingestion/tests/fixtures/good-candidate.tsv implementation-under-test \
+              ingestion/tests/fixtures/good-candidate.execve; then
+            echo 'historical trace alone satisfied invocation admission' >&2
             exit 1
           fi
+      - name: Observe actual selected candidate and oracle host fixtures
+        id: observer
+        shell: sh
+        run: >-
+          _ingestion-ithon/ithon ingestion/tests/observe_invocations.pi
+          ingestion/corpus-v1 ingestion/tests/fixtures /tmp/aici-ingestion
+          /tmp/aici-invocation-candidate /tmp/aici-invocation-reference
+          "$(git rev-parse HEAD)" /usr/sbin/chroot "$RUNNER_TEMP/ingestion-invocations"
       - name: Run all ten fixtures through the external oracle
         shell: sh
         run: |
@@ -374,10 +390,22 @@ jobs:
       - name: Exercise the published ingestion action
         uses: ./ingestion
         with:
-          receipt: ingestion/tests/fixtures/good-candidate.tsv
           role: implementation-under-test
-          exec_trace: ingestion/tests/fixtures/good-candidate.execve
-          oracle_receipt: ingestion/tests/fixtures/good-oracle.tsv
+          execution_bundle: ${{ steps.observer.outputs.bundle }}
+          selection_sha256: ${{ steps.observer.outputs.selection_sha256 }}
+          observations_sha256: ${{ steps.observer.outputs.observations_sha256 }}
+          attempt: ${{ steps.observer.outputs.attempt }}
+          fixture: valid_utf8
+          compare_observed_oracle: 'true'
+      - name: Retain actual invocation evidence and rejecting controls
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: aici-ingestion-invocations-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            ${{ runner.temp }}/ingestion-invocations
+            ${{ runner.temp }}/ingestion-oracle
+          if-no-files-found: error
       - name: Exercise the published stage verdict action
         uses: ./stage-verdict
         with:
