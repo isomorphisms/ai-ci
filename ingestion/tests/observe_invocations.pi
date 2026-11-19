@@ -50,11 +50,14 @@ observer ∈ str ← "observer\thost-fixture-v1\t" + digest(args[0]) + "\n"
 marker ∈ str ← root + "/protected-marker"
 write(marker, "only observer writes here\n")
 
-def receipt_input(role ∈ str, fixture ∈ str, path ∈ str) → None:
+def receipt_input(role ∈ str, fixture ∈ str, path ∈ str, variant ∈ str) → None:
     source ∈ str ← read(fixtures + "/good-" + role + ".tsv")
     revision_field ∈ str ← "meta\timplementation_revision\t"
     digest_field ∈ str ← "meta\texecutable_sha256\t"
     output ∈ list[str] ← []
+    stopping ∈ bool ← fixture == "valid_utf8" and (variant == "matched-failure" or
+        (variant == "status-disagreement" and role == "candidate"))
+    after_network ∈ bool ← False
     source_rows ∈ list[str] ← source.splitlines()
     for line in source_rows:
         mapped ∈ str ← line.replace("valid_utf8", fixture)
@@ -68,6 +71,31 @@ def receipt_input(role ∈ str, fixture ∈ str, path ∈ str) → None:
             mapped ← "meta\timplementation_name\thost-fixture-" + ("candidate" if role == "candidate" else "reference")
         if line.startswith("meta\tproducer\t"):
             mapped ← "meta\tproducer\thost-fixture-transport"
+        if line.startswith("meta\tscope\t"):
+            if variant == "extraction-disagreement" or variant == "skipped-extraction-claim":
+                mapped ← "meta\tscope\tnetwork-through-extraction"
+            if variant == "unknown-scope":
+                mapped ← "meta\tscope\tunrecognized-scope"
+            if variant == "explicit-subset" or (variant == "mismatched-scope" and role == "candidate"):
+                mapped ← "meta\tscope\tdocument_log_subset_v0"
+        if fixture == "valid_utf8" and line.startswith("stage\t"):
+            fields ∈ list[str] ← mapped.split("\t")
+            prefix ∈ str ← "stage\t" + fixture + "\t" + fields[2]
+            if variant == "all-skipped" or (variant == "missing-decode" and fields[2] == "decoding"):
+                mapped ← prefix + "\tSKIP\tnot_applicable_scope\tfixture\tnot-run"
+            if variant == "changed-title" and role == "candidate" and fields[2] == "document_construction":
+                mapped ← prefix + "\tPASS\tdocument_log_built\tfixture\ttitle=Changed_Title"
+            if variant == "extraction-disagreement" and fields[2] == "downstream_extraction":
+                mapped ← prefix + "\tPASS\textraction\tfixture\tlinks=" + role
+            if stopping:
+                if after_network:
+                    mapped ← prefix + "\tSKIP\tblocked_by_network\tfixture\tnot-run"
+                if fields[2] == "network":
+                    mapped ← prefix + "\tFAIL\tpartial_body\tfixture\tpartial response"
+                    after_network ← True
+        if stopping and line.startswith("summary\t"):
+            summary ∈ list[str] ← line.split("\t")
+            mapped ← "summary\t" + summary[1] + "\tnetwork"
         output.append(mapped)
     encoded ∈ str ← "\n".join(output)
     write(path, encoded + "\n")
@@ -169,8 +197,11 @@ def observe(directory ∈ str, names ∈ list[str], variant ∈ str) → str:
     write(policy, selection)
     attempt ∈ str ← uuid.uuid4().hex
     records ∈ str ← "schema\taici-ingestion-invocation-v1\nattempt\t" + attempt + "\npolicy\t" + digest(policy) + "\n" + observer
+    selected_roles ∈ list[str] ← roles
+    if variant == "rename":
+        selected_roles ← ["oracle", "candidate"]
     for fixture in names:
-        for role in roles:
+        for role in selected_roles:
             program ∈ str ← candidate_path if role == "candidate" else directory + "/oracle.program"
             if fixture == "valid_utf8":
                 if variant == "wrong-candidate" and role == "candidate":
@@ -179,7 +210,7 @@ def observe(directory ∈ str, names ∈ list[str], variant ∈ str) → str:
                     program ← candidate_path
             stem ∈ str ← directory + "/" + fixture + "." + role
             payload ∈ str ← stem + ".input"
-            receipt_input(role, fixture, payload)
+            receipt_input(role, fixture, payload, variant)
             program_sha ∈ str ← digest(program)
             arguments ∈ list[str] ← ["/fixture", fixture]
             if variant == "exit-seven" and fixture == "valid_utf8" and role == "candidate":
@@ -212,9 +243,15 @@ def verify(directory ∈ str, selected_sha ∈ str, observed_sha ∈ str, attemp
     Path(root + "/" + label + ".stderr").write_bytes(raw_error)
     if expected == "PASS":
         require(process_exit == 0 and "selected_cases=2" in output_text, label + ": " + error_text)
+        require("scope=document_log_subset_v0" in output_text, "comparison scope absent: " + label)
     else:
-        require(process_exit == 1 and raw_out == b"" and raw_error.startswith(("FAIL\t" + expected + "\t").encode()),
+        require(process_exit == 1 and raw_error.startswith(("FAIL\t" + expected + "\t").encode()),
                 label + ": " + error_text)
+        if expected == "compare_disagreement":
+            require("\tcandidate\t" in output_text and "\toracle\t" in output_text and
+                    not ("PASS\tinvocation" in output_text), "both disagreeing observations must be preserved")
+        else:
+            require(raw_out == b"", "invalid or unsupported evidence emitted acceptance: " + label)
     print("PASS\t" + label + "\t" + expected)
 
 def verify_current(directory ∈ str, attempt ∈ str, label ∈ str, expected ∈ str) → None:
@@ -226,6 +263,7 @@ attempt ∈ str ← observe(good, case_ids, "ordinary")
 policy_sha ∈ str ← digest(good + "/policy.tsv")
 observation_sha ∈ str ← digest(good + "/observations.tsv")
 verify_current(good, attempt, "actual", "PASS")
+verify_current(good, attempt, "same-evidence", "PASS")
 verify(good, policy_sha, observation_sha, attempt, "other-fixture", "PASS", "malformed_html", corpus)
 verify(good, policy_sha, observation_sha, uuid.uuid4().hex, "stale-attempt", "invocation_stale_attempt", "valid_utf8", corpus)
 
@@ -239,6 +277,34 @@ for variant in variants:
     expected_by_variant ∈ dict[str, str] ← {"wrong-candidate": "invocation_candidate_identity",
         "wrong-oracle": "invocation_oracle_identity", "exit-seven": "invocation_process_exit", "rename": "PASS"}
     verify_current(variant_root, run_attempt, variant, expected_by_variant[variant])
+
+actual_lines ∈ list[str] ← read(root + "/actual.stdout").splitlines()
+repeat_lines ∈ list[str] ← read(root + "/same-evidence.stdout").splitlines()
+rename_lines ∈ list[str] ← read(root + "/rename.stdout").splitlines()
+require(actual_lines[0] == repeat_lines[0] and actual_lines[0] == rename_lines[0],
+        "comparison changed after replay or a permutation")
+require("compared=4\tlast=document_construction\tterminal=none" in actual_lines[0],
+        "comparison failed to describe its four executed stages")
+
+comparison_cases ∈ dict[str, str] ← {
+    "explicit-subset": "PASS",
+    "changed-title": "compare_disagreement",
+    "status-disagreement": "compare_disagreement",
+    "skipped-extraction-claim": "compare_scope_unsupported",
+    "extraction-disagreement": "compare_scope_unsupported",
+    "mismatched-scope": "compare_scope_mismatch",
+    "unknown-scope": "compare_scope_unsupported",
+    "all-skipped": "compare_incomplete_coverage",
+    "missing-decode": "compare_incomplete_coverage",
+    "matched-failure": "PASS",
+}
+for case_name in comparison_cases:
+    case_root ∈ str ← root + "/" + case_name
+    case_attempt ∈ str ← observe(case_root, case_ids, case_name)
+    verify_current(case_root, case_attempt, case_name, comparison_cases[case_name])
+failure_summary ∈ str ← read(root + "/matched-failure.stdout")
+require("compared=1\tlast=network\tterminal=matched_failure" in failure_summary,
+        "the comparison included stages beyond a matching failure")
 
 controls ∈ str ← root + "/mutation"
 shutil.copytree(good, controls)

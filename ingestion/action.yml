@@ -32,7 +32,7 @@ inputs:
     description: Selected candidate fixture to report through the stage verdict
     required: false
   compare_observed_oracle:
-    description: Compare selected stage fields with the observed oracle (true or false)
+    description: Compare executed fields in the shared supported receipt scope (true or false)
     required: false
     default: 'false'
 
