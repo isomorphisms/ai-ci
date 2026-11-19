@@ -76,7 +76,7 @@ def observe(directory ∈ str, names ∈ list[str], variant ∈ str) → str:
     copy(oracle_binary, directory + "/oracle.program")
     candidate_path ∈ str ← directory + "/candidate.program"
     if variant == "rename":
-        candidate_path ← directory + "/renamed-candidate"
+        candidate_path ← directory + "/renamed-not-python-parser"
         copy(candidate_binary, candidate_path)
     provenance ∈ str ← directory + "/oracle-provenance.tsv"
     write(provenance, "schema\taici-ingestion-host-oracle-v1\n"
@@ -112,10 +112,14 @@ def observe(directory ∈ str, names ∈ list[str], variant ∈ str) → str:
                     "--ro-bind", program, "/fixture",
                     "--ro-bind", payload, "/selected-receipt",
                     "--ro-bind", marker, "/protected-marker",
-                    "--json-status-fd", str(descriptor), "--", "/fixture", fixture,
+                    "--json-status-fd", str(descriptor), "--",
                 ]
+                arguments ∈ list[str] ← ["/fixture", fixture]
                 if variant == "exit-seven" and fixture == "valid_utf8" and role == "candidate":
-                    command.append("exit-seven")
+                    arguments.append("exit-seven")
+                command.extend(arguments)
+                argument_text ∈ str ← "\n".join(arguments)
+                write(stem + ".argv", argument_text + "\n")
                 started ∈ int ← time.monotonic_ns()
                 child ∈ object ← subprocess.run(command, stdin=subprocess.DEVNULL, capture_output=True,
                                                timeout=15, pass_fds=(descriptor,))
@@ -134,8 +138,9 @@ def observe(directory ∈ str, names ∈ list[str], variant ∈ str) → str:
                     "observer status differs from recorded exit")
             require(program_sha == digest(program), "executed material changed")
             require(read(marker) == "only observer writes here\n", "fixture changed observer material")
-            row ∈ str ← "\t".join(["invoke", role, fixture, program_sha, str(started), str(ended),
-                                   str(finish["exit-code"]), digest(stem + ".stdout"), digest(stem + ".stderr")])
+            row ∈ str ← "\t".join(["invoke", role, fixture, program_sha, str(begin["child-pid"]),
+                                   str(started), str(ended), str(finish["exit-code"]),
+                                   digest(stem + ".argv"), digest(stem + ".stdout"), digest(stem + ".stderr")])
             records ← records + row + "\n"
     write(directory + "/observations.tsv", records)
     return attempt
@@ -198,6 +203,14 @@ write(observed_path, original.replace("\tvalid_utf8\t", "\ttruncated_body\t", 1)
 verify_current(controls, attempt, "unselected", "invocation_unselected_case")
 write(observed_path, "42 execve(\"./candidate\", [], []) = 0\n")
 verify_current(controls, attempt, "text-only-trace", "invocation_schema")
+write(observed_path, original)
+argv_path ∈ str ← controls + "/valid_utf8.candidate.argv"
+original_arguments ∈ str ← read(argv_path)
+write(argv_path, "/fixture\nmalformed_html\n")
+verify_current(controls, attempt, "changed-arguments", "invocation_arguments")
+write(observed_path, original.replace(digest(good + "/valid_utf8.candidate.argv"), digest(argv_path), 1))
+verify_current(controls, attempt, "wrong-fixture-arguments", "invocation_arguments")
+write(argv_path, original_arguments)
 write(observed_path, original)
 shutil.copyfile(good + "/malformed_html.candidate.stdout", controls + "/valid_utf8.candidate.stdout")
 verify_current(controls, attempt, "copied-output", "invocation_output_digest")

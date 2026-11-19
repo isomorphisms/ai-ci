@@ -13,7 +13,7 @@ Implementation-under-test acceptance requires a frozen invocation bundle from
 outside the candidate's write authority. The caller supplies the approved
 selection digest, current attempt, and trusted observer's observation digest
 through its own control path. The verifier matches the exact corpus, selector,
-executable bytes, selected cases, start and completion, raw exit, and captured
+executable bytes, selected cases, process ID, arguments, start and completion, raw exit, and captured
 stdout and stderr. The captured stdout carries the seven-stage receipt. Wrong
 material, missing or duplicate cases, changed output and stale attempts fail
 before a comparison is made.
@@ -77,12 +77,14 @@ schema  aici-ingestion-invocation-v1
 attempt  CURRENT_32_HEX_ID
 policy  APPROVED_SELECTION_SHA256
 observer  host-fixture-v1  OBSERVER_SHA256
-invoke  ROLE  FIXTURE_ID  EXECUTABLE_SHA256  START_NS  END_NS  EXIT  STDOUT_SHA256  STDERR_SHA256
+invoke  ROLE  FIXTURE_ID  EXECUTABLE_SHA256  PID  START_NS  END_NS  EXIT  ARGV_SHA256  STDOUT_SHA256  STDERR_SHA256
 ```
 
 Keep `policy.tsv`, `oracle-provenance.tsv`, `candidate.program`,
-`oracle.program` and the unedited `FIXTURE.ROLE.stdout` and
-`FIXTURE.ROLE.stderr` files alongside the observations. Roles are
+`oracle.program` and the unedited `FIXTURE.ROLE.argv`, `FIXTURE.ROLE.stdout`
+and `FIXTURE.ROLE.stderr` files alongside the observations. A successful host
+fixture argument file contains `/fixture` and the case ID on separate lines.
+Roles are
 `candidate` and `oracle`. Start and completion are observer-local monotonic
 nanoseconds. Exit is the launcher-reported status. Observation and material
 files must be frozen through verification and subsequent stage verdict use.

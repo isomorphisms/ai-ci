@@ -281,7 +281,7 @@ jobs:
           path: _ingestion-ithon
           persist-credentials: false
       - name: Select the qualified ICK C compiler
-        uses: isomorphisms/ai-ci/ick-host@903b2cb27ea572c9c6cb2ffa9f39e0fbf06ec9f8
+        uses: isomorphisms/ai-ci/ick-host@2197c6f466e3f11d73acaf8a3814663ec6e9734a
         id: ick
       - name: Compile verifier and deterministic fixture server
         shell: sh
@@ -293,9 +293,9 @@ jobs:
           "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2 \
             -o /tmp/aici-stage-verdict stage-verdict/src/aici_stage_verdict.c
           "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2 -static \
-            -o /tmp/aici-invocation-candidate ingestion/tests/invocation_fixture.c -Wl,--start-group -lc -lgcc_eh -Wl,--end-group
+            -o /tmp/aici-invocation-candidate ingestion/tests/invocation_fixture.c ${{ steps.ick.outputs.static_runtime_flags }}
           "${{ steps.ick.outputs.compiler }}" ${{ steps.ick.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -pedantic -O2 -static \
-            -DAICI_REFERENCE_FIXTURE -o /tmp/aici-invocation-reference ingestion/tests/invocation_fixture.c -Wl,--start-group -lc -lgcc_eh -Wl,--end-group
+            -DAICI_REFERENCE_FIXTURE -o /tmp/aici-invocation-reference ingestion/tests/invocation_fixture.c ${{ steps.ick.outputs.static_runtime_flags }}
       - name: Prove lossless stage verdicts and independent expected bytes
         shell: sh
         run: |

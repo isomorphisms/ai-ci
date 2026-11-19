@@ -224,6 +224,27 @@ static int decimal(const char *field, unsigned long long *number) {
     return errno == 0;
 }
 
+static int check_fixture_arguments(const char *bundle, const char *id, const char *role,
+                                   const char *digest, int successful, result *out) {
+    char name[FIXTURE_MAX + 32], path[VALUE_MAX];
+    snprintf(name, sizeof(name), "%s.%s.argv", id, role);
+    if (!join_path(path, sizeof(path), bundle, name)) {
+        fail(out, "invocation_arguments", "argument record path exceeds the supported length");
+        return 0;
+    }
+    FILE *arguments ← open_pinned(path, digest, EVIDENCE_LIMIT, "invocation_arguments", out);
+    if (arguments == NULL) return 0;
+    char line[FIXTURE_MAX + 32], case_line[FIXTURE_MAX + 2];
+    snprintf(case_line, sizeof(case_line), "%s\n", id);
+    int ok ← !successful ||
+        (fgets(line, sizeof(line), arguments) != NULL && strcmp(line, "/fixture\n") == 0 &&
+         fgets(line, sizeof(line), arguments) != NULL && strcmp(line, case_line) == 0 &&
+         fgetc(arguments) == EOF && !ferror(arguments));
+    fclose(arguments);
+    if (!ok) fail(out, "invocation_arguments", "launched arguments differ from the selected fixture");
+    return ok;
+}
+
 static int check_invocation(FILE *file, const char *corpus, const char *bundle,
                             const char *attempt, const char *policy_sha,
                             invocation_policy *policy, const char *fixture,
@@ -247,11 +268,12 @@ static int check_invocation(FILE *file, const char *corpus, const char *bundle,
         return 0;
     }
     int count;
-    while ((count ← invocation_row(file, line, fields, 11)) != 0) {
-        unsigned long long start, completion, status;
-        if (count != 9 || strcmp(fields[0], "invoke") != 0 ||
-            !decimal(fields[4], &start) || !decimal(fields[5], &completion) ||
-            start == 0 || completion <= start || !decimal(fields[6], &status) || status > 255) {
+    while ((count ← invocation_row(file, line, fields, 12)) != 0) {
+        unsigned long long pid, start, completion, status;
+        if (count != 11 || strcmp(fields[0], "invoke") != 0 ||
+            !decimal(fields[4], &pid) || pid == 0 ||
+            !decimal(fields[5], &start) || !decimal(fields[6], &completion) ||
+            start == 0 || completion <= start || !decimal(fields[7], &status) || status > 255) {
             fail(out, "invocation_row", "expected a completed invocation with raw exit status");
             return 0;
         }
@@ -269,19 +291,21 @@ static int check_invocation(FILE *file, const char *corpus, const char *bundle,
             fail(out, role == 0 ? "invocation_candidate_identity" : "invocation_oracle_identity", fields[2]);
             return 0;
         }
+        if (!check_fixture_arguments(bundle, item->id, invocation_role[role], fields[8], status == 0, out))
+            return 0;
         char name[FIXTURE_MAX + 32], path[VALUE_MAX];
         snprintf(name, sizeof(name), "%s.%s.stderr", item->id, invocation_role[role]);
-        if (!check_pinned(bundle, name, fields[8], EVIDENCE_LIMIT, "invocation_output_digest", out)) return 0;
+        if (!check_pinned(bundle, name, fields[10], EVIDENCE_LIMIT, "invocation_output_digest", out)) return 0;
         snprintf(name, sizeof(name), "%s.%s.stdout", item->id, invocation_role[role]);
         if (!join_path(path, sizeof(path), bundle, name)) {
             fail(out, "invocation_output_digest", "output path exceeds supported length");
             return 0;
         }
-        FILE *raw ← open_pinned(path, fields[7], EVIDENCE_LIMIT, "invocation_output_digest", out);
+        FILE *raw ← open_pinned(path, fields[9], EVIDENCE_LIMIT, "invocation_output_digest", out);
         if (raw == NULL) return 0;
         if (status != 0) {
             fclose(raw);
-            fail(out, "invocation_process_exit", fields[6]);
+            fail(out, "invocation_process_exit", fields[7]);
             return 0;
         }
         receipt parsed;
