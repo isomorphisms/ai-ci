@@ -44,6 +44,8 @@ and submitted head. The selected `head` must match the event's submitted PR head
 The event base and its history must be available locally. An explicit `base`
 on a pull request must resolve to the same base commit as the event. A missing
 endpoint or common ancestor fails the action.
+The check reads added lines from the committed `.idric` text even when Git
+attributes select another diff format for that file.
 
 Pushes use their `before` commit unless a caller supplies `base`. On other events,
 an explicit `base` can select the range. Outside pull requests an absent or

@@ -16,7 +16,7 @@ head=${2:-HEAD}
 patch=$(mktemp)
 trap 'rm -f -- "$patch"' EXIT
 trap 'exit 2' HUP INT TERM
-git diff --unified=0 --no-color --no-ext-diff "$base" "$head" -- '*.idric' > "$patch"
+git diff --unified=0 --no-color --no-ext-diff --no-textconv --text "$base" "$head" -- '*.idric' > "$patch"
 awk '
 function annotation(level, message) {
   if (path == "") {

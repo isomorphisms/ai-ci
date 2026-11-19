@@ -166,6 +166,16 @@ expect_event push_unavailable_base 0 '' push '' 11111111111111111111111111111111
 
 benign_head=$(make_head pr-benign '-- an ordinary PR comment')
 expect_event pr_benign 0 '' pull_request "$base" '' '' "$benign_head"
+
+git checkout -q -B pr-text-classification "$base"
+printf '%s\n' 'sample.idric binary' > .gitattributes
+printf '%s\n' 'new_count : Nat' 'new_count = 1' >> sample.idric
+git add .gitattributes sample.idric
+git commit -qm 'add Idriç source with a Git diff attribute'
+classified_head=$(git rev-parse HEAD)
+expect_event pr_text_classification 1 'must not introduce Nat' \
+  pull_request "$base" '' '' "$classified_head"
+
 git checkout -q -B moved-base "$base"
 sed 's/Nat/Number/' sample.idric > sample.changed
 mv sample.changed sample.idric
