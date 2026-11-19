@@ -62,6 +62,7 @@ enabled step with the declared action and pin. An absent step, a different
 pin, a disabled job or step, and unsupported conditions fail. This verifies
 the direct delegate declaration. Hosted case execution still needs its
 own observations.
+Pair it with `actions_pinned` to require immutable revisions for remote actions.
 
 ## Evidence boundary
 

@@ -113,9 +113,11 @@ expect_event() {
   push_before=$6
   explicit_base=$7
   selected_head=$8
+  event_head=${9-$selected_head}
   actual_status=0
   if AICI_EVENT_NAME="$event" \
       AICI_PR_BASE_SHA="$pr_base" \
+      AICI_PR_HEAD_SHA="$event_head" \
       AICI_PUSH_BEFORE_SHA="$push_before" \
       AICI_IDRIC_STYLE_BASE="$explicit_base" \
       AICI_IDRIC_STYLE_HEAD="$selected_head" \
@@ -141,6 +143,13 @@ pr_head=$(git rev-parse HEAD)
 # The former HEAD^ fallback inspects only this harmless last commit.
 sh "$checker" "$early_bad" "$pr_head"
 expect_event pr_complete 1 'must not introduce Nat' pull_request "$base" '' '' "$pr_head"
+expect_event pr_checked_out_head 1 'must not introduce Nat' pull_request "$base" '' '' HEAD "$pr_head"
+expect_event pr_earlier_head 2 'comparison head must resolve to the submitted pull request head' \
+  pull_request "$base" '' '' "$base" "$pr_head"
+expect_event pr_missing_event_head 2 'pull request head commit is unavailable' \
+  pull_request "$base" '' '' "$pr_head" ''
+expect_event pr_unavailable_event_head 2 'pull request head commit is unavailable' \
+  pull_request "$base" '' '' "$pr_head" 1111111111111111111111111111111111111111
 expect_event pr_same_explicit_base 1 'must not introduce Nat' pull_request "$base" '' "$base" "$pr_head"
 expect_event pr_narrow_explicit_base 2 'explicit base must resolve to the pull request event base' \
   pull_request "$base" '' "$early_bad" "$pr_head"
@@ -168,6 +177,11 @@ if sh "$checker" "$moved_base" "$benign_head" 2>"$tmp/two_trees.err"; then
 fi
 grep -F 'must not introduce Nat' "$tmp/two_trees.err" >/dev/null
 expect_event pr_moved_base 0 '' pull_request "$moved_base" '' '' "$benign_head"
+
+synthetic_head=$(git commit-tree "$pr_head^{tree}" -p "$moved_base" -p "$pr_head" -m synthetic)
+git checkout -q --detach "$synthetic_head"
+expect_event pr_synthetic_checkout 2 'comparison head must resolve to the submitted pull request head' \
+  pull_request "$moved_base" '' '' HEAD "$pr_head"
 
 if sh "$checker" 1111111111111111111111111111111111111111 "$benign_head" 2>"$tmp/invalid_diff.err"; then
   printf '%s\n' 'invalid_diff: checker accepted an unavailable comparison commit' >&2

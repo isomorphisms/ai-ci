@@ -7,7 +7,7 @@ inputs:
     required: false
     default: ''
   head:
-    description: Head commit to check.
+    description: Head commit to check. On pull requests it must match the submitted head.
     required: false
     default: HEAD
 
@@ -21,5 +21,6 @@ runs:
         AICI_IDRIC_STYLE_HEAD: ${{ inputs.head }}
         AICI_EVENT_NAME: ${{ github.event_name }}
         AICI_PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        AICI_PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         AICI_PUSH_BEFORE_SHA: ${{ github.event.before }}
       run: sh "$GITHUB_ACTION_PATH/check_event_range"
