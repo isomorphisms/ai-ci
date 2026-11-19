@@ -20,6 +20,7 @@ fail	contracts/workflow-integrity-v0.contract.tsv	tests/fixtures/workflow-event-
 fail	contracts/workflow-integrity-v0.contract.tsv	tests/fixtures/workflow-event-ignore	WORKFLOW-PATH-COVERAGE
 fail	contracts/workflow-integrity-v0.contract.tsv	tests/fixtures/workflow-event-missing	WORKFLOW-PATH-COVERAGE
 fail	contracts/workflow-integrity-v0.contract.tsv	tests/fixtures/workflow-event-unsupported-filter	WORKFLOW-PATH-COVERAGE
+fail	contracts/workflow-integrity-v0.contract.tsv	tests/fixtures/workflow-event-nested-filter	WORKFLOW-PATH-COVERAGE
 pass	tests/contracts/workflow-required-action.contract.tsv	tests/fixtures/workflow-required-action-enabled	-
 fail	tests/contracts/workflow-required-action.contract.tsv	tests/fixtures/workflow-required-action-missing	WORKFLOW-REQUIRED-ACTION
 fail	tests/contracts/workflow-required-action.contract.tsv	tests/fixtures/workflow-required-action-disabled	WORKFLOW-REQUIRED-ACTION

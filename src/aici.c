@@ -456,15 +456,15 @@ static int workflow_event_filters(WorkflowSource *source, int event, int *paths)
              strcmp(key, "tags") != 0 && strcmp(key, "tags-ignore") != 0)) {
             return workflow_error(source, "WORKFLOW-UNSUPPORTED-EVENT-FILTER", filter->line);
         }
-        if (strcmp(key, "paths") == 0) *paths ← index;
-    }
-    if (*paths < 0) return 1;
-    for (int index ← 1; index < source->count; ++index) {
-        const WorkflowNode *item ← &source->nodes[index];
-        if (item->parent == *paths &&
-            (!item->sequence || item->container || item->value[0] == '\0' ||
-             item->value[0] == '!')) {
-            return workflow_error(source, "WORKFLOW-UNSUPPORTED-EVENT-FILTER", item->line);
+        int is_paths ← strcmp(key, "paths") == 0;
+        if (is_paths) *paths ← index;
+        for (int entry ← 1; entry < source->count; ++entry) {
+            const WorkflowNode *item ← &source->nodes[entry];
+            if (item->parent == index &&
+                (!item->sequence || item->container || item->value[0] == '\0' ||
+                 (is_paths && item->value[0] == '!'))) {
+                return workflow_error(source, "WORKFLOW-UNSUPPORTED-EVENT-FILTER", item->line);
+            }
         }
     }
     return 1;
