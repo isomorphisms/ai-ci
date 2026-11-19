@@ -70,6 +70,9 @@ equal per-shape mask union.
 Both source-built and exact artifact installations of the same c61e448 ICK
 revision can run this verifier. The artifact route independently authenticates
 the archive, driver and frontend hashes rather than trusting producer scripts.
+The hosted workflow uses the shared `ick-host-objects` source build and
+`grease-fixtures` runtime. It records both toolchain receipts with the
+independent oracle and Ike results.
 Ike's literal POSIX recipe is the existing compatibility boundary. Device,
 registered FP dispatch and final integration remain separate acceptance levels.
 

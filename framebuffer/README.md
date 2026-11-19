@@ -82,11 +82,13 @@ All candidate/oracle C is instrumented with AddressSanitizer and
 UndefinedBehaviorSanitizer. Fourteen changed-source executables must compile,
 run and fail at named semantic witnesses: wrong drag, single-sample resolve,
 empty quadratic panel, constant normal, and each wrong mask operation.
-A compilation failure is not a successful mutant rejection. Leak detection
-alone is disabled for the inherited instrumented Grease runtime's restricted
-host environment; address and undefined-behavior instrumentation remain active.
+A mutant rejection requires execution and the named semantic failure.
+The hosted profile runs address and undefined-behavior instrumentation with
+leak detection disabled.
 
-The exact per-PR revisions live in the checked Grease recipe. The workflow
-retains observed source/material digests, logs and the Ike receipt. This
+The exact per-PR revisions live in the checked Grease recipe. The hosted
+workflow builds the pinned ICK object compiler through `ick-host-objects` and
+Grease through `grease-fixtures`. It retains both toolchain receipts alongside
+the observed source/material digests, logs and the Ike receipt. This
 qualifies host library/source behavior; NDK compilation, APK identity and
 physical A1/C67 lifecycle, image quality and performance remain separate.
