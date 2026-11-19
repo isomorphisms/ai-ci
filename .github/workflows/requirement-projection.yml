@@ -2,7 +2,8 @@ name: Source-bound requirement projection
 on:
   pull_request:
   push:
-    branches: [main]
+    branches:
+      - main
 permissions:
   contents: read
 jobs:
