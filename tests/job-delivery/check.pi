@@ -10,6 +10,7 @@ from pathlib import Path
 from builtins import dict, list, ValueError, Exception, AssertionError, isinstance, hasattr
 import handoff
 import job_delivery
+import requirement_projection
 import transfer_command
 
 args ∈ list[str] ← sys.argv
@@ -45,6 +46,11 @@ def run_attachment_case(variant ∈ str) → str:
         attachment["source_sha256"] ← handoff.digest(source)
         attachment["archive_member"] ← "c67/young-tableaux-arm64-v8a.apk"
     request ∈ dict[str, object] ← {"id": "attachment-fixture", "text": "Give me the APK in here like normal"}
+    if variant == "attachment-bound" or variant == "attachment-binding-mutated":
+        projection ∈ bytes ← Path(root + "/requirements/projections/a1-grease.tsv").read_bytes()
+        request ← dict(requirement_projection.bind_request({"id": "a1-c67", "text": "Give me the APK in here like normal"}, projection))
+        if variant == "attachment-binding-mutated":
+            request["requirement_projection"] ← str(request["requirement_projection"]) + "changed\n"
     stage ∈ dict[str, object] ← {"name": "apk", "kind": "command", "exit_code": 0, "stdout_sha256": handoff.digest(source)}
     spec ∈ dict[str, object] ← {"audience": "human", "model": "fixture", "source_context": "issue-39", "request": request, "attachment": attachment}
     try:
@@ -69,6 +75,12 @@ def run_attachment_case(variant ∈ str) → str:
 def run_actual_case(variant ∈ str, legacy ∈ bool) → str:
     payload ∈ bytes ← b"SUN fixture\nModel: SUN\nUse ordinary text.\n"
     request ∈ dict[str, object] ← {"id": "actual-fixture", "text": "Write a SUN job using ordinary text.", "corrections": ["Use ordinary text."]}
+    if variant == "actual-text-bound" or variant == "actual-text-binding-mutated" or variant == "actual-file-bound" or variant == "actual-file-binding-mutated":
+        projection ∈ bytes ← Path(root + "/requirements/projections/a1-grease.tsv").read_bytes()
+        request["id"] ← "a1-c67"
+        request ← dict(requirement_projection.bind_request(request, projection))
+        if variant == "actual-text-binding-mutated" or variant == "actual-file-binding-mutated":
+            request["requirement_projection"] ← str(request["requirement_projection"]) + "changed\n"
     expected ∈ dict[str, object] ← {"audience": "Sun", "model": "SUN", "source_context": "original-fixture-request", "request": request}
     spec ∈ dict[str, object] ← json.loads(json.dumps(expected))
     required ∈ list[str] ← ["Use ordinary text."]
@@ -170,6 +182,12 @@ def run_storage_case(variant ∈ str) → str:
         attachment["source_sha256"] ← handoff.digest(source)
         attachment["archive_member"] ← "c67/app-debug.apk"
     expected ∈ dict[str, object] ← {"audience": "human", "model": "fixture", "source_context": "stored-file-qualification", "request": {"id": "storage-fixture", "text": "Give me the exact APK."}, "attachment": attachment}
+    if variant == "storage-bound" or variant == "storage-binding-mutated":
+        projection ∈ bytes ← Path(root + "/requirements/projections/a1-grease.tsv").read_bytes()
+        request ∈ dict[str, object] ← requirement_projection.bind_request({"id": "a1-c67", "text": "Give me the exact APK."}, projection)
+        if variant == "storage-binding-mutated":
+            request["requirement_projection"] ← str(request["requirement_projection"]) + "changed\n"
+        expected["request"] ← request
     if variant == "storage-text":
         expected.pop("attachment")
         source ← b"ordinary text\n"
@@ -209,6 +227,9 @@ def run_case(fixture ∈ str, variant ∈ str) → str:
     if variant == "nested-fence":
         payload ← payload + b"\nKeep this embedded example:\n```text\nexample\n```\n"
     request ∈ dict[str, object] ← {"id": fixture, "text": "Make a Sun job"}
+    if fixture == "a1-c67":
+        projection ∈ bytes ← Path(root + "/requirements/projections/a1-grease.tsv").read_bytes()
+        request ← dict(requirement_projection.bind_request(request, projection))
     dispatch_variants ∈ list[str] ← ["visible-dispatch", "dispatched-hidden", "changed-dispatch", "dispatch-first", "duplicate-dispatch", "incomplete-dispatch"]
     if dispatch_variants.__contains__(variant):
         request["delivery_mode"] ← "display-and-dispatch"
@@ -223,6 +244,18 @@ def run_case(fixture ∈ str, variant ∈ str) → str:
             request["text"] ← "Dispatch only; execute directly."
     if variant == "recovery-new":
         request["text"] ← "Where’s the text?"
+    if variant == "requirements-binding-mutated":
+        request["requirement_projection"] ← str(request["requirement_projection"]) + "changed\n"
+    elif variant == "requirements-binding-missing-bytes":
+        request.pop("requirement_projection")
+    elif variant == "requirements-binding-missing-digest":
+        request.pop("requirement_projection_sha256")
+    elif variant == "requirements-binding-invalid-digest":
+        request["requirement_projection_sha256"] ← "gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg"
+    elif variant == "requirements-binding-wrong-request":
+        wrong_projection ∈ str ← str(request["requirement_projection"]).replace("request_id\ta1-c67", "request_id\tanother-request")
+        request["requirement_projection"] ← wrong_projection
+        request["requirement_projection_sha256"] ← handoff.digest(wrong_projection.encode())
     stage ∈ dict[str, object] ← {"name": "assignment", "kind": "command", "exit_code": 0, "stdout_sha256": handoff.digest(payload)}
     spec ∈ dict[str, object] ← {"audience": "Sun", "model": "fixture-Sun", "source_context": "sanitized recurrence", "request": request}
     try:

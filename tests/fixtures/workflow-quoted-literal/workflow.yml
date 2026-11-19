@@ -1,0 +1,5 @@
+on: pull_request
+jobs:
+  literal:
+    steps:
+      - "run": printf '%s\n' '||'

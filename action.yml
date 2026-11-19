@@ -9,13 +9,22 @@ inputs:
     description: "Suite file, relative to repository root"
     required: false
     default: ".github/ai-ci/suite.tsv"
+outputs:
+  evidence:
+    description: "Fresh directory containing the selected-case plan, process observations and raw logs"
+    value: ${{ steps.verify.outputs.evidence }}
 runs:
   using: "composite"
   steps:
-    - shell: sh
+    - name: Select the qualified C verifier compiler
+      id: compiler
+      uses: isomorphisms/ai-ci/ick-host@903b2cb27ea572c9c6cb2ffa9f39e0fbf06ec9f8
+    - id: verify
+      shell: sh
       env:
         AICI_ROOT: ${{ inputs.root }}
         AICI_SUITE: ${{ inputs.suite }}
+        AICI_SOURCE_IDENTITY: ${{ github.event.pull_request.head.sha || github.sha }}
       run: |
         set -eu
 
@@ -24,13 +33,21 @@ runs:
           exit 2
         fi
 
-        cc -std=c17 -Wall -Wextra -Werror -O2 \
+        "${{ steps.compiler.outputs.compiler }}" ${{ steps.compiler.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -O2 \
           "$GITHUB_ACTION_PATH/src/aici.c" \
           -o "$RUNNER_TEMP/aici"
 
-        cc -std=c17 -Wall -Wextra -Werror -O2 \
+        "${{ steps.compiler.outputs.compiler }}" ${{ steps.compiler.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -O2 \
           "$GITHUB_ACTION_PATH/src/check_idric_gitattributes.c" \
           -o "$RUNNER_TEMP/aici-idric-gitattributes"
 
-        "$RUNNER_TEMP/aici-idric-gitattributes" "$AICI_ROOT"
-        "$RUNNER_TEMP/aici" suite "$AICI_SUITE" "$AICI_ROOT"
+        "${{ steps.compiler.outputs.compiler }}" ${{ steps.compiler.outputs.link_flags }} -std=c17 -Wall -Wextra -Werror -O2 \
+          "$GITHUB_ACTION_PATH/stage-verdict/src/aici_stage_verdict.c" \
+          -o "$RUNNER_TEMP/aici-stage-verdict"
+
+        # GitHub composite bootstrap boundary; process observations live in C.
+        evidence=$(mktemp -d "$RUNNER_TEMP/aici-core-action.XXXXXXXX")/execution
+        printf 'evidence=%s\n' "$evidence" >> "$GITHUB_OUTPUT"
+        exec "$RUNNER_TEMP/aici" action-suite "$AICI_SUITE" "$AICI_ROOT" \
+          "$RUNNER_TEMP/aici-idric-gitattributes" "$RUNNER_TEMP/aici-stage-verdict" \
+          "$evidence" "$AICI_SOURCE_IDENTITY"

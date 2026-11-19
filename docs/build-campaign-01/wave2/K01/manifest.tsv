@@ -1,0 +1,4 @@
+id	title	owner	canonical_issue	readiness	dependencies	path	disposition
+BC-K01-S01	Make target facts and corrections control Kitchen preparation	isomorphisms/kitchen	https://github.com/isomorphisms/kitchen/issues/14	SOURCE_READY;GREASE_ACCEPTANCE_CONDITIONAL	BC-K04-S01 released adapter;BC-CF01 profile artifact;BC-A01 disposition artifact	jobs/BC-K01-S01.md	NEW
+BC-K01-S02	Bind reviewed requirements and executed controls to the served candidate	isomorphisms/kitchen	https://github.com/isomorphisms/kitchen/issues/9	SOURCE_READY;INTEGRATION_CONDITIONAL	BC-K01-S01;BC-A01/A02/A03 released authority-checker material;BC-P02 closure	jobs/BC-K01-S02.md	NEW
+BC-K01-S03	Put the qualified preparation path in the real source-handoff caller	isomorphisms/kitchen	https://github.com/isomorphisms/kitchen/issues/1	CONDITIONAL_INTEGRATION	BC-K01-S01/S02;BC-K04-S01;BC-K05-S01 released receipts;coordinate BC-K04-S04/BC-K05-S03	jobs/BC-K01-S03.md	NEW

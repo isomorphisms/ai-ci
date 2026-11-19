@@ -1,0 +1,15 @@
+observation_date=2026-10-13
+artifact_id=11728865268
+run_id=38207562107
+source_commit=afbad9b65b80bbd70e33ec5a9fe16326437e51d9
+archive_sha256=74cd83ee88cb3302430cd7c42acc76d3dd6b705f440d8e6ff2ec9e1db94b7523
+archive_entries=16
+archive_bytes=6501
+compiled_parser_app=ABSENT
+api_expired=false
+api_expires_at=2026-10-26T05:34:45Z
+working_directory=/tmp
+invocation=sh /workspace/scratch/7d963a3a41c1/wave1/P02/evidence/icky-archive/located-afbad9b65b80bbd70e33ec5a9fe16326437e51d9/build/exec/icky-parser --identity-v3
+exit_code=127
+stderr=icky-parser: 15: /workspace/scratch/7d963a3a41c1/wave1/P02/evidence/icky-archive/located-afbad9b65b80bbd70e33ec5a9fe16326437e51d9/build/exec/icky-parser_app/icky-parser.so: not found
+claim=Incomplete archived runtime closure reproduced; no package repair, build, installation or replacement executable used

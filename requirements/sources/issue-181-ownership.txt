@@ -1,0 +1,4 @@
+For this build/distribution case:
+
+- Cat Food owns the binary build / target matrix;
+- leaf repositories such as Grease own source, implementation-specific builds/tests, and publishable project artifacts;

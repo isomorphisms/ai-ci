@@ -5,7 +5,7 @@ It is **not** the authority on what good Idriç source means. The canonical poli
 in `isomorphisms/Idric` at root `STYLE.md`, with repository-specific agent instructions
 in root `AGENTS.md`.
 
-The current gate checks only newly added `.idr` and `.idric` lines:
+The current gate checks only newly added `.idric` lines:
 
 - `Nat` is an error. Use `Number` for an ordinary number/count, or an explicit
   semantic restricted type when bounds, sign, units, or another restriction matter.
@@ -16,6 +16,13 @@ The current gate checks only newly added `.idr` and `.idric` lines:
 
 Warnings are deliberately not automatic rewrites. They tell the author or agent to
 re-read the canonical Idriç style guidance and reconsider the declaration as a whole.
+
+The filename is the compiler's language boundary. `.idr` files implement the
+inherited Idris/bootstrap compatibility stratum and retain its real types,
+identifiers and arrows. Forcing the `.idric` vocabulary onto that stratum can
+require undefined aliases such as `Number`; it is not an Idriç style repair.
+The gate does not exempt a directory or repository: `.idric` files remain
+checked wherever they occur, including alongside `.idr` implementation files.
 
 ## GitHub Actions
 

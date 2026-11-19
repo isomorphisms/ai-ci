@@ -1,0 +1,17 @@
+# BC-A04 source coverage — 2026-10-14
+
+Read full baseline instructions/BC-A04 and prior A02/A07 overlaps. Refreshed AICI main `949a60dad5e014cafce2c49619df9bbdbcfaafc0`; read AGENTS, README, failure-ledger, research failure modes and eval protocol/corpus. Tree paths for scoped runtime, ingestion and merge-state mechanisms were inspected; no claim of full fresh source audit of those directories. Source descriptions of existing mechanisms are additionally bounded by their current ledger/documentation.
+
+| Repository and exact ref | Source inspected |
+|---|---|
+| isomorphisms/ib main `10fa7bbe93ff9ffa1ba7b9f62e0dd8f6c10a86bc` | Full `.github/workflows/exact-text.yml`: inherited pipe to tee and output greps. |
+| isomorphisms/ib candidate `19a103842159c41c3fe50054a03601157c86f131` | Full `tests/exact-text-status.grease` and `tests/exact-text-status-provisioning.md`; source-grounded actual-workflow extraction and retained four-case evidence. |
+| place-of-honor/learn-toki-pona main `ef55a23acd94cc501e7a0d5e44ab01296b881c30` and candidate `bbb708b90effca5c296f5fa93bdba797bb1be566` | Main CI workflow and candidate relevant complete status-check block; `! grep … || true` remains. |
+| isomorphismes/Fourier-sound main `a71c9d37f47154ba7b66d7c0d5c912477c71f23c` and candidate `e5d270bd6e53f111d22b51111b2804024fb48878` | AGENTS and voice startup source; coefficient and optional ICK self-test returns remain discarded. |
+| functorial-games/raylib default master `012e274ae8853e9f3e5ad1db81df277adf966fb3` | Full `.github/workflows/clang_tidy.yml`; failed find/clang-tidy path suppressed, warning-filter emptiness treated as clean. Default branch and canonical transferred owner resolved explicitly after main lookup failed. |
+
+Full bodies/discussions: [AICI 171](https://github.com/isomorphisms/ai-ci/issues/171), 6/6 comments including the historical 381-repository audit and subsequent 236-triage record; [IB 119](https://github.com/isomorphisms/ib/issues/119), 0/0; [Toki 11](https://github.com/place-of-honor/learn-toki-pona/issues/11), 0/0; [Fourier 31](https://github.com/isomorphismes/Fourier-sound/issues/31), 0/0. These historical fleet denominators are not this investigation's fresh fleet coverage.
+
+Current candidate discussions: [isomorphisms/ib PR #121, “Reject exact-text compiler and oracle producer failures”](https://github.com/isomorphisms/ib/pull/121), 0/0 comments; [place-of-honor/learn-toki-pona PR #12, “IL-3: move qualified daily quiz session sequencing into actual Icky Lua”](https://github.com/place-of-honor/learn-toki-pona/pull/12), 1/1; [isomorphismes/Fourier-sound PR #32, “Compose Fourier's Horner leaf and migrate owned division through ICK”](https://github.com/isomorphismes/Fourier-sound/pull/32), 0/0. Open-PR inventories returned IB 19, Toki 1, Fourier 1; screened all returned metadata, source-review limited to named overlapping candidates. AICI PR inventory was 154/154 over two REST pages; recent issues 18/18, incomplete false.
+
+Kitchen K05 exact producer evidence was coordinated with that domain's source owner: retained Android1 receipt writes after child return, and FastChat bounded-capture calls need finite timeouts. This report does not claim an independent reread of all Kitchen/FastChat code; K05 supplies its exact source record. No fresh fault injection, build, trace, live device or runtime installation occurred. Current eligibility is separate from retained IB successes.

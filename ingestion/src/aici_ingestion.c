@@ -2,10 +2,13 @@
 
 #include <ctype.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 #define LINE_MAX_LOCAL 16384
 #define VALUE_MAX 4096
@@ -119,19 +122,19 @@ static int assign_meta(receipt *parsed, const char *key, const char *value) {
     return 0;
 }
 
-static int parse_receipt_file(const char *path, receipt *parsed, result *out) {
+static int parse_receipt(FILE *file, const char *path, receipt *parsed, result *out) {
     memset(parsed, 0, sizeof(*parsed));
-    FILE *file = fopen(path, "r");
     if (file == NULL) {
         fail(out, "receipt_open", path);
         return 0;
     }
     char line[LINE_MAX_LOCAL];
+    char stage_fixture[FIXTURE_MAX] ← "";
     int line_number = 0;
     while (fgets(line, sizeof(line), file) != NULL) {
         ++line_number;
-        if (strchr(line, '\n') == NULL && !feof(file)) {
-            fail(out, "receipt_line_too_long", path);
+        if (strchr(line, '\n') == NULL) {
+            fail(out, "receipt_line", "oversized, unterminated, or non-text receipt row");
             fclose(file);
             return 0;
         }
@@ -150,7 +153,8 @@ static int parse_receipt_file(const char *path, receipt *parsed, result *out) {
         } else if (count == 7 && strcmp(fields[0], "stage") == 0) {
             int index = stage_index(fields[2]);
             if (index < 0 || parsed->stages[index].seen ||
-                (parsed->fixture_id[0] != '\0' && strcmp(fields[1], parsed->fixture_id) != 0) ||
+                *fields[1] == '\0' || strlen(fields[1]) >= sizeof(stage_fixture) ||
+                (*stage_fixture != '\0' && strcmp(fields[1], stage_fixture) != 0) ||
                 strlen(fields[3]) >= sizeof(parsed->stages[index].status) ||
                 strlen(fields[4]) >= sizeof(parsed->stages[index].code) ||
                 strlen(fields[5]) >= sizeof(parsed->stages[index].owner) ||
@@ -159,6 +163,7 @@ static int parse_receipt_file(const char *path, receipt *parsed, result *out) {
                 fclose(file);
                 return 0;
             }
+            strcpy(stage_fixture, fields[1]);
             strcpy(parsed->stages[index].status, fields[3]);
             strcpy(parsed->stages[index].code, fields[4]);
             strcpy(parsed->stages[index].owner, fields[5]);
@@ -188,6 +193,10 @@ static int parse_receipt_file(const char *path, receipt *parsed, result *out) {
         return 0;
     }
     fclose(file);
+    if (strcmp(parsed->fixture_id, stage_fixture) != 0) {
+        fail(out, "receipt_stage_fixture", "stage rows differ from the receipt fixture");
+        return 0;
+    }
     return 1;
 }
 
@@ -305,7 +314,8 @@ static int skip_blocks(const char *code) {
            strncmp(code, "blocked_by_", 11) == 0;
 }
 
-static int verify_trace(const char *trace_path, const receipt *parsed, result *out) {
+/* Historical naming policy only. It cannot establish an invocation. */
+static int audit_trace_names(const char *trace_path, const receipt *parsed, result *out) {
     if (trace_path == NULL || strcmp(trace_path, "-") == 0) {
         fail(out, "candidate_trace_required", "implementation-under-test needs an exec trace");
         return 0;
@@ -335,10 +345,8 @@ static int verify_trace(const char *trace_path, const receipt *parsed, result *o
     return 1;
 }
 
-static int verify_receipt(const char *corpus_root, const char *receipt_path,
-                          const char *expected_role, const char *trace_path,
-                          receipt *parsed, result *out) {
-    if (!parse_receipt_file(receipt_path, parsed, out)) return 0;
+static int verify_receipt(const char *corpus_root, const char *expected_role,
+                          const receipt *parsed, int audit_names, result *out) {
     char revision[VALUE_MAX];
     if (!read_revision(corpus_root, revision, sizeof(revision), out)) return 0;
     if (strcmp(parsed->schema, "aici-ingestion-receipt-v1") != 0) fail(out, "meta_schema", parsed->schema);
@@ -354,22 +362,24 @@ static int verify_receipt(const char *corpus_root, const char *receipt_path,
 
     if (strcmp(expected_role, "implementation-under-test") == 0) {
         if (!valid_hex(parsed->executable_sha256, 64)) fail(out, "candidate_executable_sha256", parsed->executable_sha256);
-        if (contains_insensitive(parsed->implementation_name, "oracle") ||
+        if (audit_names && (contains_insensitive(parsed->implementation_name, "oracle") ||
             contains_insensitive(parsed->implementation_name, "curl") ||
             contains_insensitive(parsed->implementation_name, "xmllint") ||
             contains_insensitive(parsed->producer, "oracle") ||
-            contains_insensitive(parsed->producer, "curl")) {
+            contains_insensitive(parsed->producer, "curl"))) {
             fail(out, "candidate_oracle_identity", parsed->implementation_name);
         }
-        (void)verify_trace(trace_path, parsed, out);
     } else if (strcmp(expected_role, "oracle") == 0) {
         if (!valid_hex(parsed->executable_sha256, 64)) fail(out, "oracle_executable_sha256", parsed->executable_sha256);
-        if (!contains_insensitive(parsed->implementation_name, "curl")) fail(out, "oracle_identity", parsed->implementation_name);
+        if (audit_names && !contains_insensitive(parsed->implementation_name, "curl"))
+            fail(out, "oracle_identity", parsed->implementation_name);
     } else if (strcmp(expected_role, "consumer") == 0) {
         if (strcmp(parsed->executable_sha256, "none") != 0 &&
             !valid_hex(parsed->executable_sha256, 64)) {
             fail(out, "consumer_executable_sha256", parsed->executable_sha256);
         }
+    } else {
+        fail(out, "meta_role", "unknown receipt role");
     }
 
     const char *calculated_failure = "none";
@@ -415,6 +425,30 @@ static int verify_receipt(const char *corpus_root, const char *receipt_path,
     return out->first_code[0] == '\0';
 }
 
+typedef struct {
+    const char *declared;
+    const char *reported;
+    int compared_stages[4];
+} comparison_scope;
+
+static const comparison_scope comparison_scopes[] ← {
+    {"network-through-document", "document_log_subset_v0", {1, 2, 3, 5}},
+    {"document_log_subset_v0", "document_log_subset_v0", {1, 2, 3, 5}},
+};
+
+static const comparison_scope *supported_scope(const char *declared) {
+    for (size_t index ← 0; index < sizeof(comparison_scopes) ÷ sizeof(comparison_scopes[0]); ++index) {
+        if (strcmp(declared, comparison_scopes[index].declared) == 0) return &comparison_scopes[index];
+    }
+    return NULL;
+}
+
+static void print_comparison_observation(const char *fixture, const char *stage,
+                                         const char *role, const stage_result *observed) {
+    printf("comparison-observation\t%s\t%s\t%s\t%s\t%s\t%s\n",
+           fixture, stage, role, observed->status, observed->code, observed->evidence);
+}
+
 static int compare_receipts(const receipt *candidate, const receipt *oracle, result *out) {
     if (strcmp(candidate->fixture_id, oracle->fixture_id) != 0 ||
         strcmp(candidate->corpus_revision, oracle->corpus_revision) != 0 ||
@@ -422,29 +456,56 @@ static int compare_receipts(const receipt *candidate, const receipt *oracle, res
         fail(out, "compare_identity", "candidate and oracle do not describe the same fixture revision");
         return 0;
     }
-    const int exact_stages[] = {1, 2, 3, 5};
-    for (size_t item = 0; item < sizeof(exact_stages) ÷ sizeof(exact_stages[0]); ++item) {
-        int index = exact_stages[item];
-        const stage_result *left = &candidate->stages[index];
-        const stage_result *right = &oracle->stages[index];
-        if (strcmp(left->status, right->status) != 0) {
-            fail(out, "compare_status", stage_names[index]);
+    const comparison_scope *scope ← supported_scope(candidate->scope);
+    const comparison_scope *oracle_scope ← supported_scope(oracle->scope);
+    if (scope == NULL || oracle_scope == NULL) {
+        fail(out, "compare_scope_unsupported", scope == NULL ? candidate->scope : oracle->scope);
+        return 0;
+    }
+    if (scope != oracle_scope) {
+        fail(out, "compare_scope_mismatch", "candidate and oracle declare different comparison scopes");
+        return 0;
+    }
+    size_t executed ← 0;
+    const char *terminal ← "none";
+    const char *last_stage ← "none";
+    for (size_t item ← 0; item < sizeof(scope->compared_stages) ÷ sizeof(scope->compared_stages[0]); ++item) {
+        int index ← scope->compared_stages[item];
+        const stage_result *left ← &candidate->stages[index];
+        const stage_result *right ← &oracle->stages[index];
+        if (strcmp(left->status, "SKIP") == 0 || strcmp(right->status, "SKIP") == 0) {
+            fail(out, "compare_incomplete_coverage", stage_names[index]);
             return 0;
         }
-        if (strcmp(left->status, "PASS") == 0 && strcmp(left->evidence, right->evidence) != 0) {
-            fail(out, "compare_evidence", stage_names[index]);
+        if (strcmp(left->status, right->status) != 0 ||
+            (strcmp(left->status, "PASS") == 0 && strcmp(left->evidence, right->evidence) != 0)) {
+            print_comparison_observation(candidate->fixture_id, stage_names[index], "candidate", left);
+            print_comparison_observation(oracle->fixture_id, stage_names[index], "oracle", right);
+            printf("comparison\tdisagreement\t%s\tscope=%s\tevidence=VALID\tdiagnosis=UNKNOWN\n",
+                   candidate->fixture_id, scope->reported);
+            fail(out, "compare_disagreement", stage_names[index]);
             return 0;
+        }
+        ++executed;
+        last_stage ← stage_names[index];
+        if (strcmp(left->status, "FAIL") == 0) {
+            terminal ← "matched_failure";
+            break;
         }
     }
-    return out->first_code[0] == '\0';
+    printf("comparison\tagreement\t%s\tscope=%s\tcompared=%zu\tlast=%s\tterminal=%s\tevidence=VALID\tdiagnosis=UNKNOWN\n",
+           candidate->fixture_id, scope->reported, executed, last_stage, terminal);
+    return 1;
 }
+
+#include "invocation.h"
 
 static void usage(const char *program) {
     fprintf(stderr,
         "usage:\n"
         "  %s verify-corpus CORPUS_ROOT\n"
-        "  %s verify CORPUS_ROOT RECEIPT ROLE [EXEC_TRACE|-]\n"
-        "  %s compare CORPUS_ROOT CANDIDATE CANDIDATE_TRACE ORACLE\n",
+        "  %s audit-receipt CORPUS_ROOT RECEIPT ROLE [HISTORICAL_TRACE|-]\n"
+        "  %s verify-execution CORPUS_ROOT BUNDLE POLICY_SHA OBSERVATIONS_SHA ATTEMPT FIXTURE [compare]\n",
         program, program, program);
 }
 
@@ -458,23 +519,27 @@ int main(int argc, char **argv) {
         }
         return 1;
     }
-    if ((argc == 5 || argc == 6) && strcmp(argv[1], "verify") == 0) {
+    if ((argc == 5 || argc == 6) &&
+        (strcmp(argv[1], "audit-receipt") == 0 || strcmp(argv[1], "verify") == 0)) {
         receipt parsed;
         const char *trace = argc == 6 ? argv[5] : NULL;
-        if (verify_receipt(argv[2], argv[3], argv[4], trace, &parsed, &out)) {
-            printf("PASS\treceipt\t%s\t%s\n", parsed.fixture_id, parsed.implementation_role);
-            return 0;
+        if (strcmp(argv[4], "implementation-under-test") == 0 && strcmp(argv[1], "verify") == 0) {
+            fail(&out, "invocation_required", "candidate acceptance requires verify-execution and observer-owned evidence");
+            return 1;
         }
-        return 1;
+        if (!parse_receipt(fopen(argv[3], "r"), argv[3], &parsed, &out) ||
+            !verify_receipt(argv[2], argv[4], &parsed, 1, &out)) return 1;
+        if (trace != NULL && !audit_trace_names(trace, &parsed, &out)) return 1;
+        printf("PASS\treceipt-structure-only\t%s\t%s\n", parsed.fixture_id, parsed.implementation_role);
+        return 0;
     }
     if (argc == 6 && strcmp(argv[1], "compare") == 0) {
-        receipt candidate;
-        receipt oracle;
-        if (!verify_receipt(argv[2], argv[3], "implementation-under-test", argv[4], &candidate, &out)) return 1;
-        if (!verify_receipt(argv[2], argv[5], "oracle", NULL, &oracle, &out)) return 1;
-        if (!compare_receipts(&candidate, &oracle, &out)) return 1;
-        printf("PASS\tcompare\t%s\tcandidate and oracle semantics agree\n", candidate.fixture_id);
-        return 0;
+        fail(&out, "invocation_required", "comparison requires verify-execution with the compare argument");
+        return 1;
+    }
+    if ((argc == 8 || (argc == 9 && strcmp(argv[8], "compare") == 0)) &&
+        strcmp(argv[1], "verify-execution") == 0) {
+        return verify_execution(argv[2], argv[3], argv[4], argv[5], argv[6], argv[7], argc == 9, &out) ? 0 : 1;
     }
     usage(argv[0]);
     return 2;

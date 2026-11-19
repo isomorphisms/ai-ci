@@ -23,9 +23,10 @@ base=$(git rev-parse HEAD)
 make_head() {
   name=$1
   content=$2
+  source_path=${3:-sample.idric}
   git checkout -q -B "$name" "$base"
-  printf '%s\n' "$content" >> sample.idric
-  git add sample.idric
+  printf '%s\n' "$content" >> "$source_path"
+  git add "$source_path"
   git commit -q -m "$name"
   git rev-parse HEAD
 }
@@ -34,7 +35,8 @@ expect_pass() {
   name=$1
   content=$2
   expected=${3:-}
-  head=$(make_head "$name" "$content")
+  source_path=${4:-sample.idric}
+  head=$(make_head "$name" "$content" "$source_path")
   err="$tmp/$name.err"
   if ! sh "$checker" "$base" "$head" 2>"$err"; then
     echo "$name: checker rejected source that should pass" >&2
@@ -76,5 +78,29 @@ readRequest value = value' 'lowerCamelCase is an Idriç style canary'
 expect_pass ascii_arrow 'identity_ascii : Number -> Number
 identity_ascii value = value' 'ASCII arrows are an Idriç style canary'
 expect_pass comment_only '-- Nat Vect readRequest -> <-'
+
+# The inherited language uses real Nat/Vect types and its own naming/arrows.
+# This same text must still fail after crossing into the Idriç filename.
+expect_pass idris_compat 'compilerCount : Nat
+compilerCount = 1
+compilerItems : Vect 3 Nat
+compilerIdentity : Nat -> Nat
+compilerIdentity value = value' '' sample.idr
+if [ -s "$tmp/idris_compat.err" ]; then
+  echo 'idris_compat: inherited source produced Idriç style diagnostics' >&2
+  cat "$tmp/idris_compat.err" >&2
+  exit 1
+fi
+compat_head=$head
+git checkout -q -B idric_filename_boundary "$compat_head"
+git mv sample.idr renamed.idric
+git commit -q -m idric_filename_boundary
+renamed_head=$(git rev-parse HEAD)
+if sh "$checker" "$compat_head" "$renamed_head" 2>"$tmp/renamed.err"; then
+  echo 'idric_filename_boundary: renamed Idriç source was not checked' >&2
+  exit 1
+fi
+grep -F 'must not introduce Nat' "$tmp/renamed.err" >/dev/null
+grep -F 'must not introduce Vect' "$tmp/renamed.err" >/dev/null
 
 echo 'Idriç style self-test: PASS'

@@ -1,0 +1,140 @@
+module MaterialAdmission
+
+import Data.Text
+import Data.List
+import System
+import System.File
+import SourceProcess
+
+%unbound_implicits off
+
+covering
+reject_material : {value : Type} → Text → IO value
+reject_material diagnostic = do
+  putStrLn ("FAIL " ++ diagnostic)
+  exitFailure
+
+covering
+require_material : Bool → Text → IO ()
+require_material condition diagnostic = if condition then pure () else reject_material diagnostic
+
+covering
+read_material_text : Text → IO Text
+read_material_text filename = do
+  Right contents ← readFile filename
+    | Left failure ⇒ reject_material ("MATERIAL-READ: " ++ show failure)
+  pure contents
+
+covering
+material_process : List Text → Text → IO Text
+material_process arguments input_bytes =
+  require_process (["/usr/bin/env", "-i", "LC_ALL=C", "PATH=/usr/bin:/bin"] ++ arguments) input_bytes
+
+split_characters : Char → List Char → List (List Char)
+split_characters separator [] = [[]]
+split_characters separator (character :: remaining) =
+  case split_characters separator remaining of
+    [] ⇒ [[character]]
+    first :: others ⇒ if character ≟ separator
+      then [] :: first :: others
+      else (character :: first) :: others
+
+split_material : Char → Text → List Text
+split_material separator contents = map pack (split_characters separator (unpack contents))
+
+material_rows : Text → List Text
+material_rows contents = filter (\row ⇒ not (row ≟ "")) (lines contents)
+
+digest_text : Text → Bool
+digest_text value = length (unpack value) ≟ 64 &&
+  all (\character ⇒ elem character (unpack "0123456789abcdef")) (unpack value)
+
+canonical_path : Text → Bool
+canonical_path value = case unpack value of
+  [] ⇒ False
+  first :: remaining ⇒
+    elem first (unpack "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789") &&
+    all (\character ⇒ elem character (unpack "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._/+-")) remaining &&
+    all (\component ⇒ not (elem component ["", ".", ".."])) (split_material '/' value)
+
+canonical_mode : Text → Bool
+canonical_mode value = length (unpack value) <= 4 && not (value ≟ "") &&
+  all (\character ⇒ elem character (unpack "01234567")) (unpack value)
+
+valid_row : Text → Bool
+valid_row row = case split_material '\t' row of
+  [digest, mode, path] ⇒ digest_text digest && canonical_mode mode && canonical_path path && not (path ≟ "material.tsv")
+  _ ⇒ False
+
+covering
+material_sha256 : Text → IO Text
+material_sha256 contents = do
+  observed ← material_process ["/usr/bin/sha256sum"] contents
+  case words observed of
+    digest :: remaining ⇒ do
+      require_material (digest_text digest) "MATERIAL-HASH"
+      pure digest
+    [] ⇒ reject_material "MATERIAL-HASH"
+
+covering
+inspect_material : Text → IO Text
+inspect_material root = do
+  require_material (isPrefixOf "/" root) "MATERIAL-ABSOLUTE-ROOT"
+  physical_root ← material_process ["/usr/bin/realpath", "--", root] ""
+  require_material (trim physical_root ≟ root) "MATERIAL-CANONICAL-ROOT"
+  root_kind ← material_process ["/usr/bin/stat", "--format=%F", "--", root] ""
+  require_material (trim root_kind ≟ "directory") "MATERIAL-ROOT-TYPE"
+  -- The inherited process Text reader truncates NUL. Reject delimiter-bearing
+  -- basenames before newline framing; find's own predicate examines each whole
+  -- basename. Any matching absolute path is nonempty, even with newlines.
+  invalid_paths ← material_process ["/usr/bin/find", "-P", root, "-mindepth", "1", "-name", "*[!a-zA-Z0-9._+-]*", "-print", "-quit"] ""
+  require_material (invalid_paths ≟ "") "MATERIAL-PATH"
+  enumeration ← material_process ["/usr/bin/find", "-P", root, "-mindepth", "1", "-printf", "%y\\t%P\\n"] ""
+  let nodes = material_rows enumeration
+  entries ← for nodes $ \node ⇒ case split_material '\t' node of
+    [kind, path] ⇒ do
+      require_material (canonical_path path) "MATERIAL-PATH"
+      require_material (elem kind ["f", "d"]) "MATERIAL-NODE-TYPE"
+      pure (kind, path)
+    _ ⇒ reject_material "MATERIAL-PATH"
+  let all_paths = map snd entries
+  require_material (length (nub all_paths) ≟ length all_paths) "MATERIAL-DUPLICATE"
+  let paths = sort (map snd (filter (\entry ⇒ fst entry ≟ "f" && not (snd entry ≟ "material.tsv")) entries))
+  observations ← for paths $ \path ⇒ do
+    let filename = root ++ "/" ++ path
+    -- All kinds were rejected before content reads, including FIFO nodes.
+    mode ← material_process ["/usr/bin/stat", "--format=%a", "--", filename] ""
+    digest ← material_process ["/usr/bin/sha256sum", "--", filename] ""
+    let permission_mode = trim mode
+    require_material (canonical_mode permission_mode) "MATERIAL-MODE"
+    case words digest of
+      value :: remaining ⇒ do
+        require_material (digest_text value) "MATERIAL-HASH"
+        pure (value ++ "\t" ++ permission_mode ++ "\t" ++ path ++ "\n")
+      [] ⇒ reject_material "MATERIAL-HASH"
+  pure (concat observations)
+
+export
+covering
+admit_material : Text → Text → Text → IO ()
+admit_material root expected_digest required_file = do
+  require_material (digest_text expected_digest) "MATERIAL-APPROVED-DIGEST"
+  actual ← inspect_material root
+  approved ← material_sha256 actual
+  require_material (approved ≟ expected_digest) "MATERIAL-APPROVED-INVENTORY"
+  candidate ← read_material_text (root ++ "/material.tsv")
+  require_material (candidate ≟ actual) "MATERIAL-RECORD"
+  required ← read_material_text required_file
+  let obligations = material_rows required
+  require_material (not (null obligations) && all valid_row obligations &&
+    length (nub obligations) ≟ length obligations) "MATERIAL-REQUIRED-CONTRACT"
+  require_material (all (\row ⇒ elem row (material_rows actual)) obligations) "MATERIAL-REQUIRED"
+  putStrLn ("PASS MATERIAL-ADMISSION: " ++ approved ++ " " ++ show (length (material_rows actual)) ++ " files")
+
+covering
+main : IO ()
+main = do
+  arguments ← getArgs
+  case arguments of
+    [_, root, expected_digest, required_file] ⇒ admit_material root expected_digest required_file
+    _ ⇒ reject_material "usage: material-admission PACKAGE_ROOT EXPECTED_MANIFEST_SHA256 REQUIRED_ROWS.tsv"

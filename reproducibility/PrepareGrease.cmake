@@ -1,0 +1,18 @@
+# Artifact transport boundary only. Consumer orchestration lives in driver.grease.
+cmake_minimum_required(VERSION 3.21)
+if(NOT DEFINED ARTIFACT_ROOT OR NOT DEFINED RUNTIME_ROOT)
+  message(FATAL_ERROR "ARTIFACT_ROOT and RUNTIME_ROOT are required")
+endif()
+file(SHA256 "${ARTIFACT_ROOT}/ysh-d" runtime_digest)
+if(NOT runtime_digest STREQUAL "5991182c9540a8bba58c12bf15965db033b6bcbb59b30f85a8c44000b697382c")
+  message(FATAL_ERROR "Unexpected native Grease artifact bytes")
+endif()
+file(MAKE_DIRECTORY "${RUNTIME_ROOT}")
+file(COPY_FILE "${ARTIFACT_ROOT}/ysh-d" "${RUNTIME_ROOT}/grease" ONLY_IF_DIFFERENT)
+file(CHMOD "${RUNTIME_ROOT}/grease" PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+if(DEFINED ENV{GITHUB_PATH})
+  file(APPEND "$ENV{GITHUB_PATH}" "${RUNTIME_ROOT}\n")
+endif()
+file(WRITE "${RUNTIME_ROOT}/runtime.tsv"
+  "schema\taici-grease-source-execution-v1\nsource_repository\tdilapidated-shed/oils\nsource_revision\tdf3ecfcb58031e82f5ae98d1301c7ee67fbb21a7\nworkflow_run\t43520333267\nartifact_id\t14083485063\nruntime_sha256\t${runtime_digest}\nqualification\tSOURCE_SCOPED_PARTIAL\nmanaged_eligibility\tNOT_VERIFIED\n")
+message(STATUS "Exact partial native Grease available for source-scoped execution; managed eligibility NOT_VERIFIED")

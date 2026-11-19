@@ -1,0 +1,272 @@
+"""Canonical source-bound requirement projection for maintained requests.
+
+The input manifests contain explicit semantic judgments.  This module checks
+their provenance and consistency; it does not infer policy from prose.
+"""
+import hashlib
+import re
+import sys
+from pathlib import Path
+from builtins import dict, list, ValueError, globals
+
+REQUEST_KEYS ∈ list[str] ← ["schema", "request_id", "request_body_path", "request_body_sha256", "owner", "program", "target", "owner_profile_sha256", "requirements_sha256"]
+OWNER_HEADER ∈ str ← "owner_id\towns\tscope\tsource_path\tsource_url\tsource_sha256\tstatus"
+REQUIREMENT_HEADER ∈ str ← "requirement_id\tsource_kind\tauthority\tsource_path\tsource_url\tsource_sha256\tscope\trequirement_owner\tmatch_owner\tmatch_program\tmatch_target\tchoice\tdecision\tsupersedes\tapplicability\tapplicability_reason"
+SOURCE_KINDS ∈ list[str] ← ["direct_instruction", "correction", "proposal", "observation", "executed_result"]
+AUTHORITY_STATES ∈ list[str] ← ["authoritative", "non_authoritative", "unknown"]
+APPLICABILITY_STATES ∈ list[str] ← ["applicable", "not_applicable", "unknown"]
+CHOICES ∈ list[str] ← ["owner", "program", "target"]
+
+def digest(data ∈ bytes) → str:
+    return hashlib.sha256(data).hexdigest()
+
+def reject(code ∈ str, detail ∈ str) → None:
+    raise ValueError(code + ": " + detail)
+
+def plain(value ∈ str, code ∈ str) → None:
+    if value == "" or "\t" in value or "\n" in value or "\r" in value:
+        reject(code, "empty or non-TSV-safe field")
+
+def exact_digest(value ∈ str, code ∈ str) → None:
+    if not bool(re.fullmatch(r"[0-9a-f]{64}", value)):
+        reject(code, "expected lowercase SHA-256")
+
+def table(path ∈ str, header ∈ str, fields ∈ int, code ∈ str) → list[list[str]]:
+    lines ∈ list[str] ← Path(path).read_text().splitlines()
+    if len(lines) < 2 or lines[0] != header:
+        reject(code, "missing exact header or rows")
+    rows ∈ list[list[str]] ← []
+    for line in lines[1:]:
+        row ∈ list[str] ← line.split("\t")
+        if len(row) != fields:
+            reject(code, "malformed row")
+        for value in row:
+            plain(value, code)
+        rows.append(row)
+    return rows
+
+def keyed_request(path ∈ str) → dict[str, str]:
+    lines ∈ list[str] ← Path(path).read_text().splitlines()
+    if len(lines) != len(REQUEST_KEYS) + 1 or lines[0] != "key\tvalue":
+        reject("REQ-REQUEST-SCHEMA", "request must contain the exact version-one keys")
+    result ∈ dict[str, str] ← {}
+    for line in lines[1:]:
+        fields ∈ list[str] ← line.split("\t")
+        if len(fields) != 2 or fields[0] in result:
+            reject("REQ-REQUEST-SCHEMA", "malformed or duplicate request key")
+        plain(fields[0], "REQ-REQUEST-SCHEMA")
+        plain(fields[1], "REQ-REQUEST-SCHEMA")
+        result[fields[0]] ← fields[1]
+    for key in REQUEST_KEYS:
+        if not (key in result):
+            reject("REQ-REQUEST-SCHEMA", "missing " + key)
+    if len(result) != len(REQUEST_KEYS) or result["schema"] != "aici-requirement-request-v1":
+        reject("REQ-REQUEST-SCHEMA", "unknown key or schema")
+    return result
+
+def canonical_table_digest(path ∈ str, header ∈ str, fields ∈ int, code ∈ str) → str:
+    rows ∈ list[list[str]] ← table(path, header, fields, code)
+    encoded ∈ list[str] ← []
+    for row in rows:
+        encoded.append("\t".join(row))
+    encoded.sort()
+    canonical ∈ str ← header + "\n" + str("\n".join(encoded)) + "\n"
+    return digest(canonical.encode())
+
+def owners_digest(path ∈ str) → str:
+    return canonical_table_digest(path, OWNER_HEADER, 7, "REQ-OWNER-SCHEMA")
+
+def requirements_digest(path ∈ str) → str:
+    return canonical_table_digest(path, REQUIREMENT_HEADER, 16, "REQ-REQUIREMENTS-SCHEMA")
+
+def source(root ∈ str, relative ∈ str, expected ∈ str) → None:
+    parts ∈ list[str] ← relative.replace("\\", "/").split("/")
+    if relative.startswith("/") or parts.__contains__("..") or parts.__contains__(""):
+        reject("REQ-SOURCE-PATH", relative)
+    exact_digest(expected, "REQ-SOURCE-HASH")
+    actual ∈ bytes ← Path(root).joinpath(relative).read_bytes()
+    if digest(actual) != expected:
+        reject("REQ-SOURCE-HASH", relative)
+
+def selector_matches(requirement ∈ list[str], request ∈ dict[str, str]) → bool:
+    selectors ∈ list[str] ← [requirement[8], requirement[9], requirement[10]]
+    values ∈ list[str] ← [request["owner"], request["program"], request["target"]]
+    index ∈ int ← 0
+    while index < 3:
+        if selectors[index] != "*" and selectors[index] != values[index]:
+            return False
+        index ← index + 1
+    return True
+
+def decision_parts(value ∈ str) → list[str]:
+    parts ∈ list[str] ← value.split("=", 1)
+    if len(parts) != 2 or parts[0] == "" or parts[1] == "":
+        reject("REQ-DECISION-SCHEMA", value)
+    return parts
+
+def validate_owners(path ∈ str, source_root ∈ str) → dict[str, str]:
+    rows ∈ list[list[str]] ← table(path, OWNER_HEADER, 7, "REQ-OWNER-SCHEMA")
+    owners ∈ dict[str, str] ← {}
+    seen ∈ list[str] ← []
+    for row in rows:
+        key ∈ str ← row[0] + "\t" + row[1]
+        if seen.__contains__(key):
+            reject("REQ-OWNER-DUPLICATE", key)
+        seen.append(key)
+        if not AUTHORITY_STATES.__contains__(row[6]):
+            reject("REQ-OWNER-SCHEMA", row[0])
+        source(source_root, row[3], row[5])
+        if row[0] in owners and owners[row[0]] != row[6]:
+            reject("REQ-OWNER-CONFLICT", row[0])
+        owners[row[0]] ← row[6]
+    return owners
+
+def validate_requirements(path ∈ str, source_root ∈ str, owners ∈ dict[str, str]) → list[list[str]]:
+    rows ∈ list[list[str]] ← table(path, REQUIREMENT_HEADER, 16, "REQ-REQUIREMENTS-SCHEMA")
+    by_id ∈ dict[str, list[str]] ← {}
+    for row in rows:
+        identifier ∈ str ← row[0]
+        if identifier in by_id:
+            reject("REQ-DUPLICATE", identifier)
+        by_id[identifier] ← row
+        if not SOURCE_KINDS.__contains__(row[1]) or not AUTHORITY_STATES.__contains__(row[2]) or not CHOICES.__contains__(row[11]) or not APPLICABILITY_STATES.__contains__(row[14]):
+            reject("REQ-REQUIREMENTS-SCHEMA", identifier)
+        if not (row[7] in owners):
+            reject("REQ-OWNER-MISSING", row[7])
+        decision_parts(row[12])
+        source(source_root, row[3], row[5])
+        if row[1] == "correction" and row[13] == "-":
+            reject("REQ-SUPERSESSION-MISSING", identifier)
+        if row[1] != "correction" and row[13] != "-":
+            reject("REQ-SUPERSESSION-KIND", identifier)
+    superseders ∈ dict[str, str] ← {}
+    for row in rows:
+        if row[13] == "-":
+            continue
+        if not (row[13] in by_id):
+            reject("REQ-SUPERSESSION-MISSING", row[13])
+        predecessor ∈ list[str] ← by_id[row[13]]
+        if row[13] in superseders:
+            reject("REQ-SUPERSESSION-DUPLICATE", row[13])
+        superseders[row[13]] ← row[0]
+        if row[7] != predecessor[7] or row[8] != predecessor[8] or row[9] != predecessor[9] or row[10] != predecessor[10] or row[11] != predecessor[11] or decision_parts(row[12])[0] != decision_parts(predecessor[12])[0]:
+            reject("REQ-SUPERSESSION-UNSUPPORTED", row[0])
+    for row in rows:
+        visited ∈ list[str] ← []
+        current ∈ str ← row[0]
+        while by_id[current][13] != "-":
+            if visited.__contains__(current):
+                reject("REQ-SUPERSESSION-CYCLE", current)
+            visited.append(current)
+            current ← by_id[current][13]
+        if visited.__contains__(current):
+            reject("REQ-SUPERSESSION-CYCLE", current)
+    return rows
+
+def projection_bytes(request_path ∈ str, owners_path ∈ str, requirements_path ∈ str, source_root ∈ str) → bytes:
+    request ∈ dict[str, str] ← keyed_request(request_path)
+    exact_digest(request["request_body_sha256"], "REQ-REQUEST-BODY-HASH")
+    exact_digest(request["owner_profile_sha256"], "REQ-PROFILE-HASH")
+    exact_digest(request["requirements_sha256"], "REQ-REQUIREMENTS-HASH")
+    source(source_root, request["request_body_path"], request["request_body_sha256"])
+    if owners_digest(owners_path) != request["owner_profile_sha256"]:
+        reject("REQ-PROFILE-HASH", "owner profile changed")
+    if requirements_digest(requirements_path) != request["requirements_sha256"]:
+        reject("REQ-REQUIREMENTS-HASH", "requirements changed")
+    owners ∈ dict[str, str] ← validate_owners(owners_path, source_root)
+    requirements ∈ list[list[str]] ← validate_requirements(requirements_path, source_root, owners)
+    matching ∈ list[list[str]] ← []
+    superseded ∈ list[str] ← []
+    for row in requirements:
+        if not selector_matches(row, request):
+            continue
+        if row[14] == "unknown":
+            reject("REQ-APPLICABILITY-UNKNOWN", row[11] + ":" + row[0])
+        if row[14] == "not_applicable":
+            continue
+        if row[1] == "proposal":
+            reject("REQ-PROPOSAL-AS-INSTRUCTION", row[0])
+        if row[2] == "unknown" or owners[row[7]] == "unknown":
+            reject("REQ-AUTHORITY-UNKNOWN", row[11] + ":" + row[0])
+        if row[2] != "authoritative" or owners[row[7]] != "authoritative":
+            reject("REQ-NONAUTHORITATIVE-OBLIGATION", row[0])
+        matching.append(row)
+        if row[13] != "-":
+            superseded.append(row[13])
+    active ∈ list[list[str]] ← []
+    for row in matching:
+        if not superseded.__contains__(row[0]):
+            active.append(row)
+    decisions ∈ dict[str, str] ← {}
+    coverage ∈ dict[str, int] ← {"owner": 0, "program": 0, "target": 0}
+    for row in active:
+        parts ∈ list[str] ← decision_parts(row[12])
+        key ∈ str ← row[11] + "\t" + parts[0]
+        if key in decisions:
+            if decisions[key] != parts[1]:
+                reject("REQ-CONFLICT", key)
+            reject("REQ-OBLIGATION-DUPLICATE", key)
+        decisions[key] ← parts[1]
+        coverage[row[11]] ← coverage[row[11]] + 1
+    for choice in CHOICES:
+        if coverage[choice] == 0:
+            reject("REQ-CHOICE-UNCOVERED", choice)
+    active.sort()
+    lines ∈ list[str] ← [
+        "schema\taici-requirement-projection-v1",
+        "request_id\t" + request["request_id"],
+        "request_body_sha256\t" + request["request_body_sha256"],
+        "owner\t" + request["owner"],
+        "program\t" + request["program"],
+        "target\t" + request["target"]
+    ]
+    for row in active:
+        lines.append("obligation\t" + row[11] + "\t" + row[12] + "\t" + row[0] + "\t" + row[1] + "\t" + row[3] + "\t" + row[4] + "\t" + row[5] + "\t" + row[6] + "\t" + row[7] + "\t" + row[13] + "\t" + row[15])
+    projection ∈ str ← str("\n".join(lines)) + "\n"
+    return projection.encode()
+
+def validate_projection(request_path ∈ str, owners_path ∈ str, requirements_path ∈ str, source_root ∈ str, projection_path ∈ str) → bytes:
+    expected ∈ bytes ← projection_bytes(request_path, owners_path, requirements_path, source_root)
+    actual ∈ bytes ← Path(projection_path).read_bytes()
+    if actual != expected:
+        reject("REQ-PROJECTION-MISMATCH", projection_path)
+    return actual
+
+def bind_request(request ∈ dict[str, object], projection ∈ bytes) → dict[str, object]:
+    bound ∈ dict[str, object] ← dict(request)
+    bound["requirement_projection"] ← projection.decode()
+    bound["requirement_projection_sha256"] ← digest(projection)
+    return bound
+
+def validate_request_binding(request ∈ dict[str, object]) → None:
+    has_bytes ∈ bool ← "requirement_projection" in request
+    has_digest ∈ bool ← "requirement_projection_sha256" in request
+    if not has_bytes and not has_digest:
+        return
+    if not has_bytes or not has_digest:
+        reject("REQ-REQUEST-BINDING", "projection bytes and digest must appear together")
+    projection ∈ bytes ← str(request["requirement_projection"]).encode()
+    claimed ∈ str ← str(request["requirement_projection_sha256"])
+    exact_digest(claimed, "REQ-REQUEST-BINDING")
+    if digest(projection) != claimed:
+        reject("REQ-REQUEST-BINDING", "projection digest changed")
+    lines ∈ list[str] ← projection.decode().splitlines()
+    if len(lines) < 7 or lines[0] != "schema\taici-requirement-projection-v1" or lines[1] != "request_id\t" + str(request["id"]):
+        reject("REQ-REQUEST-BINDING", "projection belongs to another request")
+
+def main() → None:
+    arguments ∈ list[str] ← sys.argv
+    if len(arguments) == 7 and arguments[1] == "project":
+        projected ∈ bytes ← projection_bytes(arguments[2], arguments[3], arguments[4], arguments[5])
+        Path(arguments[6]).write_bytes(projected)
+        print("PASS requirement projection " + digest(projected))
+    elif len(arguments) == 7 and arguments[1] == "validate":
+        validated ∈ bytes ← validate_projection(arguments[2], arguments[3], arguments[4], arguments[5], arguments[6])
+        print("PASS requirement projection " + digest(validated))
+    else:
+        reject("REQ-USAGE", "project|validate REQUEST OWNERS REQUIREMENTS SOURCE_ROOT PROJECTION")
+
+namespace ∈ dict[str, object] ← globals()
+module_name ∈ str ← namespace.get("__name__", "")
+if module_name == "__main__":
+    main()

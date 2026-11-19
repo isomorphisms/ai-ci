@@ -7,6 +7,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #define AICI_PATH_MAX 4096
 #define AICI_LINE_MAX (1024 * 1024)
@@ -318,65 +321,8 @@ static char *trim(char *s) {
     return s;
 }
 
-static char *yaml_value(char *content, const char *key) {
-    char *p = content;
-    size_t key_length = strlen(key);
-    if (*p == '-') {
-        if (p[1] != '\0' && !isspace((unsigned char)p[1])) return NULL;
-        p = trim(p + 1);
-    }
-    if (*p == '\0' || *p == '#') return NULL;
-    if (strncmp(p, key, key_length) != 0 || p[key_length] != ':') return NULL;
-    if (p[key_length + 1] != '\0' &&
-        !isspace((unsigned char)p[key_length + 1])) {
-        return NULL;
-    }
-    return trim(p + key_length + 1);
-}
-
-static size_t yaml_key_column(const char *line) {
-    size_t column = 0;
-    while (line[column] == ' ') ++column;
-    if (line[column] == '-') {
-        ++column;
-        while (line[column] == ' ') ++column;
-    }
-    return column;
-}
-
-static int has_noncanonical_yaml_key(const char *content, const char *key) {
-    const char *segment = content;
-    size_t key_length = strlen(key);
-    if (*segment == '-') {
-        ++segment;
-    }
-    for (;;) {
-        const char *p;
-        const char *after_key = NULL;
-        const char *comma;
-        while (isspace((unsigned char)*segment) || *segment == '{') ++segment;
-        p = segment;
-        if (*p == '\'' || *p == '"') {
-            int quote = (unsigned char)*p++;
-            const char *end = strchr(p, quote);
-            if (end != NULL && (size_t)(end - p) == key_length &&
-                strncmp(p, key, key_length) == 0) {
-                after_key = end + 1;
-            }
-        } else if (strncmp(p, key, key_length) == 0 &&
-                   (p[key_length] == ':' ||
-                    isspace((unsigned char)p[key_length]))) {
-            after_key = p + key_length;
-        }
-        if (after_key != NULL) {
-            while (isspace((unsigned char)*after_key)) ++after_key;
-            if (*after_key == ':') return 1;
-        }
-        comma = strchr(segment, ',');
-        if (comma == NULL) return 0;
-        segment = comma + 1;
-    }
-}
+static int yaml_block_scalar_header(const char *value);
+#include "workflow_source.h"
 
 static int split_tabs(char *line, char **fields, int maximum) {
     int count = 0;
@@ -501,121 +447,24 @@ static int tsv_header_is(const char *path, const char *expected_csv) {
 static int workflow_has_declared_path(const char *workflow_path,
                                       const char *required_path,
                                       const char *event_name) {
-    FILE *workflow = fopen(workflow_path, "r");
-    char *line = NULL;
-    size_t capacity = 0;
-    ssize_t length;
-    int in_on = 0;
-    int in_event = 0;
-    int in_paths = 0;
-    int have_on_child_indent = 0;
-    int have_event_child_indent = 0;
-    int target_event_count = 0;
-    int target_paths_count = 0;
-    size_t on_child_indent = 0;
-    size_t event_indent = 0;
-    size_t event_child_indent = 0;
-    size_t paths_indent = 0;
-    int included = 0;
-    int valid = 1;
-    char event_header[128];
-    int event_written;
-    if (workflow == NULL || !regular_file(workflow_path)) {
-        if (workflow != NULL) fclose(workflow);
-        return 0;
-    }
-    event_written = snprintf(event_header, sizeof(event_header), "%s:", event_name);
-    if (event_written < 0 || (size_t)event_written >= sizeof(event_header)) {
-        fclose(workflow);
-        return 0;
-    }
-    while ((length = getline(&line, &capacity, workflow)) >= 0) {
-        char *content;
-        char *item;
-        char *end_quote;
-        char *comment;
-        size_t indent = 0;
-        if (length > AICI_LINE_MAX) {
-            valid = 0;
-            break;
-        }
-        while (line[indent] == ' ') ++indent;
-        content = trim(line);
-        if (*content == '\0' || *content == '#') continue;
-        if (indent == 0 && strcmp(content, "on:") == 0) {
-            in_on = 1;
-            in_event = 0;
-            in_paths = 0;
-            have_on_child_indent = 0;
-            continue;
-        }
-        if (!in_on) continue;
-        if (indent == 0) {
-            in_on = 0;
-            in_event = 0;
-            in_paths = 0;
-            continue;
-        }
-        if (!have_on_child_indent) {
-            on_child_indent = indent;
-            have_on_child_indent = 1;
-        }
-        if (indent == on_child_indent) {
-            in_event = strcmp(content, event_header) == 0;
-            if (in_event && ++target_event_count > 1) valid = 0;
-            event_indent = indent;
-            have_event_child_indent = 0;
-            in_paths = 0;
-            continue;
-        }
-        if (!in_event || indent <= event_indent) continue;
-        if (!have_event_child_indent) {
-            event_child_indent = indent;
-            have_event_child_indent = 1;
-        }
-        if (indent == event_child_indent) {
-            in_paths = strcmp(content, "paths:") == 0;
-            if (in_paths) {
-                if (++target_paths_count > 1) valid = 0;
-                paths_indent = indent;
-            }
-            continue;
-        }
-        if (!in_paths) continue;
-        if (indent <= paths_indent) {
-            in_paths = 0;
-            continue;
-        }
-        if (*content != '-' ||
-            (!isspace((unsigned char)content[1]) && content[1] != '\0')) {
-            continue;
-        }
-        item = trim(content + 1);
-        if (*item == '\'' || *item == '"') {
-            int quote = (unsigned char)*item++;
-            end_quote = strchr(item, quote);
-            if (end_quote == NULL) continue;
-            *end_quote = '\0';
-            if (*trim(end_quote + 1) != '\0' && *trim(end_quote + 1) != '#') {
-                continue;
-            }
-        } else {
-            comment = strchr(item, '#');
-            if (comment != NULL &&
-                (comment == item || isspace((unsigned char)comment[-1]))) {
-                *comment = '\0';
-                item = trim(item);
+    WorkflowSource source;
+    int ok ← workflow_read(workflow_path, &source);
+    int included ← 0;
+    if (ok) {
+        int event_map ← workflow_child(&source, 0, "on");
+        int event ← event_map < 0 ? -1 : workflow_child(&source, event_map, event_name);
+        int paths ← event < 0 ? -1 : workflow_child(&source, event, "paths");
+        if (paths >= 0 && source.nodes[paths].child_kind == 2) {
+            for (int index ← 1; index < source.count; ++index) {
+                WorkflowNode *node ← &source.nodes[index];
+                if (node->parent != paths) continue;
+                if (!node->sequence || node->container || node->value[0] == '!') ok ← 0;
+                if (strcmp(node->value, required_path) == 0) included ← 1;
             }
         }
-        if (*item == '!') {
-            valid = 0;
-            continue;
-        }
-        if (strcmp(item, required_path) == 0) included = 1;
     }
-    free(line);
-    fclose(workflow);
-    return valid && included;
+    workflow_free(&source);
+    return ok && included;
 }
 
 static int every_yaml_path_is_declared(const char *list_path,
@@ -779,119 +628,35 @@ static int suffix_first_line_is(const char *path, const char *suffix,
 }
 
 static int all_actions_pinned(const char *path) {
-    FILE *file = fopen(path, "r");
-    char *line = NULL;
-    size_t capacity = 0;
-    ssize_t length;
-    int remote_actions = 0;
-    int ok = 1;
-    if (file == NULL || !regular_file(path)) {
-        if (file != NULL) fclose(file);
-        return 0;
-    }
-    while ((length = getline(&line, &capacity, file)) >= 0) {
-        char *content;
-        char *comment;
-        char *value;
-        char *at;
-        char *end;
-        int i;
-        if (length > AICI_LINE_MAX) {
-            ok = 0;
-            break;
-        }
-        content = trim(line);
-        if (*content == '\0' || *content == '#') continue;
-        comment = strchr(content, '#');
-        if (comment != NULL &&
-            (*content == '#' || (comment > content && comment[-1] == '-'))) {
-            continue;
-        }
-        value = yaml_value(content, "uses");
-        if (value == NULL) {
-            if (has_noncanonical_yaml_key(content, "uses")) {
-                ok = 0;
-                break;
-            }
-            continue;
-        }
-        if (*value == '\'' || *value == '"') ++value;
-        if (strncmp(value, "./", 2) == 0) {
-            continue;
-        }
-        if (strncmp(value, "docker://", 9) == 0) {
-            ok = 0;
-            break;
-        }
-        at = strchr(value, '@');
-        if (at == NULL) {
-            ok = 0;
-            break;
+    WorkflowSource source;
+    int ok ← workflow_read(path, &source);
+    int remote_actions ← 0;
+    for (int index ← 1; ok && index < source.count; ++index) {
+        WorkflowNode *node ← &source.nodes[index];
+        if (strcmp(node->key, "uses") != 0 || !workflow_action(&source, index)) continue;
+        const char *value ← node->value;
+        if (strncmp(value, "./", 2) == 0) continue;
+        const char *at ← strchr(value, '@');
+        if (strncmp(value, "docker://", 9) == 0 || at == NULL || strlen(at + 1) != 40) {
+            ok ← 0; break;
         }
         ++remote_actions;
-        ++at;
-        end = at;
-        while (isxdigit((unsigned char)*end)) ++end;
-        if (end - at != 40) {
-            ok = 0;
-            break;
-        }
-        for (i = 0; i < 40; ++i) {
-            if (!isxdigit((unsigned char)at[i])) {
-                ok = 0;
-                break;
-            }
-        }
-        if (!ok) break;
-        while (*end == '\'' || *end == '"' || isspace((unsigned char)*end)) ++end;
-        if (*end != '\0' && *end != '#') {
-            ok = 0;
-            break;
+        for (const char *cursor ← at + 1; *cursor != '\0'; ++cursor) {
+            if (!isxdigit((unsigned char)*cursor)) ok ← 0;
         }
     }
-    free(line);
-    fclose(file);
+    workflow_free(&source);
     return ok && remote_actions > 0;
 }
 
 static int yaml_lacks_key(const char *path, const char *key) {
-    FILE *file = fopen(path, "r");
-    char *line = NULL;
-    size_t capacity = 0;
-    ssize_t length;
-    int ok = 1;
-    if (file == NULL || !regular_file(path)) {
-        if (file != NULL) fclose(file);
-        return 0;
+    WorkflowSource source;
+    int ok ← workflow_read(path, &source);
+    for (int index ← 1; ok && index < source.count; ++index) {
+        if (!source.nodes[index].sequence && strcmp(source.nodes[index].key, key) == 0) ok ← 0;
     }
-    while ((length = getline(&line, &capacity, file)) >= 0) {
-        char *content;
-        if (length > AICI_LINE_MAX) {
-            ok = 0;
-            break;
-        }
-        content = trim(line);
-        if (*content == '\0' || *content == '#') continue;
-        if (yaml_value(content, key) != NULL ||
-            has_noncanonical_yaml_key(content, key)) {
-            ok = 0;
-            break;
-        }
-    }
-    free(line);
-    fclose(file);
+    workflow_free(&source);
     return ok;
-}
-
-static char *unquote_scalar(char *value) {
-    size_t length = strlen(value);
-    if (length >= 2 &&
-        ((value[0] == '\'' && value[length - 1] == '\'') ||
-         (value[0] == '"' && value[length - 1] == '"'))) {
-        value[length - 1] = '\0';
-        return value + 1;
-    }
-    return value;
 }
 
 static int yaml_block_scalar_header(const char *value) {
@@ -919,263 +684,49 @@ static int yaml_block_scalar_header(const char *value) {
     return *p == '\0' || *p == '#';
 }
 
-static int finish_primary_checkout(int repository_seen,
-                                   int repository_is_primary,
-                                   int ref_seen, int ref_matches,
-                                   int *primary_count) {
-    if (repository_seen && !repository_is_primary) return 1;
-    ++*primary_count;
-    return ref_seen && ref_matches;
+static int primary_checkouts_use_ref(const char *path, const char *expected_ref) {
+    WorkflowSource source;
+    int count;
+    int ok ← workflow_read(path, &source);
+    if (ok) ok ← workflow_checkout(&source, expected_ref, &count);
+    workflow_free(&source);
+    return ok;
 }
 
-static int primary_checkouts_use_ref(const char *path,
-                                     const char *expected_ref) {
-    FILE *file = fopen(path, "r");
-    char *line = NULL;
-    size_t capacity = 0;
-    ssize_t length;
-    int in_checkout = 0;
-    size_t checkout_key_column = 0;
-    int in_with = 0;
-    size_t with_key_column = 0;
-    int with_child_column_seen = 0;
-    size_t with_child_column = 0;
-    int repository_seen = 0;
-    int repository_is_primary = 0;
-    int ref_seen = 0;
-    int ref_matches = 0;
-    int primary_count = 0;
-    int ok = 1;
-
-    if (file == NULL || !regular_file(path) || expected_ref[0] == '\0') {
-        if (file != NULL) fclose(file);
-        return 0;
-    }
-
-    while ((length = getline(&line, &capacity, file)) >= 0) {
-        char *content;
-        char *value;
-        size_t indent = 0;
-        size_t key_column;
-
-        if (length > AICI_LINE_MAX) {
-            ok = 0;
-            break;
-        }
-        while (line[indent] == ' ') ++indent;
-        key_column = yaml_key_column(line);
-        content = trim(line);
-        if (*content == '\0' || *content == '#') continue;
-
-        if (in_checkout && indent < checkout_key_column) {
-            if (!finish_primary_checkout(repository_seen, repository_is_primary,
-                                         ref_seen, ref_matches, &primary_count)) {
-                ok = 0;
-                break;
-            }
-            in_checkout = 0;
-            in_with = 0;
-        }
-
-        value = yaml_value(content, "uses");
-        if (value != NULL) {
-            value = unquote_scalar(value);
-            if (strncmp(value, "actions/checkout@", 17) == 0) {
-                if (in_checkout &&
-                    !finish_primary_checkout(repository_seen,
-                                             repository_is_primary,
-                                             ref_seen, ref_matches,
-                                             &primary_count)) {
-                    ok = 0;
-                    break;
-                }
-                in_checkout = 1;
-                checkout_key_column = key_column;
-                in_with = 0;
-                with_child_column_seen = 0;
-                repository_seen = 0;
-                repository_is_primary = 0;
-                ref_seen = 0;
-                ref_matches = 0;
-                continue;
-            }
-        }
-
-        if (!in_checkout) continue;
-
-        if (key_column == checkout_key_column) {
-            in_with = 0;
-            with_child_column_seen = 0;
-            value = yaml_value(content, "with");
-            if (value != NULL && (*value == '\0' || *value == '#')) {
-                in_with = 1;
-                with_key_column = key_column;
-            }
-            continue;
-        }
-
-        if (!in_with || key_column <= with_key_column) continue;
-        if (!with_child_column_seen) {
-            with_child_column = key_column;
-            with_child_column_seen = 1;
-        }
-        if (key_column != with_child_column) continue;
-
-        value = yaml_value(content, "repository");
-        if (value != NULL) {
-            value = unquote_scalar(value);
-            repository_seen = 1;
-            repository_is_primary =
-                strcmp(value, "${{ github.repository }}") == 0;
-            continue;
-        }
-
-        value = yaml_value(content, "ref");
-        if (value != NULL) {
-            value = unquote_scalar(value);
-            ref_seen = 1;
-            ref_matches = strcmp(value, expected_ref) == 0;
-        }
-    }
-
-    if (ok && in_checkout &&
-        !finish_primary_checkout(repository_seen, repository_is_primary,
-                                 ref_seen, ref_matches, &primary_count)) {
-        ok = 0;
-    }
-
-    free(line);
-    fclose(file);
-    return ok && primary_count > 0;
-}
-
+/* This is deliberately lexical source policy, not shell failure analysis. */
 static int yaml_run_lacks(const char *path, const char *needle) {
-    FILE *file = fopen(path, "r");
-    char *line = NULL;
-    size_t capacity = 0;
-    ssize_t length;
-    int in_run_block = 0;
-    size_t run_key_column = 0;
-    int ok = 1;
-
-    if (file == NULL || !regular_file(path) || needle[0] == '\0') {
-        if (file != NULL) fclose(file);
-        return 0;
+    WorkflowSource source;
+    int ok ← workflow_read(path, &source);
+    for (int index ← 1; ok && index < source.count; ++index) {
+        int job;
+        if (strcmp(source.nodes[index].key, "run") == 0 &&
+            workflow_step(&source, index, &job) &&
+            strstr(source.nodes[index].value, needle) != NULL) ok ← 0;
     }
-
-    while ((length = getline(&line, &capacity, file)) >= 0) {
-        char *content;
-        char *value;
-        size_t indent = 0;
-        size_t key_column;
-
-        if (length > AICI_LINE_MAX) {
-            ok = 0;
-            break;
-        }
-        while (line[indent] == ' ') ++indent;
-        key_column = yaml_key_column(line);
-        content = trim(line);
-        if (*content == '\0') continue;
-
-        if (in_run_block && indent > run_key_column) {
-            if (*content != '#' && strstr(content, needle) != NULL) {
-                ok = 0;
-                break;
-            }
-            continue;
-        }
-        in_run_block = 0;
-        if (*content == '#') continue;
-
-        value = yaml_value(content, "run");
-        if (value == NULL) continue;
-        if (yaml_block_scalar_header(value)) {
-            in_run_block = 1;
-            run_key_column = key_column;
-            continue;
-        }
-        value = unquote_scalar(value);
-        if (strstr(value, needle) != NULL) {
-            ok = 0;
-            break;
-        }
-    }
-
-    free(line);
-    fclose(file);
+    workflow_free(&source);
     return ok;
 }
 
 static int script_uses_runner(const char *path, const char *script,
                               const char *runner) {
-    FILE *file = fopen(path, "r");
-    char *line = NULL;
-    size_t capacity = 0;
-    ssize_t length;
+    WorkflowSource source;
+    int ok ← workflow_read(path, &source);
+    int matches ← 0;
     char expected[AICI_PATH_MAX * 2];
-    int matches = 0;
-    int ok = 1;
-    int in_run_block = 0;
-    size_t run_key_column = 0;
-    int written;
-
-    if (file == NULL || !regular_file(path)) {
-        if (file != NULL) fclose(file);
-        return 0;
-    }
-    written = snprintf(expected, sizeof(expected), "%s %s", runner, script);
-    if (written < 0 || (size_t)written >= sizeof(expected)) {
-        fclose(file);
-        return 0;
-    }
-    while ((length = getline(&line, &capacity, file)) >= 0) {
-        char *content;
-        char *value;
-        size_t indent = 0;
-        size_t key_column;
-
-        if (length > AICI_LINE_MAX) {
-            ok = 0;
-            break;
-        }
-        while (line[indent] == ' ') ++indent;
-        key_column = yaml_key_column(line);
-        content = trim(line);
-        if (*content == '\0') continue;
-        if (in_run_block && indent > run_key_column) {
-            if (*content != '#' && strstr(content, script) != NULL) {
-                ok = 0;
-                break;
-            }
-            continue;
-        }
-        in_run_block = 0;
-        if (*content == '#') continue;
-        value = yaml_value(content, "run");
-        if (value == NULL) {
-            if (strstr(content, script) != NULL &&
-                has_noncanonical_yaml_key(content, "run")) {
-                ok = 0;
-                break;
-            }
-            continue;
-        }
-        if (yaml_block_scalar_header(value)) {
-            in_run_block = 1;
-            run_key_column = key_column;
-            continue;
-        }
-        value = unquote_scalar(value);
-        if (strstr(value, script) == NULL) continue;
+    int written ← snprintf(expected, sizeof(expected), "%s %s", runner, script);
+    if (written < 0 || (size_t)written >= sizeof(expected)) ok ← 0;
+    for (int index ← 1; ok && index < source.count; ++index) {
+        WorkflowNode *node ← &source.nodes[index];
+        int item ← node->parent;
+        int steps ← item > 0 ? source.nodes[item].parent : -1;
+        if (strcmp(node->key, "run") != 0 || item <= 0 ||
+            !source.nodes[item].sequence || steps < 0 ||
+            strcmp(source.nodes[steps].key, "steps") != 0 ||
+            strstr(node->value, script) == NULL) continue;
         ++matches;
-        if (strcmp(value, expected) != 0) {
-            ok = 0;
-            break;
-        }
+        if (strcmp(node->value, expected) != 0) ok ← 0;
     }
-    free(line);
-    fclose(file);
+    workflow_free(&source);
     return ok && matches > 0;
 }
 
@@ -1368,12 +919,16 @@ static int verify_contract(const char *contract_path, const char *root,
                         !join_path(left, sizeof(left), root, fields[2]);
             if (!malformed) ok = file_contains(left, fields[3], 0);
             snprintf(detail, sizeof(detail), "%s :: %s", fields[2], fields[3]);
-        } else if (strcmp(operation, "yaml_run_not_contains") == 0 &&
+        } else if ((strcmp(operation, "yaml_run_lexically_excludes") == 0 ||
+                    strcmp(operation, "yaml_run_not_contains") == 0) &&
                    count == 4) {
             malformed = fields[3][0] == '\0' ||
                         !join_path(left, sizeof(left), root, fields[2]);
             if (!malformed) ok = yaml_run_lacks(left, fields[3]);
-            snprintf(detail, sizeof(detail), "%s run blocks exclude %s",
+            if (strcmp(operation, "yaml_run_not_contains") == 0 && !quiet) {
+                fprintf(stderr, "AICI-LEXICAL-COMPAT: yaml_run_not_contains is a source-policy alias for yaml_run_lexically_excludes; no command execution or failure propagation is established\n");
+            }
+            snprintf(detail, sizeof(detail), "%s source-policy: run scalars lexically exclude %s; execution not established",
                      fields[2], fields[3]);
         } else if (strcmp(operation, "scoped_contains") == 0 && count == 5) {
             malformed = fields[3][0] == '\0' || fields[4][0] == '\0' ||
@@ -1482,6 +1037,14 @@ static int verify_contract(const char *contract_path, const char *root,
             snprintf(detail, sizeof(detail), "%s:%d", contract_path, line_number);
         }
 
+        if (!ok && (strcmp(operation, "actions_pinned") == 0 ||
+                    strncmp(operation, "yaml_", 5) == 0 ||
+                    strcmp(operation, "script_runner") == 0) &&
+            strcmp(workflow_last_diagnostic, "WORKFLOW-SOURCE-VALID") != 0) {
+            size_t used ← strlen(detail);
+            if (used < sizeof(detail)) snprintf(detail + used, sizeof(detail) - used,
+                " :: source=%s line=%lu", workflow_last_diagnostic, workflow_last_error_line);
+        }
         if (malformed) {
             record_result(result, 0, "AICI-CONTRACT-MALFORMED", operation, detail);
         } else {
@@ -1732,6 +1295,8 @@ static int run_suite(const char *suite_path, const char *base_root) {
     return failures == 0;
 }
 
+#include "action_suite.h"
+
 static void usage(const char *program) {
     fprintf(stderr,
             "usage:\n"
@@ -1743,6 +1308,24 @@ static void usage(const char *program) {
 
 int main(int argc, char **argv) {
     VerifyResult result;
+    if (argc == 8 && strcmp(argv[1], "action-suite") == 0) {
+        return action_suite(argv[0], argv[2], argv[3], argv[4], argv[5], argv[6], argv[7]);
+    }
+    if (argc >= 3 && strcmp(argv[1], "workflow-head") == 0) {
+        int status ← 0;
+        for (int index ← 2; index < argc; ++index) {
+            WorkflowSource source;
+            int primary ← 0;
+            int ok ← workflow_read(argv[index], &source);
+            if (ok) ok ← workflow_checkout(&source,
+                "${{ github.event.pull_request.head.sha || github.sha }}", &primary);
+            if (ok) printf("PASS\texact-head-workflow-source\t%s\tprimary_checkouts=%d\n", argv[index], primary);
+            else printf("%s\t%s:%lu\n", source.diagnostic, argv[index], source.error_line);
+            if (!ok) status ← 1;
+            workflow_free(&source);
+        }
+        return status;
+    }
     if (argc == 4 && strcmp(argv[1], "verify") == 0) {
         return verify_contract(argv[2], argv[3], 0, &result) ? 0 : 1;
     }

@@ -29,7 +29,6 @@ record() {
     record ai-ci "$aici"
     record flexible-pipes "$fp"
 } > "$output/source-pins.tsv"
-engine=$(dirname "$runtime")/ysh
-sha256sum "$runtime" "$engine" > "$output/native-runtime.sha256"
-printf 'runtime_target\tLinux-x86_64\nruntime_kind\tlegacy-C++-YSH-reference\nproduction_Grease\tNOT_ACCEPTED\nphysical_C67\tNOT_RUN\nphysical_A1\tNOT_RUN\nlive_GitHub_mutation\tNOT_RUN\n' > "$output/evidence-scope.tsv"
+sha256sum "$runtime" > "$output/native-runtime.sha256"
+printf 'runtime_target\tLinux-x86_64\nruntime_kind\tpartial-native-D\nphysical_C67\tNOT_RUN\nphysical_A1\tNOT_RUN\nlive_GitHub_mutation\tNOT_RUN\n' > "$output/evidence-scope.tsv"
 cat "$output/source-pins.tsv" "$output/native-runtime.sha256" "$output/evidence-scope.tsv"
