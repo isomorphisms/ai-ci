@@ -1,0 +1,257 @@
+module Live
+
+import Data.List
+import Data.List1
+import Data.Either
+import Data.Maybe
+import Data.Text
+import Language.JSON
+import System
+import System.File
+
+-- Independently decode the actual model output. No producer/core imports.
+
+framed_value : List Char → Either Text (Text, List Char)
+framed_value input =
+  let (digits, suffix) = span isDigit input in
+  case suffix of
+    ':' :: remaining =>
+      if null digits then Left "missing frame length" else
+        let count : Number = cast (pack digits) in
+        if length remaining < count then Left "short context frame"
+        else Right (pack (take count remaining), drop count remaining)
+    _ => Left "missing frame separator"
+
+framed_row : Number → List Char → Either Text (List Text, List Char)
+framed_row Z _ = Left "context row exhausted input"
+framed_row (S fuel) ('\n' :: remaining) = Right ([], remaining)
+framed_row (S fuel) [] = Left "unterminated context row"
+framed_row (S fuel) input = do
+  (value, remaining) ← framed_value input
+  (values, rest) ← framed_row fuel remaining
+  Right (value :: values, rest)
+
+context_rows : Number → List Char → Either Text (List (List Text))
+context_rows Z [] = Right []
+context_rows Z _ = Left "context input exhausted"
+context_rows (S fuel) [] = Right []
+context_rows (S fuel) input@(first :: _) =
+  if isDigit first then do
+    (values, remaining) ← framed_row (length input) input
+    rows ← context_rows fuel remaining
+    Right (values :: rows)
+  else case dropWhile (/= '\n') input of
+    '\n' :: remaining => context_rows fuel remaining
+    _ => Left "unterminated request instruction"
+
+record_layouts : List (Text, List Text)
+record_layouts =
+  [ ("session", ["id", "audience_role", "role_subject", "participants", "purpose"])
+  , ("mode", ["discussion_allowed", "retention_allowed", "topic", "deferred_topics", "preferences"])
+  , ("evidence", ["id", "speaker", "account_kind", "event_time", "report_time", "revision", "status", "exact_passage"])
+  , ("tentative", ["id", "support", "dependencies", "claim"])
+  , ("previous-yenta", ["move", "status", "wording"])
+  , ("agreement", ["id", "revision", "exact_text", "affected", "confirmations", "status"])
+  , ("eligible-moves", ["moves"])
+  , ("challenge", ["id", "topic", "audience", "authorship", "source_ids", "assumptions", "relevance", "uncertainty", "first_move", "first_prompt", "followup_moves"])
+  ]
+
+project_record : List Text → Either Text JSON
+project_record [] = Left "empty context record"
+project_record (tag :: values) =
+  case lookup tag record_layouts of
+    Nothing => Left "unknown context record"
+    Just names => if length names /= length values then Left "context record arity"
+      else Right (JObject (("record_type", JString tag) :: zip names (map JString values)))
+
+decode_request : Text → Either Text (Text, List JSON)
+decode_request raw = do
+  let header = "YENTA_MODEL_REQUEST_V1\n"
+  if not (isPrefixOf header raw) then Left "request version" else Right ()
+  let input = drop (length (unpack header)) (unpack raw)
+  rows ← context_rows (length input) input
+  policy ← case filter (\row => case row of "policy" :: _ => True; _ => False) rows of
+    [["policy", value]] => Right value
+    _ => Left "policy cardinality"
+  records ← traverse project_record (filter (\row => case row of "policy" :: _ => False; _ => True) rows)
+  Right (policy, records)
+
+same_record : JSON → JSON → Bool
+same_record (JObject first) (JObject second) =
+  sortBy (\left, right => compare (fst left) (fst right)) first ≟ sortBy (\left, right => compare (fst left) (fst right)) second
+same_record _ _ = False
+
+string_value : JSON → Either Text Text
+string_value (JString value) =
+  if value ≟ "" || any (\letter => elem letter ['\t', '\r', '\n', '\0']) (unpack value)
+    then Left "unframed string" else Right value
+string_value _ = Left "string field required"
+
+one : Text → List (Text, JSON) → Either Text JSON
+one name entries =
+  case filter (\entry => fst entry ≟ name) entries of
+    [(_, value)] => Right value
+    _ => Left ("field missing or duplicated: " ++ name)
+
+references : JSON → Either Text Text
+references (JArray values) = do
+  names ← traverse string_value values
+  if length names /= length (nub names) then Left "duplicate references" else Right (if null names then "-" else concat (intersperse "," names))
+references _ = Left "reference list required"
+
+encode_response : Text → Either Text Text
+encode_response raw =
+  case Language.JSON.parse raw of
+    Just (JObject entries) =>
+      if sort (map fst entries) /= sort ["move", "uncertainty", "evidence_ids", "hypothesis_ids", "challenge_id", "wording"] then Left "response keys"
+      else do
+        move ← one "move" entries >>= string_value
+        uncertainty ← one "uncertainty" entries >>= string_value
+        evidence ← one "evidence_ids" entries >>= references
+        hypotheses ← one "hypothesis_ids" entries >>= references
+        challenge ← one "challenge_id" entries >>= string_value
+        wording ← one "wording" entries >>= string_value
+        Right (concat (intersperse "\t" ["plan", move, uncertainty, evidence, hypotheses, challenge, wording]) ++ "\n")
+    _ => Left "whole JSON object required"
+
+require : Text → Bool → IO ()
+require label True = putStrLn ("PASS\t" ++ label)
+require label False = die ("FAIL\t" ++ label)
+
+covering
+read_required : Text → IO Text
+read_required path = do
+  result ← readFile path
+  case result of
+    Left error => die ("FAIL\tmissing live evidence " ++ path ++ ": " ++ show error)
+    Right contents => pure contents
+
+covering
+capture : List Text → IO Text
+capture arguments = do
+  opened ← Escaped.popen arguments Read
+  case opened of
+    Left error => die ("FAIL\tobserver process: " ++ show error)
+    Right stream => do
+      result ← fRead stream
+      status ← pclose stream
+      case result of
+        Left error => die ("FAIL\tobserver output: " ++ show error)
+        Right output => do
+          require "observer process exit" (status ≟ 0)
+          pure output
+
+tab_fields : Text → List Text
+tab_fields = forget . split (≟ '\t')
+
+field : Text → Text → Maybe Text
+field name content =
+  case filter (\row => case tab_fields row of [key, _] => key ≟ name; _ => False) (lines content) of
+    [row] => case tab_fields row of [_, value] => Just value; _ => Nothing
+    _ => Nothing
+
+positive_number : Maybe Text → Bool
+positive_number Nothing = False
+positive_number (Just text) = not (text ≟ "") && all isDigit (unpack text) && (the Number (cast text)) > 0
+
+covering
+file_hash : Text → IO Text
+file_hash path = do
+  output ← capture ["sha256sum", "--", path]
+  case words output of
+    value :: _ => pure value
+    _ => die "FAIL\tmissing artifact hash"
+
+speaker_for : Text → Text
+speaker_for "privateA" = "Ari"
+speaker_for "privateB" = "Zev"
+speaker_for "parentA" = "Mira"
+speaker_for "friendA" = "Fen"
+speaker_for _ = ""
+
+permitted_record : Text → JSON → Bool
+permitted_record session (JObject entries) =
+  case lookup "record_type" entries of
+    Just (JString "evidence") =>
+      case (lookup "speaker" entries, lookup "id" entries) of
+        (Just (JString speaker), Just (JString identifier)) =>
+          if session ≟ "sharedAB"
+            then elem speaker ["Ari", "Zev"] && elem identifier ["disclosure:from-Ari:1:sharedAB", "disclosure:from-Zev:1:sharedAB"]
+            else speaker ≟ speaker_for session && isPrefixOf (session ++ "-") identifier
+        _ => False
+    Just (JString "session") => lookup "id" entries ≟ Just (JString session)
+    Just (JString _) => True
+    _ => False
+permitted_record _ _ = False
+
+covering
+check_case : Text → (Text, Text) → IO ()
+check_case root (identifier, session) = do
+  let directory = root ++ "/" ++ identifier
+  original ← read_required (directory ++ "/request.txt")
+  supplied ← read_required (directory ++ "/model/request.txt")
+  require (identifier ++ " exact scoped request supplied") (original ≟ supplied)
+  prompt ← read_required (directory ++ "/model/prompt.txt")
+  require (identifier ++ " unrelated confidence absent") (not (isInfixOf "PRIVATE-CONFIDENCE-TULIP-417" prompt))
+  presented ← read_required (directory ++ "/model/presented-context.json")
+  require (identifier ++ " context used in prompt") (isInfixOf presented prompt)
+  (policy, expected_records) ← case decode_request original of
+    Left error => die ("FAIL\tindependent input decoder: " ++ error)
+    Right value => pure value
+  require (identifier ++ " exact core policy in prompt") (isInfixOf policy prompt)
+  case Language.JSON.parse presented of
+    Just (JArray records) => do
+      require (identifier ++ " faithful model context projection") (length records ≟ length expected_records && all (\(left, right) => same_record left right) (zip records expected_records))
+      require (identifier ++ " speaker/session scope") (not (null records) && all (permitted_record session) records)
+    _ => die "FAIL\tmalformed presented context"
+  execution ← read_required (directory ++ "/model/execution.tsv")
+  require (identifier ++ " actual model execution receipt") (field "state" execution ≟ Just "EXECUTED" && field "model" execution ≟ Just "Qwen/Qwen2.5-1.5B-Instruct" && field "revision" execution ≟ Just "989aa7980e4cf806f80c7fef2b1adb7bc71aa306")
+  require (identifier ++ " nonempty input/output tokens") (positive_number (field "input_tokens" execution) && positive_number (field "output_tokens" execution))
+  request_hash ← file_hash (directory ++ "/request.txt")
+  prompt_hash ← file_hash (directory ++ "/model/prompt.txt")
+  response_hash ← file_hash (directory ++ "/model/raw-response.txt")
+  require (identifier ++ " exact inference artifacts") (field "request_sha256" execution ≟ Just request_hash && field "prompt_sha256" execution ≟ Just prompt_hash && field "raw_response_sha256" execution ≟ Just response_hash)
+  raw ← read_required (directory ++ "/model/raw-response.txt")
+  prefix ← read_required (directory ++ "/model/response-prefix.txt")
+  completion ← read_required (directory ++ "/model/completion.txt")
+  require (identifier ++ " declared syntax prefix and actual completion") (prefix ≟ "{" && isSuffixOf prefix prompt && raw ≟ prefix ++ completion)
+  encoded ← case encode_response raw of
+    Left error => die ("FAIL\tindependent response codec: " ++ error)
+    Right value => pure value
+  delivered ← read_required (directory ++ "/response.tsv")
+  require (identifier ++ " raw model output equals admitted plan") (encoded ≟ delivered)
+  admission ← read_required (directory ++ "/admission.stdout")
+  case tab_fields (trim delivered) of
+    ["plan", move, _, _, _, _, sentence] => do
+      require (identifier ++ " actual core admission") (lines admission ≟ ["YENTA\t" ++ session ++ "\t" ++ move ++ "\t" ++ sentence])
+      case identifier ≟ "parent-deferral" of
+        True => require "deferred topic produces no further question" (elem move ["pause", "summarize"] && not (isInfixOf "?" sentence))
+        False => pure ()
+    _ => die "FAIL\tmodel plan framing"
+
+codec_controls : IO ()
+codec_controls = do
+  let good = "{\"move\":\"pause\",\"uncertainty\":\"topic deferred\",\"evidence_ids\":[],\"hypothesis_ids\":[],\"challenge_id\":\"-\",\"wording\":\"We can leave that here.\"}"
+  require "independent codec positive" (encode_response good ≟ Right "plan\tpause\ttopic deferred\t-\t-\t-\tWe can leave that here.\n")
+  require "independent codec refuses extra operation" (isLeft (encode_response (good ++ "{}")))
+  require "independent codec refuses missing fields" (isLeft (encode_response "{}"))
+  require "independent codec refuses nonstring wording" (isLeft (encode_response "{\"move\":\"pause\",\"uncertainty\":\"x\",\"evidence_ids\":[],\"hypothesis_ids\":[],\"challenge_id\":\"-\",\"wording\":9}"))
+  let framed = "YENTA_MODEL_REQUEST_V1\n6:policy3:a\nb\n7:session1:s7:partner1:p1:p4:test\n"
+  require "independent input decoder preserves multiline policy and named fields"
+    (decode_request framed ≟ Right ("a\nb", [JObject [("record_type", JString "session"), ("id", JString "s"), ("audience_role", JString "partner"), ("role_subject", JString "p"), ("participants", JString "p"), ("purpose", JString "test")]]))
+  require "independent input decoder refuses short frame" (isLeft (decode_request "YENTA_MODEL_REQUEST_V1\n6:policy99:short\n"))
+  require "independent input decoder refuses unknown record" (isLeft (decode_request "YENTA_MODEL_REQUEST_V1\n6:policy1:p\n6:secret1:x\n"))
+
+covering
+main : IO ()
+main = do
+  arguments ← getArgs
+  codec_controls
+  case arguments of
+    [_, "check"] => putStrLn "YENTA_LIVE_CODEC_OK; no inference claimed"
+    [_, root] => do
+      summary ← read_required (root ++ "/summary.tsv")
+      require "fresh inference rather than preparation" (field "evidence_class" summary ≟ Just "FRESH_MODEL_INFERENCE" && field "failed_scoped_cases" summary ≟ Just "0")
+      traverse_ (check_case root) [("partner-opening", "privateA"), ("other-partner", "privateB"), ("parent-opening", "parentA"), ("friend-opening", "friendA"), ("partner-answer", "privateA"), ("partner-correction", "privateA"), ("parent-deferral", "parentA"), ("shared-mediation", "sharedAB")]
+      putStrLn "YENTA_LIVE_OBSERVATIONS_OK; voice quality requires grounded review"
+    _ => die "usage: yente-live-accept check | FRESH_INFERENCE_DIRECTORY"
