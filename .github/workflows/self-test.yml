@@ -281,8 +281,16 @@ jobs:
           path: _ingestion-ithon
           persist-credentials: false
       - name: Select the qualified ICK C compiler
-        uses: isomorphisms/ai-ci/ick-host@2197c6f466e3f11d73acaf8a3814663ec6e9734a
+        uses: ./ick-host
         id: ick
+      - name: Record the selected ingestion compiler bytes
+        shell: sh
+        env:
+          ICK_COMPILER: ${{ steps.ick.outputs.compiler }}
+        run: |
+          set -eu
+          frontend=$("$ICK_COMPILER" -print-prog-name=cc1)
+          sha256sum "$ICK_COMPILER" "$frontend" > "$RUNNER_TEMP/ingestion-compiler.sha256"
       - name: Compile verifier and deterministic fixture server
         shell: sh
         run: |
@@ -397,6 +405,14 @@ jobs:
           attempt: ${{ steps.observer.outputs.attempt }}
           fixture: valid_utf8
           compare_observed_oracle: 'true'
+      - name: Exercise the published stage verdict action
+        uses: ./stage-verdict
+        with:
+          plan: stage-verdict/tests/plans/single.tsv
+          observations: stage-verdict/tests/observations/correct.tsv
+      - name: Prove the nested stage action preserved the selected compiler
+        shell: sh
+        run: sha256sum -c "$RUNNER_TEMP/ingestion-compiler.sha256"
       - name: Retain actual invocation evidence and rejecting controls
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -405,12 +421,8 @@ jobs:
           path: |
             ${{ runner.temp }}/ingestion-invocations
             ${{ runner.temp }}/ingestion-oracle
+            ${{ runner.temp }}/ingestion-compiler.sha256
           if-no-files-found: error
-      - name: Exercise the published stage verdict action
-        uses: ./stage-verdict
-        with:
-          plan: stage-verdict/tests/plans/single.tsv
-          observations: stage-verdict/tests/observations/correct.tsv
 
   holomorphic-t1-independent:
     name: holomorphic-t1-independent-oracle
