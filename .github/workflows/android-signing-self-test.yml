@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "android-signing/**"
+      - "android-release-delivery/**"
       - "android-companion/**"
       - "src/aici_android_signing.c"
       - ".github/workflows/android-signing-self-test.yml"
@@ -12,15 +13,19 @@ on:
       - main
     paths:
       - "android-signing/**"
+      - "android-release-delivery/**"
       - "android-companion/**"
       - "src/aici_android_signing.c"
       - ".github/workflows/android-signing-self-test.yml"
+
+permissions:
+  contents: read
 
 jobs:
   signing-registry:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
@@ -36,3 +41,36 @@ jobs:
       - name: Run hostile signer cases
         run: |
           /tmp/aici-android-signing self-test             android-signing/tests/cases.tsv             android-signing/identities.tsv
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphisms/catfood
+          ref: 609a9628d5a52860f956bf62e0914a0cd03292ae
+          path: .tools/catfood
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: dilapidated-shed/grease
+          ref: f19c94c6df18cddbdc1e81463e5bd689533e3c13
+          path: .tools/runtime/grease
+          submodules: true
+          persist-credentials: false
+      - name: Build the pinned Grease runtime with ICK
+        shell: sh
+        env:
+          CATFOOD_ROOT: ${{ github.workspace }}/.tools/runtime
+          CATFOOD_JOBS: '2'
+          CC: ${{ steps.ick.outputs.compiler }} -fno-link-libatomic -std=gnu11
+        run: sh .tools/catfood/build-tools.sh
+      - name: Resolve pinned Android build tools and platform
+        shell: sh
+        run: sdkmanager 'build-tools;35.0.1' 'platforms;android-35'
+      - name: Verify final signed APK fixtures
+        shell: sh
+        run: |
+          set -eu
+          export PATH="$GITHUB_WORKSPACE/.tools/runtime/.build/grease/bin:$PATH"
+          export AICI_ANDROID_BUILD_TOOLS="$ANDROID_HOME/build-tools/35.0.1"
+          export AICI_ANDROID_SIGNING_VERIFIER="/tmp/aici-android-signing"
+          grease "$GITHUB_WORKSPACE/android-signing/tests/release-delivery.grease" \
+            "$GITHUB_WORKSPACE" "$ANDROID_HOME/platforms/android-35/android.jar"
