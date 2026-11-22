@@ -42,6 +42,19 @@ jobs:
         run: |
           /tmp/aici-android-signing self-test             android-signing/tests/cases.tsv             android-signing/identities.tsv
 
+      - name: Provision Java for Android command-line tools
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Provision the Android command-line SDK
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699
+        with:
+          packages: ''
+      - name: Resolve pinned Android build tools and platform
+        shell: sh
+        run: sdkmanager 'build-tools;35.0.1' 'platforms;android-35'
+
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: isomorphisms/catfood
@@ -62,9 +75,6 @@ jobs:
           CATFOOD_JOBS: '2'
           CC: ${{ steps.ick.outputs.compiler }} -fno-link-libatomic -std=gnu11
         run: sh .tools/catfood/build-tools.sh
-      - name: Resolve pinned Android build tools and platform
-        shell: sh
-        run: sdkmanager 'build-tools;35.0.1' 'platforms;android-35'
       - name: Verify final signed APK fixtures
         shell: sh
         run: |
