@@ -10,6 +10,12 @@ For the repository-design rationale behind small agent entry points, progressive
 disclosure, mechanical constraints, and agent-legible evidence, see
 [`docs/harness-engineering.md`](docs/harness-engineering.md).
 
+## Public READMEs
+
+Write the opening for someone who has just found the project. Say what they can do or learn. Show a real example when it helps. For an app this might be an interaction recording. For a command it might be the input and its output. Keep the author's concrete wording and prominent credit for the work the project builds on. Before rewriting an introduction, read its recent human edits; preserve deliberate additions and deletions.
+
+When shortening the front page, move useful material into a linked companion README or an existing guide. Keep credits with the material they explain. Follow the new links and check that the examples and commands still make sense from their new location. A feature or CI change belongs on the front page when it changes what a newcomer can understand, try or obtain. Verify claims about what ships against the public branch and the actual release assets.
+
 ## Human-found test flaws
 
 - **Treat a human-found bad test as a generator bug until shown otherwise.** Repair the concrete test, then search for the semantic defect class across repositories and investigate the upstream reasoning mechanism, prompt, helper, fixture, oracle, schema, wrapper, or precedent that made the bad test seem valid. Prefer repairing the earliest reusable cause that can be changed safely. Before broad causal changes, establish landmarks such as exact revisions, known-good controls, known-bad mutants, independent semantic outputs, consumer inventories, and executed-case provenance; rerun them afterward and investigate every unexpected movement. Preserve the original defect and corrected form as regression evidence. See issue #183.
