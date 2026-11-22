@@ -109,6 +109,7 @@ static int verify_identity(
     char line[LINE_CAP];
     unsigned long line_number = 0;
     int matches = 0;
+    int observed_is_test_signer = 0;
     char expected[DIGEST_CAP] = {0};
 
     while (fgets(line, sizeof(line), registry) != NULL) {
@@ -168,6 +169,11 @@ static int verify_identity(
             return 0;
         }
 
+        if (strcmp(entry_lane, "test") == 0 &&
+            strcmp(entry_digest, observed) == 0) {
+            observed_is_test_signer = 1;
+        }
+
         if (strcmp(entry_package, package) == 0 &&
             strcmp(entry_lane, lane) == 0) {
             ++matches;
@@ -209,6 +215,17 @@ static int verify_identity(
             package,
             lane,
             matches
+        );
+        return 0;
+    }
+
+    if (strcmp(lane, "release") == 0 && observed_is_test_signer) {
+        snprintf(
+            diagnostic,
+            DIAG_CAP,
+            "TEST_SIGNER_FOR_RELEASE package=%s signer=%s",
+            package,
+            observed
         );
         return 0;
     }

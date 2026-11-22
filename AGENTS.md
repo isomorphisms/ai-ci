@@ -290,7 +290,7 @@ intent and the current owner before adding another index or coordination layer.
 
 - **Preserve Android update identity for every first-party installable APK.**
   Every maintained Android project that produces an APK for the human's devices
-  must keep a stable application/package ID, a persistent test signing
+  must keep a stable application/package ID, an authorized release signing
   certificate for that package, and a monotonically nondecreasing
   `versionCode`. This applies to all current and future phone/tablet utilities
   and apps, not only one repository. Do not generate or substitute a fresh
@@ -298,10 +298,12 @@ intent and the current owner before adding another index or coordination layer.
   rebuild. Install/deploy scripts must try replacement installation and must not
   silently uninstall the existing package to get around a signer or downgrade
   failure. Acceptance must exercise replacement installation without uninstalling
-  the prior build. Keep public/test signing separate from production or store
-  signing. Any intentional package-name or signer migration is a distinct
-  migration task and must be explicit because it can require a one-time
-  uninstall or supported key-rotation path.
+  the prior build. User delivery, including previews and prereleases, requires
+  checking the finished APK against the central release signer registry and
+  matching the delivered bytes to the resulting digest. Test signers are
+  confined to internal qualification. Any intentional package-name or signer
+  change is a distinct migration task and must be explicit because it can require
+  a one-time uninstall or supported key-rotation path.
 
 - **Keep target detection separate from target acceptance.** Detecting `phone`,
   `tablet`, `x86_64`, or another target selects the path to run; it is not proof

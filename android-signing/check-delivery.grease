@@ -1,0 +1,65 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+
+proc fail(message) {
+    printf 'Android release delivery: %s\n' "$message" >&2
+    exit 1
+}
+
+proc require_pattern(value, pattern, message) {
+    try { printf '%s\n' "$value" | awk -v pattern="$pattern" 'END { exit !(NR == 1 && $0 ~ pattern) }' }
+    if (_error.code !== 0) { fail "$message" }
+}
+
+if (len(ARGV) !== 4) {
+    printf 'usage: grease check-delivery.grease APK EXPECTED_PACKAGE EXPECTED_ABI TARGET\n' >&2
+    exit 2
+}
+
+var apk = ARGV[0]
+var expected_package = ARGV[1]
+var expected_abi = ARGV[2]
+var target = ARGV[3]
+var build_tools = ENV.AICI_ANDROID_BUILD_TOOLS
+var verifier = ENV.AICI_ANDROID_SIGNING_VERIFIER
+var registry = "$(dirname -- "$0")/identities.tsv"
+
+test -f "$apk"
+test -x "$build_tools/aapt2"
+test -x "$build_tools/apksigner"
+test -x "$verifier"
+require_pattern "$expected_abi" '^(arm64-v8a|armeabi-v7a|x86|x86_64|riscv64)$' 'expected exactly one Android native ABI'
+require_pattern "$target" '^[a-z0-9][a-z0-9_-]*$' 'invalid target'
+
+# Inspect one private copy so certificate, manifest, ABI and digest describe the
+# same bytes. The transfer consumer must match this digest to the bytes it sends.
+var scratch = $(mktemp -d)
+var snapshot = "$scratch/checked.apk"
+trap --add EXIT { rm -f -- "$snapshot"; rmdir -- "$scratch" }
+cp -- "$apk" "$snapshot"
+
+var badging = $("$build_tools/aapt2" dump badging "$snapshot")
+var package = $(printf '%s\n' "$badging" | sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p")
+var version_code = $(printf '%s\n' "$badging" | sed -n "s/^package: .*versionCode='\\([^']*\\)'.*/\\1/p")
+if (package === '' or package !== expected_package) {
+    fail "package mismatch: expected $expected_package, observed $package"
+}
+require_pattern "$version_code" '^[0-9]+$' 'invalid APK versionCode'
+
+var cert_report = $("$build_tools/apksigner" verify --verbose --print-certs "$snapshot")
+var signer_count = $(printf '%s\n' "$cert_report" | sed -n 's/^Number of signers: //p')
+if (signer_count !== '1') { fail 'expected exactly one signer' }
+var signer = $(printf '%s\n' "$cert_report" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
+require_pattern "$signer" '^[0-9a-f]{64}$' 'invalid signer certificate SHA-256'
+"$verifier" verify "$registry" "$package" release "$signer" >&2
+
+var abi = $(unzip -Z1 "$snapshot" | sed -n 's#^lib/\([^/]*\)/[^/]*\.so$#\1#p' | sort -u)
+if (abi === '' or abi !== expected_abi) {
+    fail "native ABI set mismatch: expected $expected_abi, observed $abi"
+}
+
+var apk_sha256 = $(sha256sum -- "$snapshot" | cut -d ' ' -f 1)
+var apk_bytes = $(wc -c < "$snapshot")
+printf 'schema\taici-android-release-delivery-v1\nresult\tPASS\n'
+printf 'package\t%s\nversion_code\t%s\nabi\t%s\ntarget\t%s\n' "$package" "$version_code" "$abi" "$target"
+printf 'signing_lane\trelease\nsigner_cert_sha256\t%s\napk_sha256\t%s\napk_bytes\t%s\n' "$signer" "$apk_sha256" "$apk_bytes"

@@ -1,0 +1,73 @@
+name: "AI CI Android release delivery"
+description: "Check the final APK against the central release signer registry before user delivery"
+inputs:
+  apk:
+    description: "Finished APK path"
+    required: true
+  expected-package:
+    description: "Package ID from the trusted product configuration"
+    required: true
+  expected-abi:
+    description: "Single native ABI from the trusted device configuration"
+    required: true
+  target:
+    description: "Named device target"
+    required: true
+  grease:
+    description: "Path to the trusted Grease executable"
+    required: true
+  build-tools:
+    description: "Path to the trusted Android SDK build-tools directory"
+    required: true
+  receipt-output:
+    description: "Path for the accepted APK inspection receipt"
+    required: true
+outputs:
+  receipt:
+    description: "Receipt path for the final APK"
+    value: ${{ steps.verify.outputs.receipt }}
+runs:
+  using: "composite"
+  steps:
+    - name: Clear receipt from any prior invocation
+      shell: sh
+      env:
+        AICI_APK: ${{ inputs.apk }}
+        AICI_RECEIPT_OUTPUT: ${{ inputs.receipt-output }}
+      run: |
+        set -eu
+        test -n "$AICI_RECEIPT_OUTPUT"
+        test "$(realpath -m -- "$AICI_RECEIPT_OUTPUT")" != "$(realpath -m -- "$AICI_APK")"
+        rm -f -- "$AICI_RECEIPT_OUTPUT"
+    - name: Qualify the declared native ICK compiler
+      id: ick
+      uses: isomorphisms/ai-ci/ick-host@903b2cb27ea572c9c6cb2ffa9f39e0fbf06ec9f8
+    - name: Inspect the release-signed APK
+      id: verify
+      shell: sh
+      env:
+        AICI_APK: ${{ inputs.apk }}
+        AICI_EXPECTED_PACKAGE: ${{ inputs.expected-package }}
+        AICI_EXPECTED_ABI: ${{ inputs.expected-abi }}
+        AICI_TARGET: ${{ inputs.target }}
+        AICI_GREASE: ${{ inputs.grease }}
+        AICI_ANDROID_BUILD_TOOLS: ${{ inputs.build-tools }}
+        AICI_RECEIPT_OUTPUT: ${{ inputs.receipt-output }}
+        AICI_COMPILER: ${{ steps.ick.outputs.compiler }}
+        AICI_LINK_FLAGS: ${{ steps.ick.outputs.link_flags }}
+        AICI_POLICY_REF: ${{ github.action_ref }}
+      run: |
+        set -eu
+        printf '%s\n' "$AICI_POLICY_REF" | grep -qxE '[0-9a-f]{40}'
+        receipt_tmp=$(mktemp -- "${AICI_RECEIPT_OUTPUT}.XXXXXX")
+        kernel=
+        trap 'rm -f -- "$receipt_tmp" ${kernel:+"$kernel"}' EXIT
+        kernel=$(mktemp -- "$RUNNER_TEMP/aici-android-signing.XXXXXX")
+        "$AICI_COMPILER" $AICI_LINK_FLAGS -std=c17 -Wall -Wextra -Werror -pedantic -O2 \
+          "$GITHUB_ACTION_PATH/../src/aici_android_signing.c" -o "$kernel"
+        AICI_ANDROID_SIGNING_VERIFIER="$kernel" "$AICI_GREASE" \
+          "$GITHUB_ACTION_PATH/../android-signing/check-delivery.grease" \
+          "$AICI_APK" "$AICI_EXPECTED_PACKAGE" "$AICI_EXPECTED_ABI" "$AICI_TARGET" > "$receipt_tmp"
+        printf 'policy_commit\t%s\n' "$AICI_POLICY_REF" >> "$receipt_tmp"
+        mv -T -- "$receipt_tmp" "$AICI_RECEIPT_OUTPUT"
+        printf 'receipt=%s\n' "$AICI_RECEIPT_OUTPUT" >> "$GITHUB_OUTPUT"

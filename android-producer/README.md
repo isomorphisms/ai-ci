@@ -3,6 +3,10 @@
 This action composes the fail-closed checks required before a maintained direct
 NativeActivity APK can be treated as a producer-approved artifact.
 
+For user delivery, run [Android release delivery](../android-release-delivery/)
+on the finished APK. The producer receipt carries the lane of its invocation,
+including internal qualification runs.
+
 It verifies that:
 
 - the action is pinned by a full AICI commit already reachable from protected
