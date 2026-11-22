@@ -8,7 +8,7 @@ ICK_MUTANT_FRONTEND ?=
 PARSER_APPLICATION := $(ICK_PARSER_PACKAGE)/app/icky-parser_app/icky-parser.so
 PARSER_LOADER := $(ICK_PARSER_PACKAGE)/runtime/elf/ld-linux-x86-64.so.2
 TRACE := strace -f -qq -s 8192 -e trace=execve
-FLAGS := -std=c17 -Wall -Wextra -Werror -finput-charset=UTF-8 -fno-diagnostics-color=never -fno-lto -fno-pie
+FLAGS := -std=c17 -Wall -Wextra -Werror -finput-charset=UTF-8 -fdiagnostics-color=never -fno-lto -fno-pie
 parser := -ficky-parser-package=$(ICK_PARSER_PACKAGE)
 
 .NOTPARALLEL:
