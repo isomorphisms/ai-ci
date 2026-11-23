@@ -1,0 +1,468 @@
+module PasteboardOracle
+
+import Data.Bits
+import Data.Buffer
+import Data.List
+import Data.List1
+import Data.Text
+import System
+import System.File
+import System.File.Buffer
+
+-- Independent acceptance data, not an implementation of the consumer reducer.
+record ExpectedEntry where
+  constructor Expected
+  identity : Text
+  position : Text
+  protection : Text
+  timestamp : Text
+  contents : Text
+
+record Snapshot where
+  constructor Observed
+  board : Text
+  seen : Text
+  enabled : Text
+  automatic : Text
+  deliveries : List Text
+  entries : List ExpectedEntry
+
+record Example where
+  constructor ExpectTransition
+  action : Text
+  arguments : List Text
+  outcome : Text
+  next : Snapshot
+
+frame : Text → Text
+frame text = show (length (unpack text)) ++ ":" ++ text
+
+frames : List Text → Text
+frames = concat . map frame
+
+encoded_entry : ExpectedEntry → Text
+encoded_entry entry = frames
+  [entry.identity, entry.position, entry.protection, entry.timestamp, entry.contents]
+
+encoded_snapshot : Snapshot → Text
+encoded_snapshot snapshot = frames ["PB3", snapshot.board, snapshot.seen,
+  snapshot.enabled, snapshot.automatic, frames snapshot.deliveries,
+  frames (map encoded_entry snapshot.entries)]
+
+initial : Snapshot
+initial = Observed "1" "" "1" "0" [] []
+
+text_a : Text
+text_a = "Pasteboard A — first\n  preserved indentation\r\n"
+
+text_b : Text
+text_b = "Pasteboard B — λ ∀ 𐐷 😀 é\n```code\n\tvalue = 2\n```\n"
+
+text_c : Text
+text_c = "Pasteboard C — third\n\n  trailing spaces  \n"
+
+long_text : Text
+long_text = concat (replicate 1200 "long λ 😀\t  \r\n") ++ "end\n"
+
+entry_a : ExpectedEntry
+entry_a = Expected "a" "1" "0" "1" text_a
+
+entry_b : ExpectedEntry
+entry_b = Expected "b" "1" "0" "2" text_b
+
+entry_c : ExpectedEntry
+entry_c = Expected "c" "1" "0" "3" text_c
+
+-- Each expected response is explicit. The next request uses the preceding
+-- expected snapshot only after the independent ART caller proves exact equality.
+examples : List Example
+examples =
+  let a = Observed "1" text_a "1" "0" ["a"] [entry_a]
+      b = Observed "1" text_b "1" "0" ["b", "a"] [entry_b, entry_a]
+      c = Observed "1" text_c "1" "0" ["c", "b", "a"] [entry_c, entry_b, entry_a]
+      promoted = Expected "a" "1" "0" "4" text_a
+      recopy = Observed "1" text_a "1" "0" ["again", "c", "b", "a"] [promoted, entry_c, entry_b]
+      moved_a = Expected "a" "0" "0" "4" text_a
+      moved = { entries := [moved_a, entry_c, entry_b] } recopy
+      pinned_a = Expected "a" "0" "1" "4" text_a
+      pinned = { entries := [pinned_a, entry_c, entry_b] } moved
+      deleted = Observed "1" "" "1" "0" ["again", "c", "b", "a"] [entry_c, entry_b]
+      automatic = { automatic := "1" } deleted
+      observed_b = Expected "b" "1" "0" "6" text_b
+      observer = Observed "1" text_b "1" "1"
+        ["observe", "again", "c", "b", "a"] [observed_b, entry_c]
+      paused = { enabled := "0" } observer
+      foreground = { automatic := "0" } observer
+      long_entry = Expected "long" "1" "0" "7" long_text
+      long_state = Observed "1" long_text "1" "0"
+        ["long", "observe", "again", "c", "b", "a"] [long_entry, observed_b, entry_c]
+      external_a = Expected "external" "1" "0" "9" text_a
+      hinted_external = Observed "1" text_a "1" "0"
+        ["external", "long", "observe", "again", "c", "b", "a"]
+        [external_a, long_entry, observed_b, entry_c]
+      own_copy = Observed "1" text_b "1" "0"
+        ["own-copy", "external", "long", "observe", "again", "c", "b", "a"]
+        [external_a, long_entry, observed_b, entry_c]
+      unknown_c = Expected "c" "1" "0" "11" text_c
+      unknown_hint = Observed "1" text_c "1" "0"
+        ["unknown-copy", "own-copy", "external", "long", "observe", "again", "c", "b", "a"]
+        [unknown_c, external_a, long_entry, observed_b]
+  in
+  [ ExpectTransition "initialize" [] "initialized" initial
+  , ExpectTransition "capture" ["a", "1", text_a] "captured" a
+  , ExpectTransition "capture" ["b", "2", text_b] "captured" b
+  , ExpectTransition "capture" ["c", "3", text_c] "captured" c
+  , ExpectTransition "capture" ["c", "3", text_c] "replayed" c
+  , ExpectTransition "capture" ["again", "4", text_a] "captured" recopy
+  , ExpectTransition "move" ["a", "0"] "moved" moved
+  , ExpectTransition "move" ["a", "2"] "invalid_move" moved
+  , ExpectTransition "protect" ["a"] "protected" pinned
+  , ExpectTransition "delete" ["a"] "entry_protected" pinned
+  , ExpectTransition "protect" ["a"] "unprotected" moved
+  , ExpectTransition "delete" ["a"] "deleted" deleted
+  , ExpectTransition "request_automatic" [] "automatic_requested" automatic
+  , ExpectTransition "capture_foreground" ["race", "5", "racing sample"] "automatic_pending" automatic
+  , ExpectTransition "capture_observer" ["observe", "6", text_b] "captured" observer
+  , ExpectTransition "pause" [] "paused" paused
+  , ExpectTransition "capture_observer" ["paused", "7", "not retained"] "paused" paused
+  , ExpectTransition "resume" [] "resumed" observer
+  , ExpectTransition "foreground_only" [] "foreground_only" foreground
+  , ExpectTransition "capture_observer" ["disabled", "8", "not retained"] "background_disabled" foreground
+  , ExpectTransition "capture" ["long", "7", long_text] "captured" long_state
+  , ExpectTransition "capture" ["nul", "8", "before\0after"] "unsupported_text" long_state
+  , ExpectTransition "select" ["archive"] "invalid_board" long_state
+  , ExpectTransition "capture" ["external", "9", text_a, "c"] "captured" hinted_external
+  , ExpectTransition "capture" ["own-copy", "10", text_b, "b"] "own_copy" own_copy
+  , ExpectTransition "capture" ["unknown-copy", "11", text_c, "missing-id"] "captured" unknown_hint
+  ]
+
+covering
+write_bytes : Text → List Int → IO ()
+write_bytes path bytes = do
+  Just buffer ← newBuffer (cast (length bytes))
+    | Nothing ⇒ do putStrLn "FAIL binary fixture allocation"; exitFailure
+  write_at buffer 0 bytes
+  Right () ← writeBufferToFile path buffer (cast (length bytes))
+    | Left _ ⇒ do putStrLn "FAIL binary fixture write"; exitFailure
+  pure ()
+  where
+    write_at : Buffer → Int → List Int → IO ()
+    write_at buffer offset [] = pure ()
+    write_at buffer offset (byte :: rest) = do
+      setByte buffer offset byte
+      write_at buffer (offset + 1) rest
+
+utf8_bytes : Text → List Int
+utf8_bytes text = concatMap encode (unpack text)
+  where
+    encode : Char → List Int
+    encode character = let scalar = ord character in
+      if scalar < 128 then [scalar]
+      else if scalar < 2048 then [192 + scalar `div` 64, 128 + scalar `mod` 64]
+      else if scalar < 65536 then [224 + scalar `div` 4096,
+        128 + (scalar `div` 64) `mod` 64, 128 + scalar `mod` 64]
+      else [240 + scalar `div` 262144, 128 + (scalar `div` 4096) `mod` 64,
+        128 + (scalar `div` 64) `mod` 64, 128 + scalar `mod` 64]
+
+covering
+must_write : Text → Text → IO ()
+must_write path contents = write_bytes path (utf8_bytes contents)
+
+covering
+write_examples : Text → ℕ → Snapshot → List Example → IO ()
+write_examples directory index previous [] = pure ()
+write_examples directory index previous (example :: rest) = do
+  let request = if example.action ≟ "initialize" then frames ["initialize"]
+        else frames (example.action :: encoded_snapshot previous :: example.arguments)
+  must_write (directory ++ "/" ++ show index ++ ".request") request
+  must_write (directory ++ "/" ++ show index ++ ".expected")
+    (frames [example.outcome, encoded_snapshot example.next])
+  write_examples directory (index + 1) example.next rest
+
+covering
+prepare : Text → IO ()
+prepare directory = do
+  for_ [("textA.txt", text_a), ("textB.txt", text_b), ("textC.txt", text_c),
+        ("long.txt", long_text), ("sensitive.txt", "sensitive fixture must not be retained"),
+        ("nul.txt", "before\0after"), ("empty.txt", "")] $ \(name, text) ⇒
+    must_write (directory ++ "/" ++ name) text
+  for_ (the (List Int32) [0 .. 19]) $ \number ⇒
+    must_write (directory ++ "/overflow-" ++ show number ++ ".txt")
+      ("Overflow fixture " ++ show number ++ "\n  preserved text\n")
+  write_examples directory 0 initial examples
+  must_write (directory ++ "/case-count.txt") (show (length examples) ++ "\n")
+  putStrLn "PASS independent fixture and exact transition expectations generated"
+
+record ParsedFrame where
+  constructor Parsed
+  contents : Text
+  rest : List Char
+
+digits : List Char → ℕ → Bool → Maybe (ℕ, List Char)
+digits [] count started = Nothing
+digits (':' :: rest) count True = Just (count, rest)
+digits (character :: rest) count started =
+  if character < '0' || character > '9' || count > 214748364
+    then Nothing
+    else let next = count × 10 + cast (ord character - ord '0') in
+      if next > 2147483647 then Nothing else digits rest next True
+
+take_frame : ℕ → List Char → List Char → Maybe ParsedFrame
+take_frame Z remaining reversed = Just (Parsed (pack (reverse reversed)) remaining)
+take_frame (S count) [] reversed = Nothing
+take_frame (S count) (character :: rest) reversed = take_frame count rest (character :: reversed)
+
+parse_frames : List Char → List Char → Maybe (List Text)
+parse_frames fuel [] = Just []
+parse_frames [] remaining = Nothing
+parse_frames (_ :: fuel) remaining = do
+  (count, characters) ← digits remaining 0 False
+  value ← take_frame count characters []
+  rest ← parse_frames fuel value.rest
+  pure (value.contents :: rest)
+
+decode_frames : Text → Maybe (List Text)
+decode_frames text = parse_frames (unpack text) (unpack text)
+
+parse_entry : Text → Maybe ExpectedEntry
+parse_entry text = do
+  fields ← decode_frames text
+  case fields of
+    [identity, board, protection, timestamp, contents] ⇒
+      if identity ≟ "" || contents ≟ "" ||
+         not (elem board ["0", "1", "2", "archive"]) || not (elem protection ["0", "1"])
+      then Nothing else Just (Expected identity board protection timestamp contents)
+    _ ⇒ Nothing
+
+different : List Text → Bool
+different [] = True
+different (value :: rest) = not (elem value rest) && different rest
+
+parse_snapshot : Text → Maybe Snapshot
+parse_snapshot text = do
+  fields ← decode_frames text
+  case fields of
+    ["PB3", board, seen, enabled, automatic, delivery_wire, entry_wire] ⇒ do
+      deliveries ← decode_frames delivery_wire
+      entries_wire ← decode_frames entry_wire
+      entries ← traverse parse_entry entries_wire
+      if not (elem board ["0", "1", "2"]) || not (elem enabled ["0", "1"]) ||
+         not (elem automatic ["0", "1"]) || not (different deliveries) ||
+         not (different (map identity entries)) || not (different (map contents entries)) ||
+         any (\position ⇒ length (filter (\entry ⇒ entry.position ≟ position) entries) > 16) ["0", "1", "2"]
+        then Nothing else Just (Observed board seen enabled automatic deliveries entries)
+    _ ⇒ Nothing
+
+crc_bit : Bits32 → Bits32
+crc_bit value = if (value .&. 1) ≟ 0 then shiftR value 1
+  else xor (shiftR value 1) 0xEDB88320
+
+crc_byte : Bits32 → Int → Bits32
+crc_byte value byte = foldl (\state, _ ⇒ crc_bit state) (xor value (cast byte)) (replicate 8 ())
+
+crc : List Int → Bits32
+crc bytes = xor (foldl crc_byte 0xFFFFFFFF bytes) 0xFFFFFFFF
+
+little_endian : List Int → Bits64
+little_endian = foldr (\byte, remaining ⇒ cast byte + 256 × remaining) 0
+
+continuation : Int → Bool
+continuation byte = byte >= 128 && byte <= 191
+
+strict_utf8 : List Int → Maybe (List Char)
+strict_utf8 [] = Just []
+strict_utf8 (byte :: rest) =
+  if byte > 0 && byte < 128 then map (chr byte ::) (strict_utf8 rest)
+  else case rest of
+    second :: remaining ⇒
+      if byte >= 194 && byte <= 223 && continuation second
+        then map (chr ((byte - 192) × 64 + second - 128) ::) (strict_utf8 remaining)
+      else case remaining of
+        third :: after_three ⇒
+          if byte >= 224 && byte <= 239 && continuation second && continuation third &&
+             (byte /= 224 || second >= 160) && (byte /= 237 || second < 160)
+          then map (chr ((byte - 224) × 4096 + (second - 128) × 64 + third - 128) ::) (strict_utf8 after_three)
+          else case after_three of
+            fourth :: after_four ⇒
+              if byte >= 240 && byte <= 244 && continuation second && continuation third && continuation fourth &&
+                 (byte /= 240 || second >= 144) && (byte /= 244 || second <= 143)
+              then map (chr ((byte - 240) × 262144 + (second - 128) × 4096 + (third - 128) × 64 + fourth - 128) ::)
+                (strict_utf8 after_four)
+              else Nothing
+            _ ⇒ Nothing
+        _ ⇒ Nothing
+    _ ⇒ Nothing
+
+covering
+read_bytes : Buffer → Int → Int → IO (List Int)
+read_bytes buffer offset count = if count <= 0 then pure [] else do
+  byte ← getByte buffer offset
+  rest ← read_bytes buffer (offset + 1) (count - 1)
+  pure (byte :: rest)
+
+validate_record : List Int → Either Text Snapshot
+validate_record bytes =
+  if length bytes < 40 then Left "short record" else
+  if take 8 bytes /= [80, 66, 72, 73, 83, 84, 50, 0] then Left "record magic" else
+  if not (elem (little_endian (take 4 (drop 8 bytes))) [2, 3]) || little_endian (take 4 (drop 12 bytes)) /= 40
+    then Left "record version" else
+  if little_endian (take 8 (drop 24 bytes)) /= cast (length (drop 40 bytes)) then Left "record length" else
+  if cast (crc (take 36 bytes)) /= little_endian (take 4 (drop 36 bytes)) then Left "header checksum" else
+  if cast (crc (drop 40 bytes)) /= little_endian (take 4 (drop 32 bytes)) then Left "payload checksum" else
+  case strict_utf8 (drop 40 bytes) of
+    Nothing ⇒ Left "strict UTF-8"
+    Just characters ⇒ case parse_snapshot (pack characters) of
+      Nothing ⇒ Left "snapshot invariant"
+      Just snapshot ⇒ Right snapshot
+
+covering
+read_snapshot : Text → IO Snapshot
+read_snapshot path = do
+  Right buffer ← createBufferFromFile path
+    | Left _ ⇒ do putStrLn "FAIL independent snapshot read"; exitFailure
+  size ← rawSize buffer
+  bytes ← read_bytes buffer 0 size
+  case validate_record bytes of
+    Left reason ⇒ do putStrLn ("FAIL independent " ++ reason); exitFailure
+    Right snapshot ⇒ pure snapshot
+
+covering
+read_text : Text → IO Text
+read_text path = do
+  Right buffer ← createBufferFromFile path
+    | Left _ ⇒ do putStrLn "FAIL independent expected-text read"; exitFailure
+  size ← rawSize buffer
+  bytes ← read_bytes buffer 0 size
+  case fixture_utf8 bytes of
+    Just characters ⇒ pure (pack characters)
+    Nothing ⇒ do putStrLn "FAIL independent expected-text UTF-8"; exitFailure
+  where
+    fixture_utf8 : List Int → Maybe (List Char)
+    fixture_utf8 bytes = do
+      let (prefix, remaining) = span (/= 0) bytes
+      characters ← strict_utf8 prefix
+      case remaining of
+        [] ⇒ Just characters
+        _ :: rest ⇒ do
+          following ← fixture_utf8 rest
+          pure (characters ++ '\0' :: following)
+
+covering
+assertion : Text → Bool → IO ()
+assertion name True = putStrLn ("PASS " ++ name)
+assertion name False = do putStrLn ("FAIL " ++ name); exitFailure
+
+little_bytes : ℕ → Bits64 → List Int
+little_bytes Z value = []
+little_bytes (S count) value = cast (value .&. 255) :: little_bytes count (shiftR value 8)
+
+record_bytes : List Int → List Int
+record_bytes payload =
+  let header = [80, 66, 72, 73, 83, 84, 50, 0] ++ little_bytes 4 2 ++
+        little_bytes 4 40 ++ little_bytes 8 1 ++ little_bytes 8 (cast (length payload)) ++
+        little_bytes 4 (cast (crc payload)) in
+    header ++ little_bytes 4 (cast (crc header)) ++ payload
+
+covering
+selftest : Text → IO ()
+selftest directory = do
+  nul ← read_text (directory ++ "/nul.txt")
+  assertion "embedded NUL fixture survives binary write and read" (nul ≟ "before\0after")
+  assertion "CRC-32 standard check value" (crc (utf8_bytes "123456789") ≟ 0xCBF43926)
+  let valid = record_bytes (utf8_bytes (encoded_snapshot initial))
+  assertion "independent valid record" (case validate_record valid of Right _ ⇒ True; _ ⇒ False)
+  let corrupt_header = take 16 valid ++ [255] ++ drop 17 valid
+  assertion "header-corrupt negative fixture" (case validate_record corrupt_header of Left "header checksum" ⇒ True; _ ⇒ False)
+  let corrupt_payload = take 40 valid ++ [255] ++ drop 41 valid
+  assertion "payload-corrupt negative fixture" (case validate_record corrupt_payload of Left "payload checksum" ⇒ True; _ ⇒ False)
+  assertion "invalid UTF-8 negative fixture" (case validate_record (record_bytes [192, 128]) of Left "strict UTF-8" ⇒ True; _ ⇒ False)
+  assertion "invalid framing negative fixture" (case validate_record (record_bytes (utf8_bytes "999:x")) of Left "snapshot invariant" ⇒ True; _ ⇒ False)
+  let repeated = { entries := [entry_a, entry_a] } initial
+  assertion "duplicate-record negative fixture" (case validate_record (record_bytes (utf8_bytes (encoded_snapshot repeated))) of Left "snapshot invariant" ⇒ True; _ ⇒ False)
+  write_bytes (directory ++ "/valid-record.bin") valid
+  write_bytes (directory ++ "/corrupt-header.bin") corrupt_header
+  write_bytes (directory ++ "/corrupt-payload.bin") corrupt_payload
+  let legacy_entry = \timestamp, text ⇒ little_bytes 8 timestamp ++
+        little_bytes 4 (cast (length (utf8_bytes text))) ++ utf8_bytes text
+  let legacy = [80, 66, 79, 65, 82, 68, 49, 0] ++ little_bytes 4 1 ++
+        little_bytes 4 1 ++ little_bytes 8 0 ++ little_bytes 4 0 ++ little_bytes 4 3 ++
+        legacy_entry 3 text_c ++ legacy_entry 2 text_b ++ legacy_entry 1 text_a ++ little_bytes 4 0
+  write_bytes (directory ++ "/legacy-v1.bin") legacy
+  write_bytes (directory ++ "/legacy-corrupt.bin") (take 33 legacy)
+  putStrLn "PASS independent integrity positive and targeted negative controls"
+
+attribute_value : Text → Text → Maybe Text
+attribute_value name element = seek (unpack element)
+  where
+    prefix : List Char
+    prefix = unpack (name ++ "=\"")
+    seek : List Char → Maybe Text
+    seek [] = Nothing
+    seek characters@(_ :: rest) =
+      if isPrefixOf prefix characters then Just (pack (takeWhile (/= '"') (drop (length prefix) characters)))
+      else seek rest
+
+node_point : Text → Text → Text → Maybe (Int, Int)
+node_point field value document = do
+  node ← find (\node ⇒ attribute_value field node ≟ Just value) (forget (split (== '>') document))
+  bounds ← attribute_value "bounds" node
+  let components = filter (not . null) (forget (split (\character ⇒ character < '0' || character > '9') bounds))
+  case components of
+    [left, top, right, bottom] ⇒ Just ((cast left + cast right) `div` 2, (cast top + cast bottom) `div` 2)
+    _ ⇒ Nothing
+
+covering
+main : IO ()
+main = do
+  arguments ← getArgs
+  case arguments of
+    [_, "prepare", directory] ⇒ prepare directory
+    [_, "selftest", directory] ⇒ selftest directory
+    [_, "ui-point", file, field, value] ⇒ do
+      document ← read_text file
+      case node_point field value document of
+        Just (x, y) ⇒ putStrLn (show x ++ " " ++ show y)
+        Nothing ⇒ do putStrLn "FAIL independent UI node absent"; exitFailure
+    _ :: "board" :: file :: board :: count :: text_files ⇒ do
+      snapshot ← read_snapshot file
+      expected ← traverse read_text text_files
+      assertion "selected board" (snapshot.board ≟ board)
+      assertion "retained count" (show (length snapshot.entries) ≟ count)
+      assertion "exact board contents and order"
+        (map contents (filter (\entry ⇒ entry.position ≟ board) snapshot.entries) ≟ expected)
+    [_, "entry", file, text_file, board, protection] ⇒ do
+      snapshot ← read_snapshot file
+      expected ← read_text text_file
+      let matches = filter (\entry ⇒ entry.contents ≟ expected) snapshot.entries
+      assertion "exact entry position and protection" (case matches of
+        [entry] ⇒ entry.position ≟ board && entry.protection ≟ protection
+        _ ⇒ False)
+    [_, "absent", file, text_file] ⇒ do
+      snapshot ← read_snapshot file
+      expected ← read_text text_file
+      assertion "excluded text absent" (not (any (\entry ⇒ entry.contents ≟ expected) snapshot.entries))
+    [_, "forgotten", file, text_file] ⇒ do
+      snapshot ← read_snapshot file
+      expected ← read_text text_file
+      assertion "deleted text absent from entries and seen marker"
+        (snapshot.seen /= expected && not (any (\entry ⇒ entry.contents ≟ expected) snapshot.entries))
+    [_, "count", file, count] ⇒ do
+      snapshot ← read_snapshot file
+      assertion "retained count" (show (length snapshot.entries) ≟ count)
+    [_, "added-deliveries", before, after, count] ⇒ do
+      previous ← read_snapshot before
+      next ← read_snapshot after
+      let added = length next.deliveries `minus` length previous.deliveries
+      assertion "exact added durable deliveries"
+        (show added ≟ count && drop added next.deliveries ≟ previous.deliveries)
+    _ :: "positions" :: file :: position :: text_files ⇒ do
+      snapshot ← read_snapshot file
+      expected ← traverse read_text text_files
+      assertion "exact spatial order" (map contents (filter (\entry ⇒ entry.position ≟ position) snapshot.entries) ≟ expected)
+    [_, "mode", file, enabled, automatic] ⇒ do
+      snapshot ← read_snapshot file
+      assertion "checked capture mode" (snapshot.enabled ≟ enabled && snapshot.automatic ≟ automatic)
+    [_, "validate", file] ⇒ do
+      _ ← read_snapshot file
+      putStrLn "PASS independent record integrity and snapshot invariants"
+    _ ⇒ do putStrLn "usage: pasteboard-oracle prepare|board|entry|absent|mode|validate ..."; exitFailure

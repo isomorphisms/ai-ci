@@ -1,0 +1,29 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 5) { echo 'requires ADB SERIAL API SUITE WORKSPACE' >&2; exit 2 }
+var adb = ARGV[0]
+var serial = ARGV[1]
+var api = ARGV[2]
+var suite = ARGV[3]
+var workspace = ARGV[4]
+if (suite !== 'workflow' and suite !== 'migration') { echo 'unknown acceptance suite' >&2; exit 2 }
+if (workspace[0] !== '/') { echo 'absolute workspace required' >&2; exit 2 }
+var grease = ENV.GREASE
+var observer = "$workspace/.ai-ci-independent/pasteboard"
+var input = "$workspace/build/pasteboard-independent"
+var apk = "$workspace/downloaded-apks/pasteboard-x86_64.apk"
+"$adb" -s "$serial" shell getprop ro.kernel.qemu | tr -d '\r' | rg -x 1
+"$adb" -s "$serial" shell getprop ro.build.version.sdk | tr -d '\r' | rg -x -F "$api"
+"$adb" -s "$serial" shell id -u | tr -d '\r' | rg -x 2000
+"$adb" -s "$serial" shell wm size 480x960
+"$adb" -s "$serial" shell wm density 160
+if (suite === 'migration') {
+  exec "$grease" "$observer/observe-migration.grease" "$adb" "$serial" "$api" "$apk" \
+    "$workspace/downloaded-legacy/pasteboard-debug.apk" "$input" "$workspace/build/migration-evidence"
+}
+"$grease" "$workspace/pasteboard/ci/emulator-smoke.grease" "$apk" "$adb" "$workspace/build/emulator-evidence"
+"$grease" "$observer/observe-art.grease" "$adb" "$serial" "$api" "$apk" \
+  "$workspace/downloaded-evidence/pasteboard-checked/wrong-order.dex" "$input" "$workspace/build/art-evidence"
+"$grease" "$observer/observe-installed.grease" "$adb" "$serial" "$api" "$apk" "$input" "$workspace/build/clipboard-evidence"
+"$grease" "$observer/observe-controls.grease" "$adb" "$serial" "$api" "$apk" "$input" "$workspace/build/control-evidence"
+"$grease" "$observer/observe-ui.grease" "$adb" "$serial" "$api" "$apk" "$input" "$workspace/build/ui-evidence"
