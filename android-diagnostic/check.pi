@@ -1,0 +1,210 @@
+"""Deterministic evidence bindings. Does not grade arbitrary causal prose."""
+from argparse import ArgumentParser
+from pathlib import Path
+from builtins import isinstance, dict, Exception
+import hashlib
+import json
+import re
+import sys
+import zlib
+
+def png(payload ∈ bytes) → bool:
+    # Structural frame qualification is independent of any visual diagnosis.
+    if not payload.startswith(b"\x89PNG\r\n\x1a\n"):
+        return False
+    offset ∈ int ← 8
+    total ∈ int ← len(payload)
+    width ∈ int ← 0
+    height ∈ int ← 0
+    channels ∈ int ← 0
+    compressed ∈ bytes ← b""
+    ended ∈ bool ← False
+    while offset + 12 <= total:
+        size ∈ int ← int.from_bytes(payload[offset:offset + 4], "big")
+        kind ∈ bytes ← payload[offset + 4:offset + 8]
+        end ∈ int ← offset + 8 + size
+        if end + 4 > total:
+            return False
+        data ∈ bytes ← payload[offset + 8:end]
+        crc ∈ int ← int.from_bytes(payload[end:end + 4], "big")
+        actual ∈ int ← zlib.crc32(kind + data)
+        if actual != crc:
+            return False
+        if kind == b"IHDR":
+            if offset != 8 or size != 13:
+                return False
+            width ← int.from_bytes(data[0:4], "big")
+            height ← int.from_bytes(data[4:8], "big")
+            if data[8] != 8 or data[10:13] != b"\x00\x00\x00":
+                return False
+            if data[9] == 6:
+                channels ← 4
+            elif data[9] == 2:
+                channels ← 3
+            elif data[9] == 4:
+                channels ← 2
+            elif data[9] == 0:
+                channels ← 1
+            else:
+                return False
+        elif kind == b"IDAT":
+            if channels == 0:
+                return False
+            compressed ← compressed + data
+        elif kind == b"IEND":
+            if size != 0 or end + 4 != total:
+                return False
+            ended ← True
+        offset ← end + 4
+    if not ended or width < 1 or height < 1 or width > 8192 or height > 8192:
+        return False
+    expected ∈ int ← height * (1 + width * channels)
+    if expected > 67108864:
+        return False
+    try:
+        decoder ∈ object ← zlib.decompressobj()
+        pixels ∈ bytes ← decoder.decompress(compressed, expected + 1)
+        count ∈ int ← len(pixels)
+        complete ∈ bool ← decoder.eof
+        unused ∈ bytes ← decoder.unused_data
+        return count == expected and complete and unused == b""
+    except Exception:
+        return False
+
+def require(record ∈ dict[str, object], key ∈ str) → str:
+    value ∈ str ← record.get(key, "")
+    is_text ∈ bool ← isinstance(value, str)
+    if is_text == False:
+        sys.exit("MISSING_INPUT:" + key)
+    if value == "":
+        sys.exit("MISSING_INPUT:" + key)
+    return value
+
+def digest(path ∈ Path) → str:
+    payload ∈ bytes ← path.read_bytes()
+    answer ∈ str ← hashlib.sha256(payload).hexdigest()
+    return answer
+
+def main() → None:
+    parser ∈ ArgumentParser ← ArgumentParser(description="Claim-specific Android diagnostic validation")
+    parser.add_argument("--plan", required=True)
+    parser.add_argument("--capture")
+    parser.add_argument("--output", default="")
+    args ∈ object ← parser.parse_args()
+    plan_name ∈ str ← args.plan
+    output_name ∈ str ← args.output
+    plan_path ∈ Path ← Path(plan_name)
+    plan ∈ dict[str, object] ← json.loads(plan_path.read_text())
+    for key in ["observed_symptom", "candidate_explanation", "required_observable", "observable_producer", "producer_scope", "experiment", "repository", "source_commit", "target", "device_instance", "package", "claim", "permitted_actions", "task_sha256"]:
+        require(plan, key)
+    package ∈ str ← require(plan, "package")
+    valid_package ∈ bool ← bool(re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)+", package))
+    if valid_package == False:
+        sys.exit("INVALID_PACKAGE")
+    if package.__contains__("whatever"):
+        sys.exit("PLACEHOLDER_PACKAGE")
+    scope ∈ str ← require(plan, "producer_scope")
+    claim ∈ str ← require(plan, "claim")
+    observable ∈ str ← require(plan, "required_observable")
+    actions ∈ str ← require(plan, "permitted_actions")
+    if actions != "observe":
+        if actions != "observe,replay-input":
+            sys.exit("ACTION_NOT_ADMITTED")
+    if claim != "frame-observation":
+        if claim != "crash-observation":
+            if claim != "zoom-state-observation":
+                sys.exit("UNSUPPORTED_CAUSAL_CLAIM:geometry and transforms require separate controls")
+    if claim == "zoom-state-observation":
+        if scope != "application-context":
+            sys.exit("WRONG_EVIDENCE_SCOPE:application-context required")
+        if observable != "crystal-state-v1":
+            sys.exit("INSTRUMENTATION_GAP:crystal-state-v1 required for zoom state")
+    if claim == "frame-observation":
+        if observable != "frame":
+            sys.exit("WRONG_OBSERVABLE:frame required")
+    if claim == "crash-observation":
+        if observable != "bounded-log":
+            sys.exit("WRONG_OBSERVABLE:bounded-log required")
+    decision ∈ dict[str, str] ← dict()
+    decision.__setitem__("schema", "aici-android-diagnostic-v1")
+    decision.__setitem__("plan_sha256", digest(plan_path))
+    decision.__setitem__("result", "PREPARED")
+    decision.__setitem__("acceptance_scope", "prepared-experiment")
+    decision.__setitem__("remaining_uncertainty", "visual correctness, cause, and physical repair are not established")
+    capture_name ∈ str ← args.capture
+    if capture_name:
+        capture_path ∈ Path ← Path(capture_name)
+        capture ∈ dict[str, object] ← json.loads(capture_path.read_text())
+        state ∈ str ← require(capture, "state")
+        if state != "CAPTURED":
+            sys.exit("CAPTURE_FAILURE:" + state)
+        for key in ["source_commit", "target", "device_instance", "package", "task_sha256", "claim"]:
+            expected ∈ str ← require(plan, key)
+            observed ∈ str ← require(capture, key)
+            if expected != observed:
+                sys.exit("EVIDENCE_BINDING_MISMATCH:" + key)
+        installed ∈ str ← require(capture, "installed_apk_sha256")
+        expected_apk ∈ str ← require(plan, "apk_sha256")
+        if installed != expected_apk:
+            sys.exit("INSTALLED_ARTIFACT_MISMATCH")
+        pid_before ∈ str ← require(capture, "pid_before")
+        pid_after ∈ str ← require(capture, "pid_after")
+        valid_pid ∈ bool ← bool(re.fullmatch(r"[1-9][0-9]*", pid_before))
+        if valid_pid == False:
+            sys.exit("AMBIGUOUS_PID")
+        if pid_before != pid_after:
+            sys.exit("PROCESS_CHANGED")
+        start_before ∈ str ← require(capture, "process_start_before")
+        start_after ∈ str ← require(capture, "process_start_after")
+        if start_before != start_after:
+            sys.exit("PROCESS_CHANGED:pid reused")
+        artifact_name ∈ str ← require(capture, "observation_path")
+        artifact ∈ Path ← Path(artifact_name)
+        if artifact.is_symlink():
+            sys.exit("UNSAFE_CAPTURE_FILE")
+        payload ∈ bytes ← artifact.read_bytes()
+        if payload == b"":
+            sys.exit("EMPTY_OBSERVATION")
+        actual_digest ∈ str ← digest(artifact)
+        asserted_digest ∈ str ← require(capture, "observation_sha256")
+        if actual_digest != asserted_digest:
+            sys.exit("SWAPPED_OBSERVATION")
+        if claim == "frame-observation":
+            valid_frame ∈ bool ← png(payload)
+            if valid_frame == False:
+                sys.exit("INVALID_FRAME_FORMAT")
+            decision.__setitem__("supported_conclusion", "device frame captured during the bound process session; foreground window and appearance require review")
+            decision.__setitem__("source_binding", "DECLARED; installed digest observed, source-to-APK producer verification required separately")
+        elif claim == "crash-observation":
+            producer ∈ str ← require(plan, "observable_producer")
+            relevant_log ∈ bool ← payload.__contains__(producer.encode())
+            if relevant_log == False:
+                sys.exit("IRRELEVANT_LOG:no identified producer")
+            decision.__setitem__("supported_conclusion", "identified producer emitted bounded log records")
+        else:
+            snapshot ∈ dict[str, object] ← json.loads(payload.decode())
+            for key in ["source_commit", "package", "session", "replay_id", "gl_vendor", "gl_renderer", "gl_version", "render_path", "geometry_result", "camera_distance", "camera_min", "camera_max", "clip_near", "clip_far", "touch_count", "pointer_ids", "pinch_span", "applied_zoom"]:
+                require(snapshot, key)
+            snapshot_source ∈ str ← require(snapshot, "source_commit")
+            if snapshot_source != require(plan, "source_commit"):
+                sys.exit("SNAPSHOT_SOURCE_MISMATCH")
+            if require(snapshot, "package") != package:
+                sys.exit("SNAPSHOT_PACKAGE_MISMATCH")
+            if require(snapshot, "session") != pid_before + "-" + start_before:
+                sys.exit("STALE_TELEMETRY:process session mismatch")
+            decision.__setitem__("supported_conclusion", "application state captured; geometry and transform causes remain separate")
+        decision.__setitem__("capture_sha256", digest(capture_path))
+        decision.__setitem__("observation_sha256", actual_digest)
+        decision.__setitem__("result", "PASS")
+        decision.__setitem__("acceptance_scope", "bounded-observation")
+    destination ∈ Path ← Path(output_name)
+    if output_name == "":
+        print(json.dumps(decision, sort_keys=True))
+        sys.exit(0)
+    if destination.exists():
+        sys.exit("OUTPUT_ALREADY_EXISTS")
+    decision_text ∈ str ← json.dumps(decision, sort_keys=True, indent=2)
+    destination.write_text(decision_text + "\n")
+    print(json.dumps(decision, sort_keys=True))
+
+main()

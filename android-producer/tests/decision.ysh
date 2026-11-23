@@ -1,0 +1,8 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+# Qualification-only compatibility name. Fixture authority must be explicit.
+var script = $(/usr/bin/readlink -f "$0")
+var tests = $(/usr/bin/dirname "$script")
+var GREASE = ENV.GREASE_BIN
+test "$#" = 5 || { echo 'expected RELEASE FIXTURE_ANCHOR DECISION APK FIXTURE_CURRENT_STATE; public promotion remains disabled' >&2; exit 2; }
+exec "$GREASE" "$tests/inspect.ysh" @ARGV

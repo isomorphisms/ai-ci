@@ -1,0 +1,11 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+# Overall qualification must fail if a required execution case is blocked.
+# The artifact suite's PASS remains visible under its original weaker scope.
+var script = $(/usr/bin/readlink -f "$0")
+var tests = $(/usr/bin/dirname "$script")
+var GREASE = ENV.GREASE_BIN
+test "$#" = 1 || exit 2
+"$GREASE" "$tests/run.ysh" "$1"
+/usr/bin/awk -F '\t' 'NR>1&&$4!="PASS"{bad=1} END{if(bad)exit 1}' "$1/results.tsv" || { echo 'DEPLOYMENT_BLOCKED: mandatory producer execution qualification unavailable' >&2; exit 3; }
+echo 'candidate producer package qualified; deployed authority remains NOT_VERIFIED'

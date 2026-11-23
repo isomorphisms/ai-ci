@@ -1,0 +1,13 @@
+real APK, authentic fixture issuer, mandatory records, independent inspection: PASS
+forged-receipt	PASS
+historical-policy	PASS
+stale-source	PASS
+stale-target	PASS
+wrong-signer	PASS
+scope-overclaim	PASS
+missing-stage	PASS
+skipped-packaging	PASS
+NDK-then-unapproved-packager	PASS
+no-op-check	PASS
+changed-artifact	PASS
+fixture authentication/semantic rejection suite: PASS; trusted producer deployment: NOT_VERIFIED
