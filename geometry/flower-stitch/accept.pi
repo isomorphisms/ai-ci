@@ -1,0 +1,312 @@
+"""Independently reconstruct counted material from printed crochet instructions."""
+import sys
+import re
+import subprocess
+import xml.etree.ElementTree as xml
+from pathlib import Path
+from builtins import ValueError, list
+
+def require(condition ∈ bool, diagnostic ∈ str) → None:
+    if not condition:
+        raise ValueError(diagnostic)
+
+def expected(pattern ∈ str) → list[list[str]]:
+    require(pattern=="increasing" or pattern=="control","pattern")
+    rows ∈ list[list[str]] ← [["FLOWER_STITCH_LEDGER","1"],["pattern",pattern],["foundation","8","0","0"]]
+    counts ∈ list[int] ← [8]
+    for row in range(3):
+        following ∈ int ← counts[row]
+        if pattern=="increasing":
+            following ← following+following//2
+        counts.append(following)
+    total ∈ int ← 0
+    increases ∈ int ← 0
+    for count in counts:
+        total ← total+count
+    increases ← counts[3]-8
+    rows.append(["summary","4",str(total),str(increases)])
+    offset ∈ int ← 0
+    for row in range(4):
+        added ∈ int ← 0
+        if row>0:
+            added ← counts[row]-counts[row-1]
+        rows.append(["round",str(row),str(offset),str(counts[row]),str(added),"1","0",str(offset),"0"])
+        offset ← offset+counts[row]
+    offset ← 0
+    previous_offset ∈ int ← 0
+    for row in range(4):
+        parents ∈ int ← 8
+        parent_kind ∈ str ← "chain"
+        if row>0:
+            parents ← counts[row-1]
+            parent_kind ← "stitch"
+        index ∈ int ← 0
+        for parent_index in range(parents):
+            children ∈ int ← 1
+            if row>0 and pattern=="increasing" and parent_index%2==1:
+                children ← 2
+            for ordinal in range(children):
+                parent ∈ int ← parent_index
+                if row>0:
+                    parent ← previous_offset+parent_index
+                identity ∈ int ← offset+index
+                previous ∈ int ← offset+(index+counts[row]-1)%counts[row]
+                following ∈ int ← offset+(index+1)%counts[row]
+                rows.append(["stitch",str(identity),str(row),str(index),parent_kind,str(parent),str(ordinal),str(ordinal),str(previous),str(following)])
+                index ← index+1
+        require(index==counts[row],"independent count reconstruction")
+        previous_offset ← offset
+        offset ← offset+counts[row]
+    rows.append(["end"])
+    return rows
+
+def ledger(text ∈ str, pattern ∈ str) → list[list[str]]:
+    observed ∈ list[list[str]] ← []
+    lines ∈ list[str] ← text.splitlines()
+    for line in lines:
+        fields ∈ list[str] ← line.split("\t")
+        observed.append(fields)
+    wanted ∈ list[list[str]] ← expected(pattern)
+    require(len(observed)==len(wanted),"ledger material count")
+    for index in range(len(wanted)):
+        require(observed[index]==wanted[index],"ledger row "+str(index))
+    return observed
+
+def instruction_groups(text ∈ str, rows ∈ list[list[str]]) → None:
+    lines ∈ list[str] ← text.splitlines()
+    require(len(lines)>20,"instruction document")
+    require(lines[0]=="FLOWER CROCHET PATTERN 1","instruction version")
+    require(lines[1]=="Pattern: "+rows[1][1],"instruction pattern")
+    required ∈ list[str] ← ["Foundation: ch 8; label chains F0 through F7 in making order.","Join with sl st into F0 without twisting the chain. Foundation chains are not counted sc.","Do not turn. Work in joined rounds, following increasing parent numbers.","Mark the first sc of each round; skip lifting chains and slip stitches as parents.","For round 0 work into the same chosen single chain loop throughout.","For later rounds work under both top loops of each sc."]
+    for statement in required:
+        number ∈ int ← lines.count(statement)
+        require(number==1,"foundation and noncounting instruction")
+    round_index ∈ int ← -1
+    cursor ∈ int ← 8
+    joins ∈ int ← 0
+    count_lines ∈ int ← 0
+    total_lines ∈ int ← 0
+    for line in lines:
+        starts_round ∈ bool ← line.startswith("Round ")
+        starts_work ∈ bool ← line.startswith("Work ")
+        starts_join ∈ bool ← line.startswith("Join round ")
+        starts_total ∈ bool ← line.startswith("Total counted sc:")
+        if starts_round:
+            start ∈ object ← re.fullmatch(r"Round ([0-3]): ch 1; this lifting chain counts as 0 sc\. Do not turn\.",line)
+            count ∈ object ← re.fullmatch(r"Round ([0-3]) count: ([0-9]+) sc; ([0-9]+) increases\.",line)
+            if bool(start):
+                round_index ← round_index+1
+                require(round_index<4,"extra instruction round")
+                require(int(start.group(1))==round_index,"instruction round order")
+                require(joins==round_index and count_lines==round_index,"incomplete previous round")
+            elif bool(count):
+                require(int(count.group(1))==round_index,"round count identity")
+                require(joins==round_index+1,"round counted before join")
+                row ∈ list[str] ← rows[4+round_index]
+                require(str(count.group(2))==row[3] and str(count.group(3))==row[4],"instruction count")
+                count_lines ← count_lines+1
+            else:
+                raise ValueError("instruction round grammar")
+        elif starts_work:
+            require(round_index>=0 and round_index<4,"work outside round")
+            require(joins==round_index,"work after join")
+            match ∈ object ← re.fullmatch(r"Work ([12]) sc into ([FS])([0-9]+): S([0-9]+)(?:, S([0-9]+))?\.",line)
+            require(bool(match),"instruction work grammar")
+            children ∈ int ← int(match.group(1))
+            parent_kind ∈ str ← "chain"
+            if str(match.group(2))=="S":
+                parent_kind ← "stitch"
+            for ordinal in range(children):
+                require(cursor<len(rows)-1,"extra instruction stitch")
+                stitch ∈ list[str] ← rows[cursor]
+                require(stitch[0]=="stitch" and stitch[2]==str(round_index),"instruction round material")
+                require(stitch[4]==parent_kind and stitch[5]==str(match.group(3)),"instruction parent")
+                require(stitch[6]==str(ordinal),"instruction increase ordinal")
+                label ∈ str ← match.group(4+ordinal)
+                require(label==stitch[1],"instruction material identity")
+                cursor ← cursor+1
+            if children==1:
+                require(not bool(match.group(5)),"unaccounted instruction child")
+        elif starts_join:
+            join ∈ object ← re.fullmatch(r"Join round ([0-3]) with sl st into S([0-9]+)\. This join counts as 0 sc\.",line)
+            require(bool(join),"instruction join grammar")
+            require(int(join.group(1))==round_index,"instruction join round")
+            row ← rows[4+round_index]
+            require(str(join.group(2))==row[7],"instruction seam")
+            require(cursor==8+int(row[2])+int(row[3]),"join before complete round")
+            joins ← joins+1
+        elif starts_total:
+            total ∈ object ← re.fullmatch(r"Total counted sc: ([0-9]+)\. Total increases after foundation round: ([0-9]+)\.",line)
+            require(bool(total),"instruction total grammar")
+            require(str(total.group(1))==rows[3][2] and str(total.group(2))==rows[3][3],"instruction totals")
+            total_lines ← total_lines+1
+    require(round_index==3 and joins==4 and count_lines==4 and total_lines==1,"complete instruction rounds")
+    require(cursor==len(rows)-1,"missing instruction material")
+
+def diagram(text ∈ str, rows ∈ list[list[str]], scale ∈ int) → None:
+    root ∈ object ← xml.fromstring(text)
+    require(str(root.get("viewBox"))=="0 0 1180 710","display coordinate box")
+    require(str(root.get("width"))==str(1180*scale) and str(root.get("height"))==str(710*scale),"display scale")
+    materials ∈ list[int] ← []
+    parent_edges ∈ list[int] ← []
+    foundations ∈ list[int] ← []
+    seams ∈ list[int] ← []
+    stitches ∈ dict[int,list[str]] ← {}
+    rounds ∈ dict[int,list[str]] ← {}
+    for row in rows:
+        if row[0]=="stitch":
+            stitches[int(row[1])] ← row
+        elif row[0]=="round":
+            rounds[int(row[1])] ← row
+
+    def page_x(index ∈ int, count ∈ int) → int:
+        return 85+1000*index//(count-1)
+
+    elements ∈ list[object] ← list(root.iter())
+    for element in elements:
+        for attribute in ["data-material-id","data-child-id","data-foundation-id","data-seam-round"]:
+            value ∈ object ← element.get(attribute)
+            if bool(value):
+                identity ∈ int ← int(value)
+                if attribute=="data-material-id":
+                    materials.append(identity)
+                    require(identity in stitches,"diagram unknown material identity")
+                    stitch ∈ list[str] ← stitches[identity]
+                    round_index ∈ int ← int(stitch[2])
+                    index ∈ int ← int(stitch[3])
+                    height ∈ int ← 230+125*round_index
+                    children ∈ list[object] ← list(element)
+                    require(len(children)==2,"diagram material marker")
+                    circle ∈ object ← children[0]
+                    label ∈ object ← children[1]
+                    require(int(str(circle.get("cx")))==page_x(index,int(rounds[round_index][3])) and int(str(circle.get("cy")))==height,"diagram material position")
+                    increase ∈ bool ← stitch[7]=="1"
+                    expected_fill ∈ str ← "#a02d3e" if increase else "#164b62"
+                    require(str(circle.get("fill"))==expected_fill,"diagram increase color")
+                    expected_label ∈ str ← "S"+str(identity)+( "+" if increase else "")
+                    require(str(label.text)==expected_label,"diagram increase mark")
+                elif attribute=="data-child-id":
+                    parent_edges.append(identity)
+                    require(identity in stitches,"diagram unknown child identity")
+                    stitch ← stitches[identity]
+                    round_index ← int(stitch[2])
+                    index ← int(stitch[3])
+                    parent_index ∈ int ← int(stitch[5])
+                    parent_count ∈ int ← int(rows[2][1])
+                    if stitch[4]=="stitch":
+                        require(parent_index in stitches,"diagram unknown parent identity")
+                        parent_index ← int(stitches[parent_index][3])
+                        parent_count ← int(rounds[round_index-1][3])
+                    child_count ∈ int ← int(rounds[round_index][3])
+                    child_y ∈ int ← 230+125*round_index
+                    require(int(str(element.get("x1")))==page_x(parent_index,parent_count) and int(str(element.get("y1")))==child_y-125 and int(str(element.get("x2")))==page_x(index,child_count) and int(str(element.get("y2")))==child_y,"diagram parent incidence geometry")
+                elif attribute=="data-foundation-id":
+                    foundations.append(identity)
+                    children ← list(element)
+                    require(len(children)==2,"diagram foundation marker")
+                    circle ← children[0]
+                    label ← children[1]
+                    require(int(str(circle.get("cx")))==page_x(identity,8) and int(str(circle.get("cy")))==105,"diagram foundation position")
+                    require(str(label.text)=="F"+str(identity),"diagram foundation label")
+                else:
+                    seams.append(identity)
+                    require(identity in rounds,"diagram unknown seam identity")
+                    height ← 230+125*identity
+                    expected_path ∈ str ← "M85 "+str(height)+" Q585 "+str(height+76)+" 1085 "+str(height)
+                    require(str(element.get("d"))==expected_path,"diagram cyclic seam geometry")
+    materials.sort()
+    parent_edges.sort()
+    foundations.sort()
+    seams.sort()
+    counted ∈ list[int] ← list(range(int(rows[3][2])))
+    foundation ∈ list[int] ← list(range(8))
+    require(materials==counted,"diagram material identities")
+    require(parent_edges==counted,"diagram parent incidence labels")
+    require(foundations==foundation,"diagram foundation identities")
+    require(seams==[0,1,2,3],"diagram seam identities")
+
+def serialize(rows ∈ list[list[str]]) → str:
+    lines ∈ list[str] ← []
+    for row in rows:
+        lines.append("\t".join(row))
+    result ∈ str ← "\n".join(lines)
+    return result+"\n"
+
+def selftest() → None:
+    for pattern in ["increasing","control"]:
+        rows ∈ list[list[str]] ← expected(pattern)
+        ledger(serialize(rows),pattern)
+        require(rows[3][2]==("65" if pattern=="increasing" else "32"),"independent total")
+        require(rows[3][3]==("19" if pattern=="increasing" else "0"),"independent increases")
+    rows ← expected("increasing")
+    changes ∈ list[list[int]] ← [[3,2],[3,3],[7,3],[8,5],[8,8],[8,9],[9,1],[4,6],[2,2]]
+    for change in changes:
+        corrupted ∈ list[list[str]] ← expected("increasing")
+        corrupted[change[0]][change[1]] ← "999"
+        rejected ∈ bool ← False
+        try:
+            ledger(serialize(corrupted),"increasing")
+        except ValueError as failure:
+            require(str(failure)=="ledger row "+str(change[0]),"ledger rejection diagnostic")
+            rejected ← True
+        require(rejected,"accepted corrupted material relation")
+    print("PASS independent 65/19 and 32/0 ledgers; nine targeted count, parent, seam, identity and chain counterexamples")
+
+def rejection_controls(ledger_text ∈ str, instructions ∈ str, diagram_text ∈ str, pattern ∈ str) → None:
+    rows ∈ list[list[str]] ← ledger(ledger_text,pattern)
+    mutations ∈ list[str] ← [instructions.replace("Work 1 sc into F0: S0.","Work 1 sc into F1: S0."),instructions.replace("this lifting chain counts as 0 sc.","this lifting chain counts as 1 sc.",1),instructions.replace("Join round 0 with sl st into S0.","Join round 0 with sl st into S1."),instructions.replace("Work 1 sc into F0: S0.\n","")]
+    for mutation in mutations:
+        rejected ∈ bool ← False
+        try:
+            instruction_groups(mutation,rows)
+        except ValueError:
+            rejected ← True
+        require(rejected,"accepted changed printed construction")
+    rejected ← False
+    try:
+        diagram(diagram_text.replace("data-material-id=\"0\"","data-material-id=\"1\"",1),rows,1)
+    except ValueError as failure:
+        require(str(failure)=="diagram material position","diagram wrong rejection")
+        rejected ← True
+    require(rejected,"accepted changed display material identity")
+    rejected ← False
+    try:
+        diagram(diagram_text.replace('data-child-id="0" x1="85"','data-child-id="0" x1="86"',1),rows,1)
+    except ValueError as failure:
+        require(str(failure)=="diagram parent incidence geometry","diagram incidence wrong rejection")
+        rejected ← True
+    require(rejected,"accepted rewired display incidence with unchanged IDs")
+    print("REJECT four instruction corruptions, one diagram identity corruption and one rewired incidence",pattern)
+
+def real_mutants(executable ∈ str) → None:
+    cases ∈ list[str] ← ["missing-increase","duplicate-stitch","seam-misjoin","counted-chain","broken-parent","wrong-adjacency","extra-stitch","foundation-misjoin","counted-foundation","turned-round"]
+    for case in cases:
+        result ∈ object ← subprocess.run([executable,"--reject",case],capture_output=True,timeout=30)
+        code ∈ int ← result.returncode
+        error ∈ str ← result.stderr.decode()
+        require(code==1,"real stitch mutant must reject, not crash: "+case)
+        require(len(error)>0,"real stitch mutant missing diagnostic")
+        print("REJECT real stitch mutant",case,error.strip())
+
+arguments ∈ list[str] ← sys.argv
+if len(arguments)==2 and arguments[1]=="--self-test":
+    selftest()
+else:
+    require(len(arguments)==4,"usage: accept.pi ARTIFACT_DIRECTORY increasing|control TEST_STITCH_BINARY")
+    directory ∈ str ← arguments[1]
+    pattern ∈ str ← arguments[2]
+    first ∈ str ← Path(directory+"/"+pattern+"-1.tsv").read_text()
+    second ∈ str ← Path(directory+"/"+pattern+"-2.tsv").read_text()
+    require(first==second,"display scale changed material ledger")
+    instructions ∈ str ← Path(directory+"/"+pattern+"-1.txt").read_text()
+    other_instructions ∈ str ← Path(directory+"/"+pattern+"-2.txt").read_text()
+    require(instructions==other_instructions,"display scale changed construction")
+    rows ∈ list[list[str]] ← ledger(first,pattern)
+    instruction_groups(instructions,rows)
+    picture ∈ str ← Path(directory+"/"+pattern+"-1.svg").read_text()
+    other_picture ∈ str ← Path(directory+"/"+pattern+"-2.svg").read_text()
+    diagram(picture,rows,1)
+    diagram(other_picture,rows,2)
+    rejection_controls(first,instructions,picture,pattern)
+    real_mutants(arguments[3])
+    print("PASS",pattern,"printed instructions reconstruct complete material ledger; two display densities preserve IDs, incidence, seams and increase marks; physical construction NOT_RUN")

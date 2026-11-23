@@ -1,0 +1,190 @@
+"""Independent reference: half-angle distances, Heron areas, Gram eigenvalues."""
+import math
+from builtins import ValueError, float
+
+def require(condition ∈ bool, reason ∈ str) → None:
+    if not condition:
+        raise ValueError(reason)
+
+def magnitude(x ∈ float) → float:
+    if x < 0.0:
+        return -x
+    return x
+
+def radius(kind ∈ str, u ∈ float) → float:
+    if kind == "exponential":
+        value ∈ float ← math.exp(u)
+        return value / 4.0
+    if kind == "cylinder":
+        return 0.25
+    return u
+
+def height(kind ∈ str, u ∈ float) → float:
+    if kind == "cylinder":
+        return u
+    if kind != "exponential":
+        return 0.0
+    # Independent numerical quadrature of the pullback equation, rather than
+    # candidate's antiderivative. The fixture has R <= 27/32 < 1 throughout.
+    steps ∈ int ← 2048
+    step ∈ float ← u / steps
+    total ∈ float ← 0.0
+    for i in range(steps + 1):
+        r ∈ float ← radius(kind, step * i)
+        value ∈ float ← math.sqrt(1.0 - r*r)
+        weight ∈ float ← 2.0
+        if i == 0 or i == steps:
+            weight ← 1.0
+        elif i % 2 == 1:
+            weight ← 4.0
+        total ← total + weight*value
+    return total*step/3.0
+
+def point(kind ∈ str, u ∈ float, angle ∈ float, z ∈ float) → list[float]:
+    r ∈ float ← radius(kind, u)
+    c ∈ float ← math.cos(angle)
+    s ∈ float ← math.sin(angle)
+    return [r*c, r*s, z]
+
+def target_edge(kind ∈ str, a ∈ float, x ∈ float, b ∈ float, y ∈ float) → float:
+    if kind == "flat":
+        ca ∈ float ← math.cos(x)
+        sa ∈ float ← math.sin(x)
+        cb ∈ float ← math.cos(y)
+        sb ∈ float ← math.sin(y)
+        return math.hypot(a*ca - b*cb, a*sa - b*sb)
+    if kind == "hyperbolic":
+        # cosh(d)-1 = 2 sinh²((a-b)/2) + 2 sinh(a)sinh(b)sin²((x-y)/2)
+        half_radial ∈ float ← math.sinh((a-b)/2.0)
+        first ∈ float ← math.sinh(a)
+        second ∈ float ← math.sinh(b)
+        half_angle ∈ float ← math.sin((x-y)/2.0)
+        argument ∈ float ← math.sqrt(half_radial*half_radial + first*second*half_angle*half_angle)
+        answer ∈ float ← math.asinh(argument)
+        return 2.0*answer
+    if kind == "exponential":
+        z1 ∈ float ← math.exp(-a)
+        z2 ∈ float ← math.exp(-b)
+        separation ∈ float ← math.hypot((x-y)/4.0, z1-z2)
+        divisor ∈ float ← math.sqrt(z1*z2)
+        answer ∈ float ← math.asinh(separation/(2.0*divisor))
+        return 2.0*answer
+    require(kind == "cylinder", "unknown-reference-metric")
+    return math.hypot(a-b, (x-y)/4.0)
+
+def dot_difference(p ∈ list[float], q ∈ list[float], r ∈ list[float]) → float:
+    total ∈ float ← 0.0
+    for j in range(3):
+        total ← total + (q[j]-p[j])*(r[j]-p[j])
+    return total
+
+def triangle(kind ∈ str, rows ∈ list[float], angles ∈ list[float], heights ∈ list[float]) → list[float]:
+    ab ∈ float ← target_edge(kind, rows[0], angles[0], rows[1], angles[1])
+    ac ∈ float ← target_edge(kind, rows[0], angles[0], rows[2], angles[2])
+    bc ∈ float ← target_edge(kind, rows[1], angles[1], rows[2], angles[2])
+    semiperimeter ∈ float ← (ab+ac+bc)/2.0
+    area ∈ float ← math.sqrt(semiperimeter*(semiperimeter-ab)*(semiperimeter-ac)*(semiperimeter-bc))
+    angle0 ∈ float ← math.atan2(4.0*area, ab*ab + ac*ac - bc*bc)
+    angle1 ∈ float ← math.atan2(4.0*area, ab*ab + bc*bc - ac*ac)
+    angle2 ∈ float ← math.atan2(4.0*area, ac*ac + bc*bc - ab*ab)
+    p ∈ list[float] ← point(kind, rows[0], angles[0], heights[0])
+    q ∈ list[float] ← point(kind, rows[1], angles[1], heights[1])
+    r ∈ list[float] ← point(kind, rows[2], angles[2], heights[2])
+    a ∈ float ← dot_difference(p,q,q)
+    b ∈ float ← dot_difference(p,q,r)
+    c ∈ float ← dot_difference(p,r,r)
+    target_cross ∈ float ← (ab*ab + ac*ac - bc*bc)/2.0
+    determinant ∈ float ← ab*ab*ac*ac - target_cross*target_cross
+    trace ∈ float ← (ac*ac*a + ab*ab*c - 2.0*target_cross*b)/determinant
+    product ∈ float ← (a*c - b*b)/determinant
+    discriminant ∈ float ← trace*trace - 4.0*product
+    require(discriminant > -1.0e-10, "negative-Gram-discriminant")
+    if discriminant < 0.0:
+        discriminant ← 0.0
+    radical ∈ float ← math.sqrt(discriminant)
+    large_squared ∈ float ← (trace+radical)/2.0
+    large ∈ float ← math.sqrt(large_squared)
+    small ∈ float ← math.sqrt(product/large_squared)
+    discrepancy ∈ float ← 0.0
+    targets ∈ list[float] ← [ab, ac, bc]
+    squared_lengths ∈ list[float] ← [a, c, a+c-2.0*b]
+    for j in range(3):
+        actual ∈ float ← math.sqrt(squared_lengths[j])
+        error ∈ float ← magnitude(actual/targets[j]-1.0)
+        if error > discrepancy:
+            discrepancy ← error
+    return [angle0, angle1, angle2, area, small, large, discrepancy]
+
+def measure(kind ∈ str, low ∈ float, high ∈ float, radial ∈ int, angular ∈ int) → list[float]:
+    pi ∈ float ← math.pi
+    step ∈ float ← 2.0*pi/angular
+    disk ∈ bool ← low == 0.0 and kind == "flat"
+    row_angles ∈ list[float] ← []
+    heights ∈ list[float] ← []
+    rows ∈ list[float] ← []
+    for j in range(radial+1):
+        u ∈ float ← low+(high-low)*j/radial
+        rows.append(u)
+        heights.append(height(kind,u))
+        row_angles.append(0.0)
+    area ∈ float ← 0.0
+    minimum ∈ float ← 1.0e100
+    maximum ∈ float ← 0.0
+    discrepancy ∈ float ← 0.0
+    face_count ∈ int ← 0
+    for j in range(radial):
+        row_triangles ∈ list[list[int]] ← [[j,j+1,j+1],[j,j+1,j]]
+        angle_triangles ∈ list[list[float]] ← [[0.0,0.0,step],[0.0,step,step]]
+        if disk and j == 0:
+            row_triangles ← [[0,1,1]]
+            angle_triangles ← [[0.0,0.0,step]]
+        for t in range(len(row_triangles)):
+            indices ∈ list[int] ← row_triangles[t]
+            uvalues ∈ list[float] ← []
+            zvalues ∈ list[float] ← []
+            for index in indices:
+                uvalues.append(rows[index])
+                zvalues.append(heights[index])
+            values ∈ list[float] ← triangle(kind,uvalues,angle_triangles[t],zvalues)
+            for corner in range(3):
+                row_angles[indices[corner]] ← row_angles[indices[corner]] + angular*values[corner]
+            area ← area+angular*values[3]
+            if values[4] < minimum:
+                minimum ← values[4]
+            if values[5] > maximum:
+                maximum ← values[5]
+            if values[6] > discrepancy:
+                discrepancy ← values[6]
+            face_count ← face_count + angular
+    boundary ∈ float ← pi*angular-row_angles[radial]
+    defect ∈ float ← 0.0
+    chi ∈ int ← 0
+    vertices ∈ int ← (radial+1)*angular
+    boundaries ∈ int ← 2
+    if disk:
+        defect ← 2.0*pi-row_angles[0]
+        chi ← 1
+        vertices ← 1+radial*angular
+        boundaries ← 1
+    else:
+        boundary ← boundary + pi*angular-row_angles[0]
+    for j in range(1,radial):
+        defect ← defect + 2.0*pi*angular-row_angles[j]
+    smooth_area ∈ float ← 0.0
+    curvature ∈ float ← 0.0
+    if kind == "flat":
+        smooth_area ← pi*(high*high-low*low)
+    elif kind == "hyperbolic":
+        ca ∈ float ← math.cosh(high)
+        cb ∈ float ← math.cosh(low)
+        smooth_area ← 2.0*pi*(ca-cb)
+        curvature ← -smooth_area
+    elif kind == "exponential":
+        smooth_area ← 2.0*pi*(radius(kind,high)-radius(kind,low))
+        curvature ← -smooth_area
+    else:
+        smooth_area ← 2.0*pi*0.25*(high-low)
+    factor ∈ float ← maximum
+    if 1.0/minimum > factor:
+        factor ← 1.0/minimum
+    return [float(chi),float(vertices),float(vertices+face_count-chi),float(face_count),float(boundaries),defect,boundary,defect+boundary-2.0*pi*chi,area,smooth_area,curvature,minimum,maximum,factor,discrepancy]

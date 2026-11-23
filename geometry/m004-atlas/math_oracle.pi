@@ -1,0 +1,239 @@
+"""Independent atlas mathematics. No candidate module is imported."""
+import math
+from builtins import ValueError, list
+
+def magnitude(value ∈ float) → float:
+    if value < 0.0:
+        return -value
+    return value
+
+def require(condition ∈ bool, diagnostic ∈ str) → None:
+    if not condition:
+        raise ValueError(diagnostic)
+
+def close(actual ∈ float, expected ∈ float, diagnostic ∈ str) → None:
+    finite_actual ∈ bool ← math.isfinite(actual)
+    finite_expected ∈ bool ← math.isfinite(expected)
+    require(finite_actual and finite_expected, "nonfinite " + diagnostic)
+    error ∈ float ← magnitude(actual - expected)
+    scale ∈ float ← 1.0 + magnitude(expected)
+    require(error <= 2.0e-8 * scale, diagnostic)
+
+def dot(left ∈ list[float], right ∈ list[float]) → float:
+    return left[0]*right[0] + left[1]*right[1] + left[2]*right[2] - left[3]*right[3]
+
+def vertices() → list[list[float]]:
+    radical ∈ float ← math.sqrt(3.0)
+    scale ∈ float ← 1.0 / radical
+    return [[scale,scale,scale,1.0], [scale,-scale,-scale,1.0], [-scale,scale,-scale,1.0], [-scale,-scale,scale,1.0]]
+
+def normals() → list[list[float]]:
+    result ∈ list[list[float]] ← vertices()
+    for row in result:
+        row[3] ← -1.0/3.0
+    return result
+
+def identity() → list[list[float]]:
+    return [[1.0,0.0,0.0,0.0],[0.0,1.0,0.0,0.0],[0.0,0.0,1.0,0.0],[0.0,0.0,0.0,1.0]]
+
+def row_map(vector ∈ list[float], matrix ∈ list[list[float]]) → list[float]:
+    result ∈ list[float] ← []
+    for col in range(4):
+        value ∈ float ← 0.0
+        for row in range(4):
+            value ← value + vector[row]*matrix[row][col]
+        result.append(value)
+    return result
+
+def product(left ∈ list[list[float]], right ∈ list[list[float]]) → list[list[float]]:
+    result ∈ list[list[float]] ← []
+    for row in left:
+        result.append(row_map(row,right))
+    return result
+
+def solve(left ∈ list[list[float]], right ∈ list[list[float]]) → list[list[float]]:
+    # Independent change-of-basis solve, instead of candidate reflection product.
+    a ∈ list[list[float]] ← []
+    b ∈ list[list[float]] ← []
+    for row in range(4):
+        a.append(left[row].copy())
+        b.append(right[row].copy())
+    for col in range(4):
+        pivot ∈ int ← col
+        for row in range(col+1,4):
+            if magnitude(a[row][col]) > magnitude(a[pivot][col]):
+                pivot ← row
+        require(magnitude(a[pivot][col]) > 1.0e-12,"singular independent basis")
+        temporary ∈ list[float] ← a[col]
+        a[col] ← a[pivot]
+        a[pivot] ← temporary
+        temporary ← b[col]
+        b[col] ← b[pivot]
+        b[pivot] ← temporary
+        divisor ∈ float ← a[col][col]
+        for entry in range(4):
+            a[col][entry] ← a[col][entry]/divisor
+            b[col][entry] ← b[col][entry]/divisor
+        for row in range(4):
+            if row != col:
+                factor ∈ float ← a[row][col]
+                for entry in range(4):
+                    a[row][entry] ← a[row][entry] - factor*a[col][entry]
+                    b[row][entry] ← b[row][entry] - factor*b[col][entry]
+    return b
+
+def transition(face ∈ int, permutation ∈ list[int]) → list[list[float]]:
+    ideal ∈ list[list[float]] ← vertices()
+    normal ∈ list[list[float]] ← normals()
+    before ∈ list[list[float]] ← []
+    after ∈ list[list[float]] ← []
+    for vertex in range(4):
+        if vertex != face:
+            before.append(ideal[vertex])
+            after.append(ideal[permutation[vertex]])
+    before.append(normal[face])
+    target ∈ list[float] ← []
+    for coordinate in normal[permutation[face]]:
+        target.append(-coordinate)
+    after.append(target)
+    return solve(before,after)
+
+def lorentz(matrix ∈ list[list[float]]) → None:
+    for left in range(4):
+        for right in range(4):
+            expected ∈ float ← 0.0
+            if left == right:
+                expected ← 1.0
+                if left == 3:
+                    expected ← -1.0
+            close(dot(matrix[left],matrix[right]),expected,"Lorentz isometry")
+    require(matrix[3][3] >= 1.0 - 1.0e-8,"future sheet")
+
+def geodesic(point ∈ list[float], tangent ∈ list[float], distance ∈ float) → list[list[float]]:
+    c ∈ float ← math.cosh(distance)
+    s ∈ float ← math.sinh(distance)
+    moved ∈ list[float] ← []
+    direction ∈ list[float] ← []
+    for index in range(4):
+        moved.append(c*point[index]+s*tangent[index])
+        direction.append(s*point[index]+c*tangent[index])
+    return [moved,direction]
+
+def parallel(point ∈ list[float], tangent ∈ list[float], frame ∈ list[list[float]], distance ∈ float) → list[list[float]]:
+    moved ∈ list[list[float]] ← []
+    s ∈ float ← math.sinh(distance)
+    c ∈ float ← math.cosh(distance)
+    for basis in frame:
+        component ∈ float ← dot(basis,tangent)
+        result ∈ list[float] ← []
+        for index in range(4):
+            result.append(basis[index] + component*(s*point[index]+(c-1.0)*tangent[index]))
+        moved.append(result)
+    return moved
+
+def permutations() → list[list[list[int]]]:
+    return [[[0,1,3,2],[1,2,3,0],[2,3,1,0],[2,1,0,3]],[[0,1,3,2],[3,2,0,1],[3,0,1,2],[2,1,0,3]]]
+
+def root(labels ∈ list[int], item ∈ int) → int:
+    current ∈ int ← item
+    while labels[current] != current:
+        current ← labels[current]
+    return current
+
+def join(labels ∈ list[int], left ∈ int, right ∈ int) → None:
+    labels[root(labels,left)] ← root(labels,right)
+
+def class_sizes(labels ∈ list[int]) → list[int]:
+    sizes ∈ dict[int,int] ← {}
+    for item in range(len(labels)):
+        representative ∈ int ← root(labels,item)
+        old ∈ int ← sizes.get(representative,0)
+        sizes[representative] ← old+1
+    result ∈ list[int] ← list(sizes.values())
+    result.sort()
+    return result
+
+def topology(gluings ∈ list[list[list[int]]]) → list[int]:
+    edges ∈ list[list[int]] ← [[0,1],[0,2],[0,3],[1,2],[1,3],[2,3]]
+    edge_labels ∈ list[int] ← list(range(12))
+    vertex_labels ∈ list[int] ← list(range(8))
+    # Ordered edge ends are vertices of the ideal-vertex links.
+    link_vertices ∈ list[list[int]] ← []
+    link_labels ∈ list[int] ← list(range(24))
+    for cell in range(2):
+        for first in range(4):
+            for second in range(4):
+                if first != second:
+                    link_vertices.append([cell,first,second])
+    for cell in range(2):
+        for face in range(4):
+            permutation ∈ list[int] ← gluings[cell][face]
+            other ∈ int ← 1-cell
+            for vertex in range(4):
+                if vertex != face:
+                    join(vertex_labels,4*cell+vertex,4*other+permutation[vertex])
+            for edge in range(6):
+                first ∈ int ← edges[edge][0]
+                second ∈ int ← edges[edge][1]
+                if first != face and second != face:
+                    image ∈ list[int] ← [permutation[first],permutation[second]]
+                    image.sort()
+                    for target in range(6):
+                        if edges[target] == image:
+                            join(edge_labels,6*cell+edge,6*other+target)
+            for link in range(24):
+                item ∈ list[int] ← link_vertices[link]
+                if item[0] == cell and item[1] != face and item[2] != face:
+                    image_link ∈ list[int] ← [other,permutation[item[1]],permutation[item[2]]]
+                    for target in range(24):
+                        if link_vertices[target] == image_link:
+                            join(link_labels,link,target)
+    edge_sizes ∈ list[int] ← class_sizes(edge_labels)
+    require(edge_sizes == [6,6],"edge cycles must both have degree six")
+    require(class_sizes(vertex_labels) == [8],"single ideal cusp")
+    link_sizes ∈ list[int] ← class_sizes(link_labels)
+    require(len(link_sizes) == 4,"cusp link vertex count")
+    # Eight link triangles, paired along twelve edges; connected orientable link.
+    require(len(link_sizes)-12+8 == 0,"cusp link Euler characteristic")
+    return [len(edge_sizes),len(link_sizes),12,8]
+
+def selftest() → None:
+    glue ∈ list[list[list[int]]] ← permutations()
+    topology(glue)
+    for cell in range(2):
+        for face in range(4):
+            matrix ∈ list[list[float]] ← transition(face,glue[cell][face])
+            lorentz(matrix)
+            inverse ∈ list[list[float]] ← transition(glue[cell][face][face],glue[1-cell][glue[cell][face][face]])
+            combined ∈ list[list[float]] ← product(matrix,inverse)
+            expected ∈ list[list[float]] ← identity()
+            for row in range(4):
+                for col in range(4):
+                    close(combined[row][col],expected[row][col],"paired inverse")
+    for start_cell in range(2):
+        for start_left in range(4):
+            for start_right in range(4):
+                if start_left != start_right:
+                    cell ∈ int ← start_cell
+                    left ∈ int ← start_left
+                    right ∈ int ← start_right
+                    face ∈ int ← 0
+                    while face==left or face==right:
+                        face ← face+1
+                    first_face ∈ int ← face
+                    total ∈ list[list[float]] ← identity()
+                    for step in range(6):
+                        permutation ∈ list[int] ← glue[cell][face]
+                        total ← product(total,transition(face,permutation))
+                        incoming ∈ int ← permutation[face]
+                        left ← permutation[left]
+                        right ← permutation[right]
+                        cell ← 1-cell
+                        face ← 0
+                        while face==left or face==right or face==incoming:
+                            face ← face+1
+                    require(cell==start_cell and left==start_left and right==start_right and face==first_face,"oriented six-wedge edge cycle")
+                    for row in range(4):
+                        for col in range(4):
+                            close(total[row][col],expected[row][col],"edge-cycle holonomy")
+    print("PASS independent basis solve, eight Lorentz/inverse checks, 24 oriented six-wedge cycles and identity holonomies, two degree-six edges and torus link counts")

@@ -1,0 +1,264 @@
+"""Accept captured m004 atlas output using independent mathematics and SnapPy."""
+import sys
+import math
+import subprocess
+from pathlib import Path
+from builtins import ValueError, KeyError, list
+import math_oracle as oracle
+
+def parse(text ∈ str) → dict[str,float]:
+    values ∈ dict[str,float] ← {}
+    lines ∈ list[str] ← text.splitlines()
+    oracle.require(len(lines)==512,"atlas field count")
+    for line in lines:
+        fields ∈ list[str] ← line.split("\t")
+        oracle.require(len(fields)==2,"atlas field syntax")
+        existing ∈ bool ← values.__contains__(fields[0])
+        oracle.require(not existing,"duplicate atlas field")
+        number ∈ float ← float(fields[1])
+        finite ∈ bool ← math.isfinite(number)
+        oracle.require(finite,"nonfinite atlas value")
+        values[fields[0]] ← number
+    return values
+
+def vector(values ∈ dict[str,float], prefix ∈ str) → list[float]:
+    result ∈ list[float] ← []
+    for component in ["x","y","z","time"]:
+        result.append(values[prefix+"."+component])
+    return result
+
+def frame(values ∈ dict[str,float], prefix ∈ str) → list[list[float]]:
+    result ∈ list[list[float]] ← []
+    for basis in ["right","up","forward"]:
+        result.append(vector(values,prefix+"."+basis))
+    return result
+
+def compare_vector(actual ∈ list[float], expected ∈ list[float], label ∈ str) → None:
+    for index in range(4):
+        oracle.close(actual[index],expected[index],label)
+
+def compare_state(values ∈ dict[str,float], prefix ∈ str, cell ∈ int, incoming ∈ int, travelled ∈ float, point ∈ list[float], tangent ∈ list[float], basis ∈ list[list[float]]) → None:
+    oracle.close(values[prefix+".tetrahedron"],float(cell),"state cell")
+    oracle.close(values[prefix+".incoming_face"],float(incoming),"incoming face")
+    oracle.close(values[prefix+".travelled"],travelled,"accumulated travel")
+    compare_vector(vector(values,prefix+".position"),point,"geodesic point")
+    compare_vector(vector(values,prefix+".direction"),tangent,"geodesic tangent")
+    observed ∈ list[list[float]] ← frame(values,prefix)
+    for index in range(3):
+        compare_vector(observed[index],basis[index],"parallel frame")
+
+def nearest(point ∈ list[float], tangent ∈ list[float]) → list[float]:
+    best ∈ float ← 1.0e20
+    face ∈ int ← -1
+    normals ∈ list[list[float]] ← oracle.normals()
+    for index in range(4):
+        a ∈ float ← oracle.dot(point,normals[index])
+        b ∈ float ← oracle.dot(tangent,normals[index])
+        oracle.require(a >= -1.0e-8,"point outside cell")
+        if b < -1.0e-12:
+            ratio ∈ float ← -a/b
+            if ratio > 1.0e-10 and ratio < 1.0:
+                distance ∈ float ← math.atanh(ratio)
+                if distance < best:
+                    best ← distance
+                    face ← index
+    return [best,float(face)]
+
+def check(values ∈ dict[str,float]) → None:
+    gluings ∈ list[list[list[int]]] ← oracle.permutations()
+    oracle.topology(gluings)
+    for cell in range(2):
+        for face in range(4):
+            key ∈ str ← "pair."+str(cell)+"."+str(face)
+            oracle.close(values[key+".tetrahedron"],float(1-cell),"pair neighbor")
+            oracle.close(values[key+".face"],float(gluings[cell][face][face]),"pair face")
+            for vertex in range(4):
+                oracle.close(values[key+".vertex."+str(vertex)],float(gluings[cell][face][vertex]),"vertex permutation")
+            wanted ∈ list[list[float]] ← oracle.transition(face,gluings[cell][face])
+            for row in range(4):
+                for column in range(4):
+                    oracle.close(values[key+".matrix."+str(row)+"."+str(column)],wanted[row][column],"transition matrix")
+    for scenario in ["worked","path"]:
+        prefix ∈ str ← scenario+".initial"
+        point ∈ list[float] ← vector(values,prefix+".position")
+        tangent ∈ list[float] ← vector(values,prefix+".direction")
+        basis ∈ list[list[float]] ← frame(values,prefix)
+        compare_vector(point,[0.0,0.0,0.0,1.0],"initial center")
+        oracle.close(oracle.dot(tangent,tangent),1.0,"initial unit direction")
+        oracle.close(oracle.dot(point,tangent),0.0,"initial tangency")
+        expected_tangent ∈ list[float] ← []
+        if scenario == "worked":
+            root ∈ float ← math.sqrt(3.0)
+            expected_tangent ← [-1.0/root,-1.0/root,-1.0/root,0.0]
+        else:
+            length ∈ float ← math.sqrt(0.37*0.37+0.51*0.51+0.77*0.77)
+            expected_tangent ← [0.37/length,0.51/length,0.77/length,0.0]
+        compare_vector(tangent,expected_tangent,"initial declared ray")
+        for left in range(3):
+            oracle.close(oracle.dot(point,basis[left]),0.0,"initial frame tangency")
+            for right in range(3):
+                wanted_inner ∈ float ← 0.0
+                if left == right:
+                    wanted_inner ← 1.0
+                oracle.close(oracle.dot(basis[left],basis[right]),wanted_inner,"initial orthonormal frame")
+        oracle.close(values[prefix+".tetrahedron"],0.0,"initial cell")
+        oracle.close(values[prefix+".incoming_face"],-1.0,"initial no seam")
+        oracle.close(values[prefix+".travelled"],2.0,"initial travel")
+        start_point ∈ list[float] ← point.copy()
+        start_tangent ∈ list[float] ← tangent.copy()
+        start_basis ∈ list[list[float]] ← basis.copy()
+        accumulated ∈ list[list[float]] ← oracle.identity()
+        travelled ∈ float ← 2.0
+        cell ∈ int ← 0
+        incoming ∈ int ← -1
+        events ∈ int ← 1
+        if scenario == "path":
+            oracle.close(values["path.event_count"],4.0,"event count")
+            events ← 4
+        for event in range(events):
+            event_key ∈ str ← scenario+".event"
+            if scenario == "path":
+                event_key ← event_key+"."+str(event)
+            next_event ∈ list[float] ← nearest(point,tangent)
+            distance ∈ float ← next_event[0]
+            face ∈ int ← int(next_event[1])
+            oracle.require(face >= 0,"finite expected crossing")
+            oracle.close(values[event_key+".distance"],distance,"first crossing distance")
+            oracle.close(values[event_key+".source_face"],float(face),"first crossing face")
+            travelled ← travelled+distance
+            developed ∈ list[list[float]] ← oracle.geodesic(start_point,start_tangent,travelled-2.0)
+            point ← oracle.row_map(developed[0],accumulated)
+            tangent ← oracle.row_map(developed[1],accumulated)
+            basis ← []
+            transported ∈ list[list[float]] ← oracle.parallel(start_point,start_tangent,start_basis,travelled-2.0)
+            for item in transported:
+                basis.append(oracle.row_map(item,accumulated))
+            compare_state(values,event_key+".before",cell,-1,travelled,point,tangent,basis)
+            pairing ∈ list[list[float]] ← oracle.transition(face,gluings[cell][face])
+            incoming ← gluings[cell][face][face]
+            cell ← 1-cell
+            accumulated ← oracle.product(accumulated,pairing)
+            point ← oracle.row_map(point,pairing)
+            tangent ← oracle.row_map(tangent,pairing)
+            basis ← oracle.product(basis,pairing)
+            compare_state(values,event_key+".after",cell,incoming,travelled,point,tangent,basis)
+        if scenario == "worked":
+            full_distance ∈ float ← math.log(2.0)
+            developed ← oracle.geodesic(start_point,start_tangent,full_distance)
+            transported ← oracle.parallel(start_point,start_tangent,start_basis,full_distance)
+            final_basis ∈ list[list[float]] ← oracle.product(transported,accumulated)
+            compare_state(values,"worked.center",1,-1,2.0+full_distance,oracle.row_map(developed[0],accumulated),oracle.row_map(developed[1],accumulated),final_basis)
+            oracle.close(values["worked.crossings"],1.0,"worked crossing count")
+        else:
+            # Independently continue in local charts; avoid ill-conditioned long global development.
+            count ∈ int ← events
+            target ∈ float ← 14.0
+            oracle.close(values["long.distance"],12.0,"long requested distance")
+            while travelled < target-1.0e-10:
+                next_event ← nearest(point,tangent)
+                remaining ∈ float ← target-travelled
+                distance ← remaining
+                crossing ∈ bool ← next_event[0] <= remaining
+                if crossing:
+                    distance ← next_event[0]
+                moved ∈ list[list[float]] ← oracle.geodesic(point,tangent,distance)
+                basis ← oracle.parallel(point,tangent,basis,distance)
+                point ← moved[0]
+                tangent ← moved[1]
+                travelled ← travelled+distance
+                incoming ← -1
+                if crossing:
+                    face ← int(next_event[1])
+                    pairing ← oracle.transition(face,gluings[cell][face])
+                    incoming ← gluings[cell][face][face]
+                    cell ← 1-cell
+                    point ← oracle.row_map(point,pairing)
+                    tangent ← oracle.row_map(tangent,pairing)
+                    basis ← oracle.product(basis,pairing)
+                    count ← count+1
+                    oracle.require(count<128,"independent crossing bound")
+            compare_state(values,"long.finish",cell,incoming,target,point,tangent,basis)
+            oracle.close(values["long.crossings"],float(count),"long crossing count")
+
+def reject_mutations(values ∈ dict[str,float]) → None:
+    changes ∈ list[list[str]] ← [["pair.0.1.vertex.0","0","vertex permutation"],["pair.0.0.matrix.0.3","0","transition matrix"],["worked.event.after.direction.x","0","geodesic tangent"],["worked.event.after.travelled","0","accumulated travel"],["path.event.1.after.incoming_face","-1","incoming face"]]
+    for change in changes:
+        mutated ∈ dict[str,float] ← values.copy()
+        mutated[change[0]] ← float(change[1])
+        rejected ∈ bool ← False
+        try:
+            check(mutated)
+        except ValueError as failure:
+            diagnostic ∈ str ← str(failure)
+            oracle.require(diagnostic==change[2],"wrong mutant diagnostic: "+diagnostic)
+            rejected ← True
+        oracle.require(rejected,"accepted deliberately changed atlas field")
+        print("REJECT",change[2])
+
+def software(triangulation ∈ str, output ∈ str) → None:
+    # This import is a named foreign mathematics boundary, not candidate implementation.
+    import snappy
+    version ∈ str ← snappy.version()
+    oracle.require(version=="3.3.2","SnapPy exact version")
+    manifold ∈ object ← snappy.Manifold(triangulation)
+    census ∈ object ← snappy.Manifold("m004")
+    same ∈ bool ← manifold.is_isometric_to(census)
+    oracle.require(same,"SnapPy preserved triangulation is not m004")
+    cells ∈ int ← manifold.num_tetrahedra()
+    cusps ∈ int ← manifold.num_cusps()
+    oracle.require(cells==2 and cusps==1,"SnapPy cells and cusps")
+    gluings ∈ list[object] ← manifold._get_tetrahedra_gluing_data()
+    wanted ∈ list[list[list[int]]] ← oracle.permutations()
+    lines ∈ list[str] ← ["software\tSnapPy","version\t"+version,"tetrahedra\t"+str(cells),"cusps\t"+str(cusps),"isometric_to_census_m004\ttrue"]
+    for cell in range(2):
+        gluing ∈ object ← gluings[cell]
+        neighbors ∈ list[int] ← gluing.__getitem__(0)
+        permutations ∈ list[list[int]] ← gluing.__getitem__(1)
+        oracle.require(neighbors==[1-cell,1-cell,1-cell,1-cell],"SnapPy neighbors")
+        oracle.require(permutations==wanted[cell],"SnapPy face permutations")
+        lines.append("gluing."+str(cell)+"\t"+str(gluing))
+    shapes ∈ list[object] ← manifold.tetrahedra_shapes("rect")
+    imaginary ∈ float ← math.sqrt(3.0)
+    for shape in shapes:
+        real ∈ float ← float(shape.real)
+        imag ∈ float ← float(shape.imag)
+        oracle.close(real,0.5,"SnapPy regular shape real")
+        oracle.close(imag,imaginary/2.0,"SnapPy regular shape imaginary")
+        lines.append("shape\t"+str(real)+"\t"+str(imag))
+    volume ∈ float ← float(manifold.volume())
+    oracle.close(volume,2.029883212819307,"SnapPy m004 volume")
+    lines.append("volume\t"+str(volume))
+    lines.append("gluing_equations\t"+str(manifold.gluing_equations()))
+    lines.append("cusp_info\t"+str(manifold.cusp_info()))
+    lines.append("evidence\tfloating mathematical software; not interval certification")
+    Path(output).write_text(str("\n".join(lines))+"\n")
+    print("PASS executed SnapPy3.3.2 preserved triangulation/census equivalence, eight face pairings, regular shapes, cusp and volume")
+
+def reject_executable(executable ∈ str) → None:
+    result ∈ object ← subprocess.run([executable],capture_output=True,timeout=30)
+    code ∈ int ← result.returncode
+    diagnostic ∈ str ← result.stderr.decode()
+    oracle.require(code==1,"mutant must reject with exit one, not crash or missing executable")
+    oracle.require(len(diagnostic)>0,"mutant needs mathematical diagnostic")
+    print("REJECT executable",executable,diagnostic.strip())
+
+arguments ∈ list[str] ← sys.argv
+if len(arguments)==2 and arguments[1]=="--self-test":
+    oracle.selftest()
+else:
+    oracle.require(len(arguments)==6,"usage: accept.pi CANDIDATE.tsv PRESERVED.tri SNAPpy.tsv WRONG_PERMUTATION FROZEN_TANGENT")
+    candidate ∈ str ← Path(arguments[1]).read_text()
+    values ∈ dict[str,float] ← parse(candidate)
+    check(values)
+    reject_mutations(values)
+    for malformed in [candidate+"extra\t0\n",candidate.replace("pair.0.0.tetrahedron\t1","pair.0.0.tetrahedron\tnan")]:
+        refused ∈ bool ← False
+        try:
+            parse(malformed)
+        except ValueError:
+            refused ← True
+        oracle.require(refused,"malformed atlas accepted")
+    software(arguments[2],arguments[3])
+    reject_executable(arguments[4])
+    reject_executable(arguments[5])
+    print("PASS 512 atlas fields, independent developed geodesics and frame transport, five semantic/two malformed mutations, two compiling mutants")

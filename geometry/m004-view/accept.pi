@@ -1,0 +1,50 @@
+"""Independent exact-distance oracle for the first quotient-space view sample."""
+import sys
+import math
+from pathlib import Path
+from builtins import ValueError
+
+def verify(text ∈ str) → None:
+    lines ∈ list[str] ← text.splitlines()
+    keys ∈ list[str] ← ["axial_marker_distance","axial_marker_crossings","axial_marker_id","axial_headlight_cosine"]
+    distance ∈ float ← math.log(2.0)
+    expected ∈ list[float] ← [7.0*distance/8.0,1.0,1.0,1.0]
+    if len(lines)!=4:
+        raise ValueError("view field count")
+    for index in range(4):
+        fields ∈ list[str] ← lines[index].split("\t")
+        if len(fields)!=2 or fields[0]!=keys[index]:
+            raise ValueError("view ordered field identity")
+        actual ∈ float ← float(fields[1])
+        finite ∈ bool ← math.isfinite(actual)
+        difference ∈ float ← actual-expected[index]
+        if not finite or difference>2.0e-9 or difference < -2.0e-9:
+            raise ValueError(keys[index])
+
+def controls(text ∈ str) → None:
+    verify(text)
+    lines ∈ list[str] ← text.splitlines()
+    for index in range(4):
+        fields ∈ list[str] ← lines[index].split("\t")
+        mutated ∈ list[str] ← lines.copy()
+        mutated[index] ← fields[0]+"\t0"
+        rejected ∈ bool ← False
+        try:
+            verify(str("\n".join(mutated)))
+        except ValueError as failure:
+            if str(failure)!=fields[0]:
+                raise ValueError("wrong view mutant diagnostic")
+            rejected ← True
+        if not rejected:
+            raise ValueError("accepted incorrect axial observation")
+    print("PASS axial hit distance = center travel log2 minus sphere radius log2/8; one face crossing, sphere1, aligned headlight; four counterexamples rejected")
+
+arguments ∈ list[str] ← sys.argv
+if len(arguments)==2 and arguments[1]=="--self-test":
+    distance ∈ float ← math.log(2.0)
+    controls("axial_marker_distance\t"+str(7.0*distance/8.0)+"\naxial_marker_crossings\t1\naxial_marker_id\t1\naxial_headlight_cosine\t1\n")
+elif len(arguments)==2:
+    text ∈ str ← Path(arguments[1]).read_text()
+    controls(text)
+else:
+    raise ValueError("usage: accept.pi VIEW.tsv | --self-test")
