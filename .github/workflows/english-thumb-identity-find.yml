@@ -1,8 +1,10 @@
-name: Check Task 12 identity lookup under an independent ARM caller
+name: Check Task 12 lookup and deletion under independent ARM callers
 on:
   pull_request:
     paths:
       - 'english-major-c/identity-find/**'
+      - 'english-major-c/identity-destroy/**'
+      - 'english-major-c/verify-task12.mjs'
       - 'ci/build-toolchain.tsv'
       - '.github/workflows/english-thumb-identity-find.yml'
   workflow_dispatch:
@@ -10,6 +12,19 @@ permissions:
   contents: read
 jobs:
   lookup:
+    name: ${{ matrix.job_name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - operation: identity-find
+            job_name: lookup
+            artifact: emc-task12-qemu-caller
+            revision: ce52cf665e302588a6334d4efa4e495da40bab5b
+          - operation: identity-destroy
+            job_name: deletion
+            artifact: emc-task12-qemu-deletion
+            revision: 5548fed6fa936b1f80d7a16bb9299acda6b05523
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -20,7 +35,7 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           repository: isomorphisms/English-major-C
-          ref: ce52cf665e302588a6334d4efa4e495da40bab5b
+          ref: ${{ matrix.revision }}
           path: consumer
           persist-credentials: false
       - name: Install QEMU user mode and select NDK r27c
@@ -33,9 +48,9 @@ jobs:
           qemu-arm --version
       - name: Run producer frontend, ARM caller and negative controls
         run: |
-          node english-major-c/identity-find/verify.mjs "$GITHUB_WORKSPACE/consumer" \
+          node english-major-c/${{ matrix.operation }}/verify.mjs "$GITHUB_WORKSPACE/consumer" \
             "$ANDROID_HOME/ndk/27.2.12479018" qemu-arm "$RUNNER_TEMP/identity-check"
       - uses: actions/upload-artifact@v4
         with:
-          name: emc-task12-qemu-caller
+          name: ${{ matrix.artifact }}
           path: ${{ runner.temp }}/identity-check/
