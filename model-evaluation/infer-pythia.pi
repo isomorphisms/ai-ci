@@ -1,0 +1,137 @@
+"""Local Pythia inference through foreign Transformers/PyTorch, checked by Ithon."""
+import sys
+import os
+import json
+import hashlib
+import time
+import importlib.util
+from pathlib import Path
+from builtins import ValueError, Exception, globals, isinstance, dict, list, all, slice
+from typing import Any
+from operator import contains, getitem
+
+
+def encoded(value ∈ Any) → str:
+    text ∈ str ← json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return text
+
+
+def load(path ∈ str) → Any:
+    value ∈ Any ← json.loads(Path(path).read_text())
+    return value
+
+
+def save(path ∈ str, value ∈ Any) → None:
+    with Path(path).open("x", encoding="utf-8") as stream:
+        stream.write(encoded(value) + "\n")
+
+
+def prompt_text(messages ∈ list[dict[str, str]]) → str:
+    parts ∈ list[str] ← []
+    for message in messages:
+        parts.append(str(message["role"].capitalize()) + ":\n" + message["content"])
+    return str("\n\n".join(parts)) + "\n\nAssistant:\n"
+
+
+def blocked(output ∈ str, reason ∈ str) → int:
+    save(output + "/inference.json", {"status": "BLOCKED", "reason": reason, "requests_attempted": 0, "model_inference": "NOT_RUN", "live_transfer": "NOT_RUN"})
+    print("BLOCKED: " + reason)
+    return 3
+
+
+def infer(output ∈ str) → int:
+    record ∈ dict[str, Any] ← load(output + "/model.json")
+    profile ∈ dict[str, Any] ← record["profile"]
+    model_name ∈ str ← profile["hf_repo"]
+    if not model_name.startswith("EleutherAI/pythia-") or profile["interface"] != "completion":
+        raise ValueError("this adapter is specifically for Pythia completion models")
+    for dependency in ["torch", "transformers", "huggingface_hub"]:
+        specification ∈ Any ← importlib.util.find_spec(dependency)
+        if specification == None:
+            return blocked(output, "missing foreign inference dependency: " + dependency)
+    cache ∈ str ← os.environ.get("MODEL_EVAL_MODEL_CACHE", "")
+    if not cache or not Path(cache).is_absolute():
+        return blocked(output, "declare an absolute MODEL_EVAL_MODEL_CACHE outside the source repositories")
+    if str(os.environ.get("MODEL_EVAL_ALLOW_DOWNLOAD", "")) != "1":
+        return blocked(output, "explicit MODEL_EVAL_ALLOW_DOWNLOAD=1 is required for checkpoint acquisition")
+    import torch
+    import transformers
+    import huggingface_hub
+    from huggingface_hub import HfApi
+    from transformers import AutoTokenizer, AutoModelForCausalLM
+    jobs ∈ list[dict[str, Any]] ← load(output + "/requests.json")
+    manifest ∈ dict[str, Any] ← load(output + "/manifest.json")
+    if str(hashlib.sha256(encoded(jobs).encode()).hexdigest()) != manifest["requests_sha256"] or len(jobs) != manifest["count"]:
+        raise ValueError("prepared request manifest changed")
+    api ∈ Any ← HfApi()
+    info ∈ Any ← api.model_info(model_name, revision=profile["revision"])
+    revision ∈ str ← info.sha
+    if len(revision) != 40:
+        raise ValueError("checkpoint did not resolve to an immutable revision")
+    device ∈ str ← os.environ.get("MODEL_EVAL_DEVICE", "cpu")
+    if not contains(["cpu", "cuda"], device):
+        raise ValueError("device must be explicitly cpu or cuda")
+    if device == "cuda" and not torch.cuda.is_available():
+        return blocked(output, "declared CUDA device is unavailable")
+    dtype ∈ Any ← torch.float32
+    if device == "cuda":
+        dtype ← torch.float16
+    tokenizer ∈ Any ← AutoTokenizer.from_pretrained(model_name, revision=revision, cache_dir=cache, trust_remote_code=False)
+    model ∈ Any ← AutoModelForCausalLM.from_pretrained(model_name, revision=revision, cache_dir=cache, torch_dtype=dtype, attn_implementation="eager", trust_remote_code=False)
+    model.to(device)
+    model.eval()
+    torch.set_num_threads(2)
+    capture ∈ bool ← str(os.environ.get("PYTHIA_CAPTURE_PREFILL", "")) == "1"
+    save(output + "/identity.json", {"backend": "transformers-gpt-neox", "model": model_name, "model_revision": revision, "tokenizer_revision": revision, "torch": torch.__version__, "transformers": transformers.__version__, "huggingface_hub": huggingface_hub.__version__, "device": device, "dtype": str(dtype), "threads": 2, "prompt_format": "explicit role-labeled completion; not an instruction chat template", "prefill_capture": capture, "remote_code": False, "live_transfer": "NOT_RUN"})
+    for job in jobs:
+        started ∈ float ← time.monotonic()
+        result ∈ dict[str, Any] ← {"id": job["id"], "request_sha256": job["request_sha256"], "evidence": "live", "status": "FAILED", "text": ""}
+        try:
+            payload ∈ dict[str, Any] ← job["payload"]
+            prompt ∈ str ← prompt_text(payload["messages"])
+            inputs ∈ Any ← tokenizer.__call__(prompt, return_tensors="pt", truncation=False).to(device)
+            input_count ∈ int ← getitem(inputs, "input_ids").size(-1)
+            if input_count + int(payload["max_tokens"]) > int(model.config.max_position_embeddings):
+                raise ValueError("context would overflow; silent truncation is forbidden")
+            torch.manual_seed(payload["seed"])
+            with torch.inference_mode():
+                generated ∈ Any ← model.generate(**inputs, do_sample=True, temperature=payload["temperature"], max_new_tokens=payload["max_tokens"], pad_token_id=tokenizer.eos_token_id, return_dict_in_generate=True, output_scores=True)
+                if capture:
+                    prefill ∈ Any ← model.__call__(**inputs, output_hidden_states=True, return_dict=True)
+                    activations ∈ list[Any] ← []
+                    layers ∈ list[Any] ← list(prefill.hidden_states)
+                    for layer in layers:
+                        activations.append(getitem(layer, (0, -1)).float().cpu().tolist())
+                    save(output + "/raw/" + str(job["id"]) + ".last-input-position-activations.json", activations)
+            sequence ∈ Any ← getitem(generated.sequences, (0, slice(input_count, None)))
+            text ∈ str ← tokenizer.decode(sequence, skip_special_tokens=True)
+            transitions ∈ Any ← model.compute_transition_scores(generated.sequences, generated.scores, normalize_logits=True)
+            save(output + "/raw/" + str(job["id"]) + ".tokens.json", {"prompt": prompt, "input_ids": getitem(inputs, "input_ids").cpu().tolist(), "output_ids": sequence.cpu().tolist(), "token_log_probabilities": transitions.float().cpu().tolist()})
+            if int(sequence.numel()) >= int(payload["max_tokens"]) and int(getitem(sequence, -1)) != int(tokenizer.eos_token_id):
+                raise ValueError("generation exhausted the token budget")
+            result.update({"status": "EXECUTED"})
+            result.update({"text": text})
+        except Exception as error:
+            result.update({"error": type(error).__name__})
+        result.update({"seconds": float(time.monotonic()) - started})
+        save(output + "/responses/" + str(job["id"]) + ".json", result)
+    save(output + "/inference.json", {"status": "EXECUTED", "requests_attempted": len(jobs), "model_revision": revision, "live_transfer": "NOT_RUN"})
+    return 0
+
+
+def main() → int:
+    raw_arguments ∈ list[str] ← sys.argv
+    args ∈ list[str] ← raw_arguments[1:]
+    if args == ["check"]:
+        if prompt_text([{"role": "user", "content": "move repository"}]) != "User:\nmove repository\n\nAssistant:\n":
+            raise ValueError("Pythia completion serialization changed")
+        print("PASS Pythia adapter frontend and prompt serialization; inference NOT_RUN")
+        return 0
+    if len(args) == 2 and args[0] == "run":
+        return infer(args[1])
+    raise ValueError("usage: infer-pythia.pi check | run PREPARED_DIRECTORY")
+
+namespace ∈ dict[str, Any] ← globals()
+module_name ∈ str ← namespace.get("__name__", "")
+if module_name == "__main__":
+    sys.exit(main())
