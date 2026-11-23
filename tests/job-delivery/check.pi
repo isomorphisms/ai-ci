@@ -593,7 +593,7 @@ def chat_bypass_cases() → None:
     ]
     child ∈ object ← subprocess.run(pipeline_command, capture_output=True, env=environment)
     if not child.stdout.strip():
-        raise AssertionError("transfer fixture produced no receipt (status " + str(child.returncode) + "): " + repr(child.stderr))
+        raise AssertionError("transfer fixture produced no receipt (status " + str(child.returncode) + "): " + str(child.stderr))
     generated ∈ dict[str, object] ← json.loads(child.stdout)
     if int(child.returncode) == 0 or str(generated["status"]) != "AWAITING_HANDOFF_DELIVERY" or structural_failure:
         raise AssertionError("public transfer pipeline did not stop at the display handoff")
