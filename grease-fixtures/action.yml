@@ -1,0 +1,59 @@
+name: Build Grease for scoped host fixtures
+description: Build the pinned partial native D runtime with the owning Icky DMD recipe
+outputs:
+  executable:
+    description: Absolute path to the built Grease executable
+    value: ${{ steps.build.outputs.executable }}
+  receipt:
+    description: Actual source, compiler, runtime and loader observations
+    value: ${{ steps.build.outputs.receipt }}
+runs:
+  using: composite
+  steps:
+    - name: Check out the qualified Grease source slice
+      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      with:
+        repository: dilapidated-shed/oils
+        ref: fe73c4c55faa3378cb9c5b7f136b54c403bfd8f0
+        path: .grease-fixture-src/oils
+        persist-credentials: false
+    - name: Check out the owning Icky DMD compiler
+      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      with:
+        repository: dilapidated-shed/ick
+        ref: ccf61ab82659b9eadee2d05b489fb195956cef88
+        path: .grease-fixture-src/ick
+        persist-credentials: false
+    - name: Check out the matching druntime
+      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      with:
+        repository: dlang/dmd
+        ref: 74917954b53f7f35b13e61b4438c7253834929ed
+        path: .grease-fixture-src/druntime
+        persist-credentials: false
+    - name: Check out the matching Phobos
+      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      with:
+        repository: dlang/phobos
+        ref: 7b158eba80b97dfcdd8931bcaea1ad0ca35ceb95
+        path: .grease-fixture-src/phobos
+        persist-credentials: false
+    - name: Check out the bootstrap adapter's checked Ithon
+      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      with:
+        repository: dilapidated-shed/ithon
+        ref: d6e83969f82512e920fb17b44326cb54f31d015c
+        path: .grease-fixture-src/ithon
+        persist-credentials: false
+    - name: Install the owner recipe's stage-zero dependencies
+      shell: sh
+      run: |
+        set -eu
+        sudo apt-get update
+        sudo apt-get install -y build-essential ldc libreadline-dev gawk
+    - name: Build and identify the fixture runtime
+      id: build
+      shell: sh
+      run: |
+        set -eu
+        "$GITHUB_WORKSPACE/.grease-fixture-src/ithon/ithon" "$GITHUB_ACTION_PATH/build.pi" "$GITHUB_WORKSPACE/.grease-fixture-src" "$RUNNER_TEMP"

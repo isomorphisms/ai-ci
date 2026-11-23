@@ -12,6 +12,10 @@ runtime closure qualification exists. Cat Food owns profile resolution; AICI
 owns producer qualification. The current registered NativeActivity route has
 explicit shape/SDK limits and does not claim full multi-group plan acceptance.
 
+For user delivery, run [Android release delivery](../android-release-delivery/)
+on the finished APK. The producer decision binds the signing lane, including
+the test lane used for internal qualification.
+
 [The approved stage-role interface](stage-role-v1.md) removes the earlier
 hardcoded NDK-only role assumption. An independently signed role object binds
 each exact stage to its required driver, frontend or other semantic executable,

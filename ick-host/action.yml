@@ -13,12 +13,21 @@ outputs:
 runs:
   using: composite
   steps:
+    - name: Select paths for the pinned compiler revision
+      id: paths
+      shell: sh
+      run: |
+        set -eu
+        revision=fbe86e23d55cfec2000c08e61deea2a407fd7175
+        root="$RUNNER_TEMP/ick-host-$revision"
+        printf '%s\n' "revision=$revision" "checkout=.ick-host-source-$revision" \
+          "build=$root/build" "stage=$root/stage" >> "$GITHUB_OUTPUT"
     - name: Check out the exact ICK source
       uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       with:
         repository: dilapidated-shed/ick
-        ref: fbe86e23d55cfec2000c08e61deea2a407fd7175
-        path: .ick-host-source
+        ref: ${{ steps.paths.outputs.revision }}
+        path: ${{ steps.paths.outputs.checkout }}
         submodules: true
         persist-credentials: false
     - name: Install compiler bootstrap dependencies
@@ -27,21 +36,38 @@ runs:
     - name: Identify the declared native runtime
       id: runtime
       shell: bash
-      run: make -f "${{ github.action_path }}/Makefile" cache-key ICK_BUILD="$RUNNER_TEMP/ick-host-build" >> "$GITHUB_OUTPUT"
+      env:
+        ICK_BUILD: ${{ steps.paths.outputs.build }}
+      run: make -f "$GITHUB_ACTION_PATH/Makefile" cache-key >> "$GITHUB_OUTPUT"
     - name: Restore the exact compiler and native runtime
       id: cache
-      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
       with:
-        path: ${{ runner.temp }}/ick-host-stage
-        key: ick-host-v1-${{ runner.os }}-${{ runner.arch }}-fbe86e23d55cfec2000c08e61deea2a407fd7175-${{ steps.runtime.outputs.runtime_key }}
+        path: ${{ steps.paths.outputs.stage }}
+        key: ick-host-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.paths.outputs.revision }}-${{ steps.runtime.outputs.runtime_key }}
     - name: Build ICK
       if: steps.cache.outputs.cache-hit != 'true'
       shell: bash
-      run: make -f "${{ github.action_path }}/Makefile" ICK_SOURCE="$GITHUB_WORKSPACE/.ick-host-source" ICK_BUILD="$RUNNER_TEMP/ick-host-build" ICK_STAGE="$RUNNER_TEMP/ick-host-stage"
+      env:
+        ICK_SOURCE: ${{ github.workspace }}/${{ steps.paths.outputs.checkout }}
+        ICK_BUILD: ${{ steps.paths.outputs.build }}
+        ICK_STAGE: ${{ steps.paths.outputs.stage }}
+      run: make -f "$GITHUB_ACTION_PATH/Makefile"
     - name: Qualify assignment, multiplication and division
       shell: bash
-      run: make -f "${{ github.action_path }}/Makefile" qualify ICK_STAGE="$RUNNER_TEMP/ick-host-stage"
+      env:
+        ICK_SOURCE: ${{ github.workspace }}/${{ steps.paths.outputs.checkout }}
+        ICK_STAGE: ${{ steps.paths.outputs.stage }}
+      run: make -f "$GITHUB_ACTION_PATH/Makefile" qualify
     - name: Export compiler path
       id: compiler
       shell: bash
-      run: printf 'compiler=%s\n' "$RUNNER_TEMP/ick-host-stage/bin/gcc" >> "$GITHUB_OUTPUT"
+      env:
+        ICK_STAGE: ${{ steps.paths.outputs.stage }}
+      run: printf 'compiler=%s\n' "$ICK_STAGE/bin/gcc" >> "$GITHUB_OUTPUT"
+    - name: Preserve the qualified compiler before consumer work
+      if: steps.cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+      with:
+        path: ${{ steps.paths.outputs.stage }}
+        key: ick-host-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.paths.outputs.revision }}-${{ steps.runtime.outputs.runtime_key }}

@@ -58,11 +58,14 @@ proc mutant (relative, before, after, diagnostic, name) {
     grep -Fq "STACK_REJECT $diagnostic" "$candidate/$name.log"
     printf 'MUTANT_REJECT %s\n' "$name"
 }
-for record in '4 fa497265ae82154e597107115d4e144ddd90c296' \
-              '7 40d30bfe9b7e24e0b1046852063709d8be58f1bf' \
-              '9 a6114cd4c5ed7a74beb16597e7739877256d29de' \
-              '11 dd42b897026e8f652bfe865018a4f42b0aaf868c' \
-              '21 99bc37d360a77b7098ca1bce5f1bd1cd862424ed' {
+var revisions = [
+    '4 fa497265ae82154e597107115d4e144ddd90c296',
+    '7 40d30bfe9b7e24e0b1046852063709d8be58f1bf',
+    '9 a6114cd4c5ed7a74beb16597e7739877256d29de',
+    '11 dd42b897026e8f652bfe865018a4f42b0aaf868c',
+    '21 99bc37d360a77b7098ca1bce5f1bd1cd862424ed',
+]
+for record in @revisions {
     setvar level = "$(printf '%s\n' "$record" | cut -d ' ' -f1)"
     var revision = "$(printf '%s\n' "$record" | cut -d ' ' -f2)"
     test "$(git -C "$source_repo" rev-parse "$revision^{commit}")" = "$revision"

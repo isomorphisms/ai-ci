@@ -1,0 +1,25 @@
+name: supported quoted workflow
+'on': # event scope
+  'pull_request':
+    'paths':
+      - ci/short_release_check.ysh
+      - ci/test_short_release_check.ysh
+      - lib/media.ysh
+'jobs':
+  check:
+    'steps':
+      - 'uses': 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683'
+        'with': # source scope
+          'ref': '${{ github.event.pull_request.head.sha || github.sha }}'
+      - 'uses': 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683'
+        'with':
+          'repository': example/dependency
+          'ref': 0123456789abcdef0123456789abcdef01234567
+      - 'run': |2- # declared scalar
+          printf '%s\\n' ok
+          uses: owner/unpinned@main
+          ref: duplicate data
+          ref: duplicate data
+          &anchor *alias {flow}
+        'env':
+          SAFE_FALLBACK: ${{ github.event.pull_request.head.sha || github.sha }}

@@ -1,0 +1,298 @@
+module SourceAdmission
+
+import Data.Text
+import Data.List
+import Data.Maybe
+import System
+import System.File
+import SourceDomain
+import SourceProcess
+
+%unbound_implicits off
+
+declaration_group : Text → Text
+declaration_group key = pack (reverse (dropWhile (\character ⇒ not (character ≟ '.')) (reverse (unpack key))))
+
+covering
+trace_source_stage : Text → IO ()
+trace_source_stage stage = do
+  enabled ← getEnv "AICI_SOURCE_DEBUG"
+  if enabled ≟ Just "1" then putStrLn ("SOURCE-STAGE " ++ stage) else pure ()
+
+covering
+reject_source : {value : Type} → Text → IO value
+reject_source diagnostic = do
+  putStrLn ("FAIL " ++ diagnostic)
+  exitFailure
+
+covering
+require_source : Bool → Text → IO ()
+require_source condition diagnostic = if condition then pure () else reject_source diagnostic
+
+covering
+read_source_text : Text → IO Text
+read_source_text filename = do
+  Right contents ← readFile filename
+    | Left failure ⇒ reject_source ("SOURCE-READ: " ++ filename ++ " " ++ show failure)
+  pure contents
+
+covering
+checked_value : {value : Type} → Either Text value → IO value
+checked_value (Left failure) = reject_source failure
+checked_value (Right value) = pure value
+
+single_line : Text → Either Text Text
+single_line contents = case lines contents of
+  [value] ⇒ Right value
+  _ ⇒ Left "SOURCE-SINGLE-VALUE"
+
+covering
+environment_setting : Text → IO (List Text)
+environment_setting name = do
+  value ← getEnv name
+  pure (maybe [] (\value ⇒ [name ++ "=" ++ value]) value)
+
+covering
+git_command : Text → List Text → IO (List Text)
+git_command checkout arguments = do
+  Just home ← getEnv "HOME" | Nothing ⇒ reject_source "SOURCE-HOME-UNAVAILABLE"
+  pure (["/usr/bin/env", "-i", "PATH=/usr/local/bin:/usr/bin:/bin", "HOME=" ++ home, "LC_ALL=C",
+    "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_SYSTEM=/dev/null", "GIT_CONFIG_GLOBAL=/dev/null",
+    "GIT_NO_REPLACE_OBJECTS=1", "GIT_OPTIONAL_LOCKS=0", "GIT_TERMINAL_PROMPT=0",
+    "git", "--no-pager", "--literal-pathspecs", "-c", "core.hooksPath=/dev/null",
+    "-c", "core.fsmonitor=false", "-c", "core.quotePath=false", "-C", checkout] ++ arguments)
+
+covering
+git_read : Text → List Text → IO Text
+git_read checkout arguments = do
+  command ← git_command checkout arguments
+  require_process command ""
+
+covering
+git_optional : Text → List Text → IO ProcessObservation
+git_optional checkout arguments = do
+  command ← git_command checkout arguments
+  observe_process command ""
+
+covering
+path_has_kind : Text → Text → IO Bool
+path_has_kind kind filename = do
+  observation ← observe_process ["/usr/bin/test", kind, filename] ""
+  require_source (elem observation.exit_status [0, 1]) "SOURCE-FILE-INSPECTION"
+  pure (observation.exit_status ≟ 0)
+
+covering
+source_entries : Text → IO (List SourceEntry)
+source_entries checkout = do
+  contents ← git_read checkout ["ls-tree", "-r", "-t", "HEAD"]
+  traverse (\row ⇒ checked_value (parse_entry row)) (rows contents)
+
+chunks : {value : Type} → Number → List value → List (List value)
+chunks width [] = []
+chunks width values = case width of
+  0 ⇒ [values]
+  S previous ⇒ take (S previous) values :: chunks (S previous) (assert_smaller values (drop (S previous) values))
+
+covering
+check_raw_files : Text → List SourceEntry → IO ()
+check_raw_files checkout entries = do
+  let ordinary = filter (\entry ⇒ elem entry.mode ["100644", "100755"]) entries
+  -- Stat does not run Git clean filters. Check parent directories too, so a
+  -- symlinked intermediate directory cannot lead inspection outside the source.
+  for_ (chunks 64 entries) $ \portion ⇒ do
+    observed ← require_process (["/usr/bin/stat", "--format=%A", "--"] ++ map (\entry ⇒ checkout ++ "/" ++ entry.path) portion) ""
+    require_source (length (rows observed) ≟ length portion) "SOURCE-MODES"
+    for_ (zip portion (rows observed)) $ \(entry, permissions) ⇒ do
+      let characters = unpack permissions
+      let kind = fromMaybe '?' (head' characters)
+      let owner_execution = fromMaybe '?' (head' (drop 3 characters))
+      let expected_kind = case entry.mode of
+            "040000" ⇒ 'd'
+            "160000" ⇒ 'd'
+            "120000" ⇒ 'l'
+            _ ⇒ '-'
+      require_source (kind ≟ expected_kind) "SOURCE-NODE-TYPE"
+      if elem entry.mode ["100644", "100755"]
+        then require_source ((owner_execution ≟ 'x') ≟ (entry.mode ≟ "100755")) "SOURCE-FILE-MODE"
+        else pure ()
+  -- Reject FIFOs and intermediate links before any content read can block or
+  -- escape into an unadmitted directory.
+  for_ (chunks 64 ordinary) $ \portion ⇒ do
+    command ← git_command checkout ["hash-object", "--no-filters", "--stdin-paths"]
+    observed ← require_process command (join_rows (map SourceEntry.path portion))
+    require_source (rows observed ≟ map SourceEntry.object_id portion) "SOURCE-RAW-BYTES"
+  for_ (filter (\entry ⇒ entry.mode ≟ "120000") entries) $ \entry ⇒ do
+    target ← require_process ["/usr/bin/readlink", "-n", "--", checkout ++ "/" ++ entry.path] ""
+    command ← git_command checkout ["hash-object", "--stdin"]
+    observed ← require_process command target
+    require_source (trim observed ≟ entry.object_id) "SOURCE-SYMLINK-BYTES"
+
+index_entry : Text → Either Text Text
+index_entry row = case fields row of
+  [metadata, path] ⇒ case words metadata of
+    [mode, object_id, "0"] ⇒ Right (mode ++ "\t" ++ object_id ++ "\t" ++ path)
+    _ ⇒ Left "SOURCE-INDEX"
+  _ ⇒ Left "SOURCE-INDEX"
+
+covering
+check_checkout : Text → List Text → Text → IO (List SourceEntry)
+check_checkout checkout approved_origins expected_commit = do
+  trace_source_stage ("checkout " ++ checkout)
+  require_source (isPrefixOf "/" checkout) "SOURCE-ABSOLUTE-PATH"
+  require_source (not !(path_has_kind "-L" checkout)) "SOURCE-ROOT-SYMLINK"
+  physical ← require_process ["/usr/bin/realpath", "--", checkout] ""
+  actual_top ← git_read checkout ["rev-parse", "--show-toplevel"]
+  require_source (trim physical ≟ trim actual_top) "SOURCE-PARTIAL-CHECKOUT"
+  actual_commit ← git_read checkout ["rev-parse", "HEAD"]
+  require_source (trim actual_commit ≟ expected_commit) "SOURCE-COMMIT"
+  origins ← git_read checkout ["config", "--local", "--no-includes", "--get-all", "remote.origin.url"]
+  origin ← checked_value (single_line origins)
+  require_source (elem (normalize_repository origin) approved_origins) "SOURCE-ORIGIN"
+  sparse ← git_optional checkout ["config", "--bool", "core.sparseCheckout"]
+  require_source (elem sparse.exit_status [0, 1] && not (trim sparse.standard_output ≟ "true")) "SOURCE-SPARSE"
+  index_flags ← git_read checkout ["ls-files", "-v"]
+  require_source (not (any (\row ⇒ case unpack row of
+    character :: remaining ⇒ (character >= 'a' && character <= 'z') || character ≟ 'S'
+    [] ⇒ False) (rows index_flags))) "SOURCE-HIDDEN-INDEX"
+  trace_source_stage "reading committed entries"
+  entries ← source_entries checkout
+  trace_source_stage ("committed entries " ++ show (length entries))
+  index_contents ← git_read checkout ["ls-files", "--stage"]
+  trace_source_stage "reading index entries"
+  actual_index ← traverse (\row ⇒ checked_value (index_entry row)) (rows index_contents)
+  let expected_index = map (\entry ⇒ entry.mode ++ "\t" ++ entry.object_id ++ "\t" ++ entry.path)
+        (filter (\entry ⇒ not (entry.mode ≟ "040000")) entries)
+  require_source (sort actual_index ≟ sort expected_index) "SOURCE-INDEX"
+  extras ← git_read checkout ["ls-files", "--others"]
+  require_source (extras ≟ "") "SOURCE-EXTRA-FILES"
+  -- Uninitialized gitlinks may have absent directories in the skip profile.
+  trace_source_stage "checking raw files"
+  check_raw_files checkout (filter (\entry ⇒ not (entry.mode ≟ "160000")) entries)
+  trace_source_stage "checkout checked"
+  pure entries
+
+covering
+committed_setting : Text → Text → IO Text
+committed_setting checkout key = do
+  observed ← git_read checkout ["config", "--blob", "HEAD:.gitmodules", "--get-all", key]
+  checked_value (single_line observed)
+
+covering
+source_references : Text → List SourceEntry → IO (List SourceReference)
+source_references checkout entries = do
+  let gitlinks = filter (\entry ⇒ entry.mode ≟ "160000") entries
+  if any (\entry ⇒ entry.path ≟ ".gitmodules") entries
+    then do
+      ignore $ git_read checkout ["config", "--blob", "HEAD:.gitmodules", "--list"]
+      names ← git_optional checkout ["config", "--blob", "HEAD:.gitmodules", "--name-only", "--get-regexp", "^submodule[.].*[.]path$"]
+      require_source (elem names.exit_status [0, 1]) "SOURCE-DECLARATIONS"
+      references ← for (rows names.standard_output) $ \key ⇒ do
+        path ← committed_setting checkout key
+        require_source (safe_path path) "SOURCE-REFERENCE-PATH"
+        let url_key = pack (take (minus (length (unpack key)) 5) (unpack key)) ++ ".url"
+        repository ← committed_setting checkout url_key
+        require_source (valid_repository (normalize_repository repository) && isSuffixOf ".git" repository) "SOURCE-REFERENCE-REPOSITORY"
+        link ← case filter (\entry ⇒ entry.path ≟ path) gitlinks of
+          [entry] ⇒ pure entry
+          _ ⇒ reject_source "SOURCE-GITLINK"
+        pure (RequiredReference path (normalize_repository repository) link.object_id)
+      require_source (length references ≟ length gitlinks &&
+        length (nub (map SourceReference.reference_path references)) ≟ length references) "SOURCE-REFERENCE-COVERAGE"
+      -- URL-only or other orphan declarations cannot turn into an empty leaf.
+      all_keys ← git_optional checkout ["config", "--blob", "HEAD:.gitmodules", "--name-only", "--get-regexp", "^submodule[.]"]
+      require_source (elem all_keys.exit_status [0, 1]) "SOURCE-DECLARATIONS"
+      let declared_groups = map declaration_group (rows names.standard_output)
+      require_source (all (\key ⇒ elem (declaration_group key) declared_groups) (rows all_keys.standard_output)) "SOURCE-ORPHAN-DECLARATION"
+      pure references
+    else do
+      require_source (null gitlinks) "SOURCE-GITLINK"
+      pure []
+
+covering
+inspect_references : Text → Text → ReferencePolicy → List SourceEntry → IO (List Text)
+inspect_references checkout prefix policy entries = do
+  references ← source_references checkout entries
+  case policy of
+    NoReferences ⇒ do
+      require_source (null references) "SOURCE-POLICY"
+      pure []
+    _ ⇒ do
+      require_source (not (null references)) "SOURCE-POLICY"
+      nested_rows ← for references $ \reference ⇒ do
+        let child = checkout ++ "/" ++ reference.reference_path
+        let material_row = "gitlink\t" ++ prefix ++ reference.reference_path ++ "\t" ++
+              reference.reference_repository ++ "\t" ++ reference.reference_commit ++ "\t" ++ policy_text policy
+        case policy of
+          SkippedReferences ⇒ do
+            -- Skip describes acquisition and admission scope, not a request to
+            -- erase a reference populated by an earlier producer operation.
+            pure [material_row]
+          RecursiveReferences ⇒ do
+            child_entries ← check_checkout child [reference.reference_repository] reference.reference_commit
+            child_references ← source_references child child_entries
+            let child_policy = if null child_references then NoReferences else RecursiveReferences
+            child_rows ← inspect_references child (prefix ++ reference.reference_path ++ "/") child_policy child_entries
+            pure (material_row :: child_rows)
+          NoReferences ⇒ reject_source "SOURCE-POLICY"
+      pure (concat nested_rows)
+
+covering
+sha256_text : Text → IO Text
+sha256_text contents = do
+  output ← require_process ["/usr/bin/sha256sum"] contents
+  case words output of
+    digest :: remaining ⇒ do
+      require_source (hexadecimal 64 digest) "SOURCE-HASH"
+      pure digest
+    [] ⇒ reject_source "SOURCE-HASH"
+
+covering
+inspect_ick_material : Text → List SourceEntry → IO (List Text)
+inspect_ick_material checkout entries = do
+  contents ← git_read checkout ["show", "HEAD:ick/SOURCE.lock"]
+  let lock_values = map (\row ⇒ fields (pack (map (\character ⇒ if character ≟ '=' then '\t' else character) (unpack row)))) (rows contents)
+  let gcc_commits = mapMaybe (\row ⇒ case row of ["gcc_commit", value] ⇒ Just value; _ ⇒ Nothing) lock_values
+  let gcc_repositories = mapMaybe (\row ⇒ case row of ["gcc_repository", value] ⇒ Just value; _ ⇒ Nothing) lock_values
+  gcc ← case filter (\entry ⇒ entry.path ≟ "gcc" && entry.mode ≟ "160000") entries of
+    [entry] ⇒ pure entry
+    _ ⇒ reject_source "SOURCE-ICK-GITLINK"
+  references ← source_references checkout entries
+  reference ← case filter (\reference ⇒ reference.reference_path ≟ "gcc") references of
+    [reference] ⇒ pure reference
+    _ ⇒ reject_source "SOURCE-ICK-GITLINK"
+  require_source (gcc_commits ≟ [gcc.object_id]) "SOURCE-ICK-LOCK"
+  require_source (map normalize_repository gcc_repositories ≟ [reference.reference_repository]) "SOURCE-ICK-LOCK"
+  for ["ick/SOURCE.lock", "ick/OVERLAY.sha256", "ick/PRUNE", "ick/materialize.sh"] $ \path ⇒ do
+    require_source (any (\entry ⇒ entry.path ≟ path && elem entry.mode ["100644", "100755"]) entries) "SOURCE-ICK-MATERIAL"
+    -- Use the immutable blob already checked against working source, avoiding
+    -- a second mutable-file read as the expected material definition.
+    committed_bytes ← git_read checkout ["show", "HEAD:" ++ path]
+    digest ← sha256_text committed_bytes
+    pure ("material\t" ++ path ++ "\t" ++ digest)
+
+covering
+admit_source : Text → Text → Text → IO ()
+admit_source expectation_file checkout evidence_file = do
+  expectation ← checked_value (parse_expectation !(read_source_text expectation_file))
+  entries ← check_checkout checkout expectation.approved_origins expectation.commit
+  tree ← git_read checkout ["rev-parse", "HEAD^{tree}"]
+  require_source (hexadecimal 40 (trim tree)) "SOURCE-TREE"
+  references ← inspect_references checkout "" expectation.reference_policy entries
+  material ← case expectation.source_role of
+    OrdinarySource ⇒ pure []
+    IckSource ⇒ inspect_ick_material checkout entries
+  let expected_material = canonical_material (["schema\tcatfood-source-v1", "repository\t" ++ expectation.repository,
+        "commit\t" ++ expectation.commit, "tree\t" ++ trim tree,
+        "submodules\t" ++ policy_text expectation.reference_policy] ++ references ++ material)
+  digest ← sha256_text expected_material
+  observed ← read_source_text evidence_file
+  require_source (observed ≟ expected_material ++ "sha256\t" ++ digest ++ "\n") "SOURCE-EVIDENCE-MISMATCH"
+  putStrLn ("PASS SOURCE-CHECKOUT: " ++ expectation.repository ++ " " ++ expectation.commit ++ " " ++ policy_text expectation.reference_policy ++ " " ++ digest)
+
+covering
+main : IO ()
+main = do
+  arguments ← getArgs
+  case arguments of
+    [_, expectation_file, checkout, evidence_file] ⇒ admit_source expectation_file checkout evidence_file
+    _ ⇒ reject_source "usage: source-admission EXPECTATION.tsv CHECKOUT EVIDENCE.tsv"

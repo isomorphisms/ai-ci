@@ -2,6 +2,15 @@
 
 `ai-ci` is a shared contract test suite for AI-authored project work.
 
+[Source-bound requirement projection](requirements/README.md) canonically
+binds applicable owner/program/target obligations and explicit corrections to
+maintained request bytes without treating retrieval or copied prose as proof of
+compliance.
+
+[Independent source-checkout admission](source-closure/README.md) compares
+Cat Food's acquired source and canonical record against caller-owned immutable
+expectations, using the actual Idriç verifier and independently built Git cases.
+
 [Complete delivered material](package-closure/README.md) verifies canonical
 file hashes, modes, required payloads and a bounded no-symlink package profile
 without repairing the producer's archive. Consumer-owned runtime controls
@@ -21,6 +30,12 @@ branches. It compiles the real `Network.SMS` parser, drives the filesystem
 service through that executable, and proves four hostile service mutations are
 rejected. See [`sms/README.md`](sms/README.md).
 
+The optional [`reproducibility/`](reproducibility/) gate independently compares
+two complete consumer builds made in disjoint roots. It consumes the exact
+NativeActivity receipt v2 contract, rehashes retained outputs and evidence, and
+rejects material drift, reused execution witnesses, omitted stages and unequal
+promised bytes without equating ARMv7 output with AArch64 output.
+
 The initial kernel is a small native C verifier. It has no package-manager
 bootstrap and does not treat file existence alone as acceptance. A consumer pins
 this repository by full commit SHA, supplies a tab-separated contract, and
@@ -31,8 +46,8 @@ runs the verifier against the finished repository or artifact tree.
 - narrative synchronization: canonical script text, voiceover input text, and
   caption text remain byte-identical;
 - asset provenance manifest schema and nonempty required attribution fields;
-- workflow integrity: rejection of `continue-on-error`, shell `||`, and
-  `set +e`; full-SHA action pins; explicit PR-head checkout for primary source
+- workflow source policy: rejection of the `continue-on-error` key and lexical
+  `||` / `set +e` bytes in run scalars; full-SHA action pins; explicit PR-head checkout for primary source
   when exact-head evidence is required; and event-scoped coverage of critical paths;
 - language boundaries, including detecting shell files mislabeled as Grease.
 - evaluation-case manifests with explicit objectives, oracles, evidence,
@@ -164,6 +179,12 @@ The reusable parsing and diagnostics belong here in `ai-ci`; consumer
 repositories should keep only their own critical-path lists, fixtures, expected
 results, and workflow wiring.
 
+See [supported workflow source](docs/workflow-source.md) for the shared reader,
+exact-checkout compatibility entrypoint, diagnostics and source-only limits.
+The core action separately captures selected-case process observations and
+passes them to the existing stage-verdict checker. Source-policy acceptance
+alone never establishes arbitrary command execution or failure propagation.
+
 ## Finished-video acceptance
 
 The optional `video/` action tests the encoded artifact, not a renderer's source
@@ -211,10 +232,10 @@ extraction separate; rejects a later success after the first real failure; and
 requires `SKIP` to say why the stage did not run.
 
 An implementation-under-test receipt must name its executable and exact source
-revision, state `fallback=none`, and include an `execve` trace. The verifier
-rejects traces that invoke the side-by-side curl/libxml2 oracle. See
-[`ingestion/README.md`](ingestion/README.md) for the schema and current
-`document_log_subset_v0` boundary.
+revision, state `fallback=none`, and match a frozen observer-owned invocation
+bundle for the approved selection and current attempt. The old `execve` text
+serves as a historical naming audit. See [`ingestion/README.md`](ingestion/README.md)
+for the host fixture profile and current `document_log_subset_v0` boundary.
 
 The optional [`stage-verdict/`](stage-verdict/) action maps owner receipts into
 lossless stage and attempt verdicts. It preserves raw process fields and invalid
@@ -252,9 +273,11 @@ exports that executable and its native scalar runtime flag. Keep that declared
 runtime boundary when reproducing the commands locally.
 
 ```text
-cc -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici src/aici.c
+"$ICK" -fno-link-libatomic -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici src/aici.c
 /tmp/aici self-test tests/cases.tsv
 /tmp/aici suite tests/good-suite.tsv .
+
+AICI_BIN=/tmp/aici sh tests/merge-workflow-head.sh merge/check-workflow-head.sh
 
 "$ICK" -fno-link-libatomic -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-video src/aici_video.c -lm
 "$ICK" -fno-link-libatomic -std=c17 -Wall -Wextra -Werror -pedantic -O2 -o /tmp/aici-video-fixtures video/tests/make_video_fixtures.c

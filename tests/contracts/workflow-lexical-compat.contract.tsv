@@ -1,0 +1,2 @@
+yaml_run_not_contains	WORKFLOW-SWALLOW-OR	workflow.yml	||
+yaml_run_not_contains	WORKFLOW-SWALLOW-SET	workflow.yml	set +e

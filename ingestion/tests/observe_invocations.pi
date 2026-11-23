@@ -1,0 +1,364 @@
+"""Qualify the ingestion adapter with observer-owned host fixture executions."""
+import hashlib
+import json
+import os
+import shutil
+import subprocess
+import sys
+import time
+import uuid
+from pathlib import Path
+from builtins import open, RuntimeError
+
+def require(condition ∈ bool, detail ∈ str) → None:
+    if not condition:
+        raise RuntimeError(detail)
+
+def digest(path ∈ str) → str:
+    answer ∈ str ← hashlib.sha256(Path(path).read_bytes()).hexdigest()
+    return answer
+
+def write(path ∈ str, value ∈ str) → None:
+    Path(path).write_text(value, encoding="utf-8")
+
+def read(path ∈ str) → str:
+    answer ∈ str ← Path(path).read_text(encoding="utf-8")
+    return answer
+
+def copy(source ∈ str, target ∈ str) → None:
+    shutil.copyfile(source, target)
+    os.chmod(target, 0o500)
+
+args ∈ list[str] ← sys.argv
+require(len(args) == 9, "usage: observe_invocations.pi CORPUS FIXTURES VERIFIER CANDIDATE ORACLE REVISION BWRAP_OR_CHROOT OUTPUT")
+corpus ∈ str ← str(Path(args[1]).resolve(strict=True))
+fixtures ∈ str ← str(Path(args[2]).resolve(strict=True))
+verifier ∈ str ← str(Path(args[3]).resolve(strict=True))
+candidate_binary ∈ str ← str(Path(args[4]).resolve(strict=True))
+oracle_binary ∈ str ← str(Path(args[5]).resolve(strict=True))
+source_revision ∈ str ← args[6]
+launcher ∈ str ← str(Path(args[7]).resolve(strict=True))
+hosted ∈ bool ← launcher.endswith("/chroot")
+require(hosted or launcher.endswith("/bwrap"), "expected an explicit host fixture boundary")
+root ∈ str ← str(Path(args[8]).absolute())
+Path(root).mkdir(mode=0o700)
+roles ∈ list[str] ← ["candidate", "oracle"]
+case_ids ∈ list[str] ← ["valid_utf8", "malformed_html"]
+candidate_sha ∈ str ← digest(candidate_binary)
+oracle_sha ∈ str ← digest(oracle_binary)
+observer ∈ str ← "observer\thost-fixture-v1\t" + digest(args[0]) + "\n"
+marker ∈ str ← root + "/protected-marker"
+write(marker, "only observer writes here\n")
+
+def receipt_input(role ∈ str, fixture ∈ str, path ∈ str, variant ∈ str) → None:
+    source ∈ str ← read(fixtures + "/good-" + role + ".tsv")
+    revision_field ∈ str ← "meta\timplementation_revision\t"
+    digest_field ∈ str ← "meta\texecutable_sha256\t"
+    output ∈ list[str] ← []
+    stopping ∈ bool ← fixture == "valid_utf8" and (variant == "matched-failure" or
+        (variant == "status-disagreement" and role == "candidate"))
+    after_network ∈ bool ← False
+    source_rows ∈ list[str] ← source.splitlines()
+    for line in source_rows:
+        mapped ∈ str ← line.replace("valid_utf8", fixture)
+        if line.startswith("meta\tcorpus_repository_revision\t"):
+            mapped ← "meta\tcorpus_repository_revision\t" + source_revision
+        if line.startswith(revision_field):
+            mapped ← revision_field + source_revision
+        if line.startswith(digest_field):
+            mapped ← digest_field + (candidate_sha if role == "candidate" else oracle_sha)
+        if line.startswith("meta\timplementation_name\t"):
+            mapped ← "meta\timplementation_name\thost-fixture-" + ("candidate" if role == "candidate" else "reference")
+        if line.startswith("meta\tproducer\t"):
+            mapped ← "meta\tproducer\thost-fixture-transport"
+        if line.startswith("meta\tscope\t"):
+            if variant == "extraction-disagreement" or variant == "skipped-extraction-claim":
+                mapped ← "meta\tscope\tnetwork-through-extraction"
+            if variant == "unknown-scope":
+                mapped ← "meta\tscope\tunrecognized-scope"
+            if variant == "explicit-subset" or (variant == "mismatched-scope" and role == "candidate"):
+                mapped ← "meta\tscope\tdocument_log_subset_v0"
+        if fixture == "valid_utf8" and line.startswith("stage\t"):
+            fields ∈ list[str] ← mapped.split("\t")
+            prefix ∈ str ← "stage\t" + fixture + "\t" + fields[2]
+            if variant == "all-skipped" or (variant == "missing-decode" and fields[2] == "decoding"):
+                mapped ← prefix + "\tSKIP\tnot_applicable_scope\tfixture\tnot-run"
+            if variant == "changed-title" and role == "candidate" and fields[2] == "document_construction":
+                mapped ← prefix + "\tPASS\tdocument_log_built\tfixture\ttitle=Changed_Title"
+            if variant == "extraction-disagreement" and fields[2] == "downstream_extraction":
+                mapped ← prefix + "\tPASS\textraction\tfixture\tlinks=" + role
+            if stopping:
+                if after_network:
+                    mapped ← prefix + "\tSKIP\tblocked_by_network\tfixture\tnot-run"
+                if fields[2] == "network":
+                    mapped ← prefix + "\tFAIL\tpartial_body\tfixture\tpartial response"
+                    after_network ← True
+        if stopping and line.startswith("summary\t"):
+            summary ∈ list[str] ← line.split("\t")
+            mapped ← "summary\t" + summary[1] + "\tnetwork"
+        output.append(mapped)
+    encoded ∈ str ← "\n".join(output)
+    write(path, encoded + "\n")
+
+def capture_bwrap(program ∈ str, payload ∈ str, stem ∈ str, arguments ∈ list[str]) → tuple[int, int]:
+    boundary_path ∈ str ← stem + ".boundary.jsonl"
+    with open(boundary_path, "xb") as status_stream:
+        descriptor ∈ int ← status_stream.fileno()
+        command ∈ list[str] ← [
+            launcher, "--unshare-user", "--unshare-pid", "--disable-userns",
+            "--new-session", "--die-with-parent", "--clearenv", "--chdir", "/",
+            "--ro-bind", program, "/fixture",
+            "--ro-bind", payload, "/selected-receipt",
+            "--ro-bind", marker, "/protected-marker",
+            "--json-status-fd", str(descriptor), "--",
+        ]
+        command.extend(arguments)
+        child ∈ object ← subprocess.run(command, stdin=subprocess.DEVNULL, capture_output=True,
+                                       timeout=15, pass_fds=(descriptor,))
+    output ∈ bytes ← child.stdout
+    error ∈ bytes ← child.stderr
+    Path(stem + ".stdout").write_bytes(output)
+    Path(stem + ".stderr").write_bytes(error)
+    boundary ∈ list[str] ← read(boundary_path).splitlines()
+    error_text ∈ str ← error.decode(errors="replace")
+    require(len(boundary) == 2, "observer did not report start and completion: " + error_text)
+    begin ∈ dict[str, int] ← json.loads(boundary[0])
+    finish ∈ dict[str, int] ← json.loads(boundary[1])
+    process_exit ∈ int ← child.returncode
+    require(begin["child-pid"] > 0 and finish["exit-code"] == process_exit,
+            "observer status differs from recorded exit")
+    return (begin["child-pid"], process_exit)
+
+def capture_chroot(program ∈ str, payload ∈ str, stem ∈ str, arguments ∈ list[str]) → tuple[int, int]:
+    # GitHub-hosted fixture lane. The external launcher drops to nobody
+    # before executing. Only the tracer can access the observer's trace file.
+    jail ∈ str ← stem + ".jail"
+    Path(jail).mkdir(mode=0o755)
+    shutil.copyfile(program, jail + "/fixture")
+    shutil.copyfile(payload, jail + "/selected-receipt")
+    shutil.copyfile(marker, jail + "/protected-marker")
+    os.chmod(jail + "/fixture", 0o555)
+    os.chmod(jail + "/selected-receipt", 0o444)
+    os.chmod(jail + "/protected-marker", 0o444)
+    fixture_sha ∈ str ← digest(jail + "/fixture")
+    require(fixture_sha == digest(program), "isolated executable differs from observed program")
+    trace ∈ str ← stem + ".boundary.exec"
+    with open(trace, "xb") as empty_trace:
+        empty_trace.write(b"")
+    command ∈ list[str] ← ["/usr/bin/sudo", "-n", "/usr/bin/env", "-i", "/usr/bin/strace",
+        "-f", "-e", "trace=execve,execveat", "-s", "4096", "-o", trace, "--",
+        launcher, "--userspec=65534:65534", "--groups=65534", jail]
+    command.extend(arguments)
+    child ∈ object ← subprocess.run(command, stdin=subprocess.DEVNULL, capture_output=True, timeout=15)
+    output ∈ bytes ← child.stdout
+    error ∈ bytes ← child.stderr
+    Path(stem + ".stdout").write_bytes(output)
+    Path(stem + ".stderr").write_bytes(error)
+    process_exit ∈ int ← child.returncode
+    trace_rows ∈ list[str] ← read(trace).splitlines()
+    encoded_args ∈ str ← json.dumps(arguments)
+    launch_prefix ∈ str ← "execve(\"/fixture\", " + encoded_args + ", "
+    pid ∈ int ← 0
+    completion ∈ str ← "+++ exited with " + str(process_exit) + " +++"
+    finished ∈ bool ← False
+    for line in trace_rows:
+        words ∈ list[str] ← line.split(maxsplit=1)
+        if len(words) == 2:
+            if words[1].startswith(launch_prefix) and words[1].endswith("= 0"):
+                require(pid == 0, "duplicate successful fixture exec")
+                pid ← int(words[0])
+            if pid > 0 and words[0] == str(pid) and words[1] == completion:
+                finished ← True
+    error_text ∈ str ← error.decode(errors="replace")
+    require(pid > 0 and finished, "protected trace lacks the selected exec and exit: " + error_text)
+    require(digest(jail + "/fixture") == fixture_sha, "executed fixture material changed")
+    require(read(jail + "/protected-marker") == read(marker), "fixture modified its protected copy")
+    return (pid, process_exit)
+
+def observe(directory ∈ str, names ∈ list[str], variant ∈ str) → str:
+    Path(directory).mkdir(mode=0o700)
+    copy(candidate_binary, directory + "/candidate.program")
+    copy(oracle_binary, directory + "/oracle.program")
+    candidate_path ∈ str ← directory + "/candidate.program"
+    if variant == "rename":
+        candidate_path ← directory + "/renamed-not-python-parser"
+        copy(candidate_binary, candidate_path)
+    provenance ∈ str ← directory + "/oracle-provenance.tsv"
+    write(provenance, "schema\taici-ingestion-host-oracle-v1\n"
+          + "basis\tchecked-in good-oracle.tsv\t" + digest(fixtures + "/good-oracle.tsv") + "\n"
+          + "observer-launcher\t" + digest(launcher) + "\n")
+    policy ∈ str ← directory + "/policy.tsv"
+    selection ∈ str ← "schema\taici-ingestion-selection-v1\n" + observer
+    selection ← selection + "corpus\t" + source_revision + "\t" + digest(corpus + "/CORPUS.sha256") + "\t" + digest(corpus + "/fixtures.tsv") + "\n"
+    selection ← selection + "candidate\t" + source_revision + "\t" + candidate_sha + "\n"
+    selection ← selection + "oracle\t" + source_revision + "\t" + oracle_sha + "\t" + digest(provenance) + "\n"
+    for fixture in names:
+        selection ← selection + "case\t" + fixture + "\n"
+    write(policy, selection)
+    attempt ∈ str ← uuid.uuid4().hex
+    records ∈ str ← "schema\taici-ingestion-invocation-v1\nattempt\t" + attempt + "\npolicy\t" + digest(policy) + "\n" + observer
+    selected_roles ∈ list[str] ← roles
+    if variant == "rename":
+        selected_roles ← ["oracle", "candidate"]
+    for fixture in names:
+        for role in selected_roles:
+            program ∈ str ← candidate_path if role == "candidate" else directory + "/oracle.program"
+            if fixture == "valid_utf8":
+                if variant == "wrong-candidate" and role == "candidate":
+                    program ← directory + "/oracle.program"
+                if variant == "wrong-oracle" and role == "oracle":
+                    program ← candidate_path
+            stem ∈ str ← directory + "/" + fixture + "." + role
+            payload ∈ str ← stem + ".input"
+            receipt_input(role, fixture, payload, variant)
+            program_sha ∈ str ← digest(program)
+            arguments ∈ list[str] ← ["/fixture", fixture]
+            if variant == "exit-seven" and fixture == "valid_utf8" and role == "candidate":
+                arguments.append("exit-seven")
+            argument_text ∈ str ← "\n".join(arguments)
+            write(stem + ".argv", argument_text + "\n")
+            started ∈ int ← time.monotonic_ns()
+            execution ∈ tuple[int, int] ← capture_chroot(program, payload, stem, arguments) if hosted else capture_bwrap(program, payload, stem, arguments)
+            ended ∈ int ← time.monotonic_ns()
+            require(program_sha == digest(program), "executed material changed")
+            require(read(marker) == "only observer writes here\n", "fixture changed observer material")
+            row ∈ str ← "\t".join(["invoke", role, fixture, program_sha, str(execution[0]),
+                                   str(started), str(ended), str(execution[1]),
+                                   digest(stem + ".argv"), digest(stem + ".stdout"), digest(stem + ".stderr")])
+            records ← records + row + "\n"
+    write(directory + "/observations.tsv", records)
+    return attempt
+
+def verify(directory ∈ str, selected_sha ∈ str, observed_sha ∈ str, attempt ∈ str,
+           label ∈ str, expected ∈ str, fixture ∈ str, corpus_root ∈ str) → None:
+    command ∈ list[str] ← [verifier, "verify-execution", corpus_root, directory,
+                           selected_sha, observed_sha, attempt, fixture, "compare"]
+    child ∈ object ← subprocess.run(command, capture_output=True, timeout=15)
+    raw_out ∈ bytes ← child.stdout
+    raw_error ∈ bytes ← child.stderr
+    error_text ∈ str ← raw_error.decode()
+    output_text ∈ str ← raw_out.decode()
+    process_exit ∈ int ← child.returncode
+    Path(root + "/" + label + ".stdout").write_bytes(raw_out)
+    Path(root + "/" + label + ".stderr").write_bytes(raw_error)
+    if expected == "PASS":
+        require(process_exit == 0 and "selected_cases=2" in output_text, label + ": " + error_text)
+        require("scope=document_log_subset_v0" in output_text, "comparison scope absent: " + label)
+    else:
+        require(process_exit == 1 and raw_error.startswith(("FAIL\t" + expected + "\t").encode()),
+                label + ": " + error_text)
+        if expected == "compare_disagreement":
+            require("\tcandidate\t" in output_text and "\toracle\t" in output_text and
+                    not ("PASS\tinvocation" in output_text), "both disagreeing observations must be preserved")
+        else:
+            require(raw_out == b"", "invalid or unsupported evidence emitted acceptance: " + label)
+    print("PASS\t" + label + "\t" + expected)
+
+def verify_current(directory ∈ str, attempt ∈ str, label ∈ str, expected ∈ str) → None:
+    verify(directory, digest(directory + "/policy.tsv"), digest(directory + "/observations.tsv"),
+           attempt, label, expected, "valid_utf8", corpus)
+
+good ∈ str ← root + "/actual"
+attempt ∈ str ← observe(good, case_ids, "ordinary")
+policy_sha ∈ str ← digest(good + "/policy.tsv")
+observation_sha ∈ str ← digest(good + "/observations.tsv")
+verify_current(good, attempt, "actual", "PASS")
+verify_current(good, attempt, "same-evidence", "PASS")
+verify(good, policy_sha, observation_sha, attempt, "other-fixture", "PASS", "malformed_html", corpus)
+verify(good, policy_sha, observation_sha, uuid.uuid4().hex, "stale-attempt", "invocation_stale_attempt", "valid_utf8", corpus)
+
+variants ∈ list[str] ← ["wrong-candidate", "wrong-oracle", "exit-seven", "rename"]
+for variant in variants:
+    variant_root ∈ str ← root + "/" + variant
+    names ∈ list[str] ← case_ids
+    if variant == "rename":
+        names ← [case_ids[1], case_ids[0]]
+    run_attempt ∈ str ← observe(variant_root, names, variant)
+    expected_by_variant ∈ dict[str, str] ← {"wrong-candidate": "invocation_candidate_identity",
+        "wrong-oracle": "invocation_oracle_identity", "exit-seven": "invocation_process_exit", "rename": "PASS"}
+    verify_current(variant_root, run_attempt, variant, expected_by_variant[variant])
+
+actual_lines ∈ list[str] ← read(root + "/actual.stdout").splitlines()
+repeat_lines ∈ list[str] ← read(root + "/same-evidence.stdout").splitlines()
+rename_lines ∈ list[str] ← read(root + "/rename.stdout").splitlines()
+require(actual_lines[0] == repeat_lines[0] and actual_lines[0] == rename_lines[0],
+        "comparison changed after replay or a permutation")
+require("compared=4\tlast=document_construction\tterminal=none" in actual_lines[0],
+        "comparison failed to describe its four executed stages")
+
+comparison_cases ∈ dict[str, str] ← {
+    "explicit-subset": "PASS",
+    "changed-title": "compare_disagreement",
+    "status-disagreement": "compare_disagreement",
+    "skipped-extraction-claim": "compare_scope_unsupported",
+    "extraction-disagreement": "compare_scope_unsupported",
+    "mismatched-scope": "compare_scope_mismatch",
+    "unknown-scope": "compare_scope_unsupported",
+    "all-skipped": "compare_incomplete_coverage",
+    "missing-decode": "compare_incomplete_coverage",
+    "matched-failure": "PASS",
+}
+for case_name in comparison_cases:
+    case_root ∈ str ← root + "/" + case_name
+    case_attempt ∈ str ← observe(case_root, case_ids, case_name)
+    verify_current(case_root, case_attempt, case_name, comparison_cases[case_name])
+failure_summary ∈ str ← read(root + "/matched-failure.stdout")
+require("compared=1\tlast=network\tterminal=matched_failure" in failure_summary,
+        "the comparison included stages beyond a matching failure")
+
+controls ∈ str ← root + "/mutation"
+shutil.copytree(good, controls)
+observed_path ∈ str ← controls + "/observations.tsv"
+original ∈ str ← read(observed_path)
+rows ∈ list[str] ← original.splitlines(keepends=True)
+write(observed_path, "".join(rows[:4]))
+verify_current(controls, attempt, "never-ran", "invocation_missing_case")
+write(observed_path, original + rows[4])
+verify_current(controls, attempt, "duplicate", "invocation_duplicate_case")
+write(observed_path, "".join(rows[:-1]))
+verify_current(controls, attempt, "omitted", "invocation_missing_case")
+verify(controls, policy_sha, observation_sha, attempt, "changed-observations", "invocation_observation_digest", "valid_utf8", corpus)
+write(observed_path, original.replace("\tvalid_utf8\t", "\ttruncated_body\t", 1))
+verify_current(controls, attempt, "unselected", "invocation_unselected_case")
+write(observed_path, "42 execve(\"./candidate\", [], []) = 0\n")
+verify_current(controls, attempt, "text-only-trace", "invocation_schema")
+write(observed_path, original)
+argv_path ∈ str ← controls + "/valid_utf8.candidate.argv"
+original_arguments ∈ str ← read(argv_path)
+write(argv_path, "/fixture\nmalformed_html\n")
+verify_current(controls, attempt, "changed-arguments", "invocation_arguments")
+write(observed_path, original.replace(digest(good + "/valid_utf8.candidate.argv"), digest(argv_path), 1))
+verify_current(controls, attempt, "wrong-fixture-arguments", "invocation_arguments")
+write(argv_path, original_arguments)
+write(observed_path, original)
+shutil.copyfile(good + "/malformed_html.candidate.stdout", controls + "/valid_utf8.candidate.stdout")
+verify_current(controls, attempt, "copied-output", "invocation_output_digest")
+shutil.copyfile(good + "/valid_utf8.candidate.stdout", controls + "/valid_utf8.candidate.stdout")
+policy_path ∈ str ← controls + "/policy.tsv"
+original_policy ∈ str ← read(policy_path)
+write(policy_path, original_policy.replace(oracle_sha, candidate_sha))
+verify(controls, policy_sha, observation_sha, attempt, "candidate-expected", "invocation_policy_digest", "valid_utf8", corpus)
+verify_current(controls, attempt, "circular-oracle", "invocation_circular_oracle")
+write(policy_path, original_policy)
+provenance_path ∈ str ← controls + "/oracle-provenance.tsv"
+original_provenance ∈ str ← read(provenance_path)
+write(provenance_path, "candidate-provided expectation\n")
+verify_current(controls, attempt, "changed-oracle-provenance", "invocation_oracle_provenance")
+write(provenance_path, original_provenance)
+program_path ∈ str ← controls + "/candidate.program"
+os.chmod(program_path, 0o600)
+with open(program_path, "ab") as altered:
+    altered.write(b"changed after observation")
+verify_current(controls, attempt, "altered-executable", "invocation_candidate_material")
+changed_corpus ∈ str ← root + "/changed-corpus"
+shutil.copytree(corpus, changed_corpus)
+write(changed_corpus + "/bodies/valid.html", "<title>changed after selection</title>\n")
+verify(good, policy_sha, observation_sha, attempt, "changed-corpus-material",
+       "invocation_corpus_material", "valid_utf8", changed_corpus)
+
+published ∈ str ← "bundle=" + good + "\nselection_sha256=" + policy_sha + "\nobservations_sha256=" + observation_sha + "\nattempt=" + attempt + "\n"
+write(root + "/action-inputs.txt", published)
+output_path ∈ str ← os.environ.get("GITHUB_OUTPUT", "")
+if output_path != "":
+    with open(output_path, "a", encoding="utf-8") as action_outputs:
+        action_outputs.write(published)

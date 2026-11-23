@@ -1,0 +1,53 @@
+#!/bin/sh
+set -eu
+
+action_root=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+base=$AICI_IDRIC_STYLE_BASE
+head=$AICI_IDRIC_STYLE_HEAD
+
+resolve_commit() {
+  git rev-parse --verify --end-of-options "$1^{commit}" 2>/dev/null
+}
+
+if ! head_commit=$(resolve_commit "$head"); then
+  printf '%s\n' 'Idriç style: comparison head commit is unavailable' >&2
+  exit 2
+fi
+
+if [ "$AICI_EVENT_NAME" = pull_request ]; then
+  if [ -z "$AICI_PR_HEAD_SHA" ] || ! event_head=$(resolve_commit "$AICI_PR_HEAD_SHA"); then
+    printf '%s\n' 'Idriç style: pull request head commit is unavailable. Fetch and check out the submitted PR head.' >&2
+    exit 2
+  fi
+  if [ "$head_commit" != "$event_head" ]; then
+    printf '%s\n' 'Idriç style: comparison head must resolve to the submitted pull request head commit' >&2
+    exit 2
+  fi
+
+  if [ -z "$AICI_PR_BASE_SHA" ] || ! event_base=$(resolve_commit "$AICI_PR_BASE_SHA"); then
+    printf '%s\n' 'Idriç style: pull request base commit is unavailable. Fetch the full PR base and head history.' >&2
+    exit 2
+  fi
+
+  if [ -n "$base" ]; then
+    if ! explicit_base=$(resolve_commit "$base") || [ "$explicit_base" != "$event_base" ]; then
+      printf '%s\n' 'Idriç style: explicit base must resolve to the pull request event base commit' >&2
+      exit 2
+    fi
+  fi
+
+  if ! base_commit=$(git merge-base "$event_base" "$head_commit"); then
+    printf '%s\n' 'Idriç style: pull request base and head have no available common ancestor' >&2
+    exit 2
+  fi
+else
+  base=${base:-$AICI_PUSH_BEFORE_SHA}
+  if [ -z "$base" ] || ! base_commit=$(resolve_commit "$base"); then
+    if ! base_commit=$(resolve_commit "$head_commit^"); then
+      printf '%s\n' 'Idriç style: comparison base and head parent commits are unavailable' >&2
+      exit 2
+    fi
+  fi
+fi
+
+exec sh "$action_root/check_added_source" "$base_commit" "$head_commit"

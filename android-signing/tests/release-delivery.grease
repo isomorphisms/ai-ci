@@ -1,0 +1,109 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+
+if (len(ARGV) !== 2) {
+    echo 'usage: grease release-delivery.grease AICI_ROOT ANDROID_JAR' >&2
+    exit 2
+}
+var aici = ARGV[0]
+var android_jar = ARGV[1]
+var tools = ENV.AICI_ANDROID_BUILD_TOOLS
+var grease = $(command -v grease)
+var scratch = $(mktemp -d)
+trap --add EXIT { rm -rf -- "$scratch" }
+mkdir -p "$scratch/policy" "$scratch/app/lib/arm64-v8a" "$scratch/app/lib/x86_64"
+cp -- "$aici/android-signing/check-delivery.grease" "$scratch/policy/"
+
+proc make_key(name) {
+    keytool -genkeypair -noprompt -keyalg RSA -keysize 2048 -validity 2 \
+        -alias "$name" -storetype PKCS12 -keystore "$scratch/$name.p12" \
+        -storepass fixture-password -keypass fixture-password -dname "CN=$name fixture only"
+}
+
+proc make_apk(package_name, name) {
+    printf '<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="%s" android:versionCode="17"><application android:hasCode="false"/></manifest>\n' \
+        "$package_name" > "$scratch/app/AndroidManifest.xml"
+    "$tools/aapt2" link --manifest "$scratch/app/AndroidManifest.xml" \
+        -I "$android_jar" --min-sdk-version 23 -o "$scratch/$name.apk"
+    cd "$scratch/app"
+    zip -q "$scratch/$name.apk" lib/arm64-v8a/libfixture.so
+}
+
+proc sign_apk(name, unsigned_name, signed_name) {
+    "$tools/apksigner" sign --ks "$scratch/$name.p12" --ks-key-alias "$name" \
+        --ks-pass pass:fixture-password --key-pass pass:fixture-password \
+        --out "$scratch/$signed_name.apk" "$scratch/$unsigned_name.apk"
+}
+
+proc signer_digest(name) {
+    "$tools/apksigner" verify --verbose --print-certs "$scratch/$name.apk" |
+        sed -n 's/^Signer #1 certificate SHA-256 digest: //p'
+}
+
+proc verify(name) {
+    "$grease" "$scratch/policy/check-delivery.grease" "$scratch/$name.apk" org.example.delivery arm64-v8a c67
+}
+
+proc reject(name, diagnostic) {
+    try { verify "$name" > "$scratch/$name.tsv" 2> "$scratch/$name.log" }
+    test "$[_error.code]" -ne 0
+    test ! -s "$scratch/$name.tsv"
+    grep -F -- "$diagnostic" "$scratch/$name.log"
+    printf 'RELEASE_DELIVERY_FIXTURE\t%s\tREJECTED\n' "$name"
+}
+
+# Native member names exercise the ABI inventory. These APKs are signer and
+# packaging fixtures, not runtime applications.
+printf 'arm64 fixture\n' > "$scratch/app/lib/arm64-v8a/libfixture.so"
+printf 'x86_64 fixture\n' > "$scratch/app/lib/x86_64/libfixture.so"
+make_apk org.example.delivery unsigned
+make_apk org.example.other other-unsigned
+cp -- "$scratch/unsigned.apk" "$scratch/universal-unsigned.apk"
+zip -q "$scratch/universal-unsigned.apk" lib/x86_64/libfixture.so
+for key in release persistent-test ephemeral-emulator { make_key "$key" }
+sign_apk release unsigned accepted
+sign_apk release other-unsigned other
+sign_apk release universal-unsigned universal
+sign_apk persistent-test unsigned persistent
+sign_apk ephemeral-emulator unsigned emulator
+cp -- "$scratch/accepted.apk" "$scratch/damaged.apk"
+printf 'changed native payload\n' > lib/arm64-v8a/libfixture.so
+zip -q "$scratch/damaged.apk" lib/arm64-v8a/libfixture.so
+
+var release_sha256 = $(signer_digest accepted)
+var test_sha256 = $(signer_digest persistent)
+var emulator_sha256 = $(signer_digest emulator)
+printf 'org.example.delivery\trelease\t%s\norg.example.delivery\ttest\t%s\norg.example.other\trelease\t%s\n' \
+    "$release_sha256" "$test_sha256" "$release_sha256" > "$scratch/policy/identities.tsv"
+
+verify accepted > "$scratch/accepted.tsv"
+var apk_sha256 = $(sha256sum -- "$scratch/accepted.apk" | cut -d ' ' -f 1)
+var apk_bytes = $(wc -c < "$scratch/accepted.apk")
+{
+    printf 'schema\taici-android-release-delivery-v1\nresult\tPASS\npackage\torg.example.delivery\nversion_code\t17\nabi\tarm64-v8a\ntarget\tc67\n'
+    printf 'signing_lane\trelease\nsigner_cert_sha256\t%s\napk_sha256\t%s\napk_bytes\t%s\n' \
+        "$release_sha256" "$apk_sha256" "$apk_bytes"
+} > "$scratch/expected.tsv"
+cmp "$scratch/expected.tsv" "$scratch/accepted.tsv"
+printf 'RELEASE_DELIVERY_FIXTURE\tauthorized\tACCEPTED\n'
+
+reject persistent TEST_SIGNER_FOR_RELEASE
+reject emulator SIGNER_MISMATCH
+reject unsigned 'DOES NOT VERIFY'
+reject damaged 'DOES NOT VERIFY'
+reject other 'package mismatch'
+reject universal 'native ABI set mismatch'
+
+# A caller-provided registry and lane cannot turn the emulator APK into a delivery.
+printf 'org.example.delivery\trelease\t%s\n' "$emulator_sha256" > "$scratch/replacement.tsv"
+setglobal ENV.AICI_SIGNING_REGISTRY = "$scratch/replacement.tsv"
+setglobal ENV.AICI_SIGNING_LANE = 'test'
+reject emulator SIGNER_MISMATCH
+
+# A test identity cannot acquire release authority via duplicate registration.
+printf 'org.example.delivery\trelease\t%s\norg.example.other\ttest\t%s\n' \
+    "$test_sha256" "$test_sha256" > "$scratch/policy/identities.tsv"
+reject persistent TEST_SIGNER_FOR_RELEASE
+
+printf 'org.example.delivery\ttest\t%s\n' "$test_sha256" > "$scratch/policy/identities.tsv"
+reject accepted UNREGISTERED_PACKAGE_LANE

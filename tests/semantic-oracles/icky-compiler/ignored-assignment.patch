@@ -1,0 +1,28 @@
+--- a/gcc/c/icky-consumer.h
++++ b/gcc/c/icky-consumer.h
+@@ -367,18 +367,13 @@ c_parser_icky_expression (c_parser *parser)
+       error_at (beginning, "ICKY source lane refused: %s", problem.c_str ());
+       return result;
+     }
+-  result = icky_compiler::bound_noun (tokens[meaning.value]);
+-  if (meaning.assignment && result.value != error_mark_node)
+-    {
+-      c_expr target = icky_compiler::bound_noun (tokens[meaning.target]);
+-      result = convert_lvalue_to_rvalue (result.get_location (), result, true, true);
+-      result.value = build_modify_expr (tokens[meaning.operation].location,
+-                                        target.value, target.original_type, NOP_EXPR,
+-                                        result.get_location (), result.value,
+-                                        result.original_type);
+-      result.original_code = MODIFY_EXPR;
+-      result.original_type = NULL_TREE; result.m_decimal = 0;
+-    }
++  /* Counterexample only: still invoke ICKY, validate and retain its result.
++     Ignore that result in code generation and emit the final CPP noun.  */
++  size_t tail = tokens.size ();
++  while (tail && tokens[tail - 1].type == CPP_CLOSE_PAREN)
++    --tail;
++  gcc_assert (tail);
++  result = icky_compiler::bound_noun (tokens[tail - 1]);
+   set_c_expr_source_range (&result, beginning, finishing);
+   return result;
+ }

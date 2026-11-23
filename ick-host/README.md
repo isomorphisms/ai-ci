@@ -67,3 +67,10 @@ from this producer. A consumer must qualify those capabilities separately.
 The output establishes a native C producer and the qualified glyph syntax. It does
 not establish an Android sysroot, an Android ABI, a physical-device result,
 or a semantic style review. Cross compilers remain consumer-owned.
+
+The source checkout, build directory, and installed stage include the pinned
+compiler revision. A nested action can install a different ICK revision in the
+same job without replacing these files. The `ick-host-v2` cache uses the
+revision-specific stage and saves it immediately after qualification. It
+does not restore the legacy cache, which could capture a stage replaced by a
+later action. Every restore still executes the semantic and negative controls.

@@ -1,0 +1,7 @@
+# Comment and unrelated field placement must not change the byte policy.
+jobs:
+  literal:
+    steps:
+      - name: literal operator
+        "run": printf '%s\n' '||' # actual run scalar
+on: pull_request

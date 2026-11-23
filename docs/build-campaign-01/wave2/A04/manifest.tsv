@@ -1,0 +1,3 @@
+id	title	owner	canonical_issue	readiness	dependencies	path	disposition
+BC-A04-S01	Normalize stage evidence without erasing failures or inventing causes	isomorphisms/ai-ci	https://github.com/isomorphisms/ai-ci/issues/171	SOURCE_READY_EXECUTION_CONDITIONAL	existing owner receipts;artifact:BC-K05:stage-writer;coordinate:BC-A02-S03;BC-P02	jobs/BC-A04-S01.md	NEW
+BC-A04-S02	Make real consumer completion preserve stage and retry history	isomorphisms/ai-ci	https://github.com/isomorphisms/ai-ci/issues/171	CONDITIONAL_INTEGRATION	artifact:BC-A04-S01:verdict-mapping;existing IB-Q01;existing Toki A1-M1;existing Fourier A1-S1;raylib A1-007;eligible runtime	jobs/BC-A04-S02.md	NEW

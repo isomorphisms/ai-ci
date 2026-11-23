@@ -1,0 +1,10 @@
+key	value
+schema	aici-requirement-request-v1
+request_id	sdf-grease-leaf
+request_body_path	requests/sdf-grease.txt
+request_body_sha256	2b2181bc126c754d6ce70b4d74826f9837a2345fff567acc35511dfe2fa62725
+owner	dilapidated-shed/grease
+program	grease
+target	sdf-netbsd
+owner_profile_sha256	17e5b38bbcd60baac0a9ffaf494d9eec8f93d0026061af38169c48e150ad9d84
+requirements_sha256	a203f2a2e7bdf7594f77dd21e431a222571e2455abf2bc8858531394b433a056

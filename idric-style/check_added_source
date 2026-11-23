@@ -10,9 +10,13 @@ base=$1
 head=${2:-HEAD}
 
 # This is deliberately a small drift detector, not an Idriç parser. It checks
-# only lines added by the change so repositories can adopt it without first
-# rewriting inherited Idris source.
-git diff --unified=0 --no-color "$base" "$head" -- '*.idr' '*.idric' |
+# only added Idriç source lines. The frontend selects the Idriç vocabulary by
+# .idric filename; .idr is inherited Idris/bootstrap source, where Number and
+# the source-facing vocabulary are not aliases supplied by the frontend.
+patch=$(mktemp)
+trap 'rm -f -- "$patch"' EXIT
+trap 'exit 2' HUP INT TERM
+git diff --unified=0 --no-color --no-ext-diff --no-textconv --text "$base" "$head" -- '*.idric' > "$patch"
 awk '
 function annotation(level, message) {
   if (path == "") {
@@ -75,4 +79,4 @@ END {
   if (errors > 0)
     exit 1
 }
-'
+' "$patch"

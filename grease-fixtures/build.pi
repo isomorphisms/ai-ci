@@ -1,0 +1,113 @@
+"""Run the pinned upstream Icky DMD bootstrap for the scoped Grease fixtures."""
+import hashlib
+import os
+import platform
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+from builtins import RuntimeError, list, open
+
+def capture(arguments ∈ list[str]) → str:
+    output ∈ str ← subprocess.check_output(arguments, text=True)
+    return output.strip()
+
+def run(arguments ∈ list[str], directory ∈ str) → None:
+    subprocess.run(arguments, cwd=directory, check=True)
+
+def digest(path ∈ str) → str:
+    answer ∈ str ← hashlib.sha256(Path(path).read_bytes()).hexdigest()
+    return answer
+
+def checkout(path ∈ str, expected ∈ str) → str:
+    rev ∈ str ← capture(["git", "-C", path, "rev-parse", "HEAD"])
+    if rev != expected:
+        raise RuntimeError("unexpected fixture source revision: " + path + " " + rev)
+    return rev
+
+arguments ∈ list[str] ← sys.argv
+system ∈ str ← sys.platform
+machine ∈ str ← platform.machine()
+if len(arguments) != 3 or system != "linux" or machine != "x86_64":
+    raise RuntimeError("scoped Grease bootstrap requires a Linux x86_64 host and two paths")
+
+sources ∈ str ← arguments[1]
+oils ∈ str ← sources + "/oils"
+ick ∈ str ← sources + "/ick"
+druntime ∈ str ← sources + "/druntime"
+phobos ∈ str ← sources + "/phobos"
+oils_sha ∈ str ← checkout(oils, "fe73c4c55faa3378cb9c5b7f136b54c403bfd8f0")
+ick_sha ∈ str ← checkout(ick, "ccf61ab82659b9eadee2d05b489fb195956cef88")
+druntime_sha ∈ str ← checkout(druntime, "74917954b53f7f35b13e61b4438c7253834929ed")
+phobos_sha ∈ str ← checkout(phobos, "7b158eba80b97dfcdd8931bcaea1ad0ca35ceb95")
+ithon_sha ∈ str ← checkout(sources + "/ithon", "d6e83969f82512e920fb17b44326cb54f31d015c")
+output_dir ∈ str ← tempfile.mkdtemp(prefix="grease-fixture-build.", dir=arguments[2])
+ldmd ∈ str ← shutil.which("ldmd2") or ""
+if ldmd == "":
+    raise RuntimeError("stage-zero ldmd2 is unavailable")
+
+# These bootstrap and link arguments follow the pinned Oils owner workflow.
+run([ldmd, "-run", "./build.d", "dmd", "HOST_DMD=" + ldmd], ick + "/dmd/compiler/src")
+generated ∈ Path ← Path(ick + "/dmd/generated")
+candidates ∈ list[Path] ← list(generated.rglob("dmd"))
+compiler ∈ str ← ""
+for candidate in candidates:
+    if candidate.is_file() and os.access(candidate, os.X_OK):
+        if compiler != "":
+            raise RuntimeError("multiple generated Icky DMD executables")
+        compiler ← str(candidate)
+if compiler == "":
+    raise RuntimeError("Icky DMD build produced no executable")
+compiler_version ∈ str ← capture([compiler, "--version"])
+stage ∈ str ← druntime + "/generated/linux/release/64"
+Path(stage).mkdir(parents=True, exist_ok=True)
+staged_compiler ∈ str ← stage + "/dmd"
+shutil.copy2(compiler, staged_compiler)
+cores ∈ str ← capture(["nproc"])
+run(["make", "-C", druntime + "/druntime", "-j" + cores,
+     "MODEL=64", "OS=linux", "BUILD=release", "SHARED=0", "DMD=" + staged_compiler], sources)
+run(["make", "-C", phobos, "-j" + cores,
+     "MODEL=64", "OS=linux", "BUILD=release", "SHARED=0", "USE_IMPORTC=1",
+     "DMD_DIR=" + druntime, "DMD=" + staged_compiler], sources)
+
+library ∈ str ← phobos + "/generated/linux/release/64/libphobos2.a"
+grease ∈ str ← output_dir + "/grease"
+modules ∈ list[Path] ← list(Path(oils + "/ysh/d/source/yshd").rglob("*.d"))
+module_paths ∈ list[str] ← []
+for module in modules:
+    module_paths.append(str(module))
+module_paths.sort()
+if len(module_paths) == 0:
+    raise RuntimeError("pinned Grease source contains no modules")
+command ∈ list[str] ← [staged_compiler, "-conf=", "-fPIC", "-w",
+    "-Iysh/d/source", "-Jstdlib", "-J.", "-I" + druntime + "/druntime/import",
+    "-I" + phobos, library, "-defaultlib=", "-debuglib=", "-L-lpthread", "-L-lm",
+    "-L-ldl", "ysh/d/source/app.d"]
+command.extend(module_paths)
+command.append("-of=" + grease)
+run(command, oils)
+needed ∈ str ← capture(["readelf", "-d", grease])
+resolved ∈ str ← capture(["ldd", grease])
+if "libstdc++" in resolved or "libc++" in resolved or "not found" in resolved:
+    raise RuntimeError("unexpected dynamic runtime dependency: " + resolved)
+version ∈ str ← capture([grease, "--version"])
+if not ("Implementation: native D translation (partial)" in version):
+    raise RuntimeError("unexpected Grease implementation identity")
+
+receipt ∈ str ← output_dir + "/receipt"
+Path(receipt).mkdir()
+record ∈ str ← "scope\thost-fixtures-only\n"
+record ← record + "oils_revision\t" + oils_sha + "\nicky_dmd_revision\t" + ick_sha
+record ← record + "\ndruntime_revision\t" + druntime_sha + "\nphobos_revision\t" + phobos_sha
+record ← record + "\nithon_revision\t" + ithon_sha + "\nstage_zero_sha256\t" + digest(ldmd)
+record ← record + "\ncompiler_sha256\t" + digest(staged_compiler) + "\nphobos_sha256\t" + digest(library)
+record ← record + "\nexecutable_sha256\t" + digest(grease) + "\n"
+Path(receipt + "/build.tsv").write_text(record)
+Path(receipt + "/version.txt").write_text(compiler_version + "\n\n" + version + "\n")
+Path(receipt + "/linkage.txt").write_text(needed + "\n\n" + resolved + "\n")
+Path(receipt + "/compile-argv.txt").write_text("\n".join(command))
+print(record)
+output_path ∈ str ← os.environ.get("GITHUB_OUTPUT", "")
+with open(output_path, "a", encoding="utf-8") as github_output:
+    github_output.write("executable=" + grease + "\nreceipt=" + receipt + "\n")

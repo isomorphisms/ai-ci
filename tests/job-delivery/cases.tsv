@@ -33,7 +33,14 @@ duplicate-dispatch	a1-c67	duplicate-dispatch	JOB-DUPLICATE-DISPATCH
 incomplete-dispatch	a1-c67	incomplete-dispatch	JOB-DISPATCH-MISSING
 no-op-receipt	young-tableaux	no-op	JOB-VISIBLE-MISSING
 inferred-execution	a1-c67	fake-explicit-dispatch	HANDOFF_DISPATCH_ONLY_NOT_REQUESTED
+requirements-binding-mutated	a1-c67	requirements-binding-mutated	REQ-REQUEST-BINDING: projection digest changed
+requirements-binding-missing-bytes	a1-c67	requirements-binding-missing-bytes	REQ-REQUEST-BINDING: projection bytes and digest must appear together
+requirements-binding-missing-digest	a1-c67	requirements-binding-missing-digest	REQ-REQUEST-BINDING: projection bytes and digest must appear together
+requirements-binding-invalid-digest	a1-c67	requirements-binding-invalid-digest	REQ-REQUEST-BINDING: expected lowercase SHA-256
+requirements-binding-wrong-request	a1-c67	requirements-binding-wrong-request	REQ-REQUEST-BINDING: projection belongs to another request
 attachment-visible	young-tableaux	attachment-visible	PASS
+attachment-bound-requirements	young-tableaux	attachment-bound	PASS
+attachment-mutated-requirements	young-tableaux	attachment-binding-mutated	REQ-REQUEST-BINDING: projection digest changed
 attachment-archive-member	young-tableaux	attachment-archive-member	PASS
 attachment-link-only	young-tableaux	attachment-link-only	JOB-VISIBLE-MISSING
 attachment-mutated	young-tableaux	attachment-mutated	JOB-EVENT-IDENTITY
@@ -41,6 +48,8 @@ attachment-wrong-name	young-tableaux	attachment-wrong-name	JOB-ATTACHMENT-NAME
 attachment-wrong-mime	young-tableaux	attachment-wrong-mime	JOB-ATTACHMENT-MIME
 attachment-duplicate	young-tableaux	attachment-duplicate	JOB-DUPLICATE-ATTACHMENT
 actual-ordinary-text	young-tableaux	actual-text	PASS
+actual-text-bound-requirements	young-tableaux	actual-text-bound	PASS
+actual-text-mutated-requirements	young-tableaux	actual-text-binding-mutated	REQ-REQUEST-BINDING: projection digest changed
 actual-recomputed-model	young-tableaux	actual-wrong-model	JOB-AUTHORITY-MODEL
 actual-recomputed-audience	young-tableaux	actual-wrong-audience	JOB-AUTHORITY-AUDIENCE
 actual-request-replacement	young-tableaux	actual-request-substitution	JOB-AUTHORITY-REQUEST
@@ -50,6 +59,8 @@ actual-internal-capture	young-tableaux	actual-internal	JOB-PLATFORM-ADAPTER-UNAV
 actual-swapped-message	young-tableaux	actual-message-id	JOB-READBACK-MESSAGE
 actual-placeholder	young-tableaux	actual-placeholder	HANDOFF_VISIBLE_MISSING
 actual-direct-file	young-tableaux	actual-file	PASS
+actual-file-bound-requirements	young-tableaux	actual-file-bound	PASS
+actual-file-mutated-requirements	young-tableaux	actual-file-binding-mutated	REQ-REQUEST-BINDING: projection digest changed
 actual-archive-member	young-tableaux	actual-file-archive	PASS
 actual-service-byte-mutation	young-tableaux	actual-file-bytes	JOB-READBACK-BYTES
 actual-service-name-mutation	young-tableaux	actual-file-name	JOB-READBACK-METADATA
@@ -57,6 +68,8 @@ actual-service-mime-mutation	young-tableaux	actual-file-mime	JOB-READBACK-METADA
 actual-service-id-mutation	young-tableaux	actual-file-id	JOB-READBACK-FILE
 actual-recovered-new-message	young-tableaux	actual-recovery	PASS
 storage-direct-bytes	young-tableaux	storage-direct	PASS
+storage-bound-requirements	young-tableaux	storage-bound	PASS
+storage-mutated-requirements	young-tableaux	storage-binding-mutated	REQ-REQUEST-BINDING: projection digest changed
 storage-selected-member	young-tableaux	storage-archive	PASS
 storage-changed-bytes	young-tableaux	storage-bytes	JOB-STORAGE-BYTES
 storage-renamed-file	young-tableaux	storage-name	JOB-STORAGE-NAME
