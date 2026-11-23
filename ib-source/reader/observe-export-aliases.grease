@@ -1,0 +1,59 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 7) { echo 'requires AICI INPUT SMALI ADB SERIAL API NEW_EVIDENCE' >&2; exit 2 }
+var repository = ARGV[0]
+var input = ARGV[1]
+var smali = ARGV[2]
+var adb = ARGV[3]
+var serial = ARGV[4]
+var api = ARGV[5]
+var evidence = ARGV[6]
+for path in "$repository" "$input" "$smali" "$adb" "$evidence" {
+  if (len(path) === 0 or path[0] !== '/') { exit 2 }
+}
+if (api !== '29' and api !== '34') { exit 2 }
+if test -e "$evidence" { echo 'FAIL reused export alias observation' >&2; exit 2 }
+mkdir -p "$evidence/observer-source"
+"$adb" -s "$serial" shell getprop ro.kernel.qemu | tr -d '\r' | rg -x 1
+"$adb" -s "$serial" shell getprop ro.product.cpu.abi | tr -d '\r' | rg -x x86_64
+test "$("$adb" -s "$serial" shell getprop ro.build.version.sdk | tr -d '\r')" = "$api"
+"$adb" -s "$serial" shell getprop ro.build.fingerprint > "$evidence/fingerprint.txt"
+cp "$repository/ib-source/reader/ExportAliasesObserver.smali" "$evidence/observer-source/"
+cp "$repository/ib-source/reader/AssertionFailure.smali" "$evidence/observer-source/"
+java -jar "$smali" assemble "$evidence/observer-source" -o "$evidence/observer.dex"
+var digest = $(sha256sum "$input/managed/candidate.dex" | cut -d ' ' -f 1)
+var remote = "/data/local/tmp/idric-export-aliases-$digest"
+"$adb" -s "$serial" shell test ! -e "$remote"
+"$adb" -s "$serial" shell mkdir "$remote"
+"$adb" -s "$serial" push "$evidence/observer.dex" "$remote/observer.dex"
+"$adb" -s "$serial" shell chmod 444 "$remote/observer.dex"
+for lane in managed mutant {
+  "$adb" -s "$serial" push "$input/$lane/candidate.dex" "$remote/$lane.dex"
+  "$adb" -s "$serial" shell chmod 444 "$remote/$lane.dex"
+  "$adb" -s "$serial" pull "$remote/$lane.dex" "$evidence/$lane.received.dex"
+  cmp "$input/$lane/candidate.dex" "$evidence/$lane.received.dex"
+  try {
+    timeout 120 "$adb" -s "$serial" shell -T \
+      "CLASSPATH=$remote/$lane.dex:$remote/observer.dex app_process /system/bin acceptance.ExportAliasesObserver" \
+      > "$evidence/$lane.txt" 2>&1
+  }
+  var status = _error.code
+  printf '%s\n' "$status" > "$evidence/$lane.exit"
+  cat "$evidence/$lane.txt"
+  var expected_status = 0
+  var expected_marker = 'PASS independent pure partial and IO export alias saturation on ART'
+  if (lane === 'mutant') {
+    setvar expected_status = 137
+    setvar expected_marker = 'FAIL checked IO alias applies supplied effect exactly once'
+  }
+  var marker_found = false
+  if rg -x -F "$expected_marker" "$evidence/$lane.txt" { setvar marker_found = true }
+  if (status !== expected_status or not marker_found) {
+    try { "$adb" -s "$serial" logcat -d -v threadtime -s AndroidRuntime:E > "$evidence/$lane.runtime-errors.txt" 2>&1 }
+    cat "$evidence/$lane.runtime-errors.txt"
+    echo "FAIL export alias observer: $lane exit $status expected $expected_status and exact diagnostic" >&2
+    exit 1
+  }
+}
+sha256sum "$evidence/observer.dex" "$evidence/managed.received.dex" "$evidence/mutant.received.dex" > "$evidence/sha256.txt"
+printf 'schema\tchecked-export-aliases-art-v1\napi\t%s\nabi\tx86_64\npure_partial_and_IO_alias\tPASS\ncompiled_effect_mutant\tREJECTED\nphysical_TAB_P10\tNOT_RUN\n' "$api" > "$evidence/receipt.tsv"

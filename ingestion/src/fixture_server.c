@@ -180,6 +180,14 @@ static void handle_request(int fd, const char *corpus_root) {
     } else if (strcmp(path, "/invalid-utf8") == 0) {
         relative = "bodies/invalid-utf8.hex";
         hex = 1;
+    } else if (strcmp(path, "/windows-1252") == 0) {
+        relative = "bodies/windows-1252.hex";
+        content_type = "text/html; charset=windows-1252";
+        hex = 1;
+    } else if (strcmp(path, "/latin-1") == 0) {
+        relative = "bodies/latin-1.hex";
+        content_type = "text/html; charset=ISO-8859-1";
+        hex = 1;
     } else if (strcmp(path, "/unknown-charset") == 0) {
         relative = "bodies/valid.html";
         content_type = "text/html; charset=x-hostile-unknown";

@@ -1,0 +1,10 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 2) { echo 'refused:argument-count' >&2; exit 42 }
+var url_file = ARGV[0]
+var payload = ARGV[1]
+var uri = $(cat "$url_file")
+if (uri !~ /^ 'https://' /) { echo 'refused:URI-scheme' >&2; exit 42 }
+printf 'IB-GREASE-PIPE1\n'
+printf '%s\n' "$uri"
+cat "$payload"

@@ -1,0 +1,49 @@
+#!/usr/bin/env grease
+# Independent modern/legacy receipt observations, against real canonical bytes.
+set -eu -o pipefail
+if (len(ARGV) !== 3) { echo 'usage: grease verify-transfer.grease AICI CANONICAL_ROOT NEW_EVIDENCE' >&2; exit 2 }
+var repository = ARGV[0]
+var root = ARGV[1]
+var evidence = ARGV[2]
+for path in "$repository" "$root" "$evidence" {
+  if (len(path) === 0 or path[0] !== '/') { exit 2 }
+}
+if test -e "$evidence" { echo 'FAIL reused transfer observation evidence' >&2; exit 2 }
+mkdir -p "$evidence"
+var oracle = "$repository/ib-source/verify.sh"
+proc verify_observation(identity, encoding) {
+  rg -x -F "transfer_decoding	$encoding" "$root/receipts/$identity.tsv"
+  sh "$oracle" "$root" "$identity" 19 https://example.com/ > "$evidence/$identity.txt" 2>&1
+  cat "$evidence/$identity.txt"
+  rg -F "PASS	ib-source-v2-admitted	$identity	19	" "$evidence/$identity.txt"
+}
+verify_observation current-identity identity
+verify_observation current-chunked chunked
+# A retained v2 receipt without this optional observation remains readable;
+# absence cannot be relabeled identity by the producer or the observer.
+if rg -q '^transfer_decoding	' "$root/receipts/observed.tsv" { echo 'FAIL legacy observation was manufactured' >&2; exit 1 }
+sh "$oracle" "$root" observed 19 https://example.com/ > "$evidence/legacy.txt" 2>&1
+rg -F 'PASS	ib-source-v2-admitted	observed	19	' "$evidence/legacy.txt"
+cp -R "$root" "$evidence/corrupted"
+awk -F '\t' -v OFS='\t' '$1=="transfer_decoding"{$2="gzip"}{print}' \
+  "$root/receipts/current-chunked.tsv" > "$evidence/corrupted/receipts/current-chunked.tsv"
+try {
+  sh "$oracle" "$evidence/corrupted" current-chunked 19 https://example.com/ \
+    > "$evidence/unsupported.stdout" 2> "$evidence/unsupported.stderr"
+}
+if (_error.code !== 1) { echo 'FAIL unsupported retained transfer observation was not rejected' >&2; exit 1 }
+test ! -s "$evidence/unsupported.stdout"
+rg -x -F 'ai-ci ib-source: receipt field set or duplicates invalid' "$evidence/unsupported.stderr"
+cp "$root/receipts/current-chunked.tsv" "$evidence/corrupted/receipts/current-chunked.tsv"
+printf 'transfer_decoding\tidentity\n' >> "$evidence/corrupted/receipts/current-chunked.tsv"
+try {
+  sh "$oracle" "$evidence/corrupted" current-chunked 19 https://example.com/ \
+    > "$evidence/duplicate.stdout" 2> "$evidence/duplicate.stderr"
+}
+if (_error.code !== 1) { echo 'FAIL duplicate retained transfer observation was not rejected' >&2; exit 1 }
+test ! -s "$evidence/duplicate.stdout"
+rg -x -F 'ai-ci ib-source: receipt field set or duplicates invalid' "$evidence/duplicate.stderr"
+sha256sum "$oracle" "$root/receipts/current-identity.tsv" "$root/receipts/current-chunked.tsv" \
+  "$root/responses.arena" > "$evidence/sha256.txt"
+printf 'schema\tib-independent-transfer-observation-v1\nmodern_identity\tPASS\nmodern_chunked\tPASS\nlegacy_unobserved\tPASS\nchanged_decoder\tREJECTED\nduplicate_observation\tREJECTED\nAndroid_pipeline\tNOT_RUN\nphysical_TAB_P10\tNOT_RUN\n' > "$evidence/receipt.tsv"
+cat "$evidence/receipt.tsv"

@@ -1,0 +1,44 @@
+#!/usr/bin/env grease
+# Execute the independent index oracle before any expensive Android run.
+set -eu -o pipefail
+if (len(ARGV) !== 2) { echo 'usage: grease test-example-index.grease AICI NEW_EVIDENCE' >&2; exit 2 }
+var repository = ARGV[0]
+var evidence = ARGV[1]
+var grease = ENV.IB_GREASE
+if test -e "$evidence" { echo 'FAIL reused host index evidence' >&2; exit 2 }
+mkdir -p "$evidence"
+var identity = '0123456789abcdef0123456789abcdef0123456789abcdef'
+var generation = '17'
+var oracle = "$repository/ib-source/reader/verify-example-index.grease"
+printf 'IBLAST2\n%s\n17\nIBH1\n0\n%s\t17\n' "$identity" "$identity" > "$evidence/prefix"
+var digest = $(sha256sum "$evidence/prefix" | cut -d ' ' -f 1)
+cp "$evidence/prefix" "$evidence/good"
+printf '%s\n' "$digest" >> "$evidence/good"
+proc check_case(index, label, expected, marker) {
+  try {
+    "$grease" "$oracle" "$index" "$identity" "$generation" "$evidence/$label" \
+      > "$evidence/$label.txt" 2>&1
+  }
+  var status = _error.code
+  printf '%s\n' "$status" > "$evidence/$label.exit"
+  cat "$evidence/$label.txt"
+  if (status !== int(expected)) { echo 'FAIL index oracle reached the wrong exit' >&2; exit 1 }
+  rg -x -F "$marker" "$evidence/$label.txt"
+}
+check_case "$evidence/good" positive 0 'PASS independent single retained occurrence and complete index digest'
+sed '5s/^0$/1/' "$evidence/good" > "$evidence/changed"
+check_case "$evidence/changed" corrupt 1 'FAIL native example index digest mismatch'
+head -n 6 "$evidence/changed" > "$evidence/changed-prefix"
+var forged = $(sha256sum "$evidence/changed-prefix" | cut -d ' ' -f 1)
+cp "$evidence/changed-prefix" "$evidence/forged"
+printf '%s\n' "$forged" >> "$evidence/forged"
+check_case "$evidence/forged" selected 1 'FAIL native example index selected occurrence'
+cp "$evidence/prefix" "$evidence/bad-digest"
+printf '%s\n' gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg >> "$evidence/bad-digest"
+check_case "$evidence/bad-digest" digest-framing 1 'FAIL native example index digest framing'
+cp "$evidence/good" "$evidence/extra-line"
+printf '\n' >> "$evidence/extra-line"
+check_case "$evidence/extra-line" line-framing 1 'FAIL native example index framing'
+sha256sum "$oracle" "$evidence/good" "$evidence/changed" "$evidence/forged" > "$evidence/sha256.txt"
+printf 'schema\tib-independent-index-oracle-selftest-v1\npositive\tPASS\nchanged_byte\tREJECTED\nforged_cursor\tREJECTED\nbad_digest_framing\tREJECTED\nbad_line_framing\tREJECTED\nAndroid\tNOT_RUN\nphysical_TAB_P10\tNOT_RUN\n' > "$evidence/receipt.tsv"
+cat "$evidence/receipt.tsv"
