@@ -1,0 +1,26 @@
+name: Native capture independent verifier fixtures
+on:
+  pull_request:
+  push:
+permissions:
+  contents: read
+jobs:
+  independent-verifier:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Exact ICK source producer
+        id: ick
+        uses: isomorphisms/ai-ci/ick-host@2843a804fea1bbc4e3e40b6c236064bb1d41f316
+      - name: Host crypto headers
+        run: sudo apt-get install -y libssl-dev
+      - name: Independent verifier positive and skipped-trigger mutant
+        run: make -C native-capture check ICK="${{ steps.ick.outputs.compiler }}"
+      - name: Compile the shared source-toolchain verifier through ICK
+        run: '"${{ steps.ick.outputs.compiler }}" -fno-link-libatomic -std=c11 -O2 src/aici.c -o native-capture/build/toolchain-check'
+      - name: Require the independent verifier toolchain declaration
+        run: native-capture/build/toolchain-check verify contracts/build-toolchain-v0.contract.tsv native-capture
