@@ -54,7 +54,7 @@ runs:
       printf '%s  %s\n' 3ddb962ef313e528e525fa03518f494577e921c2201ecb49f7a11f2fbf4e82b2 "$RUNNER_TEMP/grease-c67.tar.gz" | sha256sum -c -
       tar -xzf "$RUNNER_TEMP/grease-a1.tar.gz" -C "$RUNNER_TEMP/arm-payloads/a1"
       tar -xzf "$RUNNER_TEMP/grease-c67.tar.gz" -C "$RUNNER_TEMP/arm-payloads/c67"
-  - name: Run independent checks through the registered FP pipeline
+  - name: Run independent checks through the retained FP fixture pipeline
     shell: sh
     working-directory: flexible-pipes
     env:
@@ -62,7 +62,7 @@ runs:
     run: |
       set -eu
       export PATH="$(dirname "$FIXTURE_GREASE"):$PATH"
-      python3 scripts/run-pipeline catfood-fp-kitchen-merge \
+      python3 scripts/run-pipeline-legacy.py catfood-fp-kitchen-merge \
         --param "grease=$FIXTURE_GREASE" \
         --param "aici=$GITHUB_WORKSPACE/ai-ci/tests/transfer-merge.grease" \
         --param "kitchen=$GITHUB_WORKSPACE/kitchen" \
