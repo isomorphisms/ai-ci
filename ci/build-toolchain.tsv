@@ -8,4 +8,4 @@ hostile-ingestion-verifier	linux-x86_64	ick	fbe86e23d55cfec2000c08e61deea2a407fd
 hostile-ingestion-invocation-fixtures	linux-x86_64	ick	fbe86e23d55cfec2000c08e61deea2a407fd7175	qualified	https://github.com/isomorphisms/ai-ci/tree/2197c6f466e3f11d73acaf8a3814663ec6e9734a/ick-host
 independent-build-comparator	linux-x86_64	ick	fbe86e23d55cfec2000c08e61deea2a407fd7175	qualified	https://github.com/isomorphisms/ai-ci/tree/2197c6f466e3f11d73acaf8a3814663ec6e9734a/ick-host
 independent-build-owned-source-check	linux-x86_64	ick	fbe86e23d55cfec2000c08e61deea2a407fd7175	qualified	https://github.com/isomorphisms/ai-ci/tree/2197c6f466e3f11d73acaf8a3814663ec6e9734a/ick-host
-
+emc-task12-interworking	armv7a-linux-androideabi21	ndk	c61e448251744a2f40ad743ebef1a027bdcd2f9d	gap:No exact-case ICK acceptance for the English-generated T32 procedure and freestanding interworking A32 caller	https://github.com/isomorphisms/English-major-C/tree/ce52cf665e302588a6334d4efa4e495da40bab5b/arm/thumb/identity-find
