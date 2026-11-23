@@ -14,6 +14,10 @@ fi
 source_file="$subject/android/app/src/main/cpp/holomorphic_walk.c"
 header_dir="$subject/android/app/src/main/cpp"
 smoke_test="$subject/tests/test_holomorphic_walk.c"
+if ! git -C "$subject" diff --quiet "$expected_revision" -- "$source_file" "$header_dir/holomorphic_walk.h" "$smoke_test"; then
+    echo "AICI-SUBJECT-FILES-DIFFER-FROM-PIN" >&2
+    exit 2
+fi
 oracle="$aici_root/tests/semantic-oracles/holomorphic-t1/independent_reference.c"
 oracle_revision=$(git -C "$aici_root" rev-parse HEAD)
 compiler=${AICI_C_COMPILER:?Set AICI_C_COMPILER to the qualified ICK compiler}
@@ -35,7 +39,7 @@ trap 'rm -rf "$scratch"' EXIT HUP INT TERM
 receipt_dir=${AICI_SEMANTIC_RECEIPT_DIR:-"$scratch"}
 mkdir -p "$receipt_dir"
 receipt="$receipt_dir/aici-holomorphic-t1.tsv"
-printf 'case_id\tsut_revision\taici_revision\tcandidate_sha256\texecutable_sha256\tcandidate_test\toriginal_smoke\tsemantic_result\toracle\tseed\tevidence_boundary\tcompiler_revision\tcompiler_sha256\n' > "$receipt"
+printf 'case_id\tsut_revision\taici_revision\tcandidate_sha256\texecutable_sha256\tcandidate_test\toriginal_smoke\tsemantic_result\toracle\tseed\tevidence_boundary\tcompiler_revision\tcompiler_sha256\tsemantic_exit\tsmoke_log_sha256\tsemantic_log_sha256\n' > "$receipt"
 
 check() {
     case_id=$1
@@ -57,7 +61,9 @@ check() {
         -include "$candidate" "$oracle" -pthread -lm -o "$scratch/$case_id-semantic"
     cp "$scratch/$case_id-semantic" "$receipt_dir/$case_id-semantic.bin"
     executable_sha=$(sha256sum "$scratch/$case_id-semantic" | cut -d ' ' -f 1)
-    if "$scratch/$case_id-semantic" > "$receipt_dir/$case_id-semantic.log" 2>&1; then
+    semantic_exit=0
+    "$scratch/$case_id-semantic" > "$receipt_dir/$case_id-semantic.log" 2>&1 || semantic_exit=$?
+    if [ "$semantic_exit" -eq 0 ]; then
         result=PASS
         grep -Fq 'AICI-SEMANTIC-PASS cases=6' "$receipt_dir/$case_id-semantic.log" || {
             echo "AICI-MISSING-SEMANTIC-PASS-MARKER case=$case_id" >&2
@@ -65,20 +71,23 @@ check() {
         }
     else
         result=KILLED
-        grep -Fq 'AICI-SEMANTIC-MISMATCH case=' "$receipt_dir/$case_id-semantic.log" || {
+        if [ "$semantic_exit" -ne 1 ] ||
+            ! grep -Fq 'AICI-SEMANTIC-MISMATCH case=' "$receipt_dir/$case_id-semantic.log"; then
             echo "AICI-WRONG-KILL-REASON case=$case_id" >&2
             cat "$receipt_dir/$case_id-semantic.log" >&2
             exit 1
-        }
+        fi
     fi
     if [ "$result" != "$expected" ]; then
         echo "AICI-SEMANTIC-UNEXPECTED-RESULT case=$case_id got=$result wanted=$expected" >&2
         exit 1
     fi
-    printf '%s\t%s\t%s\t%s\t%s\t%s\tPASS\t%s\thand-derived-six-values\tfixed-six\thost-CPU-not-GPU-or-device\t%s\t%s\n' \
+    smoke_log_sha=$(sha256sum "$receipt_dir/$case_id-smoke.log" | cut -d ' ' -f 1)
+    semantic_log_sha=$(sha256sum "$receipt_dir/$case_id-semantic.log" | cut -d ' ' -f 1)
+    printf '%s\t%s\t%s\t%s\t%s\t%s\tPASS\t%s\thand-derived-six-values\tfixed-six\thost-CPU-not-GPU-or-device\t%s\t%s\t%s\t%s\t%s\n' \
         "$case_id" "$observed_revision" "$oracle_revision" "$sha" \
         "$executable_sha" "$case_id-semantic" "$result" \
-        "$compiler_revision" "$compiler_sha256" >> "$receipt"
+        "$compiler_revision" "$compiler_sha256" "$semantic_exit" "$smoke_log_sha" "$semantic_log_sha" >> "$receipt"
     printf 'AICI-T1 case=%s old_smoke=PASS independent=%s source=%s\n' \
         "$case_id" "$result" "$observed_revision"
 }
@@ -124,6 +133,6 @@ sh "$aici_root/validators/verify_semantic_mutants.sh" \
     "$aici_root/tests/semantic-oracles/holomorphic-t1/cases.tsv" \
     "$receipt_dir" "$observed_revision" "$oracle_revision" \
     hand-derived-six-values fixed-six host-CPU-not-GPU-or-device \
-    "$compiler_revision"
+    "$compiler_revision" "$compiler_sha256"
 printf 'AICI-INDEPENDENT-PASS good=1 killed=5 survived=0 cases=6 sut=%s oracle=%s\n' \
     "$observed_revision" "$oracle_revision"

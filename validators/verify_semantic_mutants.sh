@@ -6,8 +6,8 @@
 # good/bad control sensitivity. It does NOT certify oracle soundness, prove
 # unforgeability of local files, or replace running an independent evaluator.
 set -eu
-if [ "$#" -ne 8 ]; then
-    echo "usage: $0 cases.tsv receipt-directory exact-sut-sha exact-aici-sha oracle-id seed evidence-boundary exact-ick-sha" >&2
+if [ "$#" -ne 9 ]; then
+    echo "usage: $0 cases.tsv receipt-directory exact-sut-sha exact-aici-sha oracle-id seed evidence-boundary exact-ick-sha exact-compiler-sha256" >&2
     exit 2
 fi
 case_manifest=$1
@@ -18,6 +18,7 @@ expected_oracle=$5
 expected_seed=$6
 expected_layer=$7
 expected_compiler=$8
+expected_compiler_digest=$9
 receipt="$receipt_dir/aici-holomorphic-t1.tsv"
 for required in "$case_manifest" "$receipt"; do
     if [ ! -s "$required" ]; then
@@ -38,10 +39,19 @@ for revision in "$expected_sut" "$expected_aici" "$expected_compiler"; do
         exit 1
     fi
 done
+root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
+if ! cmp -s "$case_manifest" "$root/tests/semantic-oracles/holomorphic-t1/cases.tsv"; then
+    echo "AICI-SEMANTIC-MANIFEST-DRIFT" >&2
+    exit 1
+fi
 
 awk -F '\t' -v sut="$expected_sut" -v aici="$expected_aici" \
     -v oracle="$expected_oracle" -v seed="$expected_seed" \
-    -v layer="$expected_layer" -v compiler="$expected_compiler" '
+    -v layer="$expected_layer" -v compiler="$expected_compiler" \
+    -v compiler_digest="$expected_compiler_digest" '
+    function sha256(value) {
+        return length(value) == 64 && value ~ /^[0-9a-f]+$/
+    }
     function bad(message) {
         print "AICI-SEMANTIC-RECEIPT-REJECT " message > "/dev/stderr"
         errors++
@@ -63,22 +73,25 @@ awk -F '\t' -v sut="$expected_sut" -v aici="$expected_aici" \
     }
     FILENAME == ARGV[2] {
         if (FNR == 1) {
-            if ($0 != "case_id\tsut_revision\taici_revision\tcandidate_sha256\texecutable_sha256\tcandidate_test\toriginal_smoke\tsemantic_result\toracle\tseed\tevidence_boundary\tcompiler_revision\tcompiler_sha256")
+            if ($0 != "case_id\tsut_revision\taici_revision\tcandidate_sha256\texecutable_sha256\tcandidate_test\toriginal_smoke\tsemantic_result\toracle\tseed\tevidence_boundary\tcompiler_revision\tcompiler_sha256\tsemantic_exit\tsmoke_log_sha256\tsemantic_log_sha256")
                 bad("receipt-header")
             next
         }
-        if (NF != 13) { bad("receipt-column-count"); next }
+        if (NF != 16) { bad("receipt-column-count"); next }
         if (!($1 in cases)) bad("extra-case " $1)
         if (++observed[$1] != 1) bad("duplicate-case " $1)
         if ($2 != sut || $3 != aici) bad("stale-or-wrong-source " $1)
-        if (length($4) != 64 || $4 !~ /^[0-9a-f]+$/) bad("invalid-candidate-digest " $1)
-        if (length($5) != 64 || $5 !~ /^[0-9a-f]+$/) bad("invalid-executable-digest " $1)
+        if (!sha256($4)) bad("invalid-candidate-digest " $1)
+        if (!sha256($5)) bad("invalid-executable-digest " $1)
         if ($6 != $1 "-semantic") bad("wrong-test-selected " $1)
         if ($7 != "PASS") bad("original-smoke-not-observed " $1)
         if ($8 != cases[$1]) bad("surviving-or-wrong-mutant " $1)
         if ($9 != oracle || $10 != seed || $11 != layer) bad("wrong-oracle-seed-or-target " $1)
         if ($12 != compiler) bad("wrong-compiler-revision " $1)
-        if (length($13) != 64 || $13 !~ /^[0-9a-f]+$/) bad("invalid-compiler-digest " $1)
+        if (!sha256($13) || $13 != compiler_digest) bad("wrong-compiler-digest " $1)
+        if (($8 == "PASS" && $14 !~ /^0$/) || ($8 == "KILLED" && $14 !~ /^1$/))
+            bad("wrong-semantic-exit " $1)
+        if (!sha256($15) || !sha256($16)) bad("invalid-log-digest " $1)
         total++
         next
     }
@@ -120,6 +133,12 @@ while IFS="$tab" read -r case_id role expected; do
     actual_executable_digest=$(sha256sum "$executable" | cut -d ' ' -f 1)
     if [ "$actual_executable_digest" != "$expected_executable_digest" ]; then
         echo "AICI-SEMANTIC-EXECUTABLE-DRIFT case=$case_id" >&2
+        exit 1
+    fi
+    expected_logs=$(awk -F "$tab" -v wanted="$case_id" '$1 == wanted {print $15 " " $16}' "$receipt")
+    actual_logs="$(sha256sum "$smoke_log" | cut -d ' ' -f 1) $(sha256sum "$semantic_log" | cut -d ' ' -f 1)"
+    if [ "$actual_logs" != "$expected_logs" ]; then
+        echo "AICI-SEMANTIC-LOG-DRIFT case=$case_id" >&2
         exit 1
     fi
     if ! grep -Fq 'holomorphic workers ready:' "$smoke_log"; then

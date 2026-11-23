@@ -453,16 +453,18 @@ jobs:
           set -euo pipefail
           sh tests/semantic-oracles/holomorphic-t1/run.sh \
             _holomorphic 7041b262c553e295b9769ebb84b7cb626e2ce50e
-      - name: Prove acceptance gate rejects thirteen hostile semantic receipts
+      - name: Prove acceptance gate rejects altered receipts and incomplete case selections
         env:
           AICI_EXACT_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+          AICI_C_COMPILER: ${{ steps.ick.outputs.compiler }}
         run: |
           set -euo pipefail
           sh tests/semantic-oracles/holomorphic-t1/receipt_meta_tests.sh \
             "$RUNNER_TEMP/aici-holomorphic-t1" \
             7041b262c553e295b9769ebb84b7cb626e2ce50e \
             "$AICI_EXACT_REVISION" \
-            c61e448251744a2f40ad743ebef1a027bdcd2f9d
+            c61e448251744a2f40ad743ebef1a027bdcd2f9d \
+            "$(sha256sum "$AICI_C_COMPILER" | cut -d ' ' -f 1)"
       - name: Preserve independently observed semantic case logs and receipt
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
