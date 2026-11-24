@@ -49,8 +49,8 @@ jobs:
           gh api repos/isomorphisms/billiard/actions/artifacts/12174071008/zip > "$ICK_STAGE_ARCHIVE"
           printf '%s  %s\n' 8ee043088fffadba3704fd567c206c4852b0de69f0b8bb76a131bfb8fa4004a4 "$ICK_STAGE_ARCHIVE" | sha256sum -c -
           unzip -p "$ICK_STAGE_ARCHIVE" ick-host-stage.tar.gz | tar -xz -C .stack-tool
-          gh api repos/dilapidated-shed/grease/actions/artifacts/12192502970/zip > "$RUNNER_TEMP/stack-grease.zip"
-          printf '%s  %s\n' 295329ec3bb419d90364fcb5937eafe4306b03f68b7aaa63089dadde8082ffb5 "$RUNNER_TEMP/stack-grease.zip" | sha256sum -c -
+          gh api repos/dilapidated-shed/grease/actions/artifacts/14771793976/zip > "$RUNNER_TEMP/stack-grease.zip"
+          printf '%s  %s\n' 426a7cbaa041d57e948ce61d73315c2ca5e8885267980c2873bd60bc3752584b "$RUNNER_TEMP/stack-grease.zip" | sha256sum -c -
           unzip -p "$RUNNER_TEMP/stack-grease.zip" _bin/cxx-asan/ysh > .grease/bin/ysh
           curl --fail --location --silent --show-error https://github.com/isomorphisms/grease/releases/download/tablet-aarch64-9b3dc8904891/grease-aarch64-termux.tar.gz --output "$RUNNER_TEMP/stack-launcher.tar.gz"
           printf '%s  %s\n' 3ddb962ef313e528e525fa03518f494577e921c2201ecb49f7a11f2fbf4e82b2 "$RUNNER_TEMP/stack-launcher.tar.gz" | sha256sum -c -
