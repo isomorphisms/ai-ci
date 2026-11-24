@@ -35,6 +35,7 @@ jobs:
           PR_HEAD: ${{ github.event.pull_request.head.sha }}
           RUN_SHA: ${{ github.sha }}
           MERGED_BASE: 6a87f20b39a71bd9e875061874c841f68c9db888
+          AICI_GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -Eeuo pipefail
           test "$(git rev-parse HEAD)" = "${PR_HEAD:-$RUN_SHA}"
@@ -67,6 +68,24 @@ jobs:
           }
 
           expect_failure main             "AICI policy must be pinned by full commit SHA"             "$work/non-sha.log"
+
+          # Repository-history failures are distinct from a valid non-ancestor:
+          # they must fail closed without manufacturing an authorization verdict.
+          real_git=$(command -v git)
+          mkdir -p "$work/fail-git"
+          cat > "$work/fail-git/git" <<EOF
+#!/usr/bin/env bash
+for arg in "\$@"; do
+  if [[ "\$arg" == fetch ]]; then
+    exit 77
+  fi
+done
+exec "$real_git" "\$@"
+EOF
+          chmod +x "$work/fail-git/git"
+          PATH="$work/fail-git:$PATH" expect_failure "$MERGED_BASE" \
+            "AICI policy main history is unavailable for isomorphisms/ai-ci" \
+            "$work/history-unavailable.log"
 
           case "$EVENT_NAME" in
             pull_request)
