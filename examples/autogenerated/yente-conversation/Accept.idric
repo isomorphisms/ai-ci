@@ -502,7 +502,66 @@ semantic_cases candidate = do
   check_uncited_context candidate
 
 covering
+check_admission_recovery : Candidate → IO ()
+check_admission_recovery candidate = do
+  let name = "answer-recovery"
+      base = candidate.work_directory ++ "/" ++ name
+      state_root = base ++ ".state"
+      journal_file = state_root ++ "/journal.tsv"
+      request_file = base ++ ".request.txt"
+      plan_file = base ++ ".response.tsv"
+      expected = "ANSWER\tprivateA\tanswer-input\tprivateA-p1\texpectation\tWhich Sundays would you want to reserve for the two of you?"
+      admit = [candidate.executable, "accept-event", state_root, candidate.materials,
+               "privateA", "answer-input", request_file, plan_file]
+      recover = \session ⇒ [candidate.executable, "recover-answer", state_root, candidate.materials, session, "answer-input"]
+  ignore $ successful_script candidate name (setup ++ "transport-event\tanswer-input\tsay\tprivateA\tAri\twish\t-\tnow\tI would like regular family visits.\n")
+  preexisting ← capture (recover "privateA")
+  require "input receipt alone cannot recover an answer"
+    (preexisting.process_status /= 0 && not (has_text "ANSWER\t" preexisting.standard_output))
+  ignore $ model_request candidate name "privateA"
+  write_required plan_file grounded_answer
+  commit ← capture admit
+  require "event-bound admission returns exact committed answer"
+    (commit.process_status ≟ 0 && exact_line expected commit.standard_output)
+  journal ← read_required journal_file
+  reopened ← capture (recover "privateA")
+  retried ← capture admit
+  require "new process recovers the sent answer after lost acknowledgement"
+    (reopened.process_status ≟ 0 && reopened.standard_output ≟ commit.standard_output)
+  require "same input event and plan recover the answer without appending"
+    (retried.process_status ≟ 0 && retried.standard_output ≟ commit.standard_output)
+  collision ← do
+    write_required plan_file (grounded_answer ++ "\taltered field\n")
+    capture admit
+  require "non-plan response refused after existing admission"
+    (collision.process_status /= 0 && not (has_text "ANSWER\t" collision.standard_output))
+  write_required plan_file ("plan\texpectation\tWhich agreement?\tprivateA-e1\t-\tfamily-partner\tWould every week work?\n")
+  changed ← capture admit
+  require "valid but different plan cannot replace the committed reply"
+    (changed.process_status /= 0 && has_text "different plan" changed.standard_output && not (has_text "ANSWER\t" changed.standard_output))
+  outsider ← capture (recover "privateB")
+  require "another session cannot recover the answer"
+    (outsider.process_status /= 0 && not (has_text "Which Sundays" outsider.standard_output))
+  after_retries ← read_required journal_file
+  require "all reads and rejected retries leave the committed journal byte-identical" (journal ≟ after_retries)
+  ignore $ successful_script candidate name "consent\tprivateA\tno\tno\n"
+  withdrawn ← capture (recover "privateA")
+  require "withdrawal suppresses admitted wording"
+    (withdrawn.process_status /= 0 && not (has_text "Which Sundays" withdrawn.standard_output))
+  ignore $ successful_script candidate name "consent\tprivateA\tyes\tyes\n"
+  restored ← capture (recover "privateA")
+  request_after_renewal ← model_request candidate name "privateA"
+  require "restored consent does not reactivate a withdrawn answer"
+    (restored.process_status /= 0 && not (has_text "Which Sundays" restored.standard_output) &&
+     not (has_text "Which Sundays" request_after_renewal))
+
+covering
 run : List Text → IO ()
+run ["admission", executable, materials] = do
+  require "absolute candidate and material paths" (isPrefixOf "/" executable && isPrefixOf "/" materials)
+  candidate ← isolated_candidate executable materials
+  check_admission_recovery candidate
+  putStrLn "YENTE_AICI_ADMISSION_OK"
 run [executable, materials] = do
   require "absolute candidate and material paths" (isPrefixOf "/" executable && isPrefixOf "/" materials)
   candidate ← isolated_candidate executable materials
@@ -514,7 +573,7 @@ run [executable, materials, commands] = do
   semantic_cases candidate
   check_demonstration candidate commands
   putStrLn "YENTE_AICI_ACCEPTANCE_OK"
-run _ = die "usage: yente-accept ABS_CANDIDATE ABS_MATERIALS [ABS_COMMANDS]"
+run _ = die "usage: yente-accept ABS_CANDIDATE ABS_MATERIALS [ABS_COMMANDS] | yente-accept admission ABS_CANDIDATE ABS_MATERIALS"
 
 covering
 main : IO ()
