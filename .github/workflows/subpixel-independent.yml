@@ -182,8 +182,8 @@ jobs:
         run: |
           set -eu
           mkdir -p .grease/bin
-          gh api repos/dilapidated-shed/grease/actions/artifacts/12192502970/zip > "$RUNNER_TEMP/conway-grease.zip"
-          printf '%s  %s\n' 295329ec3bb419d90364fcb5937eafe4306b03f68b7aaa63089dadde8082ffb5 "$RUNNER_TEMP/conway-grease.zip" | sha256sum -c -
+          gh api repos/dilapidated-shed/grease/actions/artifacts/14771793976/zip > "$RUNNER_TEMP/conway-grease.zip"
+          printf '%s  %s\n' 426a7cbaa041d57e948ce61d73315c2ca5e8885267980c2873bd60bc3752584b "$RUNNER_TEMP/conway-grease.zip" | sha256sum -c -
           unzip -p "$RUNNER_TEMP/conway-grease.zip" _bin/cxx-asan/ysh > .grease/bin/ysh
           curl --fail --location --silent --show-error \
             https://github.com/isomorphisms/grease/releases/download/tablet-aarch64-9b3dc8904891/grease-aarch64-termux.tar.gz \
