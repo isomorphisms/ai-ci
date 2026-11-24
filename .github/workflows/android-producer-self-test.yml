@@ -73,15 +73,13 @@ jobs:
           # they must fail closed without manufacturing an authorization verdict.
           real_git=$(command -v git)
           mkdir -p "$work/fail-git"
-          cat > "$work/fail-git/git" <<EOF
-#!/usr/bin/env bash
-for arg in "\$@"; do
-  if [[ "\$arg" == fetch ]]; then
-    exit 77
-  fi
-done
-exec "$real_git" "\$@"
-EOF
+          printf '%s\n' \
+            '#!/usr/bin/env bash' \
+            'for arg in "$@"; do' \
+            '  if [[ "$arg" == fetch ]]; then exit 77; fi' \
+            'done' \
+            "exec \"$real_git\" \"\$@\"" \
+            > "$work/fail-git/git"
           chmod +x "$work/fail-git/git"
           PATH="$work/fail-git:$PATH" expect_failure "$MERGED_BASE" \
             "AICI policy main history is unavailable for isomorphisms/ai-ci" \
