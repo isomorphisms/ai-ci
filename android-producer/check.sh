@@ -33,9 +33,28 @@ verify_merged_commit() {
     work=$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/aici-authority.XXXXXX")
     git -C "$work" init -q
     git -C "$work" remote add origin "https://github.com/$repository.git"
-    git -C "$work" fetch -q --filter=blob:none --no-tags origin         main:refs/remotes/origin/main
-    git -C "$work" fetch -q --filter=blob:none --no-tags origin         "$commit":refs/aici/candidate
-    if ! git -C "$work" merge-base --is-ancestor         refs/aici/candidate refs/remotes/origin/main
+
+    if [[ -n ${AICI_GITHUB_TOKEN:-} ]]; then
+        local basic_auth
+        basic_auth=$(printf 'x-access-token:%s' "$AICI_GITHUB_TOKEN" | base64 | tr -d '\n')
+        git -C "$work" config http.https://github.com/.extraheader \
+            "AUTHORIZATION: basic $basic_auth"
+    fi
+
+    if ! git -C "$work" fetch -q --filter=blob:none --no-tags origin \
+        main:refs/remotes/origin/main
+    then
+        rm -rf "$work"
+        fail "$label main history is unavailable for $repository"
+    fi
+    if ! git -C "$work" fetch -q --filter=blob:none --no-tags origin \
+        "$commit":refs/aici/candidate
+    then
+        rm -rf "$work"
+        fail "$label commit history is unavailable for $repository: $commit"
+    fi
+    if ! git -C "$work" merge-base --is-ancestor \
+        refs/aici/candidate refs/remotes/origin/main
     then
         rm -rf "$work"
         fail "$label commit is not merged into $repository main: $commit"
