@@ -1,9 +1,10 @@
-name: Check Task 12 lookup and deletion under independent ARM callers
+name: Check Task 12 list operations under independent ARM callers
 on:
   pull_request:
     paths:
       - 'english-major-c/identity-find/**'
       - 'english-major-c/identity-destroy/**'
+      - 'english-major-c/identity-create/**'
       - 'english-major-c/verify-task12.mjs'
       - 'ci/build-toolchain.tsv'
       - '.github/workflows/english-thumb-identity-find.yml'
@@ -25,6 +26,10 @@ jobs:
             job_name: deletion
             artifact: emc-task12-qemu-deletion
             revision: 5548fed6fa936b1f80d7a16bb9299acda6b05523
+          - operation: identity-create
+            job_name: creation
+            artifact: emc-task12-qemu-creation
+            revision: 4ea41e726a77650f7355a7f73081d33cd812460c
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
