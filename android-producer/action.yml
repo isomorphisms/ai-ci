@@ -48,4 +48,5 @@ runs:
         AICI_REQUIRE_NO_DEX: ${{ inputs.require-no-dex }}
         AICI_RECEIPT_OUTPUT: ${{ inputs.receipt-output }}
         AICI_POLICY_REF: ${{ github.action_ref }}
+        AICI_GITHUB_TOKEN: ${{ github.token }}
       run: bash "$GITHUB_ACTION_PATH/check.sh"
