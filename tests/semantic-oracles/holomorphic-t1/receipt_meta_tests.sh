@@ -7,6 +7,7 @@ observations=${1:?Pass the actual independent AICI receipt directory}
 sut=${2:?Immutable Holomorphic source revision required}
 aici=${3:?Immutable AICI verifier revision required}
 compiler=${4:?Immutable ICK compiler revision required}
+compiler_digest=${5:?Digest of the qualified ICK driver required}
 case_manifest="$root/tests/semantic-oracles/holomorphic-t1/cases.tsv"
 validator="$root/validators/verify_semantic_mutants.sh"
 scratch=$(mktemp -d)
@@ -14,7 +15,7 @@ trap 'rm -rf "$scratch"' EXIT HUP INT TERM
 
 verify() {
     sh "$validator" "$case_manifest" "$1" "$sut" "$aici" \
-        hand-derived-six-values fixed-six host-CPU-not-GPU-or-device "$compiler"
+        hand-derived-six-values fixed-six host-CPU-not-GPU-or-device "$compiler" "$compiler_digest"
 }
 verify "$observations" > "$scratch/positive.log"
 grep -Fq 'AICI-SEMANTIC-RECEIPT-ACCEPTED' "$scratch/positive.log" || {
@@ -110,4 +111,30 @@ awk -F "$tab" 'BEGIN{OFS="\t"} $1=="good" {$13="not-a-sha256"} {print}' \
 mv "$scratch/malformed-compiler-digest/temp.tsv" "$scratch/malformed-compiler-digest/aici-holomorphic-t1.tsv"
 reject_bad malformed-compiler-digest
 
-printf 'AICI-META-ACCEPTANCE valid=1 invalid-rejected=13 invalid-accepted=0\n'
+fresh wrong-compiler-digest
+awk -F "$tab" 'BEGIN{OFS="\t"} $1=="good" {$13=sprintf("%064d", 0)} {print}' \
+    "$observations/aici-holomorphic-t1.tsv" > "$scratch/wrong-compiler-digest/aici-holomorphic-t1.tsv"
+reject_bad wrong-compiler-digest
+
+fresh setup-exit
+awk -F "$tab" 'BEGIN{OFS="\t"} $1=="scale-half" {$14="126"} {print}' \
+    "$observations/aici-holomorphic-t1.tsv" > "$scratch/setup-exit/aici-holomorphic-t1.tsv"
+reject_bad setup-exit
+
+fresh swapped-mutant-log
+cp "$scratch/swapped-mutant-log/omit-fifth-semantic.log" "$scratch/swapped-mutant-log/scale-half-semantic.log"
+reject_bad swapped-mutant-log
+
+fresh reduced-corpus
+awk -F "$tab" '$1 != "omit-fifth"' "$case_manifest" > "$scratch/reduced.tsv"
+awk -F "$tab" '$1 != "omit-fifth"' "$observations/aici-holomorphic-t1.tsv" \
+    > "$scratch/reduced-corpus/aici-holomorphic-t1.tsv"
+if sh "$validator" "$scratch/reduced.tsv" "$scratch/reduced-corpus" "$sut" "$aici" \
+    hand-derived-six-values fixed-six host-CPU-not-GPU-or-device "$compiler" "$compiler_digest" \
+    > "$scratch/reduced.log" 2>&1; then
+    echo 'AICI-META-FALSE-ACCEPT case=reduced-corpus' >&2
+    exit 1
+fi
+grep -Fq 'AICI-SEMANTIC-MANIFEST-DRIFT' "$scratch/reduced.log"
+printf 'AICI-META-KILLED case=reduced-corpus\n'
+printf 'AICI-META-ACCEPTANCE valid=1 invalid-rejected=17 invalid-accepted=0\n'
