@@ -106,14 +106,26 @@ jobs:
       - name: Prove source preflight gates heavyweight mutation
         shell: sh
         run: |
-          tests/build-preflight/fixture.sh good tests/build-preflight/good.trace.tsv
-          tests/build-preflight/fixture.sh bad-order tests/build-preflight/bad-order.trace.tsv
-          tests/build-preflight/fixture.sh bad-source tests/build-preflight/bad-source.trace.tsv
-          tests/build-preflight/fixture.sh bad-revision tests/build-preflight/bad-revision.trace.tsv
-          tests/build-preflight/fixture.sh bad-no-compatibility tests/build-preflight/bad-no-compatibility.trace.tsv
-          tests/build-preflight/fixture.sh bad-tree tests/build-preflight/bad-tree.trace.tsv
-          /tmp/aici-build-preflight self-test tests/build-preflight/cases.tsv
-          git diff --exit-code -- tests/build-preflight/*.trace.tsv
+          work=$(mktemp -d "$RUNNER_TEMP/build-preflight.XXXXXXXX")
+          for trace in tests/build-preflight/*.trace.tsv; do
+            name=$(basename "$trace" .trace.tsv)
+            tests/build-preflight/fixture.sh "$name" "$work/$name.trace.tsv"
+            cmp "$trace" "$work/$name.trace.tsv"
+          done
+          manifest=tests/build-preflight/cases.tsv
+          /tmp/aici-build-preflight self-test "$manifest"
+
+          # Exercise the harness with an omitted row and with the same row twice.
+          awk -F '\t' '$1 != "fail"' "$manifest" > "$work/missing.tsv"
+          awk -F '\t' '{print} $1 == "pass" {print}' "$manifest" > "$work/duplicate.tsv"
+          for mutant in missing duplicate; do
+            if /tmp/aici-build-preflight self-test "$work/$mutant.tsv" > "$work/$mutant.log" 2>&1; then
+              echo "accepted $mutant build-preflight registration" >&2
+              exit 1
+            fi
+          done
+          grep -Fx 'unexecuted build-preflight trace: tests/build-preflight/bad-order.trace.tsv' "$work/missing.log"
+          grep -Fx 'duplicate build-preflight trace: tests/build-preflight/good.trace.tsv' "$work/duplicate.log"
       - name: Prove operational host-context preflight
         shell: sh
         run: |

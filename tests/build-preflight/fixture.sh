@@ -103,13 +103,19 @@ case "$case_name" in
         record_valid_preflight "$source"
         record_compatibility_probe "$source" "$preflight_revision"
         ;;
-    good|bad-revision)
+    good|bad-revision|bad-mutation-status|bad-build-before-acquire)
         source=refs/tags/verified
         record_valid_preflight "$source"
         record_compatibility_probe "$source" "$preflight_revision"
 
-        : > "$work/heavyweight-mutation"
-        printf 'heavyweight-mutation\tpass\t-\t-\tpkg install clang make\n' >> "$output"
+        if [ "$case_name" = bad-mutation-status ]; then
+            mkdir "$work/stage"
+            if mkdir "$work/stage" 2>/dev/null; then status=pass; else status=fail; fi
+            printf 'heavyweight-mutation\t%s\t-\t-\tmkdir stage\n' "$status" >> "$output"
+        else
+            : > "$work/heavyweight-mutation"
+            printf 'heavyweight-mutation\tpass\t-\t-\tpkg install clang make\n' >> "$output"
+        fi
 
         if [ "$case_name" = bad-revision ]; then
             printf 'changed source\n' >> "$seed/s/armv7.def"
@@ -121,13 +127,20 @@ case "$case_name" in
             git -C "$seed" push -q --force "$remote" refs/tags/verified:refs/tags/verified
         fi
 
+        if [ "$case_name" = bad-build-before-acquire ]; then
+            git -C "$preflight" show FETCH_HEAD:s/armv7.def > "$work/product"
+            printf 'build\tpass\t%s\t%s\tgit show FETCH_HEAD:s/armv7.def\n' \
+                "$source" "$preflight_revision" >> "$output"
+        fi
         init_fetch_repo "$acquire"
         fetch_ref "$acquire" "$source"
         acquired_revision=$(git -C "$acquire" rev-parse FETCH_HEAD)
         printf 'source-acquire\tpass\t%s\t%s\tgit fetch --depth=1 origin %s\n' \
             "$source" "$acquired_revision" "$source" >> "$output"
-        printf 'build\tpass\t%s\t%s\tmake -C source\n' \
-            "$source" "$acquired_revision" >> "$output"
+        if [ "$case_name" != bad-build-before-acquire ]; then
+            printf 'build\tpass\t%s\t%s\tmake -C source\n' \
+                "$source" "$acquired_revision" >> "$output"
+        fi
         ;;
     *)
         echo "unknown build-preflight fixture: $case_name" >&2
