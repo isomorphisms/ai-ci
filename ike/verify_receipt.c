@@ -36,6 +36,9 @@ static void require_line(FILE *file, const char *expected,
     if (length > 0 && line[length - 1] == '\r')
         line[--length] = '\0';
 
+    if (strcmp(line, "final_result\tPASS") == 0 &&
+        (strncmp(expected, "rule\t", 5) == 0 || strncmp(expected, "recipe\t", 7) == 0))
+        fail("missing required recipe in fresh build");
     if (strcmp(line, expected) != 0)
         fail(diagnostic);
 }

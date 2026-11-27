@@ -81,7 +81,7 @@ jobs:
       - name: Prove mutated Ike receipts are rejected
         shell: sh
         run: sh ike/tests.sh /tmp/aici-ike-receipt
-      - name: Shadow the AICI core build through Ike
+      - name: Build through Ike and verify each executed core case
         shell: sh
         env:
           AICI_C_COMPILER: ${{ steps.ick.outputs.compiler }}
@@ -89,19 +89,73 @@ jobs:
           ikefile_digest=$(sha256sum ike/Ikefile | cut -d ' ' -f 1)
           ikefile_identity="sha256:$ikefile_digest"
           receipt="$RUNNER_TEMP/ike-build-v1.tsv"
+          evidence="$RUNNER_TEMP/ike-execution"
+          mkdir "$evidence"
+          test ! -e "$receipt"
           (
             cd ike
             IKE_RECEIPT="$receipt" \
             IKE_IKEFILE_IDENTITY="$ikefile_identity" \
               /tmp/ike aici-self-test
-          )
+          ) > "$evidence/fresh.stdout"
           /tmp/aici-ike-receipt verify "$receipt" "$ikefile_identity"
           cmp /tmp/aici /tmp/aici-ike
-      - name: Upload the exact Ike shadow receipt
+          jq -Rne --rawfile manifest tests/cases.tsv -f ike/cases.jq "$evidence/fresh.stdout"
+      - name: Reject missing, duplicated and misreported case results
+        shell: sh
+        run: |
+          evidence="$RUNNER_TEMP/ike-execution"
+          controls=0
+          while IFS="$(printf '\t')" read -r mutation reason; do
+            jq -Rnr --arg mutation "$mutation" -f ike/tests/case-mutation.jq \
+              "$evidence/fresh.stdout" > "$evidence/$mutation.stdout"
+            if jq -Rne --rawfile manifest tests/cases.tsv -f ike/cases.jq \
+                "$evidence/$mutation.stdout" 2>"$evidence/$mutation.stderr"; then
+              echo "accepted damaged case output: $mutation" >&2
+              exit 1
+            else
+              test "$?" -eq 1
+            fi
+            grep -Fx "aici-ike-cases: $reason" "$evidence/$mutation.stderr"
+            printf 'rejected %s\n' "$mutation"
+            controls=$((controls+1))
+          done < ike/tests/fixtures/case-mutations.tsv
+          test "$controls" -gt 0
+      - name: Reject a real successful Ike run that skipped all recipes
+        shell: sh
+        run: |
+          evidence="$RUNNER_TEMP/ike-execution"
+          workspace="$evidence/control"
+          mkdir -p "$workspace/ike"
+          ln -s "$GITHUB_WORKSPACE/src" "$workspace/src"
+          ln -s "$GITHUB_WORKSPACE/tests" "$workspace/tests"
+          cp ike/Ikefile "$workspace/ike/Ikefile"
+          printf 'stale target\n' > "$workspace/ike/aici-self-test"
+          touch -t 203801010000 "$workspace/ike/aici-self-test"
+          digest=$(sha256sum ike/Ikefile | cut -d ' ' -f 1)
+          (
+            cd "$workspace/ike"
+            IKE_RECEIPT="$evidence/no-op.tsv" IKE_IKEFILE_IDENTITY="sha256:$digest" /tmp/ike aici-self-test
+          ) > "$evidence/no-op.stdout"
+          grep -Fx "$(printf 'final_result\tPASS')" "$evidence/no-op.tsv"
+          test ! -s "$evidence/no-op.stdout"
+          if /tmp/aici-ike-receipt verify "$evidence/no-op.tsv" "sha256:$digest" 2>"$evidence/no-op.stderr"; then
+            echo 'accepted zero recipes as a fresh build' >&2
+            exit 1
+          else
+            test "$?" -eq 1
+          fi
+          grep -Fx 'aici-ike-receipt: missing required recipe in fresh build' "$evidence/no-op.stderr"
+      - name: Upload Ike receipts and observed test output
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: aici-ike-shadow-${{ github.event.pull_request.head.sha || github.sha }}
-          path: ${{ runner.temp }}/ike-build-v1.tsv
+          path: |
+            ${{ runner.temp }}/ike-build-v1.tsv
+            ${{ runner.temp }}/ike-execution/*.stdout
+            ${{ runner.temp }}/ike-execution/*.stderr
+            ${{ runner.temp }}/ike-execution/*.tsv
           if-no-files-found: error
       - name: Prove source preflight gates heavyweight mutation
         shell: sh
