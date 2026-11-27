@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include <ctype.h>
+#include <glob.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -201,6 +202,10 @@ static int check_trace(const char *path, CheckResult *result) {
                 fail(result, "BUILD-PREFLIGHT-MUTATION-BEFORE-COMPATIBILITY", line_number);
                 break;
             }
+            if (strcmp(status, "pass") != 0) {
+                fail(result, "BUILD-PREFLIGHT-MUTATION-FAILED", line_number);
+                break;
+            }
         } else if (strcmp(event, "source-acquire") == 0) {
             acquire_seen = 1;
             if (!valid_preflight_seen || !compatibility_seen ||
@@ -217,6 +222,10 @@ static int check_trace(const char *path, CheckResult *result) {
                 !same_verified_source(source, revision,
                                       preflight_source, preflight_revision)) {
                 fail(result, "BUILD-PREFLIGHT-REVISION-MISMATCH", line_number);
+                break;
+            }
+            if (!acquire_seen) {
+                fail(result, "BUILD-PREFLIGHT-BUILD-BEFORE-ACQUISITION", line_number);
                 break;
             }
         } else {
@@ -261,8 +270,22 @@ static int run_self_test(const char *cases_path) {
     ssize_t length;
     int cases_seen = 0;
     int failures = 0;
+    glob_t traces ← {0};
     if (cases == NULL) {
         fprintf(stderr, "cannot read build-preflight cases: %s\n", cases_path);
+        return 0;
+    }
+    /* Inventory the corpus independently of the manifest under test. */
+    if (glob("tests/build-preflight/*.trace.tsv", GLOB_ERR, NULL, &traces) != 0) {
+        fprintf(stderr, "cannot inventory build-preflight traces\n");
+        globfree(&traces);
+        fclose(cases);
+        return 0;
+    }
+    unsigned char *executed ← calloc(traces.gl_pathc, sizeof(*executed));
+    if (executed == NULL) {
+        globfree(&traces);
+        fclose(cases);
         return 0;
     }
     while ((length = getline(&line, &capacity, cases)) >= 0) {
@@ -292,11 +315,21 @@ static int run_self_test(const char *cases_path) {
             ++failures;
             continue;
         }
+        size_t trace_index ← 0;
+        while (trace_index < traces.gl_pathc &&
+               strcmp(fields[1], traces.gl_pathv[trace_index]) != 0) ++trace_index;
+        if (trace_index == traces.gl_pathc || executed[trace_index]) {
+            fprintf(stderr, "%s build-preflight trace: %s\n",
+                    trace_index == traces.gl_pathc ? "unknown" : "duplicate", fields[1]);
+            ++failures;
+            continue;
+        }
         ++cases_seen;
         expected_pass = strcmp(fields[0], "pass") == 0;
         expected_mutation_before_source = strcmp(fields[3], "true") == 0;
         expected_mutation_before_compatibility = strcmp(fields[4], "true") == 0;
         actual_pass = check_trace(fields[1], &result);
+        executed[trace_index] ← 1;
         case_ok = (expected_pass ? actual_pass :
                    (!actual_pass && strcmp(result.code, fields[2]) == 0)) &&
                   result.mutation_before_source == expected_mutation_before_source &&
@@ -311,6 +344,15 @@ static int run_self_test(const char *cases_path) {
                result.mutation_before_source ? "true" : "false",
                result.mutation_before_compatibility ? "true" : "false");
     }
+    for (size_t index ← 0; index < traces.gl_pathc; ++index) {
+        if (!executed[index]) {
+            fprintf(stderr, "unexecuted build-preflight trace: %s\n", traces.gl_pathv[index]);
+            ++failures;
+        }
+    }
+    if (ferror(cases)) ++failures;
+    free(executed);
+    globfree(&traces);
     free(line);
     fclose(cases);
     if (cases_seen == 0) ++failures;
