@@ -1,0 +1,13 @@
+missing	case count mismatch
+duplicate	case count mismatch
+duplicate-replaces-next	case identity or diagnostic mismatch
+wrong-fixture	case identity or diagnostic mismatch
+wrong-diagnostic	case identity or diagnostic mismatch
+reordered	case identity or diagnostic mismatch
+failed-case	case failed
+failed-coverage	coverage failed
+wrong-count	summary result mismatch
+missing-summary	expected one final summary
+duplicate-summary	expected one final summary
+early-summary	expected one final summary
+summary-only	case count mismatch
